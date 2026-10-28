@@ -504,7 +504,8 @@ public final class PushUpstreams implements SchemaReloadListener, DisposableBean
             JsonFormat.Printer printer = JsonFormat.printer().omittingInsignificantWhitespace();
             if (u.context().getTypeRegistry() != null)
                 printer = printer.usingTypeRegistry(u.context().getTypeRegistry());
-            json = ProtoJsonText.printUtf8(printer, message);
+            json = ProtoJsonText.printUtf8(
+                    printer, message, u.context().getPrintOptions().numberFormat());
         } catch (Exception e) {
             return Mono.error(e);
         }

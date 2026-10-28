@@ -13,6 +13,7 @@ import dev.appiaworks.protobuf.extras.api.ApiStatus;
 import dev.appiaworks.protobuf.extras.serde.AbstractDynamicSerializer;
 import dev.appiaworks.protobuf.extras.serde.DynamicSerializerCompiler;
 import dev.appiaworks.protobuf.extras.serde.JsonDialect;
+import dev.appiaworks.protobuf.extras.serde.JsonNumberFormat;
 import dev.appiaworks.protobuf.extras.serde.JsonPrintOptions;
 import dev.appiaworks.protobuf.extras.serde.JsonTrees;
 import dev.appiaworks.protobuf.extras.serde.ProtoJsonMapping;
@@ -296,7 +297,7 @@ public final class ProtoJson {
         dialect.<Void, IOException>call(() -> {
             if (ProtoWkt.isWkt(descriptor)) {
                 // A Timestamp, a wrapper, a codec-mapped message: its JSON is one value, not an object.
-                ProtoWkt.writeJson(gen, dynamic);
+                ProtoWkt.writeJson(gen, dynamic, print.numberFormat());
                 return null;
             }
             // The compiled serializers print the default layout only.
@@ -552,6 +553,7 @@ public final class ProtoJson {
         private boolean preserveProtoFieldNames;
         private boolean enumsAsInts;
         private boolean omitDefaultValues;
+        private JsonNumberFormat numberFormat = JsonNumberFormat.JAVA;
         private boolean compiledSerializers = true;
         private final List<ProtoScalarCodec> codecs = new ArrayList<>();
 
@@ -636,6 +638,16 @@ public final class ProtoJson {
         }
 
         /**
+         * How {@code double} and {@code float} values are laid out: Java text ({@code 1.0}, the default) or
+         * the ECMAScript layout ({@code 1}). Like any print option, a non-default value is served by the
+         * option-aware writers, not the compiled serializers.
+         */
+        public Builder numberFormat(JsonNumberFormat format) {
+            this.numberFormat = Objects.requireNonNull(format, "format");
+            return this;
+        }
+
+        /**
          * Whether to generate a serializer per message type, and a writer per generated class,
          * when the generator is available (Java 25+ with {@code protobuf-java-extras-classfile}).
          * On by default; switch it off where generating classes at run time is unwelcome. The
@@ -672,7 +684,7 @@ public final class ProtoJson {
             return new ProtoJson(
                     // ProtoJson promises to refuse a value that does not fit its field, on every path.
                     JsonDialect.of(mapping, codecs, true),
-                    new JsonPrintOptions(preserveProtoFieldNames, enumsAsInts, omitDefaultValues),
+                    new JsonPrintOptions(preserveProtoFieldNames, enumsAsInts, omitDefaultValues, numberFormat),
                     compiledSerializers);
         }
     }

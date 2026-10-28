@@ -1,5 +1,6 @@
 package dev.appiaworks.shiguchi.config;
 
+import dev.appiaworks.protobuf.extras.serde.JsonNumberFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -828,6 +829,7 @@ public class ServiceDefinition {
         private Boolean preserveProtoFieldNames;
         private Boolean enumsAsInts;
         private Boolean omitDefaultValues;
+        private JsonNumberFormat numberFormat;
         private Boolean prettyPrint;
     }
 

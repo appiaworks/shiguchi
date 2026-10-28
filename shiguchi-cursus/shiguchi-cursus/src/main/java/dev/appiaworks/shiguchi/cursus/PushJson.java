@@ -8,6 +8,9 @@ import com.google.protobuf.ListValue;
 import com.google.protobuf.NullValue;
 import com.google.protobuf.Struct;
 import com.google.protobuf.Value;
+import dev.appiaworks.protobuf.extras.serde.JsonNumberFormat;
+import dev.appiaworks.protobuf.extras.serde.JsonNumbers;
+import dev.appiaworks.protobuf.extras.serde.JsonPrintOptions;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Map;
@@ -73,22 +76,27 @@ final class PushJson {
         }
     }
 
+    /** The value as JSON, its numbers laid out as the global print options say. */
     static byte[] toJson(Value value) {
+        return toJson(value, JsonPrintOptions.global().numberFormat());
+    }
+
+    static byte[] toJson(Value value, JsonNumberFormat numbers) {
         ByteArrayOutputStream out = new ByteArrayOutputStream(128);
         try (JsonGenerator g = JSON.createGenerator(out)) {
-            write(g, value);
+            write(g, value, numbers);
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
         return out.toByteArray();
     }
 
-    private static void write(JsonGenerator g, Value v) throws IOException {
+    private static void write(JsonGenerator g, Value v, JsonNumberFormat numbers) throws IOException {
         switch (v.getKindCase()) {
             case NUMBER_VALUE -> {
                 double d = v.getNumberValue();
                 if (d == Math.rint(d) && Math.abs(d) < 1e15) g.writeNumber((long) d);
-                else g.writeNumber(d);
+                else JsonNumbers.writeDouble(g, d, numbers);
             }
             case STRING_VALUE -> g.writeString(v.getStringValue());
             case BOOL_VALUE -> g.writeBoolean(v.getBoolValue());
@@ -97,13 +105,13 @@ final class PushJson {
                 for (Map.Entry<String, Value> e :
                         v.getStructValue().getFieldsMap().entrySet()) {
                     g.writeFieldName(e.getKey());
-                    write(g, e.getValue());
+                    write(g, e.getValue(), numbers);
                 }
                 g.writeEndObject();
             }
             case LIST_VALUE -> {
                 g.writeStartArray();
-                for (Value item : v.getListValue().getValuesList()) write(g, item);
+                for (Value item : v.getListValue().getValuesList()) write(g, item, numbers);
                 g.writeEndArray();
             }
             default -> g.writeNull();

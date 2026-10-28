@@ -7,6 +7,8 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.util.JsonFormat;
+import dev.appiaworks.protobuf.extras.serde.JsonNumberFormat;
+import dev.appiaworks.protobuf.extras.serde.JsonNumbers;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
@@ -24,6 +26,10 @@ import java.nio.charset.StandardCharsets;
  * <p>A streaming token copy: numbers are copied as the text {@code JsonFormat} wrote,
  * which is already the tiers' form ({@code Double.toString}: {@code 1.0}, {@code 1.0E20}); only
  * string escapes change. Text without a backslash has no escape to change and is returned as is.
+ *
+ * <p>With {@link JsonNumberFormat#ECMASCRIPT} the text is always re-written: a number token with a
+ * point or an exponent gets the ECMAScript layout ({@code 1.0} becomes {@code 1}); integer tokens
+ * stay as they are.
  */
 public final class ProtoJsonText {
 
@@ -37,6 +43,18 @@ public final class ProtoJsonText {
         return normalize(printer.print(message));
     }
 
+    /** {@link #print(JsonFormat.Printer, MessageOrBuilder)} with the given number layout. */
+    public static String print(JsonFormat.Printer printer, MessageOrBuilder message, JsonNumberFormat numbers)
+            throws InvalidProtocolBufferException {
+        return normalize(printer.print(message), numbers);
+    }
+
+    /** {@link #printUtf8(JsonFormat.Printer, MessageOrBuilder)} with the given number layout. */
+    public static byte[] printUtf8(JsonFormat.Printer printer, MessageOrBuilder message, JsonNumberFormat numbers)
+            throws InvalidProtocolBufferException {
+        return print(printer, message, numbers).getBytes(StandardCharsets.UTF_8);
+    }
+
     /** {@link #print} as UTF-8 bytes. */
     public static byte[] printUtf8(JsonFormat.Printer printer, MessageOrBuilder message)
             throws InvalidProtocolBufferException {
@@ -45,14 +63,22 @@ public final class ProtoJsonText {
 
     /** JSON text with its string escapes re-written the way the serde tiers write them. */
     public static String normalize(String json) {
-        if (json == null || json.indexOf('\\') < 0) return json;
+        return normalize(json, JsonNumberFormat.JAVA);
+    }
+
+    /** {@link #normalize(String)} also laying out the number tokens with a point or an exponent in {@code numbers}. */
+    public static String normalize(String json, JsonNumberFormat numbers) {
+        boolean ecmascript = numbers == JsonNumberFormat.ECMASCRIPT;
+        if (json == null || (!ecmascript && json.indexOf('\\') < 0)) return json;
         StringWriter out = new StringWriter(json.length());
         try (JsonParser parser = FACTORY.createParser(json);
                 JsonGenerator generator = FACTORY.createGenerator(out)) {
             JsonToken token;
             while ((token = parser.nextToken()) != null) {
                 // Numbers as their text: copyCurrentEventExact goes through BigDecimal (1.0E+20).
-                if (token.isNumeric()) generator.writeNumber(parser.getText());
+                if (token == JsonToken.VALUE_NUMBER_FLOAT && ecmascript) {
+                    generator.writeNumber(JsonNumbers.ecmascriptFromText(parser.getText()));
+                } else if (token.isNumeric()) generator.writeNumber(parser.getText());
                 else generator.copyCurrentEvent(parser);
             }
         } catch (IOException e) {

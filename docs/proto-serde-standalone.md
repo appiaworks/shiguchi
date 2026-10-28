@@ -88,7 +88,7 @@ ProtoJson json = ProtoJson.builder()
 The builder's switches are the ones [`shiguchi.json.*`](json-types.md#configuration)
 exposes: `dateAsText`, `timeOfDayAsText`, `dateTimeAsText`, `decimalAsText`, `moneyAsAmount`,
 `durationFormat`, `acceptIso8601Duration`, `acceptEpochMillisTimestamp`, `int64AsNumber`, and for
-layout `preserveProtoFieldNames`, `enumsAsInts`, `omitDefaultValues`. To match a gateway, set
+layout `preserveProtoFieldNames`, `enumsAsInts`, `omitDefaultValues` and `numberFormat(JsonNumberFormat.ECMASCRIPT)`. To match a gateway, set
 them the way its YAML does.
 
 ### What to expect

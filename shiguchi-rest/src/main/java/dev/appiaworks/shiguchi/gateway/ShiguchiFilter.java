@@ -1261,7 +1261,8 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
                 printer,
                 com.google.protobuf.DynamicMessage.newBuilder(output)
                         .setField(field, message.getField(field))
-                        .build());
+                        .build(),
+                options.numberFormat());
 
         // The wrapper is {"<jsonName>":<value>}, so the value is what sits between the first
         // colon after the key and the closing brace. Locating the key at the very start rather

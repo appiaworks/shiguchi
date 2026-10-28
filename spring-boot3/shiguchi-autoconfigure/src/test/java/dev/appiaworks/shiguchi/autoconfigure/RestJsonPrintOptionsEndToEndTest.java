@@ -78,6 +78,14 @@ class RestJsonPrintOptionsEndToEndTest {
         registry.add("shiguchi.services[1].json-print.preserve-proto-field-names", () -> "true");
         registry.add("shiguchi.services[1].json-print.enums-as-ints", () -> "true");
         registry.add("shiguchi.services[1].json-print.omit-default-values", () -> "true");
+
+        registry.add("shiguchi.services[2].name", () -> "numeric");
+        registry.add("shiguchi.services[2].include-methods", () -> "po.Numeric/*");
+        registry.add("shiguchi.services[2].mode", () -> "PB_FILE");
+        registry.add("shiguchi.services[2].pb-descriptor-path", () -> PB_FILE.toString());
+        registry.add("shiguchi.services[2].host", () -> "localhost");
+        registry.add("shiguchi.services[2].port", () -> BACKEND.getPort());
+        registry.add("shiguchi.services[2].json-print.number-format", () -> "ecmascript");
     }
 
     @AfterAll
@@ -165,6 +173,30 @@ class RestJsonPrintOptionsEndToEndTest {
         assertThat(body).startsWith("[").endsWith("]").contains("\"displayName\":\"Dune\"");
     }
 
+    @Test
+    @DisplayName("GIVEN a service on number-format ecmascript WHEN a double 1.0 is returned SHOULD print 1")
+    void given_ecmascriptService_when_doubleReturned_should_printWithoutPoint() {
+        String body = client.get()
+                .uri("/v1/numeric/items/1")
+                .retrieve()
+                .bodyToMono(String.class)
+                .block(Duration.ofSeconds(30));
+
+        assertThat(body).contains("\"price\":1,").contains("\"displayName\":\"Dune\"");
+    }
+
+    @Test
+    @DisplayName("GIVEN a service on the default number format WHEN a double 1.0 is returned SHOULD still print 1.0")
+    void given_defaultService_when_doubleReturned_should_printJavaText() {
+        String body = client.get()
+                .uri("/v1/plain/items/1")
+                .retrieve()
+                .bodyToMono(String.class)
+                .block(Duration.ofSeconds(30));
+
+        assertThat(body).contains("\"price\":1.0");
+    }
+
     // ── Fixtures ─────────────────────────────────────────────────────────────────────
 
     private static FileDescriptor buildFile() {
@@ -207,6 +239,11 @@ class RestJsonPrintOptionsEndToEndTest {
                             .setNumber(5)
                             .setType(FieldDescriptorProto.Type.TYPE_MESSAGE)
                             .setTypeName(".google.type.Date")
+                            .setLabel(FieldDescriptorProto.Label.LABEL_OPTIONAL))
+                    .addField(FieldDescriptorProto.newBuilder()
+                            .setName("price")
+                            .setNumber(6)
+                            .setType(FieldDescriptorProto.Type.TYPE_DOUBLE)
                             .setLabel(FieldDescriptorProto.Label.LABEL_OPTIONAL))
                     .build();
 
@@ -253,6 +290,11 @@ class RestJsonPrintOptionsEndToEndTest {
                             "items"))
                     .build();
 
+            ServiceDescriptorProto numericService = ServiceDescriptorProto.newBuilder()
+                    .setName("Numeric")
+                    .addMethod(buildMethod("Get", ".po.GetItemRequest", ".po.Item", "get", "/v1/numeric/items/{id}"))
+                    .build();
+
             FileDescriptorProto proto = FileDescriptorProto.newBuilder()
                     .setName("po/items.proto")
                     .setPackage("po")
@@ -265,6 +307,7 @@ class RestJsonPrintOptionsEndToEndTest {
                     .addMessageType(listItemsRespMsg)
                     .addService(plainService)
                     .addService(customService)
+                    .addService(numericService)
                     .build();
 
             return FileDescriptor.buildFrom(
@@ -320,6 +363,14 @@ class RestJsonPrintOptionsEndToEndTest {
         var customGet = buildMethod("po.Custom", "Get", ITEM);
         var customList = buildMethod("po.Custom", "List", FILE.findMessageTypeByName("ListItemsResponse"));
 
+        var numericGet = buildMethod("po.Numeric", "Get", ITEM);
+        ServerServiceDefinition numericService = ServerServiceDefinition.builder("po.Numeric")
+                .addMethod(numericGet, ServerCalls.asyncUnaryCall((request, observer) -> {
+                    observer.onNext(buildItem());
+                    observer.onCompleted();
+                }))
+                .build();
+
         ServerServiceDefinition plainService = ServerServiceDefinition.builder("po.Plain")
                 .addMethod(plainGet, ServerCalls.asyncUnaryCall((request, observer) -> {
                     observer.onNext(buildItem());
@@ -358,6 +409,7 @@ class RestJsonPrintOptionsEndToEndTest {
             return ServerBuilder.forPort(0)
                     .addService(plainService)
                     .addService(customService)
+                    .addService(numericService)
                     .build()
                     .start();
         } catch (IOException e) {
@@ -386,6 +438,7 @@ class RestJsonPrintOptionsEndToEndTest {
         builder.setField(ITEM.findFieldByName("kind"), kindEnum.findValueByName("BOOK"));
 
         builder.setField(ITEM.findFieldByName("stock"), 0);
+        builder.setField(ITEM.findFieldByName("price"), 1.0d);
 
         // tags is empty (repeated field, omitted when empty)
 

@@ -125,7 +125,7 @@ public final class GrpcStreamPushSource implements PushSource {
             return Mono.empty();
         }
         try {
-            SourcePayloads.Payload p = SourcePayloads.typed(message, types);
+            SourcePayloads.Payload p = SourcePayloads.typed(message, types, numberFormat());
             Map<String, String> attributes = new LinkedHashMap<>(config.getAttributes());
             attributes.put(
                     "grpc_method",
@@ -144,7 +144,7 @@ public final class GrpcStreamPushSource implements PushSource {
         byte[] data;
         String typeUrl = "type.googleapis.com/" + message.getDescriptorForType().getFullName();
         try {
-            data = SourcePayloads.typed(message, types).json();
+            data = SourcePayloads.typed(message, types, numberFormat()).json();
         } catch (Exception e) {
             data = message.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
         }
@@ -158,6 +158,13 @@ public final class GrpcStreamPushSource implements PushSource {
                 typeUrl,
                 message.toByteArray());
         log.warn("Push: source {} dead-lettered a message: {}", name, reason);
+    }
+
+    /** The number layout of this source's service, or the global one when it is no longer served. */
+    private dev.appiaworks.protobuf.extras.serde.JsonNumberFormat numberFormat() {
+        ServiceEndpointContext ctx = context();
+        return (ctx == null ? dev.appiaworks.protobuf.extras.serde.JsonPrintOptions.global() : ctx.getPrintOptions())
+                .numberFormat();
     }
 
     private ServiceEndpointContext context() {

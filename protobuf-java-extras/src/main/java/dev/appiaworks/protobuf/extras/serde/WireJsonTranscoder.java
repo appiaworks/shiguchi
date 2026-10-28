@@ -439,8 +439,10 @@ public class WireJsonTranscoder {
             throws IOException {
         switch (e.kind) {
             case MESSAGE -> writeNested(e.nested, cis, gen, depth, opts);
-            case WIRE_WKT -> writeWireWkt(e.wkt, cis, gen);
-            case WKT -> ProtoWkt.writeJson(gen, DynamicMessage.parseFrom(e.fd.getMessageType(), cis.readBytes()));
+            case WIRE_WKT -> writeWireWkt(e.wkt, cis, gen, opts.numberFormat());
+            case WKT ->
+                ProtoWkt.writeJson(
+                        gen, DynamicMessage.parseFrom(e.fd.getMessageType(), cis.readBytes()), opts.numberFormat());
             default -> writeScalarElement(e.fd, cis, gen, opts);
         }
     }
@@ -531,8 +533,12 @@ public class WireJsonTranscoder {
             throws IOException {
         switch (e.valueKind) {
             case MESSAGE -> writeNested(e.nested, cis, gen, depth, opts);
-            case WIRE_WKT -> writeWireWkt(e.valueWkt, cis, gen);
-            case WKT -> ProtoWkt.writeJson(gen, DynamicMessage.parseFrom(e.valueFd.getMessageType(), cis.readBytes()));
+            case WIRE_WKT -> writeWireWkt(e.valueWkt, cis, gen, opts.numberFormat());
+            case WKT ->
+                ProtoWkt.writeJson(
+                        gen,
+                        DynamicMessage.parseFrom(e.valueFd.getMessageType(), cis.readBytes()),
+                        opts.numberFormat());
             default -> writeScalarElement(e.valueFd, cis, gen, opts);
         }
     }
@@ -546,8 +552,10 @@ public class WireJsonTranscoder {
                 }
                 gen.writeEndObject();
             }
-            case WIRE_WKT -> writeWireWktDefault(e.valueWkt, gen);
-            case WKT -> ProtoWkt.writeJson(gen, DynamicMessage.getDefaultInstance(e.valueFd.getMessageType()));
+            case WIRE_WKT -> writeWireWktDefault(e.valueWkt, gen, opts.numberFormat());
+            case WKT ->
+                ProtoWkt.writeJson(
+                        gen, DynamicMessage.getDefaultInstance(e.valueFd.getMessageType()), opts.numberFormat());
             default -> writeDefaultScalar(e.valueFd, gen, opts);
         }
     }
@@ -565,7 +573,8 @@ public class WireJsonTranscoder {
      * occurrence of its field is last-wins, as a parse would merge it, and a field with any
      * other tag is unknown and skipped.
      */
-    private static void writeWireWkt(WireWkt kind, CodedInputStream cis, JsonGenerator gen) throws IOException {
+    private static void writeWireWkt(WireWkt kind, CodedInputStream cis, JsonGenerator gen, JsonNumberFormat nf)
+            throws IOException {
         int length = cis.readRawVarint32();
         int oldLimit = cis.pushLimit(length);
         switch (kind) {
@@ -594,7 +603,7 @@ public class WireJsonTranscoder {
                     if (tag == TAG_1_FIXED64) v = cis.readDouble();
                     else if (!cis.skipField(tag)) break;
                 }
-                gen.writeNumber(v);
+                writeDouble(gen, v, nf);
             }
             case FLOAT_VALUE -> {
                 float v = 0f;
@@ -603,7 +612,7 @@ public class WireJsonTranscoder {
                     if (tag == TAG_1_FIXED32) v = cis.readFloat();
                     else if (!cis.skipField(tag)) break;
                 }
-                gen.writeNumber(v);
+                writeFloat(gen, v, nf);
             }
             case INT64_VALUE, UINT64_VALUE -> {
                 long v = 0L;
@@ -646,9 +655,9 @@ public class WireJsonTranscoder {
                 }
                 gen.writeString(v == null ? "" : BASE64.encodeToString(v));
             }
-            case STRUCT -> writeStruct(cis, gen, 0);
-            case VALUE -> writeValue(cis, gen, 0);
-            case LIST_VALUE -> writeListValue(cis, gen, 0);
+            case STRUCT -> writeStruct(cis, gen, 0, nf);
+            case VALUE -> writeValue(cis, gen, 0, nf);
+            case LIST_VALUE -> writeListValue(cis, gen, 0, nf);
             case FIELD_MASK -> {
                 // The JSON form converts each path to lowerCamelCase: protobuf-util's rule, kept
                 // by handing it the paths as a FieldMask rather than reimplementing it.
@@ -678,7 +687,8 @@ public class WireJsonTranscoder {
      * object. A key repeated within one Struct is last-wins once parsed, which a stream cannot
      * express, so it bails; the entry layout rule is the same as for any map.
      */
-    private static void writeStruct(CodedInputStream cis, JsonGenerator gen, int depth) throws IOException {
+    private static void writeStruct(CodedInputStream cis, JsonGenerator gen, int depth, JsonNumberFormat nf)
+            throws IOException {
         if (depth > MAX_DEPTH) throw Bail.INSTANCE;
         gen.writeStartObject();
         java.util.HashSet<String> keys = null;
@@ -702,7 +712,7 @@ public class WireJsonTranscoder {
             if (entryTag == TAG_2_BYTES) {
                 int valueLength = cis.readRawVarint32();
                 int valueLimit = cis.pushLimit(valueLength);
-                writeValue(cis, gen, depth + 1);
+                writeValue(cis, gen, depth + 1, nf);
                 cis.popLimit(valueLimit);
                 entryTag = cis.readTag();
             } else {
@@ -724,7 +734,8 @@ public class WireJsonTranscoder {
      * {@code null} when none is set. A second member on the wire would replace the first once
      * parsed, which a stream cannot express, so it bails.
      */
-    private static void writeValue(CodedInputStream cis, JsonGenerator gen, int depth) throws IOException {
+    private static void writeValue(CodedInputStream cis, JsonGenerator gen, int depth, JsonNumberFormat nf)
+            throws IOException {
         if (depth > MAX_DEPTH) throw Bail.INSTANCE;
         boolean written = false;
         int tag;
@@ -740,7 +751,7 @@ public class WireJsonTranscoder {
                 cis.readEnum();
                 gen.writeNull();
             } else if (tag == TAG_2_FIXED64) {
-                writeDouble(gen, cis.readDouble());
+                writeDouble(gen, cis.readDouble(), nf);
             } else if (tag == TAG_3_BYTES) {
                 gen.writeString(cis.readStringRequireUtf8());
             } else if (tag == TAG_4_VARINT) {
@@ -748,12 +759,12 @@ public class WireJsonTranscoder {
             } else if (tag == TAG_5_BYTES) {
                 int length = cis.readRawVarint32();
                 int oldLimit = cis.pushLimit(length);
-                writeStruct(cis, gen, depth + 1);
+                writeStruct(cis, gen, depth + 1, nf);
                 cis.popLimit(oldLimit);
             } else if (tag == TAG_6_BYTES) {
                 int length = cis.readRawVarint32();
                 int oldLimit = cis.pushLimit(length);
-                writeListValue(cis, gen, depth + 1);
+                writeListValue(cis, gen, depth + 1, nf);
                 cis.popLimit(oldLimit);
             } else {
                 throw Bail.INSTANCE; // a member with the wrong wire type: not a Value a parser would build
@@ -763,7 +774,8 @@ public class WireJsonTranscoder {
     }
 
     /** The content of a ListValue (the limit already pushed): its values as a JSON array. */
-    private static void writeListValue(CodedInputStream cis, JsonGenerator gen, int depth) throws IOException {
+    private static void writeListValue(CodedInputStream cis, JsonGenerator gen, int depth, JsonNumberFormat nf)
+            throws IOException {
         if (depth > MAX_DEPTH) throw Bail.INSTANCE;
         gen.writeStartArray();
         int tag;
@@ -774,18 +786,18 @@ public class WireJsonTranscoder {
             }
             int length = cis.readRawVarint32();
             int oldLimit = cis.pushLimit(length);
-            writeValue(cis, gen, depth + 1);
+            writeValue(cis, gen, depth + 1, nf);
             cis.popLimit(oldLimit);
         }
         gen.writeEndArray();
     }
 
-    private static void writeWireWktDefault(WireWkt kind, JsonGenerator gen) throws IOException {
+    private static void writeWireWktDefault(WireWkt kind, JsonGenerator gen, JsonNumberFormat nf) throws IOException {
         switch (kind) {
             case TIMESTAMP -> gen.writeString(ProtoWkt.timestampText(0L, 0));
             case DURATION -> gen.writeString(ProtoWkt.durationText(0L, 0));
-            case DOUBLE_VALUE -> gen.writeNumber(0d);
-            case FLOAT_VALUE -> gen.writeNumber(0f);
+            case DOUBLE_VALUE -> writeDouble(gen, 0d, nf);
+            case FLOAT_VALUE -> writeFloat(gen, 0f, nf);
             case INT64_VALUE -> ProtoMapConverter.writeInt64(gen, 0L);
             case UINT64_VALUE -> ProtoMapConverter.writeUInt64(gen, 0L);
             case INT32_VALUE -> gen.writeNumber(0);
@@ -821,8 +833,8 @@ public class WireJsonTranscoder {
             case UINT64 -> ProtoMapConverter.writeUInt64(gen, cis.readUInt64());
             case FIXED64 -> ProtoMapConverter.writeUInt64(gen, cis.readFixed64());
             case BOOL -> gen.writeBoolean(cis.readBool());
-            case FLOAT -> writeFloat(gen, cis.readFloat());
-            case DOUBLE -> writeDouble(gen, cis.readDouble());
+            case FLOAT -> writeFloat(gen, cis.readFloat(), opts.numberFormat());
+            case DOUBLE -> writeDouble(gen, cis.readDouble(), opts.numberFormat());
             case STRING -> gen.writeString(cis.readStringRequireUtf8());
             case BYTES -> gen.writeString(BASE64.encodeToString(cis.readByteArray()));
             case ENUM -> writeEnum(fd, cis.readEnum(), gen, opts);
@@ -888,8 +900,8 @@ public class WireJsonTranscoder {
             case INT64, SINT64, SFIXED64 -> ProtoMapConverter.writeInt64(gen, (Long) value);
             case UINT64, FIXED64 -> ProtoMapConverter.writeUInt64(gen, (Long) value);
             case BOOL -> gen.writeBoolean((Boolean) value);
-            case FLOAT -> writeFloat(gen, (Float) value);
-            case DOUBLE -> writeDouble(gen, (Double) value);
+            case FLOAT -> writeFloat(gen, (Float) value, opts.numberFormat());
+            case DOUBLE -> writeDouble(gen, (Double) value, opts.numberFormat());
             case STRING -> gen.writeString((String) value);
             case BYTES -> gen.writeString(BASE64.encodeToString((byte[]) value));
             case ENUM -> writeEnum(fd, (Integer) value, gen, opts);
@@ -897,17 +909,17 @@ public class WireJsonTranscoder {
         }
     }
 
-    private static void writeFloat(JsonGenerator gen, float v) throws IOException {
+    private static void writeFloat(JsonGenerator gen, float v, JsonNumberFormat nf) throws IOException {
         if (Float.isFinite(v)) {
-            gen.writeNumber(v);
+            JsonNumbers.writeFloat(gen, v, nf);
         } else {
             gen.writeString(Float.isNaN(v) ? "NaN" : (v > 0 ? "Infinity" : "-Infinity"));
         }
     }
 
-    private static void writeDouble(JsonGenerator gen, double v) throws IOException {
+    private static void writeDouble(JsonGenerator gen, double v, JsonNumberFormat nf) throws IOException {
         if (Double.isFinite(v)) {
-            gen.writeNumber(v);
+            JsonNumbers.writeDouble(gen, v, nf);
         } else {
             gen.writeString(Double.isNaN(v) ? "NaN" : (v > 0 ? "Infinity" : "-Infinity"));
         }
@@ -936,7 +948,7 @@ public class WireJsonTranscoder {
             case INT32, SINT32, SFIXED32, UINT32, FIXED32 -> gen.writeNumber(0);
             case INT64, SINT64, SFIXED64, UINT64, FIXED64 -> ProtoMapConverter.writeInt64(gen, 0L);
             case BOOL -> gen.writeBoolean(false);
-            case FLOAT, DOUBLE -> gen.writeNumber(0.0);
+            case FLOAT, DOUBLE -> JsonNumbers.writeDouble(gen, 0.0, opts.numberFormat());
             case STRING, BYTES -> gen.writeString("");
             case ENUM -> writeEnum(fd, 0, gen, opts);
             default -> throw Bail.INSTANCE;

@@ -126,7 +126,7 @@ public class DynamicProtoSerde {
         if (!options.omitDefaultValues()) printer = printer.includingDefaultValueFields();
         if (options.preserveProtoFieldNames()) printer = printer.preservingProtoFieldNames();
         if (options.enumsAsInts()) printer = printer.printingEnumsAsInts();
-        return ProtoJsonText.print(printer, message);
+        return ProtoJsonText.print(printer, message, options.numberFormat());
     }
 
     /**

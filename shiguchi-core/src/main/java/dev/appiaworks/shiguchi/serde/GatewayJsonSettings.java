@@ -2,6 +2,7 @@ package dev.appiaworks.shiguchi.serde;
 
 import dev.appiaworks.protobuf.extras.ProtoJson;
 import dev.appiaworks.protobuf.extras.ProtoScalarCodec;
+import dev.appiaworks.protobuf.extras.serde.JsonNumberFormat;
 import dev.appiaworks.protobuf.extras.serde.JsonPrintOptions;
 import dev.appiaworks.protobuf.extras.serde.ProtoJsonMapping;
 import dev.appiaworks.shiguchi.config.JsonConfig;
@@ -57,7 +58,8 @@ public final class GatewayJsonSettings {
         if (print != null) {
             builder.preserveProtoFieldNames(print.isPreserveProtoFieldNames())
                     .enumsAsInts(print.isEnumsAsInts())
-                    .omitDefaultValues(print.isOmitDefaultValues());
+                    .omitDefaultValues(print.isOmitDefaultValues())
+                    .numberFormat(print.getNumberFormat() == null ? JsonNumberFormat.JAVA : print.getNumberFormat());
         }
         for (ProtoScalarCodec codec : codecs) builder.scalar(codec);
         return builder.build();
@@ -67,7 +69,10 @@ public final class GatewayJsonSettings {
     public static JsonPrintOptions printOptions(JsonConfig.PrintOptions config) {
         if (config == null) return JsonPrintOptions.DEFAULT;
         return new JsonPrintOptions(
-                config.isPreserveProtoFieldNames(), config.isEnumsAsInts(), config.isOmitDefaultValues());
+                config.isPreserveProtoFieldNames(),
+                config.isEnumsAsInts(),
+                config.isOmitDefaultValues(),
+                config.getNumberFormat());
     }
 
     /** The installed global print options with whatever the service overrides. */
@@ -80,6 +85,7 @@ public final class GatewayJsonSettings {
                         ? o.getPreserveProtoFieldNames()
                         : base.preserveProtoFieldNames(),
                 o.getEnumsAsInts() != null ? o.getEnumsAsInts() : base.enumsAsInts(),
-                o.getOmitDefaultValues() != null ? o.getOmitDefaultValues() : base.omitDefaultValues());
+                o.getOmitDefaultValues() != null ? o.getOmitDefaultValues() : base.omitDefaultValues(),
+                o.getNumberFormat() != null ? o.getNumberFormat() : base.numberFormat());
     }
 }
