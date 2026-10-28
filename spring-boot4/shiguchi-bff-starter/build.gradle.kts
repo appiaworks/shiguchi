@@ -29,12 +29,3 @@ dependencies {
     testImplementation(libs.reactor.test)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
-
-// WORKAROUND, not a fix: one request per server connection in these tests. Reactor Netty
-// reactor/reactor-netty#4361: a keep-alive request queued behind a still-live exchange and then
-// answered at once leaves the connection with no read requested, so the next request sits unread
-// until the client closes (CI runs 40614148681, 40614151438; none with keep-alive off). Fixed in
-// Reactor Netty 1.3.8 (#4347), which Boot 4.1.2 brings; drop this when springBoot4 is >= 4.1.2.
-tasks.withType<Test>().configureEach {
-    systemProperty("server.netty.max-keep-alive-requests", "1")
-}

@@ -233,6 +233,24 @@ Descriptors are compiled to serializers on first use.
 `gateway.descriptor.cache.misses / .lookups` should fall to near zero once traffic is warm; if
 the miss rate stays high, something is rebuilding descriptors per call.
 
+### A request sometimes gets no answer until the client gives up
+
+On Spring Boot 3.5, a request on a kept-alive HTTP/1.1 connection can sit unread on
+the server until the client times out and closes the connection. The access log then shows the
+request handled, quickly, at the moment the client gave up, and no event loop is busy. This is
+[reactor/reactor-netty#4361](https://github.com/reactor/reactor-netty/issues/4361): when a
+request queued behind a still-running exchange is answered at once, the connection is left with
+no read requested. It is fixed in Reactor Netty 1.3.8, which Spring Boot 4.1.2 and later bring.
+Boot 3.5 uses Reactor Netty 1.2.x, which has no fix.
+
+On Boot 3.5, one request per connection avoids it, at the cost of a new connection per request:
+
+```yaml
+server:
+  netty:
+    max-keep-alive-requests: 1
+```
+
 ### Large responses are slow
 
 Check whether you are asking for the whole message. The gateway supports field projection, and a
