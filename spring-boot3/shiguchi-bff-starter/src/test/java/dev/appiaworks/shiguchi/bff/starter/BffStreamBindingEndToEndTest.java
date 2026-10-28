@@ -129,6 +129,10 @@ class BffStreamBindingEndToEndTest {
     @BeforeEach
     void resetIssuer() {
         STUB.reset();
+        // The tests compare the connection gauges with what they read first. An earlier test's
+        // socket or stream can still be closing on a slow machine and move the gauge after that
+        // read, so start each test from none open.
+        awaitTrue(() -> metrics.connections("graphql") == 0 && metrics.connections("grpc") == 0);
     }
 
     private static String signedIn() {

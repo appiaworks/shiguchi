@@ -133,7 +133,6 @@ class BffRestStreamBindingEndToEndTest {
 
     private void assertLogoutEnds(String format, String errorMarker) {
         String cookie = signedIn();
-        int cancelledBefore = BffTestBackend.WATCH_CANCELLED.get();
         Stream stream = open(format, cookieHeaders(cookie));
         awaitTrue(() -> stream.items(format) >= 1);
 
@@ -144,7 +143,7 @@ class BffRestStreamBindingEndToEndTest {
                 .contains(errorMarker)
                 .contains("session ended")
                 .contains("UNAUTHENTICATED");
-        awaitTrue(() -> BffTestBackend.WATCH_CANCELLED.get() == cancelledBefore + 1);
+        awaitTrue(() -> BffTestBackend.WATCH_CANCELLED.contains(stream.id));
     }
 
     // ---- the store loses the session ----
@@ -165,7 +164,6 @@ class BffRestStreamBindingEndToEndTest {
 
     private void assertPollEnds(String format, String errorMarker) {
         String cookie = signedIn();
-        int cancelledBefore = BffTestBackend.WATCH_CANCELLED.get();
         Stream stream = open(format, cookieHeaders(cookie));
         awaitTrue(() -> stream.items(format) >= 1);
 
@@ -173,7 +171,7 @@ class BffRestStreamBindingEndToEndTest {
 
         awaitTrue(() -> stream.completed.get());
         assertThat(stream.text()).contains(errorMarker).contains("session ended");
-        awaitTrue(() -> BffTestBackend.WATCH_CANCELLED.get() == cancelledBefore + 1);
+        awaitTrue(() -> BffTestBackend.WATCH_CANCELLED.contains(stream.id));
     }
 
     // ---- the access token's expiry does not end it ----
@@ -257,7 +255,6 @@ class BffRestStreamBindingEndToEndTest {
     private void assertBearerEndsAtExpiry(String format, String errorMarker) {
         STUB.accessTokenLifetime(Duration.ofSeconds(3));
         String token = STUB.accessToken("alice");
-        int cancelledBefore = BffTestBackend.WATCH_CANCELLED.get();
         Stream stream = open(format, h -> h.setBearerAuth(token));
         awaitTrue(() -> stream.items(format) >= 1);
 
@@ -266,7 +263,7 @@ class BffRestStreamBindingEndToEndTest {
                 .contains(errorMarker)
                 .contains("token expired")
                 .contains("UNAUTHENTICATED");
-        awaitTrue(() -> BffTestBackend.WATCH_CANCELLED.get() == cancelledBefore + 1);
+        awaitTrue(() -> BffTestBackend.WATCH_CANCELLED.contains(stream.id));
     }
 
     // ---- helpers ----
@@ -294,7 +291,7 @@ class BffRestStreamBindingEndToEndTest {
     private static Stream open(String accept, Consumer<HttpHeaders> headers) {
         Stream stream = new Stream();
         stream.subscription = client.get()
-                .uri("/v1/watch/x")
+                .uri("/v1/watch/{text}", stream.id)
                 .headers(headers)
                 .header(HttpHeaders.ACCEPT, accept)
                 // Raw buffers: a String reader would strip the SSE framing this test asserts on.
@@ -308,8 +305,9 @@ class BffRestStreamBindingEndToEndTest {
         return stream;
     }
 
-    /** A REST stream read as it arrives. */
+    /** A REST stream read as it arrives, watching a text of its own. */
     private static final class Stream {
+        final String id = java.util.UUID.randomUUID().toString();
         final StringBuffer text = new StringBuffer();
         final AtomicBoolean completed = new AtomicBoolean();
         Disposable subscription;
