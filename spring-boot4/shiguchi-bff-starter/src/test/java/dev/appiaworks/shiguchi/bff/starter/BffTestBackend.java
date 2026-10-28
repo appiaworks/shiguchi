@@ -47,7 +47,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
  * {@code keys}) replies with the sorted names of every metadata key it received, so a test can
  * prove which request headers reach a backend. {@code lib.Echo/Watch} ({@code GET
  * /v1/watch/{text}}) is a server stream that sends the same reply every 250 ms until the call is
- * cancelled; {@link #WATCH_CANCELLED} counts the cancellations the backend saw. Also the callers the end-to-end tests use. Mirrors
+ * cancelled; {@link #WATCH_CANCELLED} records the {@code text} of every call the backend saw cancelled. Also the callers the end-to-end tests use. Mirrors
  * {@code spring-boot3/shiguchi-bff-starter}.
  */
 final class BffTestBackend {
@@ -58,12 +58,12 @@ final class BffTestBackend {
             Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER);
     static final Metadata.Key<String> PRINCIPAL = Metadata.Key.of("x-principal", Metadata.ASCII_STRING_MARSHALLER);
 
-    /** Watch calls started, and watch calls the backend saw cancelled (by the gateway or its client). */
-    static final java.util.concurrent.atomic.AtomicInteger WATCH_OPENED =
-            new java.util.concurrent.atomic.AtomicInteger();
-
-    static final java.util.concurrent.atomic.AtomicInteger WATCH_CANCELLED =
-            new java.util.concurrent.atomic.AtomicInteger();
+    /**
+     * The {@code text} of every watch call the backend saw cancelled (by the gateway or its client).
+     * A test watches a text of its own: a count would also move when an earlier test's call is
+     * cancelled late, which on a slow machine happens after the next test has read it.
+     */
+    static final java.util.Set<String> WATCH_CANCELLED = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private static final java.util.concurrent.ScheduledExecutorService TICKER =
             java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
@@ -161,7 +161,7 @@ final class BffTestBackend {
         DynamicMessage reply = DynamicMessage.newBuilder(MSG)
                 .setField(MSG.findFieldByName("text"), SEEN.get())
                 .build();
-        WATCH_OPENED.incrementAndGet();
+        String text = (String) request.getField(request.getDescriptorForType().findFieldByName("text"));
         var ticks = TICKER.scheduleAtFixedRate(
                 () -> {
                     if (!call.isCancelled()) {
@@ -177,7 +177,7 @@ final class BffTestBackend {
                 java.util.concurrent.TimeUnit.MILLISECONDS);
         call.setOnCancelHandler(() -> {
             ticks.cancel(false);
-            WATCH_CANCELLED.incrementAndGet();
+            WATCH_CANCELLED.add(text);
         });
     }
 
