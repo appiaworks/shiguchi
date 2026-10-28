@@ -33,7 +33,7 @@ import java.util.Map;
  *     numbers, booleans, lists, flat maps); empty when none
  * @param userAgent the browser's {@code User-Agent} at sign-in, truncated, or {@code null}
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public record BffSession(
         String key,
         String subject,

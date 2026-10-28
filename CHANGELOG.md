@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-28
+
 First public release. Shiguchi reads a gRPC service's schema at startup (server reflection,
 classpath stubs or a descriptor file) and serves it from Spring Boot 3 or 4 as:
 

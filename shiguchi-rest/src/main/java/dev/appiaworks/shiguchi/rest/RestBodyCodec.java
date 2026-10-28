@@ -21,7 +21,7 @@ import java.util.Map;
  * OpenAPI document (the Avro codec adds {@code x-avro-schema}), and {@link #responseHeaders} adds
  * headers to every response it encodes (the Avro codec adds the schema fingerprint).
  */
-@ApiStatus(value = ApiStatus.Status.STABLE, since = "0.4.0")
+@ApiStatus(value = ApiStatus.Status.STABLE, since = "0.14.0")
 public interface RestBodyCodec {
 
     /** The media type this codec answers with and lists in OpenAPI, e.g. {@code avro/binary}. */

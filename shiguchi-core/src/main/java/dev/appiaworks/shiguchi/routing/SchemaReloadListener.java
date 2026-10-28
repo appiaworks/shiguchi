@@ -16,7 +16,7 @@ import dev.appiaworks.protobuf.extras.api.ApiStatus;
  * classes directly made the scheduler impossible to instantiate whenever one was absent.
  */
 @FunctionalInterface
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.4.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public interface SchemaReloadListener {
 
     /** Rebuild whatever this listener derives from the registered contexts. Must not throw. */

@@ -21,7 +21,7 @@ import org.springframework.web.server.ServerWebExchange;
  * the details; the three-argument form is kept for renderers written before details existed and
  * is what the four-argument default delegates to.
  */
-@ApiStatus(value = ApiStatus.Status.STABLE, since = "0.1.0")
+@ApiStatus(value = ApiStatus.Status.STABLE, since = "0.14.0")
 public interface GatewayErrorRenderer {
 
     /**

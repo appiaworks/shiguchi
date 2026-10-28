@@ -25,7 +25,7 @@ import reactor.core.publisher.Mono;
  * atomically; a store that does not leaves {@code relay} refresh off (an expired access token is
  * then an anonymous request, as before).
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public interface BffSessionStore {
 
     /**

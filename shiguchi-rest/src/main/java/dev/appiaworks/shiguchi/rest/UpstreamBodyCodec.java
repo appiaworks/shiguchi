@@ -23,7 +23,7 @@ import java.util.Set;
  * strings for temporal logical types. The dispatcher binds that Map through the synthetic
  * response message exactly as it binds parsed JSON, so the shape seen above is identical.
  */
-@ApiStatus(value = ApiStatus.Status.STABLE, since = "0.4.0")
+@ApiStatus(value = ApiStatus.Status.STABLE, since = "0.14.0")
 public interface UpstreamBodyCodec {
 
     /** Whether this codec reads and writes {@code mediaType} (bare type, lower-case, no parameters). */

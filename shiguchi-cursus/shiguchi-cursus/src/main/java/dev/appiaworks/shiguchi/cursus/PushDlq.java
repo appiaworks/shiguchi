@@ -18,7 +18,7 @@ import java.util.UUID;
  * ({@code dlq.max-entries}); operators list, retry (publish the payload again, to the recorded
  * topic or another) and delete entries through the endpoint and the console.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class PushDlq {
 
     /**

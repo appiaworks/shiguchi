@@ -5,9 +5,9 @@ plugins {
 }
 
 group = "dev.appiaworks.shiguchi.sample"
-version = "0.13.0"
+version = "0.14.0"
 
-val gatewayVersion = providers.gradleProperty("gatewayVersion").getOrElse("0.13.0")
+val gatewayVersion = providers.gradleProperty("gatewayVersion").getOrElse("0.14.0")
 
 dependencies {
     // GraphQL gateway — REST + GraphQL, no gRPC-proxy, no gRPC-UI

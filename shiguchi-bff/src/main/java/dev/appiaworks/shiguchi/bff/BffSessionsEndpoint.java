@@ -27,7 +27,7 @@ import org.springframework.security.core.GrantedAuthority;
  * role the endpoint refuses every caller (403): there is no "any authenticated caller" default.
  */
 @Endpoint(id = "gateway-bff-sessions")
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public class BffSessionsEndpoint {
 
     private static final Duration BLOCK = Duration.ofSeconds(30);

@@ -22,7 +22,7 @@ import java.util.Map;
  * @param typeUrl the type URL of the typed payload, or null for a JSON-only event
  * @param proto the typed payload's serialized bytes, or null for a JSON-only event
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public record PushEvent(
         Topic topic,
         String id,

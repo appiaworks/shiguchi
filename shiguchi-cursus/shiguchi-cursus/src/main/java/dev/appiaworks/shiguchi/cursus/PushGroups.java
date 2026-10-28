@@ -25,7 +25,7 @@ import reactor.core.scheduler.Schedulers;
  * group starts at the topic's head. Ordering across members is the namespace's {@code ordering}:
  * none ({@code NONE}), per key at one member ({@code KEY}), or a single active member ({@code STRICT}).
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class PushGroups {
 
     private static final Logger log = LoggerFactory.getLogger(PushGroups.class);

@@ -24,7 +24,7 @@ import reactor.core.publisher.Sinks;
  * cluster. The transports report through {@link PushConnections.Live#delivered} and
  * {@link PushConnections.Live#dropped}.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class PushDeliveries implements DisposableBean {
 
     private static final Logger log = LoggerFactory.getLogger(PushDeliveries.class);

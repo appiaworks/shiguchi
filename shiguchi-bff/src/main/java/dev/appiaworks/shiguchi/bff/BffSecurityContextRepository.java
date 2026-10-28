@@ -23,7 +23,7 @@ import reactor.core.publisher.Mono;
  * computed once per request and kept on the exchange. {@link #save} does nothing: only sign-in
  * writes sessions.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class BffSecurityContextRepository implements ServerSecurityContextRepository {
 
     private static final String LOADED = BffSecurityContextRepository.class.getName() + ".loaded";

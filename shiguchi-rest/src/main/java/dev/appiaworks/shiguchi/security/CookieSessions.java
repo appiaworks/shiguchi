@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono;
  * (G4) polls it for every connection opened with the session cookie, so a socket does not outlive
  * a logout on another instance. The BFF module provides the bean.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public interface CookieSessions {
 
     /**

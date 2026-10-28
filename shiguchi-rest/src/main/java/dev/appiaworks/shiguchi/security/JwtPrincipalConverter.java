@@ -27,7 +27,7 @@ import reactor.core.publisher.Mono;
  * accept it with a null name, which every consumer of the name ({@code x-principal}, the rate
  * limit key, push sessions) would then fail on.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class JwtPrincipalConverter implements Converter<Jwt, Mono<AbstractAuthenticationToken>> {
 
     private static final Logger log = LoggerFactory.getLogger(JwtPrincipalConverter.class);

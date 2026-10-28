@@ -12,7 +12,7 @@ import java.util.Base64;
  * the {@code state}, nonce and PKCE pair. All random values are 32 bytes from {@link SecureRandom}
  * in unpadded Base64url.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class BffSessionKeys {
 
     private static final SecureRandom RANDOM = new SecureRandom();

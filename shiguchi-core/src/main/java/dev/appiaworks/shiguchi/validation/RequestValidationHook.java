@@ -16,7 +16,7 @@ import dev.appiaworks.protobuf.extras.api.ApiStatus;
  * INVALID_ARGUMENT to signal a validation failure â€” the existing gateway error
  * path converts that to HTTP 400 automatically.
  */
-@ApiStatus(value = ApiStatus.Status.STABLE, since = "0.2.0")
+@ApiStatus(value = ApiStatus.Status.STABLE, since = "0.14.0")
 public interface RequestValidationHook {
 
     void validate(DynamicMessage request, MethodDescriptor methodDescriptor);

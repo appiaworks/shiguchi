@@ -9,7 +9,7 @@ import graphql.schema.GraphQLCodeRegistry;
  * module's subscription fields are one. A bean of this type is picked up by the schema builder
  * (for the SDL) and the data fetcher registrar (for the fetchers) on every build and rebuild.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public interface GraphQlContributor {
 
     /** Declares types and fields; called on every schema build, before the SDL is assembled. */

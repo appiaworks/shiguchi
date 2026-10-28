@@ -44,7 +44,7 @@ import reactor.core.publisher.FluxSink;
  * {@code payload-format: JSON}) so the event is typed. A record that cannot be mapped is
  * dead-lettered. Needs {@code org.apache.kafka:kafka-clients} on the classpath.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class KafkaPushSource implements PushSource {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaPushSource.class);
