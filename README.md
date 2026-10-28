@@ -669,32 +669,9 @@ the latest release line (see [SECURITY.md](SECURITY.md)).
 - [docs/troubleshooting.md](docs/troubleshooting.md) — symptoms and the exact messages: 404s, backends that will not load, JSON that looks wrong, startup failures.
 - [docs/comparison.md](docs/comparison.md) — versus grpc-gateway (Go), proxy-based transcoders, plain SCG and hand-written controllers — including when to pick one of those.
 
-**Reference**
+**Everything else**
 
-- [docs/configuration.md](docs/configuration.md) — every `shiguchi.*` property, extension-point beans.
-- [docs/service-discovery.md](docs/service-discovery.md) — Eureka, Consul, Kubernetes: balancing calls across every instance of a backend, `grpc-port`, refresh, the DNS alternative.
-- [docs/http-annotations.md](docs/http-annotations.md) — `google.api.http`: verbs, path templates, `body`, `additional_bindings`, how a request becomes the gRPC message.
-- [docs/transcoding.md](docs/transcoding.md) — the serde tiers, request flow, JSON mapping rules.
-- [docs/json-types.md](docs/json-types.md) — dates, times, decimals, money and durations on every surface: the ISO forms, partial dates, input rules, GraphQL scalars, OpenAPI formats, configuration.
-- [docs/protoc-java-extras.md](docs/protoc-java-extras.md) — `setDepartsOn(LocalDate)` and `getDepartsOnAsLocalDate()` on generated proto classes: the protoc plugin, its Gradle plugin, Maven setup, type table, custom mappings.
-- [docs/proto-serde-standalone.md](docs/proto-serde-standalone.md) — the `protobuf-java-extras` artifact: `ProtoJson` for the same JSON dialect, custom scalar codecs and `ProtoTypes` converters from plain Java, without a gateway, Spring or gRPC; current limits.
-- [docs/projections-paging-sorting.md](docs/projections-paging-sorting.md) — `read_mask` / `page_request` / `sort_fields` conventions, with a Spring Data JPA backend example.
-- [docs/merging.md](docs/merging.md) — merging N backends into one sorted, paged endpoint; when the sort can be pushed down and when the gateway must materialise.
-- [docs/ui.md](docs/ui.md) — the embedded gRPC web console, with screenshots.
-- [docs/push.md](docs/push.md) — push: server-to-client messaging over SSE, WebSocket and gRPC, topics, namespaces, delivery guarantees, authorization, the admin endpoint.
-- [docs/push-cli.md](docs/push-cli.md) — `cursus`: subscribe, publish, list, search and operate a gateway's push surface from a terminal; install, profiles, every verb, exit codes.
-- [docs/grpc-web.md](docs/grpc-web.md) — gRPC-Web for browser clients without a separate proxy: grpc-web and Connect clients, `-text`, streaming, what the call goes through.
-- [docs/error-handling.md](docs/error-handling.md) — gRPC→HTTP status table, custom error bodies.
-- [docs/bff.md](docs/bff.md) — browser sign-in with a session cookie (experimental): threat model, same-origin layout, issuer setup, sessions and stores, refresh, CSRF rules, push with cookies, logout and revocation, limitations.
-- [docs/security.md](docs/security.md) — JWT resource server setup, per-surface gating, scopes and claims, what backends receive, TLS to backends, bringing your own chain.
-- [docs/validation.md](docs/validation.md) — protovalidate constraints checked at the gateway or in your gRPC server: setup, schema modes, the 400 body, custom hooks.
-- [docs/observability.md](docs/observability.md) — Micrometer metrics, the Prometheus setup and queries, the Grafana dashboard, OpenTelemetry tracing, call logging.
-- [docs/rate-limiting.md](docs/rate-limiting.md) — per-caller token buckets on REST and GraphQL, in memory or in Redis, keys, paths, headers.
-- [docs/resilience.md](docs/resilience.md) — per-service retries (and why only idempotent methods get them), the retry budget, hedging, circuit breaking, concurrency limits and channel pools.
-- [docs/caching.md](docs/caching.md) — HTTP caching rules and headers, the response cache and request coalescing, AIP-154 resource etags, compression, and the GraphQL document cache and persisted queries.
-- [docs/api-compatibility.md](docs/api-compatibility.md) — which types carry a compatibility promise, and the build gate that enforces it.
-- [docs/graphql-annotations.md](docs/graphql-annotations.md) — `(shiguchi.api.graphql)` / `(shiguchi.api.graphql_field)` proto options.
-- [docs/avro.md](docs/avro.md) — Avro to `REST_DOWNSTREAM` backends: negotiation, schema sources, value mapping, wire formats.
+- [docs/README.md](docs/README.md) — every guide, grouped by task: shaping the API, other client surfaces, backends and traffic, security, push, production, the standalone libraries and the design notes.
 - [shiguchi-benchmarks](shiguchi-benchmarks/README.md) — JMH suites and reference numbers.
 - [SECURITY.md](SECURITY.md) — security model, default posture, vulnerability reporting.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — build, test, and PR guidelines.
