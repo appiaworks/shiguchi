@@ -29,3 +29,14 @@ dependencies {
     testImplementation(libs.reactor.test)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
+
+// Reactor Netty on NIO, not native epoll. On the Linux CI runners, 7 of 8 runs had a test
+// hang for 30 s: a request reached the server's socket and was not read until the
+// test gave up and the client closed the connection, with every event loop idle (seen on Netty
+// 4.1.135 and 4.2.17, Java 25; access log and thread dump in CI runs 40614148681 and
+// 40614151438). With NIO the same tests passed twice in a row (40615153692, 40615156936). This
+// module runs dozens of servers and event loop groups in one JVM; the switch is for its tests
+// only.
+tasks.withType<Test>().configureEach {
+    systemProperty("reactor.netty.native", "false")
+}
