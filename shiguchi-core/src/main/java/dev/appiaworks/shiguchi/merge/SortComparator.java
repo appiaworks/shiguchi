@@ -122,24 +122,25 @@ public final class SortComparator {
      * path segment, in the comparator — which a sort calls O(n log n) times. Caching the resolved
      * path per descriptor keeps the cross-source correctness and pays the lookup once per
      * (descriptor × path) instead. Weak keys so a descriptor from a refreshed service context is
-     * collected rather than pinned, matching {@code GrpcDescriptorCache}.
+     * collected rather than pinned, matching {@code GrpcDescriptorCache}. The cache holds field
+     * indexes, not {@code FieldDescriptor}s: those reference their descriptor, which would pin the
+     * weak key and keep every replaced schema alive.
      */
-    private static final com.github.benmanes.caffeine.cache.Cache<Descriptor, Map<String, List<FieldDescriptor>>>
-            PATH_CACHE = com.github.benmanes.caffeine.cache.Caffeine.newBuilder()
-                    .weakKeys()
-                    .build();
+    private static final com.github.benmanes.caffeine.cache.Cache<Descriptor, Map<String, int[]>> PATH_CACHE =
+            com.github.benmanes.caffeine.cache.Caffeine.newBuilder().weakKeys().build();
 
     /** Resolves {@code path} against this specific message's descriptor, memoised per descriptor. */
-    private static List<FieldDescriptor> localPath(Descriptor descriptor, String path) {
-        Map<String, List<FieldDescriptor>> byPath =
-                PATH_CACHE.get(descriptor, d -> new java.util.concurrent.ConcurrentHashMap<>());
+    private static int[] localPath(Descriptor descriptor, String path) {
+        Map<String, int[]> byPath = PATH_CACHE.get(descriptor, d -> new java.util.concurrent.ConcurrentHashMap<>());
         return byPath.computeIfAbsent(path, p -> {
             try {
-                return resolve(descriptor, p);
+                return resolve(descriptor, p).stream()
+                        .mapToInt(FieldDescriptor::getIndex)
+                        .toArray();
             } catch (IllegalArgumentException e) {
                 // A source whose schema lacks the sort field sorts as unset rather than failing the
                 // whole page: backends in a merge can legitimately be at different schema versions.
-                return List.of();
+                return new int[0];
             }
         });
     }
@@ -149,16 +150,20 @@ public final class SortComparator {
      * missing or an intermediate message is unset.
      *
      * <p>The whole path is resolved once per root descriptor and cached, so this walks pre-resolved
-     * field descriptors rather than doing a name lookup per segment per comparison.
+     * field indexes rather than doing a name lookup per segment per comparison.
      */
     private static Object valueAt(Message message, String path) {
-        List<FieldDescriptor> resolved = localPath(message.getDescriptorForType(), path);
-        if (resolved.isEmpty()) {
+        int[] resolved = localPath(message.getDescriptorForType(), path);
+        if (resolved.length == 0) {
             return null;
         }
         Object current = message;
-        for (FieldDescriptor fd : resolved) {
-            if (!(current instanceof Message m) || !m.hasField(fd)) {
+        for (int index : resolved) {
+            if (!(current instanceof Message m)) {
+                return null;
+            }
+            FieldDescriptor fd = m.getDescriptorForType().getFields().get(index);
+            if (!m.hasField(fd)) {
                 return null;
             }
             current = m.getField(fd);

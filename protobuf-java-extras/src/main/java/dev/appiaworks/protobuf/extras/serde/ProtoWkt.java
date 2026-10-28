@@ -518,12 +518,14 @@ public final class ProtoWkt {
 
     private static Map<String, Object> structToJava(DynamicMessage struct) {
         FieldDescriptor fieldsFd = struct.getDescriptorForType().findFieldByNumber(1);
+        Descriptor entryDesc = fieldsFd.getMessageType();
+        FieldDescriptor keyFd = entryDesc.findFieldByNumber(1);
+        FieldDescriptor valueFd = entryDesc.findFieldByNumber(2);
         Map<String, Object> result = new LinkedHashMap<>();
         for (Object entryObj : (List<?>) struct.getField(fieldsFd)) {
             DynamicMessage entry = (DynamicMessage) entryObj;
-            Descriptor entryDesc = entry.getDescriptorForType();
-            String key = (String) entry.getField(entryDesc.findFieldByNumber(1));
-            DynamicMessage val = (DynamicMessage) entry.getField(entryDesc.findFieldByNumber(2));
+            String key = (String) entry.getField(keyFd);
+            DynamicMessage val = (DynamicMessage) entry.getField(valueFd);
             result.put(key, valueToJava(val));
         }
         return result;
@@ -556,14 +558,16 @@ public final class ProtoWkt {
     private static DynamicMessage structFromJava(Map<?, ?> map, Descriptor structDesc) {
         FieldDescriptor fieldsFd = structDesc.findFieldByNumber(1);
         Descriptor entryDesc = fieldsFd.getMessageType();
-        Descriptor valueDesc = entryDesc.findFieldByNumber(2).getMessageType();
+        FieldDescriptor keyFd = entryDesc.findFieldByNumber(1);
+        FieldDescriptor valueFd = entryDesc.findFieldByNumber(2);
+        Descriptor valueDesc = valueFd.getMessageType();
         DynamicMessage.Builder b = DynamicMessage.newBuilder(structDesc);
         for (var e : map.entrySet()) {
             b.addRepeatedField(
                     fieldsFd,
                     DynamicMessage.newBuilder(entryDesc)
-                            .setField(entryDesc.findFieldByNumber(1), String.valueOf(e.getKey()))
-                            .setField(entryDesc.findFieldByNumber(2), valueFromJava(e.getValue(), valueDesc))
+                            .setField(keyFd, String.valueOf(e.getKey()))
+                            .setField(valueFd, valueFromJava(e.getValue(), valueDesc))
                             .build());
         }
         return b.build();
@@ -581,13 +585,11 @@ public final class ProtoWkt {
         } else if (value instanceof Boolean bool) {
             b.setField(valueDesc.findFieldByNumber(4), bool);
         } else if (value instanceof Map<?, ?> m) {
-            b.setField(
-                    valueDesc.findFieldByNumber(5),
-                    structFromJava(m, valueDesc.findFieldByNumber(5).getMessageType()));
+            FieldDescriptor structFd = valueDesc.findFieldByNumber(5);
+            b.setField(structFd, structFromJava(m, structFd.getMessageType()));
         } else if (value instanceof List<?> l) {
-            b.setField(
-                    valueDesc.findFieldByNumber(6),
-                    listValueFromJava(l, valueDesc.findFieldByNumber(6).getMessageType()));
+            FieldDescriptor listFd = valueDesc.findFieldByNumber(6);
+            b.setField(listFd, listValueFromJava(l, listFd.getMessageType()));
         } else {
             b.setField(valueDesc.findFieldByNumber(3), String.valueOf(value));
         }

@@ -1037,6 +1037,8 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
         }
         MediaType contentType = exchange.getRequest().getHeaders().getContentType();
         String type = contentType == null ? "" : contentType.toString();
+        // Resolved once per stream, not per chunk.
+        var bodyField = HttpBodySupport.namedBodyField(base.getDescriptorForType(), route.getHttpBody());
         Flux<com.google.protobuf.DynamicMessage> messages = exchange.getRequest()
                 .getBody()
                 .map(buffer -> {
@@ -1046,7 +1048,9 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
                     return chunk;
                 })
                 .filter(chunk -> chunk.length > 0)
-                .map(chunk -> HttpBodySupport.withBody(base, route.getHttpBody(), type, chunk));
+                .map(chunk -> bodyField != null
+                        ? HttpBodySupport.withBody(base, bodyField, type, chunk)
+                        : HttpBodySupport.withBody(base, route.getHttpBody(), type, chunk));
         boolean rawOut = HttpBodySupport.rawResponse(md.getOutputType(), route.getHttpResponseBody());
         return authEnforcer
                 .enforce(route, authArguments(pathVars, queryParams), null)
