@@ -1,0 +1,30 @@
+shiguchi:
+  bff:
+    enabled: true
+    session:
+      store: REDIS
+      encryption:
+        active: k1
+        keys:
+          k1: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      idle-timeout: 20m
+      absolute-timeout: 8h
+    cookie:
+      name: __Host-gw-session
+      same-site: STRICT
+      secure: true
+    providers:
+      idp:
+        issuer-uri: https://id.example.com/realms/acme
+        client-id: gateway
+        client-secret: s3cret
+        scopes: [openid, profile]
+    applications:
+      eve:
+        origins: [https://eve.example.com]
+        providers: [idp]
+        return-to: [https://eve.example.com/]
+      fin:
+        origins: ["https://fin.example.com:8443"]
+        providers: [idp]
+        return-to: ["https://fin.example.com:8443/home"]

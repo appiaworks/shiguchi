@@ -1,0 +1,95 @@
+openapi: 3.0.3
+info:
+  title: Inventory API
+  version: 1.0.0
+servers:
+  - url: http://inventory:8080
+    description: Inventory backend
+security:
+  - oauth2:
+      - read
+      - write
+paths:
+  /items:
+    get:
+      operationId: listItems
+      tags:
+        - Items
+      summary: List all items
+      responses:
+        '200':
+          description: Success
+  /items/{sku}:
+    get:
+      operationId: getItem
+      tags:
+        - Items
+      summary: Get an item by SKU
+      parameters:
+        - name: sku
+          in: path
+          required: true
+          schema:
+            type: string
+      x-gateway-auth-scopes:
+        - inventory.read
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+    post:
+      operationId: createItem
+      tags:
+        - Items
+      summary: Create a new item
+      parameters:
+        - name: sku
+          in: path
+          required: true
+          schema:
+            type: string
+      x-gateway-auth-scopes: inventory.write inventory.admin
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+    delete:
+      tags:
+        - Items
+      summary: Delete an item
+      parameters:
+        - name: sku
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted
+components:
+  schemas:
+    Item:
+      type: object
+      properties:
+        sku:
+          type: string
+        name:
+          type: string
+        price:
+          type: number
+      required:
+        - sku
+        - name
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string

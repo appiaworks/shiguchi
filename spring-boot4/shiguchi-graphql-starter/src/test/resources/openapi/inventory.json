@@ -1,0 +1,83 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "Inventory", "version": "1.0" },
+  "paths": {
+    "/items": {
+      "get": {
+        "operationId": "listItems",
+        "summary": "List items",
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": [ "ACTIVE", "RETIRED" ] } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Item" } } } }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createItem",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Item" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Item" } } }
+          }
+        }
+      }
+    },
+    "/items/{sku}": {
+      "get": {
+        "operationId": "getItem",
+        "parameters": [ { "$ref": "#/components/parameters/SkuParam" } ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Item" } } }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteItem",
+        "parameters": [ { "$ref": "#/components/parameters/SkuParam" } ],
+        "responses": { "204": { "description": "Deleted" } }
+      }
+    },
+    "/secret": {
+      "get": {
+        "operationId": "getSecret",
+        "x-gateway-auth-scopes": [ "inventory.secret" ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "secret": { "type": "boolean" } } } } }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "SkuParam": { "name": "sku", "in": "path", "required": true, "schema": { "type": "string" } }
+    },
+    "schemas": {
+      "Item": {
+        "type": "object",
+        "properties": {
+          "sku": { "type": "string" },
+          "name": { "type": "string" },
+          "qty": { "type": "integer", "format": "int64" },
+          "category": { "$ref": "#/components/schemas/Category" }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": { "id": { "type": "integer", "format": "int32" }, "name": { "type": "string" } }
+      }
+    }
+  }
+}

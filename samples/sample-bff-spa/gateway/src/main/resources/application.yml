@@ -1,0 +1,74 @@
+server:
+  port: 8080
+
+sample:
+  backend-port: 9090
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Validates the access tokens (bearer callers and the session's own). Discovered lazily on
+          # first use, so the gateway starts even when the issuer is not up yet.
+          issuer-uri: http://localhost:9000
+
+shiguchi:
+  services:
+    - name: whoami
+      host: localhost
+      port: 9090
+      mode: DYNAMIC
+
+  # Every REST / gRPC-Web call needs a principal: a bearer token, or the session cookie.
+  # The sign-in endpoints, the static page and the push endpoints are not gated by this.
+  security:
+    mode: AUTHENTICATED
+
+  # gRPC-Web on the gateway's own port: POST /<package.Service>/<Method>, same security rule as REST.
+  grpc-web:
+    enabled: true
+
+  bff:
+    enabled: true
+    # Second CSRF layer on top of the Origin rule: state-changing calls must send X-CSRF: 1.
+    csrf-header:
+      name: X-CSRF
+    # The session cookie. The default is __Host-gw-session, which browsers only accept over
+    # https; this sample runs on plain http://localhost.
+    cookie:
+      name: gw-session
+      secure: false
+    providers:
+      local:
+        display-name: Sample issuer
+        issuer-uri: http://localhost:9000
+        client-id: gateway
+        client-secret: secret
+        scopes: [openid, profile, email]
+        upstream-token-mode: RELAY # the session's access token goes to the backend
+    applications:
+      spa:
+        # The page's own origin (exact match, no path). Cookie writes and WebSocket upgrades
+        # must carry this Origin.
+        origins: [http://localhost:8080]
+        providers: [local]
+        return-to: [http://localhost:8080/]
+        post-logout-redirect: http://localhost:8080/
+    # The access token lives 2 minutes (issuer), so the first request in its last 60 seconds
+    # refreshes it (this is the default, spelled out): one refresh per session, even with
+    # several gateway instances.
+    refresh-skew: 60s
+
+  cursus:
+    enabled: true
+    namespaces:
+      # user:<sub> may be read only by the user whose sub it is; the signed-in user may publish
+      # to it (the default publish-auth is AUTHENTICATED), which is how the page pings itself.
+      user: { auth: PRINCIPAL_MATCH }
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,gateway-routes

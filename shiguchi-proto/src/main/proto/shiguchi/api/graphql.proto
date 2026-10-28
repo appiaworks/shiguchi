@@ -1,0 +1,100 @@
+syntax = "proto3";
+package shiguchi.api;
+
+import "google/protobuf/descriptor.proto";
+
+option java_package = "dev.appiaworks.shiguchi.proto.api";
+option java_multiple_files = true;
+option java_outer_classname = "GraphQlProto";
+
+// Method option: bind a gRPC method to a GraphQL field.
+// Usage: option (shiguchi.api.graphql) = { name: "listBooks", type: QUERY };
+//
+// Settings that apply to every surface (scopes, caching, object-level authorization) live in
+// (shiguchi.api.method), see method.proto.
+message GraphQlRule {
+  // GraphQL operation type for a gRPC method binding.
+  enum Op {
+    QUERY        = 0;
+    MUTATION     = 1;
+    SUBSCRIPTION = 2;
+    RESOLVER     = 3;
+  }
+
+  // GraphQL field name (e.g. "listBooks"). Required to enable GraphQL binding.
+  string name = 1;
+  Op type = 2;
+  string description = 3;
+  string deprecation_reason = 4;
+  // For RESOLVER type: the GraphQL type that this field is added to.
+  string parent_type = 5;
+  // Expose only these proto field names (snake_case) as individual top-level GraphQL args.
+  repeated string arg_fields = 6;
+  // Extract this proto field name (snake_case) as the GraphQL return value.
+  string pluck = 7;
+
+  // Declares this method is a loader for the named GraphQL type.
+  // The method must accept a repeated ID field (identified by loader_ids_field)
+  // and return a repeated result field (identified by loader_result_field).
+  // When set, the gateway registers a DGS DataLoader for automatic N+1 resolution.
+  // Works for both single-ID deduplication and true batch calls.
+  // Example: loader_for: "Author"
+  string loader_for = 8;
+
+  // Proto field name (snake_case) in the request message that carries the list of IDs.
+  // Required when loader_for is set.
+  // Example: loader_ids_field: "ids"
+  string loader_ids_field = 9;
+
+  // Proto field name (snake_case) in the response message that carries the result objects.
+  // Defaults to the first repeated message field in the response if not specified.
+  // Example: loader_result_field: "types"
+  string loader_result_field = 10;
+}
+
+// Field option: customize how a proto field is exposed in GraphQL.
+// Usage: string author_id = 3 [(shiguchi.api.graphql_field) = { resolves_type: "Author" }];
+message GraphQlFieldRule {
+  // Emit field as non-nullable (Type!) in GraphQL schema.
+  bool required = 1;
+  // Use GraphQL ID scalar instead of the inferred type.
+  bool id = 2;
+  // Exclude this field from the GraphQL schema entirely.
+  bool omit = 3;
+  // Override the GraphQL field name (aliasing without changing the proto).
+  string name = 4;
+  // Inject a default value in input types (e.g. "50" for Int fields).
+  string default = 5;
+  // Doc-string emitted as a GraphQL description.
+  string description = 6;
+  // Emits @deprecated(reason: "...") when non-empty.
+  string deprecation_reason = 7;
+  // Reserved for future resolver chaining.
+  string resolver = 8;
+
+  // Declares this field is a reference to one or more GraphQL types by ID.
+  // Each value is a GraphQL type name the ID resolves to.
+  // The gateway registers a DGS DataLoader-backed resolver per type.
+  // For a single type the resolver GraphQL field name is derived from the proto field name
+  // (strip trailing _id, camelCase). For multiple types the name is additionally derived
+  // from the type name (e.g. Author→author, AuthorRef→authorRef).
+  // Example (single):   string author_id = 3 [(shiguchi.api.graphql_field) = { resolves_type: "Author" }];
+  // Example (multi):    string author_id = 2 [(shiguchi.api.graphql_field) = { resolves_type: "Author", resolves_type: "AuthorRef" }];
+  repeated string resolves_type = 9;
+
+  // Marks this field as the primary identifier used for DataLoader batch keying.
+  // Distinct from `id` (which controls GraphQL scalar type): batch_key controls
+  // which field the gateway uses to index results when resolving batch gRPC calls.
+  // Example: int64 id = 1 [(shiguchi.api.graphql_field) = { id: true, batch_key: true }];
+  bool batch_key = 10;
+}
+
+// Method option: bind a gRPC RPC to a GraphQL field.
+extend google.protobuf.MethodOptions {
+  GraphQlRule graphql = 50100;
+}
+
+// Field option: customize GraphQL schema exposure of a proto field.
+extend google.protobuf.FieldOptions {
+  GraphQlFieldRule graphql_field = 50101;
+}

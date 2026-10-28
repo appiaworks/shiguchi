@@ -1,0 +1,14 @@
+shiguchi:
+  bff:
+    enabled: true
+    providers:
+      idp:
+        client-id: gateway
+    applications:
+      eve:
+        origins: ["https://eve.example.com/app"]
+        providers: [nope]
+        return-to: ["/home"]
+    cookie:
+      name: __Host-gw-session
+      secure: false

@@ -1,0 +1,63 @@
+server:
+  port: 8080
+
+shiguchi:
+  services:
+    # Both backends serve sample.merge.OrderService. They are registered under different names
+    # and path prefixes so each stays individually reachable; the merged endpoint below is what
+    # callers actually use.
+    - name: orders-eu
+      host: localhost
+      port: 9101
+      mode: DYNAMIC
+      path-prefix: /eu
+    - name: orders-us
+      host: localhost
+      port: 9102
+      mode: DYNAMIC
+      path-prefix: /us
+    # Not gRPC at all: a JSON array behind an OpenAPI document. The gateway derives a synthetic
+    # service from the document (rest.legacy.LegacyService, one rpc per operationId), which is
+    # what the merge names below.
+    - name: legacy
+      mode: REST_DOWNSTREAM
+      openapi-url: http://localhost:9103/v3/api-docs
+      path-prefix: /legacy
+
+  merge:
+    routes:
+      # One endpoint, both backends. Callers send ?sort= and ?pageSize= exactly as they would to
+      # any single-backend list endpoint.
+      - path: /eu/v1/orders
+        method: GET
+        # Orders can share a placed_at or a customer, so the merge needs a stable last key —
+        # without it a page boundary landing inside a group of tied rows cannot tell which were
+        # already served, and pages may repeat or drop them.
+        tie-break-field: id
+        sources:
+          # Both shards serve the SAME proto service, so each source names its endpoint — without
+          # that they are indistinguishable and the merge would read one backend twice.
+          # Honours sort_fields: the gateway pushes the sort down and streams a bounded window.
+          - endpoint: orders-eu
+            service: sample.merge.OrderService
+            rpc: listOrders
+            presorted: true
+          # Ignores sort_fields: the gateway reads this source in full and sorts it in memory.
+          # Correct at this size, but it re-reads every page — see docs/merging.md for why there
+          # is no bounded middle ground for an unsorted backend.
+          - endpoint: orders-us
+            service: sample.merge.OrderService
+            rpc: listOrders
+            presorted: false
+          # An HTTP source. Its array response is split into rows and merged with the gRPC
+          # records; it cannot be handed sort_fields or a window, so it is always read whole —
+          # `presorted` would be ignored here.
+          - endpoint: legacy
+            service: rest.legacy.LegacyService
+            rpc: listOrders
+
+logging:
+  level:
+    dev.appiaworks.shiguchi.rest.MergeDispatcher: DEBUG
+    dev.appiaworks.shiguchi.rest.MergeSpecResolver: INFO
+    dev.appiaworks.shiguchi.sample.merge: INFO

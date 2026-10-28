@@ -1,0 +1,53 @@
+{
+  "_comment": "Example frames of the push.v1.json protocol. Shared by the TypeScript client tests and by PushClientProtocolFixtureTest in shiguchi-cursus, which drives PushWebSocketHandler and checks that the server frames keep these field names. Values are examples; ids and times are normalised by the JVM test.",
+  "client": {
+    "connect": { "type": "connect", "token": "eyJhbGciOiJIUzI1NiJ9.e30.sig", "origin": "web-7f3a" },
+    "refresh": { "type": "refresh", "token": "eyJhbGciOiJIUzI1NiJ9.e30.sig" },
+    "sub": {
+      "type": "sub",
+      "topics": ["orders:42"],
+      "after": { "orders:42": "1759953600000000042" },
+      "origin": "web-7f3a"
+    },
+    "unsub": { "type": "unsub", "topics": ["orders:42"] },
+    "pub": {
+      "type": "pub",
+      "topic": "orders:42",
+      "data": { "status": "PACKED" },
+      "attributes": { "tenant": "acme" },
+      "key": "k1"
+    },
+    "ack": { "type": "ack", "topic": "orders:42", "id": "1759953600000000042" },
+    "ping": { "type": "ping" }
+  },
+  "server": {
+    "connected": {
+      "type": "connected",
+      "connectionId": "c3a9f0d2",
+      "authenticated": true,
+      "limits": { "maxSubscriptions": 100, "maxMessageBytes": 65536 },
+      "keepaliveMs": 25000
+    },
+    "subscribed": { "type": "subscribed", "topic": "orders:42", "position": "1759953600000000042", "qos": "AT_LEAST_ONCE" },
+    "unsubscribed": { "type": "unsubscribed", "topic": "orders:42" },
+    "event": {
+      "type": "event",
+      "topic": "orders:42",
+      "id": "1759953600000000043",
+      "data": { "status": "SHIPPED" },
+      "attributes": { "tenant": "acme" },
+      "key": "k1",
+      "time": 1759953600000
+    },
+    "published": { "type": "published", "topic": "orders:42", "id": "1759953600000000044" },
+    "acked": { "type": "acked", "topic": "orders:42", "cursor": "1759953600000000043" },
+    "error": { "type": "error", "code": "bad_request", "message": "unknown frame type 'nope'" },
+    "errorWithTopic": { "type": "error", "code": "forbidden", "message": "not allowed", "topic": "orders:42" },
+    "overflow": { "type": "overflow", "topic": "orders:42", "reason": "queue_full" },
+    "overflowSession": { "type": "overflow", "topic": "orders:42", "reason": "session_overflow", "dropped": 4 },
+    "reset": { "type": "reset", "topic": "orders:42", "reason": "history_gap" },
+    "pong": { "type": "pong" },
+    "close": { "type": "close", "code": 1012, "reason": "rebalance" },
+    "closeSessionEnded": { "type": "close", "code": 4440, "reason": "session ended" }
+  }
+}

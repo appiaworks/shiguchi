@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BFF sample</title>
+    <style>
+      body { font: 15px/1.5 system-ui, sans-serif; max-width: 52rem; margin: 2rem auto; padding: 0 1rem; }
+      section { border: 1px solid #8884; border-radius: 6px; padding: .75rem 1rem; margin: 1rem 0; }
+      h1 { font-size: 1.3rem; } h2 { font-size: 1rem; margin: 0 0 .5rem; }
+      button { margin-right: .5rem; }
+      pre { background: #8881; padding: .5rem; overflow-x: auto; white-space: pre-wrap; word-break: break-all; margin: .5rem 0 0; }
+      #push-log { max-height: 14rem; overflow-y: auto; }
+    </style>
+  </head>
+  <body>
+    <h1>BFF sample: sign in without a token in the browser</h1>
+
+    <section>
+      <h2>Session <code>/bff/session</code></h2>
+      <div id="providers"></div>
+      <pre id="session">loading...</pre>
+      <button id="logout" disabled>Log out</button>
+    </section>
+
+    <section>
+      <h2>Who am I? (cookie only, no token in this page)</h2>
+      <button id="rest" disabled>REST: GET /v1/whoami</button>
+      <button id="grpcweb" disabled>gRPC-Web: sample.bff.WhoAmI/Whoami</button>
+      <pre id="who">-</pre>
+    </section>
+
+    <section>
+      <h2>Push <code>user:&lt;sub&gt;</code> over the cookie</h2>
+      <div>State: <b id="push-state">idle</b></div>
+      <button id="ping" disabled>Publish an event to myself</button>
+      <pre id="push-log"></pre>
+    </section>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

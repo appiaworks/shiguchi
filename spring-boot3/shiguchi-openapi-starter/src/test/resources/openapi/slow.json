@@ -1,0 +1,19 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "Slow", "version": "1.0" },
+  "servers": [ { "url": "http://slow.internal:8080" } ],
+  "paths": {
+    "/slow": {
+      "get": {
+        "operationId": "slowItem",
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "state": { "type": "string" } } } } } } }
+      }
+    },
+    "/quick": {
+      "get": {
+        "operationId": "quickItem",
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "state": { "type": "string" } } } } } } }
+      }
+    }
+  }
+}

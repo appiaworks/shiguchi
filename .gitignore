@@ -1,0 +1,48 @@
+# Java / Gradle
+.gradle/
+# Kotlin compiler caches (buildSrc and any Kotlin DSL compilation)
+.kotlin/
+build/
+gradle/wrapper/dists/
+*.class
+*.jar
+# The Gradle wrapper jar must be committed so CI can bootstrap ./gradlew.
+!gradle/wrapper/gradle-wrapper.jar
+*.war
+*.zip
+*.log
+out/
+*.iml
+target/
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+.npm
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env.local
+.env.*.local
+
+# IDE / tooling
+.claude/settings.local.json
+
+# Generated / Build outputs
+shiguchi-ui/src/main/resources/static/
+# Eclipse JDT / Buildship compile output (VS Code Java extension) in any module
+bin/
+# ...except the repository root bin/ (the cursus wrappers)
+!/bin/
+.playwright-mcp/

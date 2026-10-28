@@ -1,0 +1,27 @@
+# `--spring.profiles.active=redis`: the same limits, but the buckets live in Redis so every
+# gateway instance behind a load balancer counts the same caller against the same bucket.
+#
+#   docker run --rm -p 6379:6379 redis:7
+#
+shiguchi:
+  rate-limit:
+    backend: REDIS
+    redis:
+      key-prefix: "sample-gateway:rate-limit:"   # keys: <prefix><caller>.tokens / .timestamp
+      # What to do when Redis is unreachable. true (default) lets traffic through unlimited and
+      # logs a warning; false refuses everything with 429 until Redis is back. Pick false only
+      # when the limit protects something more important than availability.
+      fail-open: true
+
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      # password: ${REDIS_PASSWORD}
+      timeout: 500ms
+
+management:
+  health:
+    redis:
+      enabled: true   # this profile does use Redis, so its health is worth reporting

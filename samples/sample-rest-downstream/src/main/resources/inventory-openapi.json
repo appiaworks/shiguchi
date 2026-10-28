@@ -1,0 +1,87 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "Inventory (legacy REST)", "version": "2.1.0" },
+  "servers": [ { "url": "http://inventory.internal:8081" } ],
+  "security": [ { "bearer": [] } ],
+  "tags": [ { "name": "Items", "description": "Stock keeping units" } ],
+  "paths": {
+    "/items": {
+      "get": {
+        "operationId": "listItems",
+        "summary": "List every item (hidden by the gateway's exclude-methods)",
+        "tags": [ "Items" ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Item" } } } }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createItem",
+        "summary": "Create an item (requires scope inventory.write at the gateway)",
+        "tags": [ "Items" ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Item" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Item" } } }
+          }
+        }
+      }
+    },
+    "/items/{sku}": {
+      "get": {
+        "operationId": "getItem",
+        "summary": "Fetch one item",
+        "tags": [ "Items" ],
+        "parameters": [ { "$ref": "#/components/parameters/SkuParam" } ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Item" } } }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "operationId": "deleteItem",
+        "summary": "Delete an item (declares its scopes in the document itself)",
+        "tags": [ "Items" ],
+        "x-gateway-auth-scopes": [ "inventory.admin" ],
+        "parameters": [ { "$ref": "#/components/parameters/SkuParam" } ],
+        "responses": { "204": { "description": "Deleted" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": { "bearer": { "type": "http", "scheme": "bearer" } },
+    "parameters": {
+      "SkuParam": { "name": "sku", "in": "path", "required": true, "schema": { "type": "string" } }
+    },
+    "responses": {
+      "NotFound": {
+        "description": "Not found",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    },
+    "schemas": {
+      "Item": {
+        "type": "object",
+        "required": [ "sku", "name" ],
+        "properties": {
+          "sku": { "type": "string" },
+          "name": { "type": "string" },
+          "qty": { "type": "integer", "format": "int64" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": { "code": { "type": "string" }, "message": { "type": "string" } }
+      }
+    }
+  }
+}

@@ -1,0 +1,654 @@
+name: CI
+
+# Every change reaches main and release/** through a squash-merged PR, and the PR run has
+# already built exactly the tree that lands, so there is no push trigger for branches: a
+# post-merge rebuild re-proves what the PR just proved. Tags still build (then publish); PRs
+# into release/** are validated the same way as PRs into main, so a backport is checked before
+# the tag push that publishes it.
+#
+# Every job runs on GitHub-hosted runners (ubuntu-latest). Each one carries a timeout-minutes
+# bound so a hung job fails in a useful timeframe instead of running to GitHub's 360-minute
+# default.
+on:
+  push:
+    tags: ["v*"]
+  # On demand: a dispatch on any branch builds and tests; publishing stays gated on a tag.
+  workflow_dispatch:
+  pull_request:
+    branches: ["main", "release/**"]
+  # Nightly on main: writes the Gradle User Home cache that PR runs restore from (see the
+  # "Set up Gradle" step). Without a main run there is no cache a PR is allowed to read.
+  schedule:
+    - cron: "23 3 * * *"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/shiguchi
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # Build & test all library modules
+  # ──────────────────────────────────────────────────────────────────────────
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    # Bounds a hung job. A cold build plus the sample smoke test takes ~15-17 min on a hosted
+    # runner.
+    timeout-minutes: 45
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Spotless ratchet needs the base ref present, so fetch full history
+          fetch-depth: 0
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          java-version: "25"
+          distribution: temurin
+
+      # Gradle User Home cache (dependencies, wrapper, node) instead of setup-java's `cache: gradle`.
+      # setup-java keys on a hash of the build files with no fallback, so every Renovate PR
+      # missed and downloaded everything, then uploaded ~580 MB no other PR could read.
+      # setup-gradle restores the closest entry written on main (partial hit: only the changed
+      # dependencies download) and is read-only on PRs; the nightly run on main writes it.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      # Ratchet against the branch this change actually targets. On a release/* PR the default
+      # (origin/main) would flag every file that differs between the two lines, demanding a
+      # reformat of code the PR never touched. Pushes ratchet against their own branch, so only
+      # what the push introduced is checked.
+      - name: Resolve Spotless ratchet base
+        id: ratchet
+        run: |
+          if [ -n "${{ github.base_ref }}" ]; then
+            echo "base=origin/${{ github.base_ref }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "base=origin/main" >> "$GITHUB_OUTPUT"
+          else
+            echo "base=origin/${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      # publishToMavenLocal rides along for the sample smoke test at the end of this job. In the same
+      # Gradle invocation it only adds the jar/POM/javadoc tasks; run in its own job on a fresh pod
+      # it recompiled every module and cost ~6 minutes per PR.
+      - name: Build and test
+        run: ./gradlew build publishToMavenLocal --continue -PspotlessRatchetFrom=${{ steps.ratchet.outputs.base }}
+
+      - name: Upload test reports
+        continue-on-error: true # diagnostics only: a full artifact quota must not fail the job (and skip publishing)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-reports
+          path: "**/build/reports/tests/"
+          retention-days: 7
+
+      # Which test failed, on the PR's Files tab, without downloading the report artifact and
+      # opening its HTML. Same job, so no extra billed minute.
+      - name: Annotate test results
+        if: always()
+        uses: mikepenz/action-junit-report@6ef3fdcfcd5f0b5d14df3e659ef19b8c6820f93d # v6.6.1
+        with:
+          report_paths: "**/build/test-results/test/TEST-*.xml"
+          annotate_only: true # never fail the job: the build step above already decided that
+          detailed_summary: true
+
+      # JaCoCo runs as part of `build` (see the root build.gradle.kts). Nothing is enforced —
+      # the report is here for whoever wants to look at what a change did or did not exercise.
+      - name: Upload coverage reports
+        continue-on-error: true # diagnostics only: a full artifact quota must not fail the job (and skip publishing)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-reports
+          path: "**/build/reports/jacoco/"
+          # ~6 MB a run and most of the org's artifact storage at 7 days; look at it the same day.
+          retention-days: 1
+
+      # Boot a sample against the libraries this PR builds and call it over HTTP.
+      #
+      # The module tests cover the gateway from inside a Spring context. What they cannot catch is
+      # the consumer path: samples resolve the *published* io.github.appiaworks:* artifacts, so a POM
+      # missing a runtime dependency, or a starter that stopped autoconfiguring something, breaks
+      # every consumer while every module test stays green. That is exactly how the v0.1.0 classpath
+      # gap shipped.
+      #
+      # sample-discovery-gateway rather than sample-full: it runs its own backends in-process, so a
+      # real REST call reaches a real gRPC service with no external dependency to stand up.
+      #
+      # Folded into this job rather than its own: a separate job started a fresh runner and re-ran
+      # publishToMavenLocal from scratch. Skipped on tag pushes, which go straight to image/publish;
+      # the nightly run includes it so the sample's dependencies land in the main cache too.
+      - name: Build the sample
+        if: success() && github.event_name != 'push'
+        run: |
+          GATEWAY_VERSION=$(grep -oP 'version = "\K[^"]+' build.gradle.kts | head -1)
+          # sample-protobuf-java-extras:check rides along: the same consumer-path check for the
+          # non-gateway artifacts (protobuf-java-extras, the protoc plugin, and the Gradle plugin
+          # resolved by id from mavenLocal). Its tests run the sample; no network service needed.
+          ./gradlew -p samples sample-discovery-gateway:bootJar sample-protobuf-java-extras:check -PgatewayVersion="$GATEWAY_VERSION"
+
+      - name: Boot it
+        if: success() && github.event_name != 'push'
+        run: |
+          JAR="$(ls samples/sample-discovery-gateway/build/libs/*.jar | grep -v -- '-plain.jar' | head -1)"
+          echo "Booting $JAR"
+          java -jar "$JAR" > /tmp/sample.log 2>&1 &
+          echo $! > /tmp/sample.pid
+
+          for i in $(seq 1 60); do
+            if curl -fsS localhost:8080/actuator/health > /dev/null 2>&1; then
+              echo "up after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "Sample did not become healthy within 60s:"; cat /tmp/sample.log; exit 1
+
+      - name: Call it
+        if: success() && github.event_name != 'push'
+        run: |
+          set -euo pipefail
+
+          # The shiguchi indicator specifically, not the overall status. Spring's own
+          # discoveryComposite reports UNKNOWN here (this sample's DiscoveryClient is not one of
+          # the ones it knows how to probe), and it appears before shiguchi in the document —
+          # so a "first status field" check would read UNKNOWN and fail a healthy gateway.
+          # What matters is that a backend's schema loaded, which is what this indicator says.
+          HEALTH=$(curl -fsS localhost:8080/actuator/health)
+          echo "$HEALTH"
+          echo "$HEALTH" | grep -q '"shiguchi":{"status":"UP"' \
+            || { echo "shiguchi indicator is not UP"; cat /tmp/sample.log; exit 1; }
+
+          # A REST call transcoded to gRPC and back. servedBy is stamped by the backend that
+          # answered, so a response carrying one proves the whole path end to end.
+          BODY=$(curl -fsS localhost:8080/v1/products)
+          echo "GET /v1/products -> $BODY"
+          echo "$BODY" | grep -q '"servedBy"' || { echo "no servedBy in response"; exit 1; }
+          echo "$BODY" | grep -q 'A100' || { echo "no catalog data in response"; exit 1; }
+
+          # The OpenAPI document is generated from the discovered schema, not a static file.
+          curl -fsS localhost:8080/v3/api-docs | grep -q '/v1/products' \
+            || { echo "route missing from the OpenAPI document"; exit 1; }
+
+          echo "Smoke test passed."
+
+      - name: Stop it
+        if: always()
+        run: |
+          [ -f /tmp/sample.pid ] && kill "$(cat /tmp/sample.pid)" 2>/dev/null || true
+
+      - name: Upload sample log
+        continue-on-error: true # diagnostics only: a full artifact quota must not fail the job (and skip publishing)
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sample-smoke-log
+          path: /tmp/sample.log
+          retention-days: 7
+          if-no-files-found: ignore # a failed build never got as far as booting the sample
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Type-check and build the console frontend.
+  #
+  # The bundled assets in shiguchi-ui are Gradle build output, not committed: shiguchi-ui's npmBuild task
+  # runs `npm run build` (`tsc` + Vite), so a type error also fails the Gradle build. This job adds
+  # the lint and fails fast on frontend changes, including the push client the console compiles
+  # from shiguchi-cursus-client-js/src, without waiting for the JVM build.
+  #
+  # Path-filtered: a backend-only PR skips the job entirely and costs no minutes.
+  #
+  # Lints with oxlint rather than ESLint: the frontend is on TypeScript 7 and typescript-eslint
+  # supports < 6.1, so ESLint has no parser for these files at all. oxlint parses TypeScript
+  # natively and carries the react-hooks rules.
+  # ──────────────────────────────────────────────────────────────────────────
+  # The serde without its code generator. The libraries are Java 21 bytecode; the generated
+  # tiers (protobuf-java-extras-classfile) need Java 25 at run time. On 21 the fallback paths —
+  # the wire transcoder and the reflective converter — must keep every contract, so the serde
+  # tests run on a Java 21 launcher. The build itself stays on 25 (the classfile module cannot
+  # compile elsewhere); the tests that need the generator skip themselves.
+  # ──────────────────────────────────────────────────────────────────────────
+  fallback-jdk21:
+    name: Serde fallback on Java 21
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up JDK 21 (test launcher)
+        id: jdk21
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          java-version: "21"
+          distribution: temurin
+
+      - name: Set up JDK 25 (build)
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          java-version: "25"
+          distribution: temurin
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - name: Run the serde tests on Java 21
+        run: >-
+          ./gradlew :protobuf-java-extras:test :shiguchi-core:test --continue
+          -PtestJavaVersion=21
+          "-Porg.gradle.java.installations.paths=${{ steps.jdk21.outputs.path }}"
+
+      - name: Upload test reports
+        continue-on-error: true # diagnostics only: a full artifact quota must not fail the job (and skip publishing)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-reports-jdk21
+          path: |
+            protobuf-java-extras/build/reports/tests/
+            shiguchi-core/build/reports/tests/
+          retention-days: 7
+
+  # ──────────────────────────────────────────────────────────────────────────
+  frontend:
+    name: Console Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      # Depth 2: a PR checks out its merge commit, whose first parent is the base branch tip, so
+      # the two commits are all the change detection below needs.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+
+      # Diffs the merge commit against its first parent: exactly what the PR changes, with no
+      # network fetch. The earlier version fetched the base at depth 1 and diffed with `...`, which
+      # needs a merge base the shallow clone never had. git diff failed, grep saw nothing, and the
+      # job reported "skipping" even on PRs that changed the frontend (Renovate's monaco-editor bump
+      # among them). A failed diff now fails the step instead of skipping.
+      - name: Check whether the frontend changed
+        id: changed
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          CHANGED="$(git diff --name-only HEAD^1 HEAD)"
+          if grep -qE '^(shiguchi-ui-frontend/|shiguchi-cursus-client-js/src/)' <<< "$CHANGED"; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "No changes under shiguchi-ui-frontend/ or shiguchi-cursus-client-js/src/ — skipping."
+          fi
+
+      # 22, not 20: jsdom 30 (via undici 8) calls webidl.util.markAsUncloneable, which Node 20
+      # does not have — every test file dies with "is not a function" before a test runs.
+      # Reproduced on 20.20.2, passes on 22 and 24. LTS 22 is the floor package.json declares.
+      - name: Set up Node 22
+        if: steps.changed.outputs.run == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: shiguchi-ui-frontend/package-lock.json
+
+      # `npm ci` rather than `npm install`: it installs exactly the lockfile and fails when
+      # package.json and the lockfile disagree, which is the thing worth catching here.
+      - name: Install (clean, from the lockfile)
+        if: steps.changed.outputs.run == 'true'
+        working-directory: shiguchi-ui-frontend
+        run: npm ci
+
+      - name: Lint
+        if: steps.changed.outputs.run == 'true'
+        working-directory: shiguchi-ui-frontend
+        run: npm run lint
+
+      - name: Test
+        if: steps.changed.outputs.run == 'true'
+        working-directory: shiguchi-ui-frontend
+        run: npm test
+
+      - name: Type-check and build
+        if: steps.changed.outputs.run == 'true'
+        working-directory: shiguchi-ui-frontend
+        run: npm run build
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # The TypeScript push client (shiguchi-cursus-client-js/): same setup as the console's job above.
+  # Its frame fixture is also read by PushClientProtocolFixtureTest in the Gradle build.
+  push-client:
+    name: Cursus Client (JS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+
+      - name: Check whether the push client changed
+        id: changed
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          CHANGED="$(git diff --name-only HEAD^1 HEAD)"
+          if grep -q '^shiguchi-cursus-client-js/' <<< "$CHANGED"; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "No changes under shiguchi-cursus-client-js/ — skipping."
+          fi
+
+      - name: Set up Node 24
+        if: steps.changed.outputs.run == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: shiguchi-cursus-client-js/package-lock.json
+
+      - name: Install (clean, from the lockfile)
+        if: steps.changed.outputs.run == 'true'
+        working-directory: shiguchi-cursus-client-js
+        run: npm ci
+
+      - name: Lint
+        if: steps.changed.outputs.run == 'true'
+        working-directory: shiguchi-cursus-client-js
+        run: npm run lint
+
+      - name: Test
+        if: steps.changed.outputs.run == 'true'
+        working-directory: shiguchi-cursus-client-js
+        run: npm test
+
+      - name: Type-check and build
+        if: steps.changed.outputs.run == 'true'
+        working-directory: shiguchi-cursus-client-js
+        run: npm run build
+
+      # Packaging errors (a bad "files" list, a missing build output) show here, before a tag.
+      # --dry-run needs no token and publishes nothing.
+      - name: Publish dry run
+        if: steps.changed.outputs.run == 'true'
+        working-directory: shiguchi-cursus-client-js
+        run: npm publish --dry-run --access public
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Build OCI image from sample-full and push to GHCR
+  # Runs on: version tag push only (no `latest` from main — see the trigger note above)
+  # ──────────────────────────────────────────────────────────────────────────
+  image:
+    name: Build & Push OCI Image
+    runs-on: ubuntu-latest
+    # Bounds a hung job. A multi-arch build with an emulated arm64 leg is the slowest job here,
+    # so it gets more room than the others.
+    timeout-minutes: 60
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+      packages: write
+      security-events: write # uploads the Trivy SARIF to code scanning
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          java-version: "25"
+          distribution: temurin
+          cache: gradle
+
+      - name: Log in to GHCR
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine image tag
+        id: meta
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="latest"
+          fi
+          echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/sample-full:${VERSION}" >> "$GITHUB_OUTPUT"
+
+      # The samples are a standalone consumer build that resolves the published
+      # io.github.appiaworks:* artifacts. Publish them to mavenLocal first so the sample
+      # can resolve them on this fresh runner, then build the boot jar.
+      - name: Publish libraries to mavenLocal
+        run: ./gradlew publishToMavenLocal
+
+      # The samples default to the current -SNAPSHOT; on tag builds mavenLocal holds the
+      # release version instead, so pass the root project version through explicitly.
+      - name: Build sample boot jar
+        run: |
+          GATEWAY_VERSION=$(grep -oP 'version = "\K[^"]+' build.gradle.kts | head -1)
+          ./gradlew -p samples sample-full:bootJar -PgatewayVersion="$GATEWAY_VERSION"
+
+      - name: Assemble Docker build context
+        run: |
+          JAR="$(ls samples/sample-full/build/libs/*.jar | grep -v -- '-plain.jar' | head -1)"
+          echo "Using boot jar: $JAR"
+          cp "$JAR" samples/sample-full/app.jar
+
+      # linux/amd64 + linux/arm64. The arm64 leg is emulated through QEMU, which is why this is
+      # the slowest job in the workflow.
+      - name: Set up QEMU (for the arm64 leg)
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build and push image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: samples/sample-full
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.image }}
+          provenance: true # SLSA attestation, so the image records how it was built
+          sbom: true
+
+      # A second, standalone SBOM in SPDX form, attached to the workflow run. The one buildx
+      # attaches travels with the image for anything that reads attestations; this one is for a
+      # human (or an auditor) who just wants the file.
+      - name: Generate SBOM (SPDX)
+        continue-on-error: true # diagnostics only: a full artifact quota must not fail the job (and skip publishing)
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: ${{ steps.meta.outputs.image }}
+          format: spdx-json
+          artifact-name: sample-full-sbom.spdx.json
+          # The action also attaches the file to the tag's GitHub Release when one exists, which
+          # this job's token may not do: v0.7.0 failed here with "Resource not accessible by
+          # integration" — after the image was pushed — and the scan below was skipped. Earlier
+          # tags passed only because their Release did not exist yet at this point.
+          upload-release-assets: false
+
+      # Scans the image that was just pushed. Reports only: a CVE published in a base image
+      # hours before a release should be visible in the run, not a reason the release fails
+      # with nothing the author can do about it.
+      #
+      # The findings are printed in the job log and uploaded as SARIF, so they also show in the
+      # repository's Security tab (code scanning).
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.meta.outputs.image }}
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: "0" # report, never block a release
+          ignore-unfixed: true # a CVE with no fix available is not an action item
+
+      - name: Scan image for vulnerabilities (SARIF, for code scanning)
+        if: always()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.meta.outputs.image }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+          ignore-unfixed: true
+
+      - name: Upload scan results to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-image
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Package and push Helm chart to GHCR OCI registry
+  # Runs on: version tag push only
+  # ──────────────────────────────────────────────────────────────────────────
+  helm:
+    name: Publish Helm Chart
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+
+      - name: Log in to GHCR (Helm OCI)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ${{ env.REGISTRY }} \
+            --username ${{ github.actor }} --password-stdin
+
+      - name: Set chart version from tag
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"   # strip leading 'v'
+          sed -i "s/^version:.*/version: ${VERSION}/" helm/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"${VERSION}\"/" helm/Chart.yaml
+
+      - name: Package Helm chart
+        run: helm package helm/ --destination /tmp/helm-pkg
+
+      - name: Push chart to GHCR
+        run: |
+          CHART_FILE=$(ls /tmp/helm-pkg/*.tgz)
+          helm push "${CHART_FILE}" oci://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/charts
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Publish to Maven Central (Sonatype Central Portal) on version tag. This is the only Maven
+  # publish. Requires repo secrets: MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD (Central
+  # Portal token) and SIGNING_KEY / SIGNING_KEY_PASSWORD (ASCII-armored GPG private key). A tag
+  # run fails when the secrets are missing; a version already on Central is skipped. Afterwards
+  # it attaches the cursus fat jar to the GitHub Release.
+  # ──────────────────────────────────────────────────────────────────────────
+  publish-central:
+    name: Publish to Maven Central
+    runs-on: ubuntu-latest
+    # Bounds a hung job. Signing and uploading every module takes a while.
+    timeout-minutes: 45
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write # attaches the cursus jar to the GitHub Release
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          java-version: "25"
+          distribution: temurin
+          cache: gradle
+
+      # The tag must name the version the build produces: a mismatched tag would publish
+      # artifacts under a version nobody asked for.
+      - name: Verify the tag matches the build version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          case "$TAG" in v*) ;; *) echo "::error::tag must look like vX.Y.Z, got '$TAG'"; exit 1 ;; esac
+          VERSION="${TAG#v}"
+          BUILD_VERSION=$(grep -oP 'version = "\K[^"]+' build.gradle.kts | head -1)
+          if [ "$BUILD_VERSION" != "$VERSION" ]; then
+            echo "::error::build.gradle.kts says $BUILD_VERSION but the tag is $TAG"; exit 1
+          fi
+
+      - name: Publish and release
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          if [ -z "$ORG_GRADLE_PROJECT_mavenCentralUsername" ]; then
+            echo "::error::MAVEN_CENTRAL_* secrets are not configured; cannot publish to Maven Central."
+            exit 1
+          fi
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Central refuses a second deployment of a version: skip one already released, so a
+          # re-run cannot collide.
+          POM="https://repo1.maven.org/maven2/io/github/appiaworks/shiguchi-core/${VERSION}/shiguchi-core-${VERSION}.pom"
+          if [ "$(curl -s -o /dev/null -w '%{http_code}' "$POM")" = "200" ]; then
+            echo "${VERSION} is already on Maven Central; nothing to publish"
+            exit 0
+          fi
+          ./gradlew publishAndReleaseToMavenCentral --no-daemon --no-configuration-cache
+
+      # The fat jar of the cursus command line, for people who do not use jbang.
+      - name: Attach cursus to the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./gradlew :shiguchi-cursus-cli:shadowJar --no-daemon
+          .github/scripts/attach-cursus.sh "${GITHUB_REF_NAME}"
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # @appiaworks/shiguchi-cursus-client to npmjs.com, after the Maven publish succeeded. The
+  # script checks that package.json carries the tag's version and skips a version already in
+  # the registry. Needs the NPM_TOKEN secret (.github/PUBLIC-RELEASE-TODO.md).
+  # ──────────────────────────────────────────────────────────────────────────
+  publish-npm:
+    name: Publish cursus client to npmjs.com
+    runs-on: ubuntu-latest
+    needs: publish-central
+    if: startsWith(github.ref, 'refs/tags/v')
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write # npm provenance
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org/
+
+      - name: Publish to npmjs.com
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: .github/scripts/publish-cursus-client.sh "${GITHUB_REF_NAME}"

@@ -1,0 +1,11 @@
+{
+  "catalogs": {},
+  "aliases": {
+    "cursus": {
+      "script-ref": "io.github.appiaworks:shiguchi-cursus-cli:LATEST",
+      "description": "cursus: subscribe, publish, list and search a Shiguchi Cursus push surface from a terminal",
+      "main": "dev.appiaworks.shiguchi.cursus.cli.Cursus"
+    }
+  },
+  "templates": {}
+}

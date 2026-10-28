@@ -1,0 +1,43 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Legacy orders",
+    "version": "1.0.0",
+    "description": "The order service nobody will port: a JSON array, no sorting, no paging."
+  },
+  "paths": {
+    "/orders": {
+      "get": {
+        "operationId": "listOrders",
+        "summary": "Every order this backend holds",
+        "responses": {
+          "200": {
+            "description": "All orders, in insertion order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Order" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Order": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "customer": { "type": "string" },
+          "placed_at": { "type": "integer", "format": "int64" },
+          "total_cents": { "type": "integer", "format": "int64" },
+          "region": { "type": "string" }
+        }
+      }
+    }
+  }
+}

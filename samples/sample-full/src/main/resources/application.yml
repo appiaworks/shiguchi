@@ -1,0 +1,69 @@
+server:
+  port: 8080
+
+shiguchi:
+  services:
+    - name: my-grpc-service
+      host: localhost
+      port: 9090
+      mode: DYNAMIC   # DYNAMIC | STATIC | PB_FILE
+
+  openapi:
+    enabled: true
+    # security-schemes:
+    #   oauth2:
+    #     type: oauth2
+    #     authorizationCode:
+    #       authorizationUrl: https://auth.example.com/oauth2/authorize
+    #       tokenUrl: https://auth.example.com/oauth2/token
+    #       scopes:
+    #         read: Read access
+    #         write: Write access
+
+  graphql:
+    enabled: true
+
+  # Avro on the REST surface (shiguchi-avro-spring-boot3-starter is on the classpath):
+  #   curl localhost:8080/v1/books/1 -H 'accept: avro/binary' -o book.avro -D -
+  #   curl localhost:8080/avro/schemas/<proto full name of the response message>
+  avro:
+    enabled: true
+    framing: SINGLE_OBJECT
+
+  grpc:
+    enabled: true
+    port: 9191
+    rate-limit:
+      enabled: false
+      requests-per-second: 100
+
+  # Security posture. PERMIT_ALL (default) boots with no IdP but is open at the transport
+  # layer — only safe inside a trusted network. Switch to AUTHENTICATED and configure
+  # spring.security.oauth2.resourceserver.jwt.issuer-uri to require a valid JWT on every
+  # request. See SECURITY.md.
+  security:
+    mode: PERMIT_ALL   # PERMIT_ALL | AUTHENTICATED
+
+  ui:
+    # The console can invoke any wired gRPC method. Enable only inside a trusted network
+    # or with require-auth=true (which needs an OAuth2 JWT resource server configured).
+    enabled: false
+    path: /grpc-ui
+    require-auth: false
+
+  refresh:
+    enabled: false
+    interval-seconds: 300
+
+management:
+  metrics:
+    distribution:
+      # Publish histogram buckets for the timers, so Prometheus can compute p50/p95/p99 with
+      # histogram_quantile(). Without this a timer exports only _count, _sum and _max.
+      percentiles-histogram:
+        grpc.client.call.duration: true
+        http.server.requests: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,gateway-refresh

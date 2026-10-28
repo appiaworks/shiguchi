@@ -1,0 +1,167 @@
+# Default values for Shiguchi.
+
+replicaCount: 1
+
+# The release workflow pushes the sample-full image as <repository>:v<version>, while the chart's
+# appVersion carries no "v", so an empty tag resolves to "v" + appVersion.
+image:
+  repository: ghcr.io/appiaworks/shiguchi/sample-full
+  pullPolicy: IfNotPresent
+  tag: ""  # defaults to v<Chart.appVersion>
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+# HTTP port (Spring Boot server.port)
+service:
+  type: ClusterIP
+  port: 8080
+
+# gRPC proxy port (shiguchi.grpc.port) — only exposed when grpc.enabled=true
+grpcService:
+  enabled: false
+  type: ClusterIP
+  port: 9191
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: shiguchi.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: shiguchi-tls
+  #    hosts:
+  #      - shiguchi.local
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# JVM flags, rendered into JAVA_TOOL_OPTIONS. The defaults are tuned for the resources above
+# (a sub-2-CPU, 512Mi pod) and for a reactive proxy's latency. Set a field to "" or null to
+# drop its flag and let the JVM decide. See docs/deployment.md#jvm-tuning.
+jvm:
+  # Garbage collector, as -XX:+Use<gc>GC: G1 | Z | Parallel | Serial | Shenandoah.
+  # Keep G1 unless the pod has >= 2 CPUs and >= 2Gi and p99 latency matters more than
+  # throughput; then Z (generational ZGC, sub-millisecond pauses) is worth measuring. Z starts
+  # slower: the image's AOT cache needs compressed oops, which ZGC does not use.
+  gc: G1
+  # Heap as a share of the container memory limit. The rest holds Netty's direct buffers,
+  # metaspace, the code cache and thread stacks; 75%+ risks an off-heap OOMKill at 512Mi.
+  maxRamPercentage: 65
+  # CPUs the JVM assumes. Below 2 it picks SerialGC and sizes Netty's event loops and the
+  # common pool for one core. Set it to the CPU limit rounded up (minimum 2).
+  activeProcessorCount: 2
+  options: >-
+    -XX:+UseCompactObjectHeaders
+    -XX:+ExitOnOutOfMemoryError
+    -Dreactor.schedulers.defaultBoundedElasticOnVirtualThreads=true
+  # Appended after options, so extra flags need not restate the defaults.
+  extraOptions: ""
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 80
+
+livenessProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+# Readiness follows the backends: the pod stays not-ready while a configured gRPC service has
+# not loaded (shiguchi.health.readiness, default ALL_LOADED) and the gateway keeps retrying
+# it every shiguchi.startup.retry-interval. Liveness is unaffected by a missing backend.
+readinessProbe:
+  httpGet:
+    path: /actuator/health/readiness
+    port: http
+  initialDelaySeconds: 15
+  periodSeconds: 5
+
+# Spring Boot application.yml content — mounted as a ConfigMap
+# Override individual keys or replace the whole block.
+applicationConfig:
+  server:
+    port: 8080
+  shiguchi:
+    services: []
+    #  - name: my-service
+    #    host: my-service-svc
+    #    port: 9090
+    #    mode: DYNAMIC
+    openapi:
+      enabled: true
+    graphql:
+      enabled: false
+    grpc:
+      enabled: false
+      port: 9191
+    # Security posture. PERMIT_ALL boots with no IdP but is open at the transport layer.
+    # Set to AUTHENTICATED and configure an OAuth2 JWT issuer to require a valid token on
+    # every request. See SECURITY.md.
+    security:
+      mode: PERMIT_ALL   # PERMIT_ALL | AUTHENTICATED
+    # The console can invoke any wired gRPC method — disabled by default. Enable only behind
+    # auth (require-auth: true, which needs an OAuth2 JWT resource server configured).
+    ui:
+      enabled: false
+      path: /grpc-ui
+      require-auth: false
+    refresh:
+      enabled: false
+      interval-seconds: 300
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: health,info,gateway-refresh
+
+# Extra environment variables (e.g. for secrets injected from a SecretKeyRef)
+extraEnv: []
+# - name: SHIGUCHI_OPENAPI_SECURITY_SCHEMES_OAUTH2_CLIENT_CREDENTIALS_CLIENT_SECRET
+#   valueFrom:
+#     secretKeyRef:
+#       name: gateway-secrets
+#       key: oauth2-client-secret
+
+# Extra volumes / mounts for custom proto descriptor files etc.
+extraVolumes: []
+extraVolumeMounts: []
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

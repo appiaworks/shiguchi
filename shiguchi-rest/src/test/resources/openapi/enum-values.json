@@ -1,0 +1,36 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "Enums", "version": "1.0" },
+  "paths": {
+    "/items/{sku}": {
+      "get": {
+        "operationId": "getItem",
+        "parameters": [ { "name": "sku", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Item" } } }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Item": {
+        "type": "object",
+        "properties": {
+          "sku": { "type": "string" },
+          "status": { "$ref": "#/components/schemas/ItemStatus" },
+          "history": { "type": "array", "items": { "$ref": "#/components/schemas/ItemStatus" } },
+          "category": { "$ref": "#/components/schemas/Category" }
+        }
+      },
+      "ItemStatus": { "type": "string", "enum": [ "active", "on-hold", "retired" ] },
+      "Category": {
+        "type": "object",
+        "properties": { "kind": { "type": "string", "enum": [ "tools", "toys" ] } }
+      }
+    }
+  }
+}

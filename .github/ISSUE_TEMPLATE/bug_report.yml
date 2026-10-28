@@ -1,0 +1,41 @@
+name: Bug report
+description: Something behaves incorrectly
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Minimal proto + config + request that reproduces it. A failing test is gold.
+      placeholder: |
+        proto: ...
+        application.yml: ...
+        curl ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Gateway version
+      placeholder: e.g. 0.2.0
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options: [REST, GraphQL, OpenAPI, gRPC UI, gRPC proxy, other]
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: Spring Boot 3.5 / JDK 21 / discovery mode DYNAMIC

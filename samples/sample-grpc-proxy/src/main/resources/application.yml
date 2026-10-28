@@ -1,0 +1,38 @@
+server:
+  port: 8080
+
+shiguchi:
+  services:
+    - name: service-a
+      host: localhost
+      port: 9090
+      mode: DYNAMIC
+    - name: service-b
+      host: localhost
+      port: 9091
+      mode: DYNAMIC
+
+  openapi:
+    enabled: false
+
+  graphql:
+    enabled: false
+
+  grpc:
+    enabled: true     # Activates the consolidated gRPC proxy server
+    port: 9191
+    rate-limit:
+      enabled: false
+
+  ui:
+    enabled: false
+
+  refresh:
+    enabled: true
+    interval-seconds: 60
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

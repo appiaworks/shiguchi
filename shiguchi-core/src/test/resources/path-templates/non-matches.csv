@@ -1,0 +1,10 @@
+template|path
+/v1/{name=shelves/*/books/*}|/v1/shelves/s1
+/v1/{name=shelves/*/books/*}|/v1/racks/s1/books/b2
+/v1/{name=shelves/*/books/*}|/v1/shelves/s1/books/b2/extra
+/v1/{id}|/v1/
+/v1/{id}|/v1/a/b
+/v1/books/{id}:cancel|/v1/books/42
+/v1/books/{id}:cancel|/v1/books/42:publish
+/v1/books/{id}:cancel|/v1/books/:cancel
+/v1/files/{path=**}|/v2/files/a

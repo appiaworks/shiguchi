@@ -1,0 +1,1 @@
+{"iss":"${issuer}","aud":"${clientId}","iat":"${now}","exp":"${now+120}","jti":"${jti}","sub":"alice"}

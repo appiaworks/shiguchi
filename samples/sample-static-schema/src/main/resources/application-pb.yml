@@ -1,0 +1,26 @@
+## PB_FILE: the schema comes from a FileDescriptorSet on disk.
+##
+## The same two routes as the default (STATIC) profile, against the same backend — only the way
+## the gateway learned about them differs. Run with:
+##
+##   ../gradlew :sample-static-schema:bootRun --args='--spring.profiles.active=pb'
+##
+## Use this over STATIC when the gateway should not carry the backend's generated classes: a
+## descriptor file is language-neutral and a build artifact you can publish, so a Java gateway can
+## front a Go or Rust service without a Java stub for it existing anywhere.
+##
+## The .pb file is produced by protoc. This sample's build does it as part of `build`:
+##
+##   protoc --include_imports --descriptor_set_out=catalog.pb catalog/v1/catalog.proto
+##
+## --include_imports matters: without it the set omits google/api/annotations.proto and the
+## gateway cannot resolve the http options, so it registers the methods with no REST routes.
+
+shiguchi:
+  services:
+    - name: catalog
+      host: localhost
+      port: 9090
+      mode: PB_FILE
+      # Produced by the generateDescriptorSet task — see build.gradle.kts.
+      pb-descriptor-path: build/descriptors/catalog.pb

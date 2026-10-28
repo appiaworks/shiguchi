@@ -1,0 +1,7 @@
+# Shell scripts and container inputs run on Linux: keep them LF on every checkout.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.go text eol=lf
+go.mod text eol=lf
+bin/cursus text eol=lf
+bin/cursus.cmd text eol=crlf

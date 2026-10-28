@@ -1,0 +1,34 @@
+server:
+  port: 8080
+
+shiguchi:
+  services:
+    - name: my-service
+      host: localhost
+      port: 9090
+      mode: DYNAMIC
+
+  # REST/GraphQL/gRPC-proxy all disabled — UI only
+  openapi:
+    enabled: false
+  graphql:
+    enabled: false
+  grpc:
+    enabled: false
+
+  # This sample demonstrates the console, so the UI is enabled. The console can invoke any
+  # wired gRPC method — run this only on a trusted/local network. In production, set
+  # require-auth: true (needs an OAuth2 JWT resource server) or front it with auth.
+  ui:
+    enabled: true
+    path: /grpc-ui
+    require-auth: false
+
+  refresh:
+    enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

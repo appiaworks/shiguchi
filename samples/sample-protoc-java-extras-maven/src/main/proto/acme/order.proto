@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package acme;
+
+import "google/protobuf/timestamp.proto";
+import "google/type/date.proto";
+import "google/type/money.proto";
+
+option java_multiple_files = true;
+option java_package = "com.acme.proto";
+
+message Sku {
+  string code = 1;
+}
+
+message Order {
+  Sku sku = 1;
+  google.type.Date placed_on = 2;
+  google.protobuf.Timestamp paid_at = 3;
+  google.type.Money total = 4;
+  repeated google.type.Date delivery_days = 5;
+}

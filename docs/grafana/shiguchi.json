@@ -1,0 +1,583 @@
+{
+  "title": "Shiguchi",
+  "uid": "shiguchi",
+  "description": "Traffic, latency, errors and gateway state for a Shiguchi instance scraped through /actuator/prometheus. Latency panels need management.metrics.distribution.percentiles-histogram.grpc.client.call.duration=true (and http.server.requests) on the gateway.",
+  "tags": ["shiguchi"],
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "time": { "from": "now-30m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Data source",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": { "text": "Prometheus", "value": "Prometheus" },
+        "hide": 0,
+        "refresh": 1
+      },
+      {
+        "name": "job",
+        "label": "Job",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": "label_values(gateway_routes, job)",
+        "definition": "label_values(gateway_routes, job)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": { "text": "All", "value": "$__all" },
+        "sort": 1
+      },
+      {
+        "name": "instance",
+        "label": "Instance",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": "label_values(gateway_routes{job=~\"$job\"}, instance)",
+        "definition": "label_values(gateway_routes{job=~\"$job\"}, instance)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": { "text": "All", "value": "$__all" },
+        "sort": 1
+      },
+      {
+        "name": "service",
+        "label": "gRPC service",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": "label_values(grpc_client_call_started_total{job=~\"$job\", instance=~\"$instance\"}, grpc_service)",
+        "definition": "label_values(grpc_client_call_started_total{job=~\"$job\", instance=~\"$instance\"}, grpc_service)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": { "text": "All", "value": "$__all" },
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Gateway state",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100
+    },
+    {
+      "type": "stat",
+      "title": "Backends",
+      "description": "gateway_services_loaded against gateway_services_configured. Loaded below configured for longer than the retry window means a backend is not coming back.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 1 },
+      "id": 1,
+      "targets": [
+        { "refId": "A", "expr": "sum(gateway_services_loaded{job=~\"$job\", instance=~\"$instance\"})", "legendFormat": "loaded", "instant": true },
+        { "refId": "B", "expr": "sum(gateway_services_configured{job=~\"$job\", instance=~\"$instance\"})", "legendFormat": "configured", "instant": true }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "horizontal",
+        "textMode": "value_and_name",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0 }, "overrides": [] }
+    },
+    {
+      "type": "stat",
+      "title": "Routes",
+      "description": "gateway_routes. A drop after a refresh means a backend's schema shrank and calls that used to work now 404.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 5, "w": 4, "x": 6, "y": 1 },
+      "id": 2,
+      "targets": [
+        { "refId": "A", "expr": "sum(gateway_routes{job=~\"$job\", instance=~\"$instance\"})", "legendFormat": "routes", "instant": true }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0 }, "overrides": [] }
+    },
+    {
+      "type": "stat",
+      "title": "Discovery instances",
+      "description": "gateway_discovery_instances per discovery service id. Zero means the registry has no instances left for that backend.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 5, "w": 6, "x": 10, "y": 1 },
+      "id": 3,
+      "targets": [
+        { "refId": "A", "expr": "gateway_discovery_instances{job=~\"$job\", instance=~\"$instance\"}", "legendFormat": "{{service}}", "instant": true }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "horizontal",
+        "textMode": "value_and_name",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "noValue": "no discovery backends" }, "overrides": [] }
+    },
+    {
+      "type": "stat",
+      "title": "Descriptor cache miss ratio",
+      "description": "rate(misses) / rate(lookups) over 5m. Should fall to near zero once traffic is warm; a ratio that stays high means descriptors are rebuilt per call.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 1 },
+      "id": 4,
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(gateway_descriptor_cache_misses_total{job=~\"$job\", instance=~\"$instance\"}[5m])) / sum(rate(gateway_descriptor_cache_lookups_total{job=~\"$job\", instance=~\"$instance\"}[5m]))",
+          "legendFormat": "miss ratio"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "area",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": { "unit": "percentunit", "decimals": 1, "noValue": "no lookups yet", "color": { "mode": "fixed", "fixedColor": "#3987e5" } },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Backend loads by outcome",
+      "description": "increase(gateway_services_loads_total[5m]) by outcome. A sustained rate of failed loads means a backend is failing to reload while the gateway keeps serving its last-known routes; health stays UP the whole time, so this is the only signal.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "id": 5,
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome) (increase(gateway_services_loads_total{job=~\"$job\", instance=~\"$instance\"}[5m]))",
+          "legendFormat": "{{outcome}}"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "min": 0,
+          "custom": { "drawStyle": "bars", "lineWidth": 1, "fillOpacity": 60, "gradientMode": "none", "showPoints": "never", "stacking": { "mode": "none" } }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "loaded" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#3987e5" } }] },
+          { "matcher": { "id": "byName", "options": "failed" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#d03b3b" } }] }
+        ]
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Backend loads by phase",
+      "description": "Which lifecycle step is doing the loading. A backend reporting reload every few seconds is a refresh loop, which looks identical to a healthy gateway on every other signal.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "id": 6,
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (service, phase) (increase(gateway_services_loads_total{job=~\"$job\", instance=~\"$instance\"}[5m]))",
+          "legendFormat": "{{service}} · {{phase}}"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "min": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "bars", "lineWidth": 1, "fillOpacity": 60, "gradientMode": "none", "showPoints": "never", "stacking": { "mode": "normal" } }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "row",
+      "title": "Traffic to backends",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+      "id": 101
+    },
+    {
+      "type": "timeseries",
+      "title": "Calls started, by method",
+      "description": "rate(grpc_client_call_started_total) per grpc_service/grpc_method. Every outbound call the gateway makes on behalf of REST, GraphQL and console requests.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 15 },
+      "id": 7,
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (grpc_service, grpc_method) (rate(grpc_client_call_started_total{job=~\"$job\", instance=~\"$instance\", grpc_service=~\"$service\"}[$__rate_interval]))",
+          "legendFormat": "{{grpc_service}}/{{grpc_method}}"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true, "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 0, "showPoints": "never", "spanNulls": false }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Failed calls, by gRPC status",
+      "description": "rate(grpc_client_call_duration_seconds_count{grpc_status!=\"OK\"}) per status code. Status names come from the gateway's grpc_status tag, so no message parsing is needed.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 9, "w": 8, "x": 12, "y": 15 },
+      "id": 8,
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (grpc_status) (rate(grpc_client_call_duration_seconds_count{job=~\"$job\", instance=~\"$instance\", grpc_service=~\"$service\", grpc_status!=\"OK\"}[$__rate_interval]))",
+          "legendFormat": "{{grpc_status}}"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "noValue": "no failures",
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 0, "showPoints": "never", "spanNulls": false }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Error ratio",
+      "description": "Share of outbound calls that closed with a status other than OK, over the last 5 minutes.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 9, "w": 4, "x": 20, "y": 15 },
+      "id": 9,
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(grpc_client_call_duration_seconds_count{job=~\"$job\", instance=~\"$instance\", grpc_service=~\"$service\", grpc_status!=\"OK\"}[5m])) / sum(rate(grpc_client_call_duration_seconds_count{job=~\"$job\", instance=~\"$instance\", grpc_service=~\"$service\"}[5m]))",
+          "legendFormat": "errors"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 2,
+          "noValue": "no calls yet",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#0ca30c", "value": null },
+              { "color": "#fab219", "value": 0.01 },
+              { "color": "#d03b3b", "value": 0.05 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "row",
+      "title": "Streams",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 },
+      "id": 104
+    },
+    {
+      "type": "timeseries",
+      "title": "Messages received, by method",
+      "description": "rate(grpc_client_call_messages_received_total) per grpc_service/grpc_method: the messages backends send back. A server stream of ten thousand items is one call here and ten thousand messages.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 9, "w": 8, "x": 0, "y": 25 },
+      "id": 15,
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (grpc_service, grpc_method) (rate(grpc_client_call_messages_received_total{job=~\"$job\", instance=~\"$instance\", grpc_service=~\"$service\"}[$__rate_interval]))",
+          "legendFormat": "{{grpc_service}}/{{grpc_method}}"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true, "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cps",
+          "min": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 0, "showPoints": "never", "spanNulls": false }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Messages sent, by method",
+      "description": "rate(grpc_client_call_messages_sent_total) per grpc_service/grpc_method: the messages the gateway sends to backends, including every chunk or NDJSON line of a streamed upload.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 9, "w": 8, "x": 8, "y": 25 },
+      "id": 16,
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (grpc_service, grpc_method) (rate(grpc_client_call_messages_sent_total{job=~\"$job\", instance=~\"$instance\", grpc_service=~\"$service\"}[$__rate_interval]))",
+          "legendFormat": "{{grpc_service}}/{{grpc_method}}"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true, "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cps",
+          "min": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 0, "showPoints": "never", "spanNulls": false }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Messages per call, by method",
+      "description": "Messages received (and sent) per call started. 1 for unary calls; the average stream length for streaming ones, so a stream that suddenly gets longer or shorter shows here first.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 25 },
+      "id": 17,
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (grpc_service, grpc_method) (rate(grpc_client_call_messages_received_total{job=~\"$job\", instance=~\"$instance\", grpc_service=~\"$service\"}[$__rate_interval])) / sum by (grpc_service, grpc_method) (rate(grpc_client_call_started_total{job=~\"$job\", instance=~\"$instance\", grpc_service=~\"$service\"}[$__rate_interval]))",
+          "legendFormat": "{{grpc_service}}/{{grpc_method}} received"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (grpc_service, grpc_method) (rate(grpc_client_call_messages_sent_total{job=~\"$job\", instance=~\"$instance\", grpc_service=~\"$service\"}[$__rate_interval])) / sum by (grpc_service, grpc_method) (rate(grpc_client_call_started_total{job=~\"$job\", instance=~\"$instance\", grpc_service=~\"$service\"}[$__rate_interval]))",
+          "legendFormat": "{{grpc_service}}/{{grpc_method}} sent"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true, "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 0, "showPoints": "never", "spanNulls": false }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "row",
+      "title": "Latency (needs percentiles-histogram on grpc.client.call.duration)",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 },
+      "id": 102
+    },
+    {
+      "type": "timeseries",
+      "title": "Backend call latency, all methods",
+      "description": "histogram_quantile over grpc_client_call_duration_seconds_bucket. Time from the gateway starting the call to the backend closing it; the gateway's own JSON work is not included (see the inbound row).",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 35 },
+      "id": 10,
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.50, sum by (le) (rate(grpc_client_call_duration_seconds_bucket{job=~\"$job\", instance=~\"$instance\", grpc_service=~\"$service\"}[$__rate_interval])))", "legendFormat": "p50" },
+        { "refId": "B", "expr": "histogram_quantile(0.95, sum by (le) (rate(grpc_client_call_duration_seconds_bucket{job=~\"$job\", instance=~\"$instance\", grpc_service=~\"$service\"}[$__rate_interval])))", "legendFormat": "p95" },
+        { "refId": "C", "expr": "histogram_quantile(0.99, sum by (le) (rate(grpc_client_call_duration_seconds_bucket{job=~\"$job\", instance=~\"$instance\", grpc_service=~\"$service\"}[$__rate_interval])))", "legendFormat": "p99" }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "noValue": "no histogram buckets — enable percentiles-histogram",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 0, "showPoints": "never", "spanNulls": false }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "p50" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#86b6ef" } }] },
+          { "matcher": { "id": "byName", "options": "p95" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#3987e5" } }] },
+          { "matcher": { "id": "byName", "options": "p99" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#1c5cab" } }] }
+        ]
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "p95 backend call latency, by method",
+      "description": "The same histogram split per grpc_method, so one slow RPC does not hide behind the aggregate.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 35 },
+      "id": 11,
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, grpc_service, grpc_method) (rate(grpc_client_call_duration_seconds_bucket{job=~\"$job\", instance=~\"$instance\", grpc_service=~\"$service\"}[$__rate_interval])))",
+          "legendFormat": "{{grpc_service}}/{{grpc_method}}"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true, "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "noValue": "no histogram buckets — enable percentiles-histogram",
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 0, "showPoints": "never", "spanNulls": false }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "row",
+      "title": "Inbound HTTP",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 44 },
+      "id": 103
+    },
+    {
+      "type": "timeseries",
+      "title": "Requests, by HTTP status",
+      "description": "Spring Boot's http_server_requests_seconds_count by status: the caller-facing view, including 400s from validation, 403s from authorization and 429s from rate limiting that never reached a backend.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 9, "w": 8, "x": 0, "y": 45 },
+      "id": 12,
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (status) (rate(http_server_requests_seconds_count{job=~\"$job\", instance=~\"$instance\", uri!~\"/actuator.*\"}[$__rate_interval]))",
+          "legendFormat": "{{status}}"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 0, "showPoints": "never", "spanNulls": false }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "End-to-end latency, all routes",
+      "description": "histogram_quantile over http_server_requests_seconds_bucket. Includes the gateway's transcoding and the backend call, so the gap to the backend-only percentiles above is what the gateway costs. Not split per route: Spring tags transcoded routes uri=\"UNKNOWN\" (they are served by a filter, not a handler), so per-method detail lives in the backend-call panels.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 9, "w": 8, "x": 8, "y": 45 },
+      "id": 13,
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.50, sum by (le) (rate(http_server_requests_seconds_bucket{job=~\"$job\", instance=~\"$instance\", uri!~\"/actuator.*\"}[$__rate_interval])))", "legendFormat": "p50" },
+        { "refId": "B", "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=~\"$job\", instance=~\"$instance\", uri!~\"/actuator.*\"}[$__rate_interval])))", "legendFormat": "p95" },
+        { "refId": "C", "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{job=~\"$job\", instance=~\"$instance\", uri!~\"/actuator.*\"}[$__rate_interval])))", "legendFormat": "p99" }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "noValue": "no histogram buckets — enable percentiles-histogram",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 0, "showPoints": "never", "spanNulls": false }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "p50" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#86b6ef" } }] },
+          { "matcher": { "id": "byName", "options": "p95" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#3987e5" } }] },
+          { "matcher": { "id": "byName", "options": "p99" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#1c5cab" } }] }
+        ]
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Rate limiter decisions",
+      "description": "rate(gateway_ratelimit_requests_total) by outcome. Only present when shiguchi.rate-limit.enabled is true; rejected requests were answered 429 before any backend was called.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 45 },
+      "id": 14,
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome) (rate(gateway_ratelimit_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "{{outcome}}"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "noValue": "rate limiting is off",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never", "spanNulls": false, "stacking": { "mode": "normal" } }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "allowed" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#3987e5" } }] },
+          { "matcher": { "id": "byName", "options": "rejected" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#d03b3b" } }] }
+        ]
+      }
+    }
+  ]
+}

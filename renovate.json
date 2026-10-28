@@ -1,0 +1,63 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "packageRules": [
+    {
+      "description": "Automerge routine updates once CI is green; majors stay manual",
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "automerge": true,
+      "automergeStrategy": "squash"
+    },
+    {
+      "description": "The project ships Boot 3 and Boot 4 module lines deliberately — Boot/SCG majors are framework migrations, not routine bumps. The Gradle plugin is listed by its marker name too: without it the Boot plugin's v4 major got through (#223).",
+      "matchPackageNames": [
+        "org.springframework.boot",
+        "org.springframework.boot:org.springframework.boot.gradle.plugin",
+        "org.springframework.boot:spring-boot-dependencies",
+        "org.springframework.cloud:spring-cloud-gateway-dependencies"
+      ],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "The samples are Boot 3 consumers. Keep their Boot plugin and BOM on 3.x.",
+      "matchFileNames": ["samples/**"],
+      "matchPackageNames": [
+        "org.springframework.boot",
+        "org.springframework.boot:org.springframework.boot.gradle.plugin",
+        "org.springframework.boot:spring-boot-dependencies"
+      ],
+      "allowedVersions": "<4.0.0"
+    },
+    {
+      "description": "Spring Cloud 2025.1 (Oakwood) targets Boot 4; on the Boot 3 samples it fails at startup with NoClassDefFoundError: ServerProperties (#216). Renovate calls 2025.0 -> 2025.1 a minor, so the major rule above does not catch it.",
+      "matchFileNames": ["samples/**"],
+      "matchPackageNames": ["org.springframework.cloud:spring-cloud-dependencies"],
+      "allowedVersions": "<2025.1.0"
+    },
+    {
+      "description": "The Boot 3 line pins DGS 10.x (dgs10) next to the Boot 4 pin (dgs) of the same artifact. DGS 11+ targets Boot 4 and breaks the Boot 3 modules at startup (#273), so only the 10.x pin is held to its major.",
+      "matchPackageNames": ["com.netflix.graphql.dgs:graphql-dgs-platform-dependencies"],
+      "matchCurrentVersion": "<11.0.0",
+      "allowedVersions": "<11.0.0"
+    },
+    {
+      "description": "Same for springdoc: springdoc2 (2.x) serves Boot 3, springdoc (3.x) Boot 4. springdoc 3 on the Boot 3 modules fails startup (#275).",
+      "matchPackageNames": ["org.springdoc:springdoc-openapi-starter-webflux-ui"],
+      "matchCurrentVersion": "<3.0.0",
+      "allowedVersions": "<3.0.0"
+    },
+    {
+      "description": "The fallback-jdk21 CI job installs JDK 21 on purpose, as the test launcher that keeps the serde fallback paths honest (every other setup-java step is 25). Renovate read that pin as a dependency and proposed 25 (#338).",
+      "matchPackageNames": ["java-jdk"],
+      "matchFileNames": [".github/workflows/ci.yml"],
+      "matchCurrentVersion": "21",
+      "enabled": false
+    },
+    {
+      "description": "This project's own modules. Renovate resolves them on Maven Central and proposed moving the project version itself (#234). The version changes only in the release commit, and the sample/BOM pins by hand as part of a release.",
+      "matchPackageNames": ["io.github.appiaworks:**"],
+      "enabled": false
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "type": "record",
+  "name": "Item",
+  "namespace": "com.acme.inventory",
+  "doc": "The backend's own copy of the schema; the same record is published as x-avro-schema in its OpenAPI document.",
+  "fields": [
+    { "name": "sku", "type": "string" },
+    { "name": "name", "type": [ "null", "string" ], "default": null },
+    { "name": "qty", "type": "long" },
+    { "name": "price", "type": { "type": "bytes", "logicalType": "decimal", "precision": 10, "scale": 2 } },
+    { "name": "status", "type": { "type": "enum", "name": "ItemStatus", "symbols": [ "ACTIVE", "RETIRED" ] }, "default": "ACTIVE" },
+    { "name": "updatedAt", "type": { "type": "long", "logicalType": "timestamp-millis" } },
+    { "name": "category", "type": [ "null", {
+        "type": "record", "name": "Category",
+        "fields": [ { "name": "id", "type": "int" }, { "name": "name", "type": "string" } ] } ],
+      "default": null }
+  ]
+}

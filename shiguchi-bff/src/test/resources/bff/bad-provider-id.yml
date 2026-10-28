@@ -1,0 +1,12 @@
+shiguchi:
+  bff:
+    enabled: true
+    providers:
+      Bad_Id:
+        issuer-uri: https://id.example.com
+        client-id: gateway
+    applications:
+      eve:
+        origins: [https://eve.example.com]
+        providers: [Bad_Id]
+        return-to: [https://eve.example.com/]

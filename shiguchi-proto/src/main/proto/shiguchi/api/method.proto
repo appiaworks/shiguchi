@@ -1,0 +1,61 @@
+syntax = "proto3";
+package shiguchi.api;
+
+import "google/protobuf/descriptor.proto";
+
+option java_package = "dev.appiaworks.shiguchi.proto.api";
+option java_multiple_files = true;
+option java_outer_classname = "MethodProto";
+
+// Method option: settings that apply to a gRPC method on every surface it is exposed on
+// (REST, GraphQL, gRPC-Web, ...).
+// Usage:
+//   option (shiguchi.api.method) = {
+//     auth_scopes: "orders.read"
+//     cache_ttl_seconds: 30
+//     authz: [{ object_type: "order", relation: "viewer", id_field: "order_id" }]
+//   };
+message MethodRule {
+  // OAuth2/JWT scope names enforced before dispatch (empty = no check).
+  repeated string auth_scopes = 1;
+  // Adds Cache-Control: max-age=N to REST responses (REST path only).
+  int32 cache_ttl_seconds = 2;
+
+  // Object-level authorization rules enforced before dispatch (empty = no object check).
+  //
+  // Unlike auth_scopes -- which asks "may this caller call this method?" -- these ask
+  // "may this caller act on THIS object?". The gateway itself does not evaluate them:
+  // they are carried on the route for a GatewayAuthorizer implementation (OpenFGA, OPA,
+  // Cedar, ...) to consume. When no authorizer consumes them they are inert, so the same
+  // .proto works unchanged behind a gateway with no policy engine wired.
+  //
+  // All rules must pass for the call to proceed.
+  repeated AuthzRule authz = 3;
+}
+
+// One object-level authorization requirement: the caller must hold `relation` on the object
+// `object_type:<value of id_field>`.
+//
+// Example -- caller must be a viewer of the requested order:
+//   option (shiguchi.api.method) = {
+//     authz: [{ object_type: "order", relation: "viewer", id_field: "order_id" }]
+//   };
+message AuthzRule {
+  // Object type in the policy engine's model, e.g. "order". Required.
+  string object_type = 1;
+
+  // Relation/permission the caller must hold on that object, e.g. "viewer". Required.
+  string relation = 2;
+
+  // Proto field name (snake_case) in the REQUEST message whose value is the object id.
+  // Resolved against the request the caller actually sent: a REST path variable or query
+  // parameter, or a GraphQL field argument. Required.
+  //
+  // Nested fields are addressed with dots, e.g. "order.id".
+  string id_field = 3;
+}
+
+// Method option: see MethodRule.
+extend google.protobuf.MethodOptions {
+  MethodRule method = 50103;
+}

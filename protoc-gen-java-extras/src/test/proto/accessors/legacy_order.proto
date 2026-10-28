@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package accessors;
+
+import "google/type/date.proto";
+
+// No java_multiple_files, no java_outer_classname, and a message named like the file: protoc
+// nests everything in LegacyOrderOuterClass.
+option java_package = "dev.appiaworks.protobuf.extras.protoc.fixture.proto";
+
+message LegacyOrder {
+  google.type.Date placed_on = 1;
+
+  message Line {
+    google.type.Date ships_on = 1;
+  }
+  repeated Line lines = 2;
+}

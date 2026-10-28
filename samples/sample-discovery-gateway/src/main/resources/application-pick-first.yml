@@ -1,0 +1,17 @@
+## Same three instances, gRPC's pick_first policy instead of round_robin.
+##
+## Every call goes to the first address that connects, and stays there until that connection
+## breaks — then it moves to the next. Discovery still finds all three; only the balancing
+## differs. Repeat GET /v1/products and servedBy does not change; DELETE /fleet/one and it moves.
+##
+## Useful when a backend holds per-connection state, or when the instances sit behind something
+## that balances already and a second layer of spreading would only fragment connections.
+##
+##   ./gradlew :sample-discovery-gateway:bootRun --args='--spring.profiles.active=pick-first'
+
+shiguchi:
+  services:
+    - name: catalog
+      discovery-name: catalog-service
+      mode: DYNAMIC
+      load-balancing-policy: pick_first

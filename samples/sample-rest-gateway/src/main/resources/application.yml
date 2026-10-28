@@ -1,0 +1,30 @@
+server:
+  port: 8080
+
+shiguchi:
+  services:
+    - name: my-grpc-service
+      host: localhost
+      port: 9090
+      mode: DYNAMIC   # Uses gRPC reflection to discover methods and HTTP bindings
+
+  openapi:
+    enabled: true     # Exposes /swagger-ui.html with auto-generated spec
+
+  graphql:
+    enabled: false
+
+  grpc:
+    enabled: false
+
+  ui:
+    enabled: false
+
+  refresh:
+    enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

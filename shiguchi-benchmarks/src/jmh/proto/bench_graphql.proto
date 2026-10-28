@@ -1,0 +1,72 @@
+// The GraphQL fixture for GatewayGraphQlBenchmark: a shop whose orders point at customers
+// through a DataLoader, so a nested query costs one list hop plus one batch hop, however many
+// orders it selects. Compiled stubs so the backend can be bound by hand and served through
+// reflection exactly as GatewayHttpBenchmark's bench.Orders is.
+syntax = "proto3";
+
+package bench;
+
+import "shiguchi/api/graphql.proto";
+
+option java_package = "dev.appiaworks.shiguchi.bench.proto";
+option java_multiple_files = true;
+
+message Customer {
+  string id = 1 [(shiguchi.api.graphql_field) = { id: true, batch_key: true }];
+  string name = 2;
+  string email = 3;
+  string tier = 4;
+}
+
+message ShopItem {
+  string sku = 1;
+  int32 qty = 2;
+  double price = 3;
+}
+
+message ShopOrder {
+  string id = 1 [(shiguchi.api.graphql_field) = { id: true }];
+  string name = 2;
+  bool active = 3;
+  double score = 4;
+  string customer_id = 5 [(shiguchi.api.graphql_field) = { id: true, resolves_type: "Customer" }];
+  repeated ShopItem items = 6;
+}
+
+message GetShopOrderRequest {
+  string id = 1;
+}
+
+message ListShopOrdersRequest {
+  int32 count = 1;
+}
+
+message ShopOrders {
+  repeated ShopOrder items = 1;
+}
+
+message GetCustomersRequest {
+  repeated string ids = 1;
+}
+
+message Customers {
+  repeated Customer items = 1;
+}
+
+service Shop {
+  rpc Get(GetShopOrderRequest) returns (ShopOrder) {
+    option (shiguchi.api.graphql) = { name: "order" type: QUERY };
+  }
+  rpc List(ListShopOrdersRequest) returns (ShopOrders) {
+    option (shiguchi.api.graphql) = { name: "orders" type: QUERY };
+  }
+  rpc GetCustomers(GetCustomersRequest) returns (Customers) {
+    option (shiguchi.api.graphql) = {
+      name: "customers"
+      type: QUERY
+      loader_for: "Customer"
+      loader_ids_field: "ids"
+      loader_result_field: "items"
+    };
+  }
+}

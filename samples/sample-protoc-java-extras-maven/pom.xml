@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Java-typed accessors on generated proto classes, from Maven.
+
+  No dedicated Maven plugin is involved: io.github.ascopes:protobuf-maven-plugin runs
+  protoc-gen-java-extras straight from its Maven coordinates, in the same protoc run as the Java
+  generator. See docs/protoc-java-extras.md.
+
+  Build:  mvn package
+  Run:    mvn -q exec:java
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.acme</groupId>
+  <artifactId>sample-protoc-java-extras-maven</artifactId>
+  <version>1.0.0</version>
+
+  <properties>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!-- protoc-gen-java-extras ships from 0.9.0. Against a local checkout,
+         `./gradlew publishToMavenLocal` puts the current build here. -->
+    <shiguchi.version>0.13.0</shiguchi.version>
+    <protobuf.version>4.36.2</protobuf.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+      <version>${protobuf.version}</version>
+    </dependency>
+    <!-- google/type/*.proto and their Java classes. -->
+    <dependency>
+      <groupId>com.google.api.grpc</groupId>
+      <artifactId>proto-google-common-protos</artifactId>
+      <version>2.77.0</version>
+    </dependency>
+    <!-- ProtoTypes: what the generated accessors call. -->
+    <dependency>
+      <groupId>io.github.appiaworks</groupId>
+      <artifactId>protobuf-java-extras</artifactId>
+      <version>${shiguchi.version}</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.github.ascopes</groupId>
+        <artifactId>protobuf-maven-plugin</artifactId>
+        <version>5.1.11</version>
+        <configuration>
+          <protoc>${protobuf.version}</protoc>
+          <plugins>
+            <plugin kind="jvm-maven">
+              <groupId>io.github.appiaworks</groupId>
+              <artifactId>protoc-gen-java-extras</artifactId>
+              <version>${shiguchi.version}</version>
+              <options>map=acme.Sku;com.acme.SkuCode;com.acme.SkuCode.fromProto;com.acme.SkuCode.toProto</options>
+            </plugin>
+          </plugins>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.6.4</version>
+        <configuration>
+          <mainClass>com.acme.Main</mainClass>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

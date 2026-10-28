@@ -1,0 +1,3 @@
+# The page is built by `npm run build` in web/ straight into the gateway's static resources.
+gateway/src/main/resources/static/
+web/node_modules/

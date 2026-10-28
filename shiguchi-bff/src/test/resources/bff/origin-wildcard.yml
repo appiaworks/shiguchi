@@ -1,0 +1,12 @@
+shiguchi:
+  bff:
+    enabled: true
+    providers:
+      idp:
+        issuer-uri: https://id.example.com
+        client-id: gateway
+    applications:
+      eve:
+        origins: ["https://*.example.com"]
+        providers: [idp]
+        return-to: ["https://eve.example.com/"]

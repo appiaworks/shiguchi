@@ -1,0 +1,58 @@
+// The end-to-end fixture as a compiled stub, so Tier 1 (the typed writer over generated
+// classes) can be measured next to Tiers 0/2/3. Field for field the same schema
+// EndToEndDispatchBenchmark builds dynamically; the Tier 1 leg rebuilds its dynamic
+// descriptor from this file so StaticSerdeDetector's schema-equality check passes exactly
+// as it does for a reflection-served service whose API jar is on the classpath.
+syntax = "proto3";
+
+package bench;
+
+import "google/protobuf/timestamp.proto";
+
+option java_package = "dev.appiaworks.shiguchi.bench.proto";
+option java_multiple_files = true;
+
+message Item {
+  string sku = 1;
+  int32 qty = 2;
+  double price = 3;
+  string note = 4;
+  bool flag = 5;
+}
+
+message GetOrderRequest {
+  string id = 1;
+}
+
+message OrderResponse {
+  int64 id = 1;
+  string name = 2;
+  bool active = 3;
+  double score = 4;
+  int32 count = 5;
+  string note = 6;
+  repeated Item items = 7;
+  map<string, string> labels = 8;
+  google.protobuf.Timestamp created_at = 9;
+}
+
+message ListOrdersRequest {
+  int32 count = 1;
+}
+
+message GetBatchRequest {
+  repeated string ids = 1;
+}
+
+message BatchResponse {
+  repeated OrderResponse items = 1;
+}
+
+// The methods the dispatch, streaming and batch-loader benchmarks route to; no gRPC stub is
+// generated for them, the benchmarks bind them by hand as the gateway does for a
+// reflection-served service.
+service Orders {
+  rpc Get(GetOrderRequest) returns (OrderResponse);
+  rpc List(ListOrdersRequest) returns (stream OrderResponse);
+  rpc GetBatch(GetBatchRequest) returns (BatchResponse);
+}

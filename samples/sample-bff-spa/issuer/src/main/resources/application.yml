@@ -1,0 +1,31 @@
+server:
+  port: 9000
+
+spring:
+  security:
+    # The one user. {noop} keeps the sample readable; use a real PasswordEncoder anywhere else.
+    user:
+      name: alice
+      password: "{noop}password"
+    oauth2:
+      authorizationserver:
+        issuer: http://localhost:9000
+        client:
+          gateway:
+            require-proof-key: true # PKCE: the gateway sends a code_challenge
+            require-authorization-consent: false
+            registration:
+              client-id: gateway
+              client-secret: "{noop}secret"
+              client-authentication-methods: [client_secret_basic]
+              authorization-grant-types: [authorization_code, refresh_token]
+              # <gateway origin><shiguchi.bff.path>/callback/<provider id>
+              redirect-uris: [http://localhost:8080/bff/callback/local]
+              post-logout-redirect-uris: [http://localhost:8080/]
+              scopes: [openid, profile, email]
+            token:
+              # Short, so a refresh is visible within a few minutes of use.
+              access-token-time-to-live: 2m
+              # Rotate: every refresh returns a new refresh token and the old one is dead. Using
+              # one twice is why the gateway refreshes once per session.
+              reuse-refresh-tokens: false

@@ -1,0 +1,30 @@
+// proto2: closed enums, required and optional fields, a group; one outer class.
+syntax = "proto2";
+
+package accessors;
+
+option java_package = "dev.appiaworks.protobuf.extras.protoc.fixture.proto";
+
+message LegacyKinds {
+  enum Status {
+    UNKNOWN = 0;
+    ACTIVE = 1;
+    RETIRED = 2;
+  }
+
+  required string id = 1;
+  optional int32 count = 2;
+  optional Status status = 3;
+  repeated Status history = 4;
+  map<string, Status> status_by_name = 5;
+  optional bytes payload = 6;
+  optional uint64 big = 7;
+  optional LegacyKinds next = 8;
+}
+
+message WithGroup {
+  optional string name = 1;
+  optional group Details = 2 {
+    optional string note = 1;
+  }
+}

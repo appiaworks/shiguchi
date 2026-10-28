@@ -1,0 +1,64 @@
+Shiguchi
+Copyright 2024 Shiguchi contributors
+
+This product includes software developed at the Shiguchi project
+(https://github.com/appiaworks/shiguchi).
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this file except in compliance with the License. You may obtain a copy of the
+License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+------------------------------------------------------------------------------
+Third-party components
+------------------------------------------------------------------------------
+
+This distribution declares dependencies on, and its `shiguchi-ui` module bundles
+pre-built browser assets derived from, the third-party components listed in
+THIRD-PARTY.md. Each remains subject to its own license.
+
+The following bundled or declared components are licensed under the Apache
+License, Version 2.0, and carry their own NOTICE terms:
+
+  - gRPC-Java (https://github.com/grpc/grpc-java)
+    Copyright The gRPC Authors
+
+  - Spring Framework, Spring Boot, Spring Cloud Gateway, Spring Security,
+    Spring Data (https://spring.io)
+    Copyright Broadcom Inc. and/or its subsidiaries
+
+  - Google API Common Protos, Guava (https://github.com/googleapis)
+    Copyright Google LLC
+
+  - Netflix DGS Framework (https://github.com/Netflix/dgs-framework)
+    Copyright Netflix, Inc.
+
+  - Caffeine (https://github.com/ben-manes/caffeine)
+    Copyright Ben Manes
+
+  - Micrometer, OpenTelemetry Java (https://micrometer.io,
+    https://opentelemetry.io)
+    Copyright the Micrometer and OpenTelemetry authors
+
+  - springdoc-openapi (https://springdoc.org)
+    Copyright the springdoc-openapi authors
+
+  - protovalidate-java (https://github.com/bufbuild/protovalidate-java)
+    Copyright Buf Technologies, Inc.
+
+  - ClassGraph (https://github.com/classgraph/classgraph)
+    Copyright Luke Hutchison
+
+  - protobuf-jackson (https://github.com/curioswitch/protobuf-jackson)
+    Copyright Choko and the CurioSwitch authors
+
+Protocol Buffers (https://github.com/protocolbuffers/protobuf), Copyright Google
+LLC, is licensed under the BSD 3-Clause License.
+
+The bundled web console assets in `shiguchi-ui` are built from `shiguchi-ui-frontend`
+and include React (MIT, Copyright Meta Platforms, Inc. and affiliates), Monaco
+Editor (MIT, Copyright Microsoft Corporation), Zustand (MIT), react-resizable-
+panels (MIT), and Tailwind CSS (MIT).
+
+See THIRD-PARTY.md for the full list with versions and license identifiers.

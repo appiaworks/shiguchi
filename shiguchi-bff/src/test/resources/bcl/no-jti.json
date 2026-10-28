@@ -1,0 +1,1 @@
+{"iss":"${issuer}","aud":"${clientId}","iat":"${now}","exp":"${now+120}","sub":"alice","events":{"http://schemas.openid.net/event/backchannel-logout":{}}}

@@ -1,0 +1,47 @@
+{
+  "Item": {
+    "x-avro-schema": {
+      "type": "record",
+      "namespace": "com.acme.inventory",
+      "name": "Item",
+      "fields": [
+        {
+          "name": "sku",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": ["null", "string"],
+          "default": null
+        },
+        {
+          "name": "qty",
+          "type": "long"
+        }
+      ]
+    }
+  },
+  "Order": {
+    "x-avro-schema": {
+      "type": "record",
+      "namespace": "com.acme.orders",
+      "name": "Order",
+      "fields": [
+        {
+          "name": "orderId",
+          "type": "string"
+        },
+        {
+          "name": "items",
+          "type": {
+            "type": "array",
+            "items": "com.acme.inventory.Item"
+          }
+        }
+      ]
+    }
+  },
+  "Product": {
+    "x-avro-record": "com.acme.inventory.Item"
+  }
+}

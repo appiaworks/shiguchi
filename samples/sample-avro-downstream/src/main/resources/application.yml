@@ -1,0 +1,44 @@
+server:
+  port: 8080
+
+shiguchi:
+  services:
+    # A REST service that can answer in Avro. Everything about REST_DOWNSTREAM applies
+    # unchanged; upstream-content.preferred is the one line that switches the wire format.
+    - name: inventory
+      mode: REST_DOWNSTREAM
+      openapi-url: http://localhost:8081/v3/api-docs
+      path-prefix: /inv
+      upstream-content:
+        preferred: avro/binary             # ask for Avro where the document advertises it, JSON elsewhere
+      avro:
+        schema-source: OPENAPI             # schemas come from x-avro-schema in the document
+        wire-format: BINARY                # how request bodies are framed; responses are sniffed
+      operation-scopes:
+        createItem: [inventory.write]
+
+  openapi:
+    enabled: true                          # merged /v3/api-docs still shows the JSON Schema side
+
+  graphql:
+    enabled: true                          # /graphql: the Avro bytes become the same GraphQL results
+
+  grpc:
+    enabled: false
+
+  ui:
+    enabled: false
+
+  refresh:
+    enabled: true                          # a changed x-avro-schema is picked up with the document
+    interval-seconds: 60
+
+logging:
+  level:
+    dev.appiaworks.shiguchi.rest.HttpUpstreamDispatcher: DEBUG   # shows Accept / Content-Type per call
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

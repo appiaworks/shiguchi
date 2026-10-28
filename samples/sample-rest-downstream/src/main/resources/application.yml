@@ -1,0 +1,38 @@
+server:
+  port: 8080
+
+shiguchi:
+  services:
+    # A legacy REST service, not gRPC. The gateway fetches its OpenAPI document, proxies its
+    # operations under /inv, and merges the document into /v3/api-docs.
+    - name: inventory
+      mode: REST_DOWNSTREAM
+      openapi-url: http://localhost:8081/v3/api-docs
+      # base-url defaults to the scheme + authority of openapi-url (http://localhost:8081).
+      path-prefix: /inv                    # GET /inv/items/{sku} → GET http://localhost:8081/items/{sku}
+      exclude-methods: ["listItems"]       # globs against operationId; hidden ops 404 at the gateway
+      operation-scopes:                    # YAML scopes win over x-gateway-auth-scopes in the document
+        createItem: [inventory.write]
+      # inherit-security: true             # copy the backend's securitySchemes into the merged spec
+
+  openapi:
+    enabled: true                          # /v3/api-docs + /swagger-ui.html show the merged spec
+
+  graphql:
+    enabled: true                          # /graphql: queries + mutations derived from the document
+
+  grpc:
+    enabled: false
+
+  ui:
+    enabled: false
+
+  refresh:
+    enabled: true                          # re-fetch the document; routes and spec swap only when it changes
+    interval-seconds: 60
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

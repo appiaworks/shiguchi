@@ -1,0 +1,118 @@
+// A kitchen-sink schema compiled to Java for the Tier 1 typed writer's parity tests: every
+// field shape protoc generates an accessor for, the single-value well-known types, the
+// google.type messages the dialect may map to text, and the field names protoc renames.
+// No java_multiple_files: the messages are member classes of the outer class, the default
+// and the harder case for a source generator to name.
+syntax = "proto3";
+
+package typedparity;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+import "google/type/date.proto";
+import "google/type/decimal.proto";
+import "google/type/money.proto";
+import "google/type/timeofday.proto";
+
+option java_package = "dev.appiaworks.protobuf.extras.serde.typed";
+
+enum Kind {
+  KIND_UNSPECIFIED = 0;
+  KIND_A = 1;
+  KIND_B = 2;
+  KIND_C = 3;
+}
+
+message Inner {
+  string name = 1;
+  int32 rank = 2;
+  repeated string tags = 3;
+  Inner child = 4;
+  google.type.Date on = 5;
+}
+
+message AllTypes {
+  int32 i32 = 1;
+  int64 i64 = 2;
+  uint32 u32 = 3;
+  uint64 u64 = 4;
+  sint32 s32 = 5;
+  sint64 s64 = 6;
+  fixed32 f32 = 7;
+  fixed64 f64 = 8;
+  sfixed32 sf32 = 9;
+  sfixed64 sf64 = 10;
+  float fl = 11;
+  double db = 12;
+  bool bo = 13;
+  string str = 14;
+  bytes by = 15;
+  Kind kind = 16;
+
+  Inner inner = 17;
+  repeated Inner inners = 18;
+  repeated int64 r_i64 = 19;
+  repeated Kind kinds = 20;
+  repeated string r_str = 21;
+  repeated bytes r_by = 22;
+  repeated bool r_bool = 23;
+  repeated double r_db = 24;
+  repeated uint64 r_u64 = 25;
+
+  map<string, string> m_ss = 26;
+  map<int32, Inner> m_im = 27;
+  map<int64, Kind> m_lk = 28;
+  map<bool, int64> m_bl = 29;
+  map<string, google.protobuf.Timestamp> m_st = 30;
+  map<uint64, bytes> m_ub = 31;
+  map<string, google.type.Date> m_sd = 32;
+  map<uint32, double> m_ud = 33;
+
+  optional int32 opt_i32 = 34;
+  optional string opt_str = 35;
+  optional Kind opt_kind = 36;
+
+  oneof choice {
+    string choice_str = 37;
+    int64 choice_i64 = 38;
+    Inner choice_inner = 39;
+  }
+
+  google.protobuf.Timestamp ts = 40;
+  google.protobuf.Duration dur = 41;
+  google.protobuf.FieldMask mask = 42;
+  google.protobuf.Struct struct = 43;
+  google.protobuf.Value value = 44;
+  google.protobuf.ListValue list_value = 45;
+  google.protobuf.Int64Value w_i64 = 46;
+  google.protobuf.UInt64Value w_u64 = 47;
+  google.protobuf.Int32Value w_i32 = 48;
+  google.protobuf.UInt32Value w_u32 = 49;
+  google.protobuf.DoubleValue w_db = 50;
+  google.protobuf.FloatValue w_fl = 51;
+  google.protobuf.BoolValue w_bo = 52;
+  google.protobuf.StringValue w_str = 53;
+  google.protobuf.BytesValue w_by = 54;
+  repeated google.protobuf.Timestamp r_ts = 55;
+
+  google.type.Date date = 56;
+  google.type.Money money = 57;
+  google.type.Decimal decimal = 58;
+  google.type.TimeOfDay time_of_day = 59;
+  repeated google.type.Date r_date = 60;
+
+  // Names protoc cannot use as they are on a Java message: it appends an underscore.
+  string class = 61;
+  int32 serialized_size = 62;
+  // A digit inside the name: Java capitalises the letter after it, the JSON name does not.
+  string field_1x = 63;
+}
+
+message WithAny {
+  string id = 1;
+  google.protobuf.Any payload = 2;
+}

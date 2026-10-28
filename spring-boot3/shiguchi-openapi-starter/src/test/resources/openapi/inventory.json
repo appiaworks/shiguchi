@@ -1,0 +1,63 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "Inventory", "version": "1.0" },
+  "servers": [ { "url": "http://inventory.internal:8080" } ],
+  "security": [ { "bearer": [] } ],
+  "paths": {
+    "/items": {
+      "get": {
+        "operationId": "listItems",
+        "tags": [ "Items" ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Item" } } } }
+          }
+        }
+      }
+    },
+    "/items/{sku}": {
+      "get": {
+        "operationId": "getItem",
+        "tags": [ "Items" ],
+        "parameters": [ { "$ref": "#/components/parameters/SkuParam" } ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Item" } } }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/secret": {
+      "get": {
+        "operationId": "getSecret",
+        "x-gateway-auth-scopes": [ "inventory.secret" ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": { "bearer": { "type": "http", "scheme": "bearer" } },
+    "parameters": {
+      "SkuParam": { "name": "sku", "in": "path", "required": true, "schema": { "type": "string" } }
+    },
+    "responses": {
+      "NotFound": {
+        "description": "Not found",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    },
+    "schemas": {
+      "Item": {
+        "type": "object",
+        "properties": { "sku": { "type": "string" }, "qty": { "type": "integer", "format": "int64" } }
+      },
+      "Error": {
+        "type": "object",
+        "properties": { "code": { "type": "string" }, "message": { "type": "string" } }
+      }
+    }
+  }
+}

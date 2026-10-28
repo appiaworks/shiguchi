@@ -1,0 +1,64 @@
+server:
+  port: 8080
+
+sample:
+  backend-port: 9090   # the in-process catalog backend; the service entry below points at it
+
+shiguchi:
+  services:
+    - name: catalog
+      host: localhost
+      port: 9090
+      mode: DYNAMIC   # reflection: routes come from the google.api.http options on the backend
+
+  # ---------------------------------------------------------------------------------------
+  # Inbound rate limiting for the REST (and GraphQL) surface. Token bucket per caller:
+  # `burst-capacity` tokens to start with, refilled at `replenish-rate` per second, one token
+  # per request. A caller that runs dry gets 429 RESOURCE_EXHAUSTED with Retry-After and the
+  # backend never sees the request.
+  #
+  # The numbers here are deliberately tiny so a shell loop shows the limit within seconds.
+  # A real gateway wants something like replenish-rate: 100, burst-capacity: 200.
+  # ---------------------------------------------------------------------------------------
+  rate-limit:
+    enabled: true
+    backend: MEMORY          # this process only; see application-redis.yml for shared buckets
+    replenish-rate: 2        # tokens per second
+    burst-capacity: 5        # bucket size = the most a quiet caller can send at once
+    key: PRINCIPAL_OR_IP     # authenticated name when there is one, else the client IP
+    client-ip-header: X-Forwarded-For   # first hop when the header is present; else the socket peer
+    include-headers: true    # X-RateLimit-Limit / -Remaining / -Replenish-Rate / -Burst-Capacity
+
+  openapi:
+    enabled: true
+  graphql:
+    enabled: false
+  grpc:
+    enabled: false
+  ui:
+    enabled: false
+  refresh:
+    enabled: false
+
+management:
+  metrics:
+    distribution:
+      # Publish histogram buckets for the timers, so Prometheus can compute p50/p95/p99 with
+      # histogram_quantile(). Without this a timer exports only _count, _sum and _max.
+      percentiles-histogram:
+        grpc.client.call.duration: true
+        http.server.requests: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus   # gateway.ratelimit.requests{outcome} under /actuator/prometheus
+  health:
+    redis:
+      # The Redis starter is on the classpath for the `redis` profile, and Boot then health-checks
+      # Redis even under this profile, which does not use it — reporting DOWN with no Redis
+      # running. The redis profile turns this back on.
+      enabled: false
+
+logging:
+  level:
+    dev.appiaworks.shiguchi.ratelimit: DEBUG   # logs each refused request with its key

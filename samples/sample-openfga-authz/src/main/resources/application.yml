@@ -1,0 +1,112 @@
+server:
+  port: 8080
+
+shiguchi:
+  services:
+    - name: order-service
+      host: localhost
+      port: 9090
+      mode: DYNAMIC
+
+  # Per-object authorization only makes sense once callers are authenticated: the FGA check is
+  # performed for a concrete user, so an anonymous request has nothing to check against.
+  security:
+    mode: AUTHENTICATED
+
+  graphql:
+    enabled: false
+  openapi:
+    enabled: true
+  grpc:
+    enabled: false
+  ui:
+    enabled: false
+  refresh:
+    enabled: false
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Point at your IdP. The JWT `sub` becomes the OpenFGA user, and the `groups` claim is
+          # sent as contextual tuples.
+          issuer-uri: http://localhost:8081/realms/demo
+
+sample:
+  openfga:
+    enabled: true
+    api-url: http://localhost:8080
+    store-id: 01J8XYZSTOREIDGOESHERE
+    # Pin the model id. Without it OpenFGA evaluates against the latest model, so publishing a new
+    # model would silently change the answers this gateway gives.
+    authorization-model-id: 01J8XYZMODELIDGOESHERE
+
+    # Bound the policy engine's effect on tail latency. On timeout, `fail-open` decides.
+    timeout: 300ms
+
+    # Fail closed: an OpenFGA outage denies rather than silently bypassing authorization.
+    # Flip to true only where availability genuinely outranks the access-control guarantee.
+    fail-open: false
+
+    # ---------------------------------------------------------------------------------------
+    # Route -> object rule. THIS is the mapping the gateway cannot infer on its own.
+    #
+    # A route knows `GET /v1/orders/{orderId}` maps to OrderService/GetOrder, but nothing in the
+    # proto says "orderId names an object of type `order` and the caller needs `viewer` on it".
+    #
+    # Key   : "METHOD /path/template" for REST (exactly as the route declares it),
+    #         or the GraphQL field name for GraphQL routes.
+    # Value : the tuple that must hold — check(user, relation, objectType:<id-argument value>)
+    #
+    # `id-argument` names a key in AuthorizationRequest.arguments(), which the gateway fills from
+    # REST path variables and query parameters, or from GraphQL field arguments.
+    #
+    # Routes NOT listed here get no per-object check — only the gateway's declared scope check.
+    # ---------------------------------------------------------------------------------------
+    routes:
+      "[GET /v1/orders/{orderId}]":
+        object-type: order
+        relation: viewer
+        id-argument: orderId
+
+      "[DELETE /v1/orders/{orderId}]":
+        object-type: order
+        relation: owner        # deleting demands a stronger relation than reading
+        id-argument: orderId
+
+      "[GET /v1/accounts/{accountId}/statements]":
+        object-type: account
+        relation: viewer
+        id-argument: accountId
+
+      # GraphQL routes are keyed by field name instead of an HTTP binding.
+      order:
+        object-type: order
+        relation: viewer
+        id-argument: id
+
+    cache:
+      # Off by default. A cached allow outlives a revoked grant for up to `ttl`, and that
+      # staleness window should be a deliberate choice rather than a default.
+      enabled: false
+
+      # The revocation lag you are accepting: a permission removed in OpenFGA still passes here
+      # for up to this long.
+      ttl: 30s
+
+      # Denies are cached far more briefly. A stale allow is a security failure; a stale deny is a
+      # brief annoyance for someone who was just granted access.
+      negative-ttl: 5s
+
+      max-size: 10000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    dev.appiaworks.shiguchi.sample.openfga: DEBUG

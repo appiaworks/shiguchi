@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+// Push hooks: a backend-implemented service the gateway calls about its push surface. Configure
+// the served service that implements this contract (any subset of the methods) with
+// shiguchi.cursus.hooks.grpc-service, or implement dev.appiaworks.shiguchi.cursus.PushHook in process.
+//
+// Notifications (the gateway does not wait for them; a failure is logged and counted):
+//
+//   OnTopicActive  the first subscriber of a topic arrived on this gateway instance
+//   OnTopicIdle    the last one left and hooks.idle-linger passed without a new one
+//   OnDisconnect   a client connection closed, with its topics and the reason
+//
+// Decisions (the gateway waits, up to hooks.timeout, before serving the client; a hook that
+// times out or fails allows unless hooks.fail-closed is true):
+//
+//   OnConnect         a client connection opened: ConnectDecision admits or rejects it and may
+//                     subscribe it to topics. A backend that still returns google.protobuf.Empty
+//                     is read as the default decision (allow), so existing hooks keep working.
+//   OnSubscribe       a client asked for topics: SubscribeDecision admits, rejects or rewrites them
+//   OnClientMessage   a client published over its connection: ClientMessageResult forwards,
+//                     drops or rejects it, and may rewrite its payload
+//
+// Topic activity is per gateway instance: with a shared engine two instances each report their
+// own first and last subscriber. The `instance` field says which.
+//
+// See docs/push.md, "Hooks".
+package shiguchi.cursus.v1;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+option java_package = "dev.appiaworks.shiguchi.proto.cursus";
+option java_multiple_files = true;
+option java_outer_classname = "PushHooksProto";
+option go_package = "github.com/appiaworks/shiguchi/proto/cursus/v1;cursusv1";
+option csharp_namespace = "Shiguchi.Cursus.V1";
+
+service PushHooks {
+  rpc OnTopicActive(TopicActivity) returns (google.protobuf.Empty);
+  rpc OnTopicIdle(TopicActivity) returns (google.protobuf.Empty);
+  rpc OnConnect(ConnectionInfo) returns (ConnectDecision);
+  rpc OnDisconnect(ConnectionInfo) returns (google.protobuf.Empty);
+  rpc OnSubscribe(SubscribeHook) returns (SubscribeDecision);
+  rpc OnClientMessage(ClientMessage) returns (ClientMessageResult);
+}
+
+message ConnectDecision {
+  // True: close the connection before it is served, with `reason`.
+  bool reject = 1;
+  string reason = 2;
+  // Topics (namespace:name) to subscribe the connection to on the server side. Not authorized
+  // again: the backend's word is final.
+  repeated string subscribe = 3;
+}
+
+message SubscribeHook {
+  ConnectionInfo connection = 1;
+  // The topics the client asked for (namespace:name).
+  repeated string topics = 2;
+}
+
+message SubscribeDecision {
+  bool reject = 1;
+  string reason = 2;
+  // Replaces the requested topics when not empty. Not authorized again.
+  repeated string topics = 3;
+}
+
+message ClientMessage {
+  ConnectionInfo connection = 1;
+  string topic = 2;
+  // The JSON payload the client sent.
+  bytes payload = 3;
+}
+
+message ClientMessageResult {
+  enum Action {
+    // Publish the message (the default, also an empty reply).
+    FORWARD = 0;
+    // Acknowledge the client but do not publish.
+    DROP = 1;
+    // Answer the client with an error carrying `reason`.
+    REJECT = 2;
+  }
+  Action action = 1;
+  string reason = 2;
+  // Replaces the payload when not empty (FORWARD only).
+  bytes payload = 3;
+}
+
+message TopicActivity {
+  // namespace:name
+  string topic = 1;
+  // The gateway instance reporting (shiguchi.cursus.upstream.instance-id, or host plus suffix).
+  string instance = 2;
+  // Subscribers of the topic on that instance after the transition: 1 on active, 0 on idle.
+  int32 subscribers = 3;
+  google.protobuf.Timestamp time = 4;
+}
+
+message ConnectionInfo {
+  // The connection id the admin views list.
+  string id = 1;
+  // sse, ws, grpc or graphql.
+  string transport = 2;
+  // The principal's name; empty when anonymous.
+  string principal = 3;
+  // The topics subscribed at the time of the call (empty on connect).
+  repeated string topics = 4;
+  google.protobuf.Timestamp since = 5;
+  string instance = 6;
+  // On disconnect: closed (the client left), admin (an operator disconnected it), lifetime,
+  // shutdown, overflow, or the transport's own reason.
+  string reason = 7;
+}

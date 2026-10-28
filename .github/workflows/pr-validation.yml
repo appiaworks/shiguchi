@@ -1,0 +1,45 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  # One job, not two: lint and template-smoke share a checkout and a helm install, and they take
+  # seconds.
+  helm:
+    name: Helm Lint & Template Smoke Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+      - name: Lint chart
+        run: helm lint helm/
+
+      - name: Template chart (default values)
+        run: helm template test-release helm/ | kubectl apply --dry-run=client -f - || true
+
+      - name: Template with ingress enabled
+        run: |
+          helm template test-release helm/ \
+            --set ingress.enabled=true \
+            --set ingress.hosts[0].host=gateway.example.com \
+            --set ingress.hosts[0].paths[0].path=/ \
+            --set ingress.hosts[0].paths[0].pathType=Prefix \
+            > /dev/null
+
+      - name: Template with gRPC service + HPA
+        run: |
+          helm template test-release helm/ \
+            --set grpcService.enabled=true \
+            --set autoscaling.enabled=true \
+            > /dev/null
+
+      - name: Template with JVM overrides
+        run: |
+          helm template test-release helm/ \
+            --set jvm.gc=Z \
+            --set jvm.activeProcessorCount=null \
+            --set jvm.extraOptions=-Xlog:gc \
+            | grep -q 'value: "-XX:+UseZGC -XX:MaxRAMPercentage=65 -XX:+UseCompactObjectHeaders.* -Xlog:gc"'

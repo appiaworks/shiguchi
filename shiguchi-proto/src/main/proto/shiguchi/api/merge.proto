@@ -1,0 +1,77 @@
+syntax = "proto3";
+package shiguchi.api;
+
+import "google/protobuf/descriptor.proto";
+
+option java_package = "dev.appiaworks.shiguchi.proto.api";
+option java_multiple_files = true;
+option java_outer_classname = "MergeProto";
+
+// One backend participating in a merged endpoint.
+message MergeSource {
+  // The gateway service registration this source lives in (the `name` under
+  // shiguchi.services). Optional, but required when several registered backends expose the
+  // SAME proto service -- the sharded case, where every shard serves an identical .proto and only
+  // the address differs. Without it those sources are indistinguishable and the merge would read
+  // one backend repeatedly instead of all of them.
+  string endpoint = 1;
+
+  // Proto service FQN, e.g. "orders.OrderService". Required.
+  string full_service_name = 2;
+
+  // RPC name on that service. Required.
+  string method_name = 3;
+
+  // Whether this backend returns its rows ALREADY ORDERED by the merge key.
+  //
+  // The single most consequential field here. A k-way merge is a merge of sorted sequences: it
+  // compares only the record currently at the front of each source, so a record that sorts earlier
+  // but sits further down an unsorted stream is never reconsidered. Declaring an unsorted backend
+  // pre-sorted does not fail loudly -- it returns pages that look ordered and quietly omit rows.
+  //
+  // The gateway cannot check the claim: it can send sort_fields, but not verify the backend
+  // honoured it. Defaults to false, and a false source is read in full and sorted gateway-side.
+  bool presorted = 4;
+}
+
+// Method-level annotation: serve this route by merging several backends that return the same
+// message type, ordered by the caller's sort.
+//
+// Declared on one participant method, listing the others -- the route model is one method to one
+// binding, so a merge needs a primary to hang off. A MergeSourceProvider bean or YAML config both
+// override this; see docs/merging.md.
+//
+// Example:
+//   option (shiguchi.api.merge) = {
+//     tie_break_field: "id"
+//     sources: [
+//       { endpoint: "orders-eu", full_service_name: "orders.OrderService", method_name: "list", presorted: true },
+//       { endpoint: "orders-us", full_service_name: "orders.OrderService", method_name: "list" }
+//     ]
+//   };
+message MergeRule {
+  // Participants. Order is significant: a page cursor addresses sources by their index here, so
+  // reordering this list invalidates every cursor already handed out. At least two required.
+  repeated MergeSource sources = 1;
+
+  // Stable, unique field appended as the final sort key. Without one, records sharing a sort value
+  // have no defined relative order, and a page boundary landing inside such a group cannot say
+  // which rows it already served -- so pages can repeat or drop them. Usually the id.
+  string tie_break_field = 2;
+
+  // "UNKNOWN" (default, reports -1) or "SUM". Summing is only correct when the sources hold
+  // disjoint rows; overlapping id spaces double-count.
+  string total_count_strategy = 3;
+
+  // "FAIL_FAST" (default) or "BEST_EFFORT". Failing fast is the default because a merge that
+  // quietly drops a failed source returns a page that looks right and is missing rows.
+  string failure_policy = 4;
+
+  // Records fetched per source per page; 0 uses the configured window multiplier.
+  int32 window_size = 5;
+}
+
+// Method option: serve this route by merging several backends.
+extend google.protobuf.MethodOptions {
+  MergeRule merge = 50102;
+}

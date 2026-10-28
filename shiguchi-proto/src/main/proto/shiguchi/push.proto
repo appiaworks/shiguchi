@@ -1,0 +1,270 @@
+syntax = "proto3";
+
+// The push surface as a gRPC service: publish an event to topics, subscribe to topics as a
+// server stream. The gateway hosts this service itself (shiguchi.cursus.grpc.enabled, on by
+// default when push is on), as a STATIC service over an in-process channel, so the same methods
+// answer on every surface the gateway has: native gRPC on the proxy port, gRPC-Web on the HTTP
+// port, and JSON over HTTP through the gateway's own transcoding at `<cursus.path>/v1/publish` and
+// `<cursus.path>/v1/subscribe`. The JSON there is the proto JSON of these messages.
+//
+// Payloads are JSON values (`json`) or typed messages (`message`, a google.protobuf.Any). The
+// gateway stores and delivers JSON: a typed payload is rendered to its proto JSON, with `@type`,
+// when the gateway knows the type (it is one of the messages of a configured service), and is
+// refused otherwise. Subscribers over every transport see the same JSON.
+//
+// See docs/push.md.
+package shiguchi.cursus.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/any.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option java_package = "dev.appiaworks.shiguchi.proto.cursus";
+option java_multiple_files = true;
+option java_outer_classname = "PushProto";
+option go_package = "github.com/appiaworks/shiguchi/proto/cursus/v1;cursusv1";
+option csharp_namespace = "Shiguchi.Cursus.V1";
+
+// Delivery guarantee, named as MQTT names them.
+enum Qos {
+  // The namespace's own setting.
+  QOS_UNSPECIFIED = 0;
+  // Live events only; nothing is kept for a subscriber that is not connected.
+  AT_MOST_ONCE = 1;
+  // Events are kept per topic (`history-size`, `history-ttl`) and a subscriber resumes from
+  // the last id it saw.
+  AT_LEAST_ONCE = 2;
+}
+
+// One event on a topic.
+message PushEvent {
+  // `namespace:name`.
+  string topic = 1;
+  // The engine's id, ordered within a topic; what a subscriber resumes from.
+  string id = 2;
+  oneof payload {
+    // The payload as published, or a typed payload rendered to its proto JSON (with `@type`).
+    google.protobuf.Value json = 3;
+    // Reserved for typed delivery; the gateway delivers `json` today.
+    google.protobuf.Any message = 4;
+  }
+  // Publisher-set metadata, delivered with the event. The gateway adds `from` (the publisher's
+  // principal) on client and operator publishes, and `push.origin` when the publisher named an
+  // origin. The `push.` prefix is reserved for the gateway.
+  map<string, string> attributes = 5;
+  // The ordering key, when the publisher set one.
+  string key = 6;
+  // When the gateway accepted the event.
+  google.protobuf.Timestamp time = 7;
+}
+
+message PublishRequest {
+  // One or more `namespace:name` topics; the same event goes to each.
+  repeated string topics = 1;
+  oneof payload {
+    // A JSON value.
+    google.protobuf.Value json = 2;
+    // A typed message; the gateway must know its type.
+    google.protobuf.Any message = 3;
+  }
+  // Metadata; keys starting with `push.` are reserved and refused.
+  map<string, string> attributes = 4;
+  string key = 5;
+  // Who the event came from, stored as the `push.origin` attribute: a subscriber that declared
+  // the same origin does not receive it. Grammar `[A-Za-z0-9_.:@-]{1,128}`; empty for none.
+  string origin = 6;
+}
+
+message PublishResponse {
+  // One per topic, in request order.
+  repeated PublishedEvent events = 1;
+}
+
+message PublishedEvent {
+  string topic = 1;
+  string id = 2;
+}
+
+message SubscribeRequest {
+  // One or more `namespace:name` topics, up to `connection.max-subscriptions`.
+  repeated string topics = 1;
+  // Resume an AT_LEAST_ONCE topic after this event id (the `Last-Event-ID` of SSE).
+  string after = 2;
+  // Ask for less than the namespace offers: AT_MOST_ONCE skips the history.
+  Qos qos = 3;
+  // On a namespace with session-key CLIENT: the client's session id, so its cursor is kept
+  // across connections. A PRINCIPAL session needs nothing here.
+  string session = 4;
+  // On a namespace with session-key GROUP: the consumer group to join and this member's name.
+  // Each event of the topics goes to one member; the member acknowledges with Ack.
+  string group = 5;
+  string member = 6;
+  // This subscriber's own origin id: events published with the same `origin` are not delivered
+  // to it. Grammar `[A-Za-z0-9_.:@-]{1,128}`; empty for none. Ignored with `group`.
+  string origin = 7;
+}
+
+// Acknowledge an event on a persistent session: the session's cursor on the topic moves forward
+// to `id` (never back). The next Subscribe without `after` resumes from there.
+message AckRequest {
+  string topic = 1;
+  string id = 2;
+  // The client session id on a session-key CLIENT namespace.
+  string session = 3;
+  // On a session-key GROUP namespace: the group and the member that holds the claim.
+  string group = 4;
+  string member = 5;
+}
+
+message AckResponse {
+  string topic = 1;
+  string cursor = 2;
+}
+
+// Ask whether anyone listens to topics. Callers need the subscribe permission of each topic's
+// namespace, so a backend that may subscribe may ask who listens.
+message HasSubscribersRequest {
+  repeated string topics = 1;
+}
+
+message HasSubscribersResponse {
+  // Per topic: whether at least one connection listens. Cluster-wide on a `presence: true`
+  // namespace, this instance's connections only otherwise.
+  map<string, bool> subscribers = 1;
+}
+
+message GetSubscribersRequest {
+  string topic = 1;
+  // Members per page; 0 takes 100 (at most 1000).
+  int32 page_size = 2;
+  // The `next_page_token` of the previous page.
+  string page_token = 3;
+}
+
+message Subscriber {
+  string connection_id = 1;
+  // The principal's name; empty for an anonymous connection.
+  string principal = 2;
+  // The device id the client named (`X-Push-Device`, `x-push-device`, `connect{device}`); empty if none.
+  string device_id = 3;
+  string transport = 4;
+  // The gateway instance holding the connection (empty when the store keeps no registry).
+  string instance = 5;
+  google.protobuf.Timestamp since = 6;
+}
+
+message GetSubscribersResponse {
+  // How many connections listen to the topic.
+  int64 count = 1;
+  // One page of them; empty on a namespace without `presence: true`, where only the count is known.
+  repeated Subscriber subscribers = 2;
+  string next_page_token = 3;
+}
+
+// Deliver an event to chosen connections instead of to a topic's subscribers.
+message SendRequest {
+  oneof target {
+    // Every connection of this principal.
+    string principal = 1;
+    // One connection, by the id the registry lists.
+    string connection_id = 2;
+    // The connections of a principal that named this device id.
+    DeviceTarget device = 3;
+  }
+  // Same shape as Publish: a JSON value or a typed message.
+  oneof payload {
+    google.protobuf.Value json = 4;
+    google.protobuf.Any message = 5;
+  }
+  map<string, string> attributes = 6;
+  // Wait for the client to acknowledge the event (its `ack` frame, Ack call or POST), up to
+  // `timeout_ms`; without it DELIVERED means the gateway wrote the event to the connection.
+  bool require_ack = 7;
+  // How long to wait for acknowledgements; 0 takes 5000 (at most 60000).
+  int32 timeout_ms = 8;
+  // Stored as the `push.origin` attribute: a connection that declared the same origin is not
+  // sent the event (SUPPRESSED). Grammar `[A-Za-z0-9_.:@-]{1,128}`; empty for none.
+  string origin = 9;
+}
+
+message DeviceTarget {
+  string principal = 1;
+  string device_id = 2;
+}
+
+message DeliveryStatus {
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    // Written to the connection (and acknowledged, when require_ack was set).
+    DELIVERED = 1;
+    // No connection matched the target, or the instance holding it cannot be reached.
+    NOT_CONNECTED = 2;
+    // require_ack was set and the client did not acknowledge in time.
+    TIMEOUT = 3;
+    // The connection's outgoing queue is full or it closed before the event was written.
+    REJECTED = 4;
+    // The connection declared the event's origin, so it was not sent.
+    SUPPRESSED = 5;
+  }
+  string connection_id = 1;
+  string instance = 2;
+  Status status = 3;
+}
+
+message SendResponse {
+  // The id of the event; every connection received this one id, so a client can dedupe.
+  string id = 1;
+  // One per matched connection; a single NOT_CONNECTED entry (no connection id) when none matched.
+  repeated DeliveryStatus deliveries = 2;
+}
+
+// Publish to topics; subscribe to topics.
+//
+// Callers authenticate with a bearer token in the `authorization` metadata, which the gateway
+// forwards from the HTTP surfaces as it does for every backend; the namespace's `publish-auth`
+// and `auth` decide what the caller may do. The stream ends with UNAVAILABLE and the trailer
+// `push-close-reason` (rebalance, shutdown, admin) when the gateway closes it, and with
+// RESOURCE_EXHAUSTED when an AT_LEAST_ONCE subscriber stops reading and its queue fills; the
+// client reconnects and resumes with `after`.
+service PushService {
+  rpc Publish(PublishRequest) returns (PublishResponse) {
+    option (google.api.http) = {
+      post: "/v1/publish"
+      body: "*"
+    };
+  }
+
+  rpc Subscribe(SubscribeRequest) returns (stream PushEvent) {
+    option (google.api.http) = {
+      get: "/v1/subscribe"
+    };
+  }
+
+  rpc Ack(AckRequest) returns (AckResponse) {
+    option (google.api.http) = {
+      post: "/v1/ack"
+      body: "*"
+    };
+  }
+
+  rpc HasSubscribers(HasSubscribersRequest) returns (HasSubscribersResponse) {
+    option (google.api.http) = {
+      post: "/v1/has-subscribers"
+      body: "*"
+    };
+  }
+
+  rpc GetSubscribers(GetSubscribersRequest) returns (GetSubscribersResponse) {
+    option (google.api.http) = {
+      get: "/v1/subscribers"
+    };
+  }
+
+  rpc Send(SendRequest) returns (SendResponse) {
+    option (google.api.http) = {
+      post: "/v1/send"
+      body: "*"
+    };
+  }
+}

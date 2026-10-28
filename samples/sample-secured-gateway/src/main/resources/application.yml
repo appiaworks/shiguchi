@@ -1,0 +1,44 @@
+server:
+  port: 8080
+
+sample:
+  backend-port: 9443
+
+shiguchi:
+  services:
+    - name: catalog
+      host: localhost
+      port: 9443
+      mode: DYNAMIC
+      # The outbound half. With a tls block the channel is TLS rather than plaintext, and
+      # cert-chain + private-key make it MUTUAL TLS: the gateway presents a certificate the
+      # backend verifies, not just the other way round.
+      #
+      # These paths come from the generated dev certificates (see CertificateEnvironment).
+      # A real deployment points them at mounted secrets and writes them literally.
+      tls:
+        trust-cert-collection: ${sample.certs.ca}
+        cert-chain: ${sample.certs.client-cert}
+        private-key: ${sample.certs.client-key}
+
+  # The inbound half: every surface needs a valid bearer token.
+  security:
+    mode: AUTHENTICATED
+
+  openapi:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,gateway-routes
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    # Prints the startup warning about forwarded credentials — silent here, because the service
+    # has a tls block. Remove the tls block and it appears.
+    dev.appiaworks.shiguchi.security: INFO

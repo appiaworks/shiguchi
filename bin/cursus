@@ -1,0 +1,16 @@
+#!/bin/sh
+# cursus: runs the fat jar (cursus-<version>-all.jar): $CURSUS_JAR, else next to this script,
+# else the build output of a source checkout.
+set -e
+dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+jar=${CURSUS_JAR:-}
+if [ -z "$jar" ]; then
+  for candidate in "$dir"/cursus-*-all.jar "$dir"/../shiguchi-cursus/shiguchi-cursus-cli/build/libs/cursus-*-all.jar; do
+    if [ -f "$candidate" ]; then jar=$candidate; fi
+  done
+fi
+if [ -z "$jar" ]; then
+  echo "cursus: no cursus-*-all.jar found; set CURSUS_JAR or run ./gradlew :shiguchi-cursus-cli:shadowJar" >&2
+  exit 1
+fi
+exec java ${CURSUS_JAVA_OPTS:--Xshare:auto -XX:TieredStopAtLevel=1} -jar "$jar" "$@"

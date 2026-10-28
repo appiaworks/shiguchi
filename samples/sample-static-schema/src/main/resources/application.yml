@@ -1,0 +1,34 @@
+server:
+  port: 8080
+
+sample:
+  backend-port: 9090
+
+shiguchi:
+  services:
+    - name: catalog
+      host: localhost
+      port: 9090
+      # STATIC: the schema comes from compiled stubs on THIS application's classpath, not from
+      # the backend. No reflection call is made, so the gateway can register routes before the
+      # backend is even listening.
+      mode: STATIC
+      # The generated *Grpc outer classes whose services live on this backend. The loader calls
+      # getServiceDescriptor() on each and pulls the protobuf descriptor out of it.
+      static-service-classes:
+        - dev.appiaworks.shiguchi.sample.staticschema.proto.CatalogServiceGrpc
+      # Alternative to listing them: let ClassGraph find them.
+      #   auto-discover:
+      #     classpath: true
+      #     scan-packages: [dev.appiaworks.shiguchi.sample.staticschema.proto]
+  openapi:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,gateway-routes
+  endpoint:
+    health:
+      show-details: always

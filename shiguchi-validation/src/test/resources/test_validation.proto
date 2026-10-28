@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package test.validation;
+
+import "buf/validate/validate.proto";
+
+option java_package = "dev.appiaworks.shiguchi.validation.test";
+option java_outer_classname = "TestValidationProto";
+
+// Test message with string length constraint
+message TestUser {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+  string email = 2 [(buf.validate.field).string.email = true];
+  int32 age = 3 [(buf.validate.field).int32.gte = 0];
+}
+
+// Test message with required field constraint
+message TestRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  TestUser user = 2 [(buf.validate.field).required = true];
+}
+
+// Simple message with no constraints for positive test
+message SimpleMessage {
+  string text = 1;
+  int32 number = 2;
+}

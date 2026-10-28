@@ -1,0 +1,20 @@
+global:
+  # Fast enough that a shell loop shows up within one or two ticks of the dashboard's refresh.
+  # 15s or more is the usual production choice.
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  # The sample gateway running on the host with `bootRun`. The dashboard's `job` variable
+  # is populated from this name.
+  - job_name: shiguchi
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8080"]
+        labels:
+          # Purely a label to filter on; change it to whichever sample you started.
+          sample: sample-discovery-gateway
+
+  # Add a second target for a second gateway instance (sample-rate-limited-gateway's redis
+  # profile runs one on 8081), and the dashboard's `instance` variable lists both:
+  #     - targets: ["host.docker.internal:8080", "host.docker.internal:8081"]

@@ -1,0 +1,59 @@
+name: CodeQL
+
+# Scans on every push to main and on every PR into main or a release branch, plus a weekly run
+# so new queries also hit code that has not changed. Results upload to the repository's code
+# scanning, so findings gate PRs.
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main", "release/**"]
+  schedule:
+    - cron: "17 4 * * 1" # weekly, Monday 04:17 UTC
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    # Bounds a hung job. Each matrix leg takes ~10-15 min. build-mode none means no Gradle for
+    # the Java leg.
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      security-events: write
+      actions: read # CodeQL reads workflow-run metadata when uploading SARIF
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # build-mode none: CodeQL scans Java sources without invoking Gradle —
+          # much faster and no dependency on the full build succeeding.
+          - language: java-kotlin
+            build-mode: none
+          - language: javascript-typescript
+            build-mode: none
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # The TypeScript extractor needs node on the PATH ("Could not start Node.js. It is required
+      # for TypeScript extraction"); pin the version rather than rely on the runner image's.
+      - name: Set up Node.js
+        if: matrix.language == 'javascript-typescript'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"
+          upload: always

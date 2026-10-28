@@ -1,0 +1,30 @@
+server:
+  port: 8080
+
+shiguchi:
+  services:
+    - name: my-grpc-service
+      host: localhost
+      port: 9090
+      mode: DYNAMIC
+
+  openapi:
+    enabled: true
+
+  graphql:
+    enabled: true     # Activates GraphQL schema generation from proto annotations
+
+  grpc:
+    enabled: false
+
+  ui:
+    enabled: false
+
+  refresh:
+    enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

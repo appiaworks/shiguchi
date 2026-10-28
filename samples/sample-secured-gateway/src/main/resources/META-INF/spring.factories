@@ -1,0 +1,5 @@
+# Generates the sample's throwaway certificates before configuration binding, so the
+# shiguchi.services[0].tls.* paths below can refer to files created at startup.
+# A real deployment ships the PEM files and needs none of this.
+org.springframework.boot.env.EnvironmentPostProcessor=\
+dev.appiaworks.shiguchi.sample.secured.SampleSecuredGatewayApplication$CertificateEnvironment

@@ -1,0 +1,14 @@
+edition = "2023";
+
+package accessors;
+
+import "google/protobuf/timestamp.proto";
+import "google/type/date.proto";
+
+option java_multiple_files = true;
+option java_package = "dev.appiaworks.protobuf.extras.protoc.fixture.proto";
+
+message EditionEvent {
+  google.protobuf.Timestamp at = 1;
+  repeated google.type.Date days = 2;
+}

@@ -1,0 +1,14 @@
+shiguchi:
+  bff:
+    enabled: true
+    providers:
+      idp:
+        issuer-uri: https://id.example.com
+        client-id: gateway
+        client-secret: s3cret
+        type: OIDC
+    applications:
+      eve:
+        origins: [https://eve.example.com]
+        providers: [idp]
+        return-to: [https://eve.example.com/]

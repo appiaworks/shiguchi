@@ -1,0 +1,113 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "Inventory (Avro-capable)", "version": "1.0" },
+  "paths": {
+    "/items": {
+      "get": {
+        "operationId": "listItems",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Item" } } }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createItem",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "avro/binary": { "schema": { "$ref": "#/components/schemas/Item" } },
+            "application/json": { "schema": { "$ref": "#/components/schemas/Item" } }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "avro/binary": { "schema": { "$ref": "#/components/schemas/Item" } },
+              "application/json": { "schema": { "$ref": "#/components/schemas/Item" } }
+            }
+          }
+        }
+      }
+    },
+    "/items/{sku}": {
+      "get": {
+        "operationId": "getItem",
+        "parameters": [ { "name": "sku", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "avro/binary": { "schema": { "$ref": "#/components/schemas/Item" } },
+              "application/json": { "schema": { "$ref": "#/components/schemas/Item" } }
+            }
+          }
+        }
+      }
+    },
+    "/legacy/{sku}": {
+      "get": {
+        "operationId": "getLegacyItem",
+        "parameters": [ { "name": "sku", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "responses": {
+          "200": {
+            "description": "Declares Avro but the backend answers JSON anyway",
+            "content": {
+              "avro/binary": { "schema": { "$ref": "#/components/schemas/Item" } },
+              "application/json": { "schema": { "$ref": "#/components/schemas/Item" } }
+            }
+          }
+        }
+      }
+    },
+    "/framed/{sku}": {
+      "get": {
+        "operationId": "getFramedItem",
+        "parameters": [ { "name": "sku", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "responses": {
+          "200": {
+            "description": "Single-object encoded",
+            "content": { "avro/binary": { "schema": { "$ref": "#/components/schemas/Item" } } }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Item": {
+        "type": "object",
+        "properties": {
+          "sku": { "type": "string" },
+          "name": { "type": "string" },
+          "qty": { "type": "integer", "format": "int64" },
+          "updatedAt": { "type": "string", "format": "date-time" },
+          "category": { "$ref": "#/components/schemas/Category" }
+        },
+        "x-avro-schema": {
+          "type": "record",
+          "name": "Item",
+          "namespace": "com.acme.inventory",
+          "fields": [
+            { "name": "sku", "type": "string" },
+            { "name": "name", "type": [ "null", "string" ], "default": null },
+            { "name": "qty", "type": "long" },
+            { "name": "updatedAt", "type": { "type": "long", "logicalType": "timestamp-millis" } },
+            { "name": "category", "type": [ "null", {
+                "type": "record", "name": "Category", "fields": [
+                  { "name": "id", "type": "int" }, { "name": "name", "type": "string" } ] } ],
+              "default": null }
+          ]
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": { "id": { "type": "integer", "format": "int32" }, "name": { "type": "string" } }
+      }
+    }
+  }
+}

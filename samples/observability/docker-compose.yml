@@ -1,0 +1,39 @@
+# Prometheus + Grafana for any sample gateway running on the host.
+#
+# Not a sample of its own: the gateway is whichever sample you started with bootRun, and this
+# only scrapes it and draws the dashboard. See README.md.
+services:
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      # Short retention: this is a showcase, not a store.
+      - --storage.tsdb.retention.time=1d
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    # 9090 on the host is where every sample expects its gRPC backend, so Prometheus takes 9091.
+    ports:
+      - "9091:9090"
+    # Lets the container reach the sample on the host as host.docker.internal on Linux too
+    # (Docker Desktop provides the name by itself).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  grafana:
+    image: grafana/grafana:13.2.4
+    depends_on:
+      - prometheus
+    environment:
+      # No login: open the browser and the dashboard is there. Fine on a laptop; not a
+      # configuration to copy anywhere reachable.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      # The dashboard lives in docs/ so the repository has one copy; provisioning reads it from
+      # there. Edits made in the Grafana UI are not written back — export and replace the file.
+      - ../../docs/grafana:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"

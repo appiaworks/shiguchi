@@ -1,0 +1,14 @@
+{
+  "grants": {
+    "order:42": {
+      "owner":  ["alice"],
+      "viewer": ["group:auditors"]
+    },
+    "order:99": {
+      "owner":  ["dave"]
+    },
+    "account:acme": {
+      "viewer": ["alice", "group:auditors"]
+    }
+  }
+}

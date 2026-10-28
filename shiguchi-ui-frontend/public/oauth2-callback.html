@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>OAuth2 Callback</title></head>
+<body>
+<script>
+  var params = new URLSearchParams(window.location.search);
+  if (window.opener) {
+    window.opener.postMessage(
+      {
+        type: 'oauth2-callback',
+        code: params.get('code'),
+        error: params.get('error'),
+        state: params.get('state'),
+      },
+      window.location.origin
+    );
+  }
+  window.close();
+</script>
+</body>
+</html>

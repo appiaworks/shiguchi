@@ -1,0 +1,121 @@
+name: Benchmarks
+
+# On demand only. JMH is too noisy to gate every PR, and a full run takes 20-30 minutes, so the
+# suite is not wired to any automatic trigger. Run it from the Actions tab (*Run workflow*): on
+# `main` the scores are appended to the `benchmarks` branch as the comparison baseline; on any
+# other ref they are compared against that baseline and a regression of more than 20% leaves an
+# alert comment on the commit. Hosted runners are noisy neighbours (10-15% jitter on a quiet
+# day), so a tighter gate would mostly page on noise.
+
+on:
+  workflow_dispatch:
+    inputs:
+      includes:
+        description: "JMH include regex (e.g. SerdeBenchmark, Merge). Empty = full suite."
+        required: false
+        default: ""
+
+concurrency:
+  group: bench-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  jmh:
+    name: JMH suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write # push results to the benchmarks branch
+      pull-requests: write # regression comments
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          java-version: "25"
+          distribution: temurin
+          cache: gradle
+
+      # The history branch is an orphan that only ever holds benchmark data. The compare
+      # action fetches it when present and always `git switch`es to it locally, so a run
+      # before the branch exists needs a local orphan to switch to. Main runs also push it,
+      # creating the shared baseline; every other run keeps it local and reports without one.
+      - name: Ensure benchmarks branch exists
+        id: history
+        run: |
+          ORIG="$(git rev-parse --abbrev-ref HEAD)"
+          [ "$ORIG" = "HEAD" ] && ORIG="$(git rev-parse HEAD)"
+          if git ls-remote --exit-code --heads origin benchmarks >/dev/null 2>&1; then
+            echo "benchmarks branch present on origin"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan benchmarks
+          git rm -rf --quiet .
+          printf '# JMH history\n\nAppended by .github/workflows/bench.yml. Do not edit by hand.\n' > README.md
+          git add README.md
+          git commit --quiet -m "chore(bench): initialise benchmark history branch"
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            git push origin benchmarks
+            echo "benchmarks branch created and pushed"
+          else
+            echo "benchmarks branch created locally only (non-main run)"
+          fi
+          git checkout --force --quiet "$ORIG"
+
+      # Per-class @Fork/@Warmup/@Measurement annotations govern iteration counts; the
+      # gradle plugin writes JSON to build/jmh-results.json with the gc profiler attached.
+      - name: Run JMH
+        run: |
+          INCLUDES="${{ github.event.inputs.includes }}"
+          if [ -n "$INCLUDES" ]; then
+            ./gradlew :shiguchi-benchmarks:jmh --no-daemon --console=plain -Pjmh.includes="$INCLUDES"
+          else
+            ./gradlew :shiguchi-benchmarks:jmh --no-daemon --console=plain
+          fi
+
+      - name: Upload raw results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: jmh-results-${{ github.run_id }}
+          path: shiguchi-benchmarks/build/jmh-results.json
+          retention-days: 90
+
+      # The compare action reads every JMH score as "smaller is better", so a throughput gain
+      # (more ops/us) was reported as a regression. Invert Throughput results to time per op
+      # before comparing; the raw artifact above keeps the original numbers. A Gradle task
+      # rather than a script: the JDK is the one tool this job already guarantees.
+      - name: Normalise throughput to time per op
+        run: ./gradlew :shiguchi-benchmarks:jmhNormalise --no-daemon --console=plain
+
+      # Compares every benchmark against its stored history on the `benchmarks` branch.
+      # Throughput benchmarks are "bigger is better", time-mode ones "smaller is better";
+      # the action reads JMH's `mode` field to pick. History is only appended from runs
+      # dispatched on main, so a run on a feature branch cannot pollute the baseline.
+      - name: Compare and store
+        uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc # v1.22.2
+        with:
+          name: Shiguchi JMH
+          tool: jmh
+          output-file-path: shiguchi-benchmarks/build/jmh-results-normalised.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          gh-pages-branch: benchmarks
+          benchmark-data-dir-path: jmh
+          auto-push: ${{ github.ref == 'refs/heads/main' }}
+          save-data-file: ${{ github.ref == 'refs/heads/main' }}
+          skip-fetch-gh-pages: ${{ steps.history.outputs.exists != 'true' }}
+          alert-threshold: "120%"
+          # Shared runners drift 20-40% between runs (BaselineBenchmark.baseline_noop, which does
+          # nothing, has moved 1.2-1.4x between two runs of the same commit), so an alert is a
+          # review prompt on the PR, not a merge gate. A sound gate needs both baseline and
+          # candidate measured on the same runner in the same job.
+          fail-on-alert: false
+          comment-on-alert: true
+          summary-always: true
+          max-items-in-chart: 60

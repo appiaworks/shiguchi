@@ -1,0 +1,7 @@
+org.springframework.security.config.web.server.ServerHttpSecurity$ServerWebExchangeReactorContextWebFilter
+org.springframework.security.web.server.header.HttpHeaderWriterWebFilter
+org.springframework.security.web.server.context.ReactorContextWebFilter
+org.springframework.security.web.server.context.SecurityContextServerWebExchangeWebFilter
+org.springframework.security.web.server.savedrequest.ServerRequestCacheWebFilter
+org.springframework.security.web.server.authorization.ExceptionTranslationWebFilter
+org.springframework.security.web.server.authorization.AuthorizationWebFilter

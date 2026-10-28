@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+// Declarative push topics on server-streaming RPCs. A method carrying (shiguchi.api.topic)
+// becomes the source of a push topic: the gateway opens the stream when the first subscriber of a
+// matching topic arrives on any transport (SSE, WebSocket, gRPC, GraphQL), publishes every
+// message it answers into the topic as a typed event, shares that one stream among every
+// subscriber of the topic across all gateway instances (one owner per topic, elected through a
+// lease in the push store), and closes it once the last subscriber has left and idle-linger has
+// passed. The backend sees one stream per topic instead of one per client.
+//
+//   service OrderService {
+//     rpc WatchOrder(WatchOrderRequest) returns (stream OrderEvent) {
+//       option (shiguchi.api.topic) = { pattern: "orders:{order_id}" };
+//     }
+//   }
+//
+// `pattern` is `namespace:name-template`; every `{var}` names a top-level field of the request
+// message, filled from the topic a client subscribed to (`orders:42` → WatchOrderRequest{order_id:
+// "42"}). The namespace is declared under shiguchi.cursus.namespaces when it is not already, and
+// its payload-type is the method's response message, so the topic's GraphQL field is typed.
+//
+// See docs/push.md, "Upstream-backed topics".
+package shiguchi.api;
+
+import "google/protobuf/descriptor.proto";
+
+option java_package = "dev.appiaworks.shiguchi.proto.api";
+option java_multiple_files = true;
+option java_outer_classname = "TopicProto";
+
+message UpstreamTopic {
+  // `namespace:template`, the template naming request fields in braces: "orders:{order_id}",
+  // "tenant:{tenant_id}/{stream}". Required.
+  string pattern = 1;
+
+  // How the upstream stream is shared. Only SHARED_UPSTREAM exists today.
+  Mode mode = 2;
+
+  // Optional: a field of the response message (dots reach into nested messages: "meta.sequence")
+  // holding the backend's own increasing sequence number. It becomes the push event id where the
+  // push store keeps ids per topic (MEMORY, REDIS), so the ids clients resume from survive gateway
+  // restarts and owner handoffs; everywhere it is also recorded as the `upstream.id` attribute.
+  // An integer field, or a string holding a decimal integer; a value of zero or less counts as
+  // missing and the event gets the store's own id. Plain server-streaming SSE routes of the
+  // method emit it as the `id:` line.
+  string event_id_field = 3;
+
+  enum Mode {
+    // One upstream stream per topic, owned by one gateway instance, fanned out to every
+    // subscriber of the topic through the push engine.
+    SHARED_UPSTREAM = 0;
+  }
+}
+
+extend google.protobuf.MethodOptions {
+  UpstreamTopic topic = 50200;
+}

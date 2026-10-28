@@ -1,0 +1,58 @@
+server:
+  port: 8080
+
+shiguchi:
+  services:
+    - name: order-service
+      host: localhost
+      port: 9090
+      mode: DYNAMIC
+
+  # Policy decisions are made for a concrete subject, so callers must be authenticated.
+  security:
+    mode: AUTHENTICATED
+
+  graphql:
+    enabled: false
+  openapi:
+    enabled: true
+  grpc:
+    enabled: false
+  ui:
+    enabled: false
+  refresh:
+    enabled: false
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Point at your IdP. The JWT `sub` becomes input.subject.id; `groups` and other
+          # allow-listed claims land in input.subject.claims.
+          issuer-uri: http://localhost:8081/realms/demo
+
+sample:
+  opa:
+    enabled: true
+    url: http://localhost:8181
+
+    # Maps to POST /v1/data/gateway/authz/allow, and to `package gateway.authz` + rule `allow`
+    # in policy.rego. A typo here makes the rule undefined, which is treated as deny.
+    decision-path: gateway/authz/allow
+
+    # Bound the policy engine's effect on tail latency. On timeout, `fail-open` decides.
+    timeout: 300ms
+
+    # Fail closed: an OPA outage denies rather than silently bypassing authorization.
+    fail-open: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    dev.appiaworks.shiguchi.sample.opa: DEBUG

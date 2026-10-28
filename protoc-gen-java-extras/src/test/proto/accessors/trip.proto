@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package accessors;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+import "google/type/date.proto";
+import "google/type/datetime.proto";
+import "google/type/dayofweek.proto";
+import "google/type/decimal.proto";
+import "google/type/money.proto";
+import "google/type/month.proto";
+import "google/type/timeofday.proto";
+
+option java_multiple_files = true;
+option java_package = "dev.appiaworks.protobuf.extras.protoc.fixture.proto";
+
+// A message type of the application's own, mapped with the plugin's `map` option.
+message Sku {
+  string code = 1;
+}
+
+message Trip {
+  google.protobuf.Timestamp booked_at = 1;
+  google.protobuf.Duration length = 2;
+  google.type.Date departs_on = 3;
+  google.type.TimeOfDay check_in = 4;
+  google.type.DateTime meeting = 5;
+  google.type.Decimal distance = 6;
+  google.type.Money price = 7;
+  google.type.DayOfWeek weekday = 8;
+  google.type.Month month = 9;
+
+  google.protobuf.Int32Value seats = 10;
+  google.protobuf.Int64Value points = 11;
+  google.protobuf.UInt32Value legs = 12;
+  google.protobuf.UInt64Value serial = 13;
+  google.protobuf.DoubleValue rating = 14;
+  google.protobuf.FloatValue weight = 15;
+  google.protobuf.BoolValue refundable = 16;
+  google.protobuf.StringValue note = 17;
+  google.protobuf.BytesValue blob = 18;
+
+  google.protobuf.Struct attributes = 19;
+  google.protobuf.FieldMask update_mask = 20;
+
+  repeated google.type.Date holidays = 21;
+  repeated google.type.DayOfWeek open_days = 22;
+  map<string, google.protobuf.Timestamp> checkpoints = 23;
+  map<int32, google.type.Date> days_by_leg = 24;
+
+  Sku sku = 25;
+  repeated Sku extras = 26;
+
+  // Names protoc treats specially: a letter after a digit is capitalized, `class` gets an underscore.
+  google.type.Date line_2x_date = 27;
+  google.protobuf.Timestamp class = 28;
+
+  oneof ends {
+    google.type.Date returns_on = 29;
+    google.protobuf.Duration open_ended_for = 30;
+  }
+
+  optional google.type.Date cancelled_on = 31;
+
+  message Stop {
+    google.type.TimeOfDay arrives = 1;
+
+    message Platform {
+      google.protobuf.Timestamp cleared_at = 1;
+    }
+    Platform platform = 2;
+  }
+  repeated Stop stops = 32;
+}

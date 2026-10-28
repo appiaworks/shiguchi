@@ -1,0 +1,17 @@
+apiVersion: v2
+name: shiguchi
+description: Shiguchi, a gateway for gRPC services, for Spring Boot (REST, GraphQL, gRPC proxy and an embedded gRPC UI)
+type: application
+version: 0.2.0-SNAPSHOT
+appVersion: "0.2.0-SNAPSHOT"
+keywords:
+  - grpc
+  - spring-boot
+  - gateway
+  - graphql
+  - openapi
+home: https://github.com/appiaworks/shiguchi
+sources:
+  - https://github.com/appiaworks/shiguchi
+maintainers:
+  - name: Shiguchi contributors

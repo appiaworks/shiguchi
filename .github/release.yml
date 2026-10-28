@@ -1,0 +1,16 @@
+# Categorizes auto-generated release notes (gh release create --generate-notes).
+# Categories match by PR label; label PRs feat/fix/docs/chore to sort them.
+changelog:
+  exclude:
+    labels:
+      - dependencies
+      - skip-changelog
+  categories:
+    - title: Features
+      labels: ["feat", "enhancement"]
+    - title: Fixes
+      labels: ["fix", "bug"]
+    - title: Documentation
+      labels: ["docs", "documentation"]
+    - title: Other changes
+      labels: ["*"]

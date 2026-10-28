@@ -1,0 +1,30 @@
+shiguchi:
+  bff:
+    enabled: true
+    path: /auth
+    external-base-url: https://gw.example.com
+    login-timeout: 2m
+    cookie:
+      persistent: true
+    providers:
+      idp:
+        issuer-uri: https://id.example.com
+        client-id: gateway
+        client-secret: s3cret
+        display-name: Company SSO
+        hint-parameter: idp_hint
+        authorize-parameters:
+          provider: google
+          "[resource_id]": api
+        authorization-uri: https://id.example.com/authorize
+        token-uri: https://id.example.com/token
+        jwk-set-uri: https://id.example.com/jwks
+        end-session-uri: https://id.example.com/logout
+        audiences: [acme-sso]
+        client-authentication-method: POST
+    applications:
+      eve:
+        origins: [https://eve.example.com]
+        providers: [idp]
+        return-to: [https://eve.example.com/]
+        post-logout-redirect: https://eve.example.com/bye

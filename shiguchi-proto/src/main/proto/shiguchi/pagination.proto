@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+// Paging and sorting message shapes for the gateway's list-query conventions.
+//
+// These are ordinary messages, not annotations: the gateway does not import this file and does
+// not check that you did either. What it matches on is the *field names* in your own request and
+// response messages -- `page_request`, `sort_fields`, `read_mask`, `page_info` -- so any message
+// with the right shape works, whether you import these or declare your own.
+//
+// Importing them is the convenient path: one dependency, and the shape is right by construction.
+// Copying them into your own package is equally supported and costs nothing at runtime -- the
+// wire format of a message depends on its field numbers and types, never on where it was
+// declared. Copy when you would rather not take a dependency on the gateway from your API protos.
+//
+// See docs/projections-paging-sorting.md for what the gateway does with each field, and
+// docs/graphql-annotations.md for how to get this file onto your protoc include path.
+package shiguchi.pagination;
+
+option java_package = "dev.appiaworks.shiguchi.proto.pagination";
+option java_multiple_files = true;
+option java_outer_classname = "PaginationProto";
+option go_package = "github.com/appiaworks/shiguchi/proto/pagination;pagination";
+option csharp_namespace = "Shiguchi.Pagination.V1";
+
+// How much of a collection to return, and where to start.
+//
+// Put it on a list request under the field name `page_request`:
+//
+//     message ListBooksRequest {
+//       PageRequest page_request = 1;
+//     }
+//
+// The gateway fills it from `?pageSize=` / `?pageToken=` on REST and from Relay's `first:` /
+// `after:` on GraphQL. Your backend decides what the token means -- it is opaque to the gateway.
+message PageRequest {
+  // Maximum items to return. Treat 0 as "your default" and clamp large values: a client should
+  // not be able to ask for the whole table.
+  int32 page_size = 1;
+
+  // Opaque cursor identifying where this page starts, echoed back from a previous response's
+  // `PageInfo.next_page_token`. Blank means the first page. Any encoding works as long as your
+  // service both produces and consumes it.
+  string page_token = 2;
+}
+
+// Where the caller is in a collection, returned alongside the items.
+//
+// Put it on a list response under the field name `page_info`, next to a repeated items field:
+//
+//     message ListBooksResponse {
+//       repeated Book books   = 1;
+//       PageInfo    page_info = 2;
+//     }
+//
+// The repeated field is required for detection -- it is what makes the GraphQL Relay Connection
+// transform well-defined. On REST this becomes the `X-Next-Page-Token` and `X-Total-Count`
+// headers; on GraphQL it becomes `pageInfo`.
+message PageInfo {
+  // Cursor for the next page. Leave it blank on the last page: the gateway omits the
+  // `X-Next-Page-Token` header entirely when it is blank, and that absence is how REST clients
+  // detect the end of a collection.
+  string next_page_token = 1;
+
+  // Total items across all pages. Optional, and it usually costs a COUNT query on every request
+  // -- leave it unset unless a caller genuinely needs the total. Unset is reported as absent
+  // rather than as zero.
+  int32 total_count = 2;
+
+  // Cursor back to the start of the current page. Optional. Set it when your backend can produce
+  // one cheaply and GraphQL clients can then page backwards: it answers Relay's `startCursor` and
+  // `hasPreviousPage`. Without it the gateway falls back to the `after` cursor the caller paged
+  // in on, which is still honest but only proves a previous page exists once they have moved off
+  // the first one.
+  string prev_page_token = 3;
+}
+
+// Sort direction. `SORT_ORDER_UNSPECIFIED` is treated as ascending, matching what the gateway
+// does with a bare `?sort=author` that carries no `:direction` suffix.
+enum SortOrder {
+  SORT_ORDER_UNSPECIFIED = 0;
+  SORT_ORDER_ASC = 1;
+  SORT_ORDER_DESC = 2;
+}
+
+// One sort key. Put a repeated one on a list request under the field name `sort_fields`:
+//
+//     message ListBooksRequest {
+//       repeated SortField sort_fields = 2;
+//     }
+//
+// The gateway expands `?sort=author:asc,year:desc` into this list, in order, and GraphQL emits a
+// matching `SortFieldInput`. Order is significant: the first entry is the primary key.
+message SortField {
+  // A field name on the resource being listed. The gateway forwards this string without checking
+  // it against your message -- resolve it against an allow-list in your backend rather than
+  // interpolating it into a query.
+  string field = 1;
+
+  // Direction for this key.
+  SortOrder sort_order = 2;
+}

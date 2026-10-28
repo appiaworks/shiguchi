@@ -1,0 +1,46 @@
+server:
+  port: 8080
+
+sample:
+  # How many backend instances to run in this JVM. Stand-in for replicas.
+  instances: 3
+
+shiguchi:
+  services:
+    - name: catalog
+      # The whole point of the sample: ask the registry for the instances rather than naming a
+      # host and port. Works the same against Eureka, Consul or Kubernetes — see the README.
+      discovery-name: catalog-service
+      mode: DYNAMIC
+      # Default for discovery-name channels; spelled out here because it is what the sample shows.
+      # Try pick_first (profile: pick-first) to see the difference.
+      load-balancing-policy: round_robin
+  client:
+    # Aggressively short so a stopped instance disappears while you are watching. 30s default is
+    # right in production: every tick is a registry call, per service, per gateway instance.
+    discovery-refresh: 2s
+  openapi:
+    enabled: true
+
+management:
+  metrics:
+    distribution:
+      # Publish histogram buckets for the timers, so Prometheus can compute p50/p95/p99 with
+      # histogram_quantile(). Without this a timer exports only _count, _sum and _max.
+      percentiles-histogram:
+        grpc.client.call.duration: true
+        http.server.requests: true
+  endpoints:
+    web:
+      exposure:
+        # gateway-routes shows the discovered target; metrics carries
+        # gateway.discovery.instances, which is the instance count as a gauge.
+        include: health,metrics,prometheus,gateway-routes
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    # Logs every resolution change: "Resolved 'catalog-service' via discovery: 3 instance(s) [...]"
+    dev.appiaworks.shiguchi.routing.DiscoveryNameResolverProvider: INFO

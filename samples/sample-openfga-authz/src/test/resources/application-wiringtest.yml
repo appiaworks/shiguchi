@@ -1,0 +1,25 @@
+shiguchi:
+  security:
+    mode: PERMIT_ALL
+  graphql:
+    enabled: false
+  openapi:
+    enabled: false
+  grpc:
+    enabled: false
+  ui:
+    enabled: false
+  refresh:
+    enabled: false
+
+sample:
+  openfga:
+    enabled: true
+    api-url: http://localhost:9999
+    store-id: 01TESTSTORE
+    authorization-model-id: 01TESTMODEL
+    routes:
+      "[GET /v1/orders/{orderId}]":
+        object-type: order
+        relation: viewer
+        id-argument: orderId

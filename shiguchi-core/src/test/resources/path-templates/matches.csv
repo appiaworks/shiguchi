@@ -1,0 +1,24 @@
+template|path|expected
+/v1/{id}|/v1/42|{id=42}
+/v1/books/{book.id}|/v1/books/42|{book.id=42}
+/v1/{name=shelves/*/books/*}|/v1/shelves/s1/books/b2|{name=shelves/s1/books/b2}
+/v1/{parent=shelves/*}/books/{book}|/v1/shelves/s1/books/b2|{parent=shelves/s1, book=b2}
+/v1/files/{path=**}|/v1/files/a/b/c.txt|{path=a/b/c.txt}
+/v1/files/{path=**}|/v1/files|{path=}
+/files/{*rest}|/files/x/y|{rest=x/y}
+/v1/{name=projects/*/docs/**}|/v1/projects/p/docs/a/b|{name=projects/p/docs/a/b}
+/v1/books/{id}:cancel|/v1/books/42:cancel|{id=42}
+/v1/{name=shelves/*}:publish|/v1/shelves/s1:publish|{name=shelves/s1}
+/v1/books:batchGet|/v1/books:batchGet|{}
+/v1/items/{id}|/v1/items/a%20b|{id=a b}
+/v1/items/{id}|/v1/items/a%2Fb|{id=a/b}
+/v1/items/{id}|/v1/items/a+b|{id=a+b}
+/v1/items/{id}|/v1/items/caf%C3%A9|{id=café}
+/v1/items/{id}|/v1/items/100%|{id=100%}
+/v1/items/{id}|/v1/items/%E9|{id=%E9}
+/v1/{name=shelves/*}|/v1/shelves/a%2Fb|{name=shelves/a%2Fb}
+/v1/{name=shelves/*}|/v1/shelves/a%20b|{name=shelves/a b}
+/v1/files/{path=**}|/v1/files/dir%2fx/y|{path=dir%2fx/y}
+/v1/items/*|/v1/items/anything|{}
+/v1/items/{id}|/v1/items/42:cancel|{id=42:cancel}
+v1/{id}|/v1/7|{id=7}

@@ -1,0 +1,129 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "Inventory (Avro-capable REST)", "version": "3.0.0" },
+  "tags": [ { "name": "Items", "description": "Stock keeping units" } ],
+  "paths": {
+    "/items": {
+      "get": {
+        "operationId": "listItems",
+        "summary": "List every item (JSON only: this operation never negotiates Avro)",
+        "tags": [ "Items" ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Item" } } }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createItem",
+        "summary": "Create an item (the gateway sends the body as Avro; requires scope inventory.write)",
+        "tags": [ "Items" ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "avro/binary": { "schema": { "$ref": "#/components/schemas/Item" } },
+            "application/json": { "schema": { "$ref": "#/components/schemas/Item" } }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "avro/binary": { "schema": { "$ref": "#/components/schemas/Item" } },
+              "application/json": { "schema": { "$ref": "#/components/schemas/Item" } }
+            }
+          }
+        }
+      }
+    },
+    "/items/{sku}": {
+      "get": {
+        "operationId": "getItem",
+        "summary": "Fetch one item (Avro when asked, JSON otherwise)",
+        "tags": [ "Items" ],
+        "parameters": [ { "$ref": "#/components/parameters/SkuParam" } ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "avro/binary": { "schema": { "$ref": "#/components/schemas/Item" } },
+              "application/json": { "schema": { "$ref": "#/components/schemas/Item" } }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    },
+    "/legacy/{sku}": {
+      "get": {
+        "operationId": "getLegacyItem",
+        "summary": "Declares Avro but always answers JSON (a backend that ignores Accept)",
+        "tags": [ "Items" ],
+        "parameters": [ { "$ref": "#/components/parameters/SkuParam" } ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "avro/binary": { "schema": { "$ref": "#/components/schemas/Item" } },
+              "application/json": { "schema": { "$ref": "#/components/schemas/Item" } }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "SkuParam": { "name": "sku", "in": "path", "required": true, "schema": { "type": "string" } }
+    },
+    "schemas": {
+      "Item": {
+        "type": "object",
+        "required": [ "sku", "qty" ],
+        "properties": {
+          "sku": { "type": "string" },
+          "name": { "type": "string" },
+          "qty": { "type": "integer", "format": "int64" },
+          "price": { "type": "string", "description": "decimal(10,2) as text" },
+          "status": { "type": "string", "enum": [ "ACTIVE", "RETIRED" ] },
+          "updatedAt": { "type": "string", "format": "date-time" },
+          "category": { "$ref": "#/components/schemas/Category" }
+        },
+        "x-avro-schema": {
+          "type": "record",
+          "name": "Item",
+          "namespace": "com.acme.inventory",
+          "fields": [
+            { "name": "sku", "type": "string" },
+            { "name": "name", "type": [ "null", "string" ], "default": null },
+            { "name": "qty", "type": "long" },
+            { "name": "price", "type": { "type": "bytes", "logicalType": "decimal", "precision": 10, "scale": 2 } },
+            { "name": "status", "type": { "type": "enum", "name": "ItemStatus", "symbols": [ "ACTIVE", "RETIRED" ] }, "default": "ACTIVE" },
+            { "name": "updatedAt", "type": { "type": "long", "logicalType": "timestamp-millis" } },
+            { "name": "category", "type": [ "null", "Category" ], "default": null }
+          ]
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": { "id": { "type": "integer", "format": "int32" }, "name": { "type": "string" } },
+        "x-avro-schema": {
+          "type": "record",
+          "name": "Category",
+          "namespace": "com.acme.inventory",
+          "fields": [ { "name": "id", "type": "int" }, { "name": "name", "type": "string" } ]
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": { "code": { "type": "string" }, "message": { "type": "string" } }
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+shiguchi:
+  bff:
+    enabled: true
+    session:
+      store: REDIS
+      encryption:
+        active: k2
+        keys:
+          k1: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+          k2: ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=
+    providers:
+      idp:
+        issuer-uri: https://id.example.com
+        client-id: gateway
+        client-secret: s
+    applications:
+      eve:
+        origins: [https://eve.example.com]
+        providers: [idp]
+        return-to: [https://eve.example.com/]

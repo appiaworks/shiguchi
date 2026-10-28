@@ -1,0 +1,28 @@
+server:
+  port: 8080
+
+sample:
+  backend-port: 9090
+
+shiguchi:
+  services:
+    - name: orders
+      host: localhost
+      port: 9090
+      mode: DYNAMIC
+
+  validation:
+    # Check protovalidate constraints at the gateway. A violation becomes HTTP 400 /
+    # INVALID_ARGUMENT and the call never leaves.
+    gateway-enabled: true
+    # Log which field paths failed — never the values, which are often the sensitive part.
+    log-violations: true
+
+  openapi:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,gateway-routes

@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+// The channel gateway instances use between themselves: a Send that matched connections held by
+// another instance is forwarded here, and so is an operator's disconnect of a remote connection.
+// Served only on the native gRPC port (never through the HTTP surfaces or JSON transcoding) and
+// only to callers that present `x-push-peer-token`, the shared secret set with
+// shiguchi.cursus.peer.token on every instance. Not for applications.
+//
+// See docs/push.md, "Targeted delivery".
+package shiguchi.cursus.v1;
+
+import "shiguchi/push.proto";
+
+option java_package = "dev.appiaworks.shiguchi.proto.cursus";
+option java_multiple_files = true;
+option java_outer_classname = "PushPeerProto";
+option go_package = "github.com/appiaworks/shiguchi/proto/cursus/v1;cursusv1";
+option csharp_namespace = "Shiguchi.Cursus.V1";
+
+service PushPeer {
+  // Writes `event` to each of the named connections that this instance holds.
+  rpc Deliver(DeliverRequest) returns (DeliverResponse);
+  // Ends one connection this instance holds.
+  rpc Disconnect(DisconnectRequest) returns (DisconnectResponse);
+}
+
+message DeliverRequest {
+  repeated string connection_ids = 1;
+  PushEvent event = 2;
+  bool require_ack = 3;
+  // How long to wait for an acknowledgement when require_ack is set.
+  int32 timeout_ms = 4;
+}
+
+message DeliverResponse {
+  // One per requested connection, in request order.
+  repeated DeliveryStatus deliveries = 1;
+}
+
+message DisconnectRequest {
+  string connection_id = 1;
+  string reason = 2;
+}
+
+message DisconnectResponse {
+  // False when the connection is not (or no longer) on this instance.
+  bool disconnected = 1;
+}

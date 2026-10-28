@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package sample.orders.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+
+option java_package = "dev.appiaworks.shiguchi.sample.validation.proto";
+option java_multiple_files = true;
+
+// Constraints live in the proto, next to the fields they constrain, so the gateway and the
+// backend enforce the same rules without either restating them.
+service OrderService {
+  rpc CreateOrder(CreateOrderRequest) returns (Order) {
+    option (google.api.http) = {
+      post: "/v1/orders"
+      body: "*"
+    };
+  }
+}
+
+message CreateOrderRequest {
+  // A SKU is three uppercase letters followed by three digits.
+  string sku = 1 [(buf.validate.field).string.pattern = "^[A-Z]{3}[0-9]{3}$"];
+
+  // Between 1 and 100 units per order.
+  int32 quantity = 2 [(buf.validate.field).int32 = {gte: 1, lte: 100}];
+
+  // Must look like an email address.
+  string customer_email = 3 [(buf.validate.field).string.email = true];
+}
+
+message Order {
+  string id = 1;
+  string sku = 2;
+  int32 quantity = 3;
+  string customer_email = 4;
+}
