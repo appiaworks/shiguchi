@@ -25,7 +25,7 @@ import java.util.regex.Pattern;
  * &lt;t&gt;_trim        per topic, the highest id the history dropped and the sweep then deleted (the gap signal's watermark)
  * </pre>
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class JdbcPushSchema {
 
     private static final Pattern IDENTIFIER = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)?");

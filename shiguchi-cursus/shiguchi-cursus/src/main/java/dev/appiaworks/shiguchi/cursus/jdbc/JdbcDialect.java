@@ -16,7 +16,7 @@ import javax.sql.DataSource;
  * so a dialect that misbehaves is fixed here. {@link #H2} and {@link #POSTGRES} are exercised by
  * the tests; the others are best effort.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public enum JdbcDialect {
     H2,
     POSTGRES,

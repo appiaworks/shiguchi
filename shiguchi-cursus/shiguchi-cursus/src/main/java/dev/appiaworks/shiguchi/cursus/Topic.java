@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
  * @param namespace the configured namespace, {@code [A-Za-z0-9_.-]}, at most 64 characters
  * @param name the topic within it, {@code [A-Za-z0-9_./:@-]}, at most 192 characters
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public record Topic(String namespace, String name) {
 
     private static final Pattern NAMESPACE = Pattern.compile("[A-Za-z0-9_.-]{1,64}");

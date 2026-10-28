@@ -14,7 +14,7 @@ import java.util.Map;
  * @param typeUrl {@code type.googleapis.com/<message>} for a typed event, else null
  * @param proto the message bytes for a typed event, else null
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public record SourcedEvent(
         Topic topic, byte[] data, Map<String, String> attributes, String key, String typeUrl, byte[] proto) {
 

@@ -17,7 +17,7 @@ import org.springframework.security.config.web.server.ServerHttpSecurity;
  *
  * <p>Every method has a no-op default, so the interface can grow without breaking implementations.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public interface GatewaySecurityCustomizer {
 
     /**

@@ -65,7 +65,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * {@code google.type.Date}, anything with a codec — prints and parses as that value at the top
  * level too: {@code print(timestamp)} is {@code "2026-09-22T14:03:11Z"}, quotes included.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.9.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class ProtoJson {
 
     /** The text a {@code google.protobuf.Duration} is written as. */

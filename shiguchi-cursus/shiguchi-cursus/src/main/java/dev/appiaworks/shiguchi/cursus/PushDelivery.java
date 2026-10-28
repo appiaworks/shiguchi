@@ -15,7 +15,7 @@ import java.time.Instant;
  * @param time when the outcome happened
  * @param outcome {@code delivered}, or {@code dropped:<reason>} ({@code dropped:queue_full})
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public record PushDelivery(
         Topic topic,
         String eventId,

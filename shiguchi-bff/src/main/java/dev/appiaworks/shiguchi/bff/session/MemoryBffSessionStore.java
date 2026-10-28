@@ -19,7 +19,7 @@ import reactor.core.publisher.Mono;
  * not survive a restart and are not shared between instances. Expired entries are invisible to
  * reads at once and are dropped by a periodic sweep.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class MemoryBffSessionStore implements BffSessionStore, AutoCloseable {
 
     private static final long SWEEP_EVERY_MILLIS = Duration.ofSeconds(30).toMillis();

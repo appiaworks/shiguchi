@@ -46,7 +46,7 @@ import reactor.core.scheduler.Schedulers;
  * subscribers remain; a lost lease stops the stream. On startup every such namespace is declared
  * when it is not already, with the method's response as its {@code payload-type}.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class PushUpstreams implements SchemaReloadListener, DisposableBean {
 
     private static final Logger log = LoggerFactory.getLogger(PushUpstreams.class);

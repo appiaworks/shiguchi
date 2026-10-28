@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono;
  * Assigns event ids and keeps the history a namespace asks for, so a subscriber can resume from
  * its last id. Ids are opaque strings; only {@link #compareIds} knows their order.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public interface PushStore {
 
     /**

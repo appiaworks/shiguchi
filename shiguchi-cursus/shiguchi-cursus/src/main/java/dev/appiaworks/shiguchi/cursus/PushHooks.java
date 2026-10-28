@@ -32,7 +32,7 @@ import reactor.core.scheduler.Schedulers;
  * times out or fails allows unless {@code hooks.fail-closed}. With no hook registered, nothing is
  * tracked and every decision is an allow.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class PushHooks implements DisposableBean {
 
     private static final Logger log = LoggerFactory.getLogger(PushHooks.class);

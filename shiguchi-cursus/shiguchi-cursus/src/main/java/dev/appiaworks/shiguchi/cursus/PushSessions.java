@@ -21,7 +21,7 @@ import reactor.core.publisher.Mono;
  * {@code max-queued} events pending at resume drop the oldest, counted and announced to the
  * subscriber with an {@code overflow} signal. The store sweeps sessions idle past the expiry.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class PushSessions {
 
     private static final Logger log = LoggerFactory.getLogger(PushSessions.class);

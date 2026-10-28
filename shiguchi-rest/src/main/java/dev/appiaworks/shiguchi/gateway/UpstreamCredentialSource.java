@@ -25,7 +25,7 @@ import reactor.core.publisher.Mono;
  * </ul>
  */
 @FunctionalInterface
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public interface UpstreamCredentialSource {
 
     /**

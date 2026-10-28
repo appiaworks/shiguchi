@@ -25,7 +25,7 @@ import javax.sql.DataSource;
  *               application, return_to, redirect_uri, created, expires_at, max_age
  * </pre>
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class JdbcBffSchema {
 
     private static final Pattern IDENTIFIER = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)?");

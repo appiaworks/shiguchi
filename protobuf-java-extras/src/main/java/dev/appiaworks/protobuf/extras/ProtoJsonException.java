@@ -11,7 +11,7 @@ import dev.appiaworks.protobuf.extras.api.ApiStatus;
  * sent the value. Inside the gateway the same failure surfaces as a gRPC
  * {@code INVALID_ARGUMENT} status instead, with the same text.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.8.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public class ProtoJsonException extends IllegalArgumentException {
 
     private static final long serialVersionUID = 1L;

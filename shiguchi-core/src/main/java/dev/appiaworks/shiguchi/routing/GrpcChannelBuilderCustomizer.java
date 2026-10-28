@@ -25,7 +25,7 @@ import io.grpc.ManagedChannelBuilder;
  * service by name and leave the rest untouched.
  */
 @FunctionalInterface
-@ApiStatus(value = ApiStatus.Status.STABLE, since = "0.2.0")
+@ApiStatus(value = ApiStatus.Status.STABLE, since = "0.14.0")
 public interface GrpcChannelBuilderCustomizer {
 
     /**
