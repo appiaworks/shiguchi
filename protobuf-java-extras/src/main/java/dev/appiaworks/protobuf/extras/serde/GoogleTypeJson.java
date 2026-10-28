@@ -21,8 +21,6 @@ import java.time.temporal.TemporalQueries;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * ISO text forms of the common {@code google.type} messages — Date, TimeOfDay, DateTime,
@@ -38,16 +36,14 @@ import java.util.regex.Pattern;
  *
  * <p>Fields are looked up by name on the instance descriptor, which may come from gRPC reflection
  * rather than the compiled {@code com.google.type} classes.
+ *
+ * <p>Text is built with {@link #appendPadded} (ASCII digits, independent of the default locale)
+ * and read with index-based parsers: no {@code String.format}, no regular expressions on the
+ * Date, TimeOfDay and common DateTime shapes.
  */
 final class GoogleTypeJson {
 
     private GoogleTypeJson() {}
-
-    private static final Pattern FULL_DATE = Pattern.compile("(\\d{4})-(\\d{2})-(\\d{2})");
-    private static final Pattern YEAR_MONTH = Pattern.compile("(\\d{4})-(\\d{2})");
-    private static final Pattern YEAR = Pattern.compile("(\\d{4})");
-    private static final Pattern MONTH_DAY = Pattern.compile("--(\\d{2})-(\\d{2})");
-    private static final Pattern TIME = Pattern.compile("(\\d{2}):(\\d{2})(?::(\\d{2})(?:\\.(\\d{1,9}))?)?");
 
     // ── Write ────────────────────────────────────────────────────────────────────────
 
@@ -67,15 +63,32 @@ final class GoogleTypeJson {
         int y = integer(msg, "year");
         int m = integer(msg, "month");
         int d = integer(msg, "day");
-        if (y > 0 && y <= 9999 && m > 0 && d > 0) return String.format("%04d-%02d-%02d", y, m, d);
-        if (y > 0 && y <= 9999 && m > 0) return String.format("%04d-%02d", y, m);
-        if (y > 0 && y <= 9999 && m == 0 && d == 0) return String.format("%04d", y);
-        if (y == 0 && m > 0 && d > 0) return String.format("--%02d-%02d", m, d);
+        if (y > 0 && y <= 9999 && m > 0 && d > 0) {
+            StringBuilder sb = new StringBuilder(10);
+            appendDate(sb, y, m, d);
+            return sb.toString();
+        }
+        if (y > 0 && y <= 9999 && m > 0) {
+            StringBuilder sb = new StringBuilder(7);
+            appendPadded(sb, y, 4).append('-');
+            appendPadded(sb, m, 2);
+            return sb.toString();
+        }
+        if (y > 0 && y <= 9999 && m == 0 && d == 0)
+            return appendPadded(new StringBuilder(4), y, 4).toString();
+        if (y == 0 && m > 0 && d > 0) {
+            StringBuilder sb = new StringBuilder(7).append("--");
+            appendPadded(sb, m, 2).append('-');
+            appendPadded(sb, d, 2);
+            return sb.toString();
+        }
         return objectForm(msg);
     }
 
     private static Object timeOfDayToJson(DynamicMessage msg) {
-        return time(integer(msg, "hours"), integer(msg, "minutes"), integer(msg, "seconds"), integer(msg, "nanos"));
+        StringBuilder sb = new StringBuilder(18);
+        appendTime(sb, integer(msg, "hours"), integer(msg, "minutes"), integer(msg, "seconds"), integer(msg, "nanos"));
+        return sb.toString();
     }
 
     private static Object dateTimeToJson(DynamicMessage msg) {
@@ -84,8 +97,10 @@ final class GoogleTypeJson {
         int mo = integer(msg, "month");
         int day = integer(msg, "day");
         if (y <= 0 || y > 9999 || mo <= 0 || day <= 0) return objectForm(msg);
-        String local = String.format("%04d-%02d-%02dT", y, mo, day)
-                + time(integer(msg, "hours"), integer(msg, "minutes"), integer(msg, "seconds"), integer(msg, "nanos"));
+        StringBuilder local = new StringBuilder(48);
+        appendDate(local, y, mo, day).append('T');
+        appendTime(
+                local, integer(msg, "hours"), integer(msg, "minutes"), integer(msg, "seconds"), integer(msg, "nanos"));
 
         FieldDescriptor offsetFd = d.findFieldByName("utc_offset");
         FieldDescriptor zoneFd = d.findFieldByName("time_zone");
@@ -94,8 +109,9 @@ final class GoogleTypeJson {
             long seconds =
                     ((Number) offset.getField(offset.getDescriptorForType().findFieldByNumber(1))).longValue();
             try {
-                return local
-                        + ZoneOffset.ofTotalSeconds(Math.toIntExact(seconds)).getId();
+                return local.append(ZoneOffset.ofTotalSeconds(Math.toIntExact(seconds))
+                                .getId())
+                        .toString();
             } catch (DateTimeException | ArithmeticException e) {
                 return objectForm(msg);
             }
@@ -113,12 +129,16 @@ final class GoogleTypeJson {
                         integer(msg, "minutes"),
                         Math.min(integer(msg, "seconds"), 59));
                 ZoneOffset offset = zoneId.getRules().getOffset(ldt);
-                return local + offset.getId() + "[" + zoneId.getId() + "]";
+                return local.append(offset.getId())
+                        .append('[')
+                        .append(zoneId.getId())
+                        .append(']')
+                        .toString();
             } catch (DateTimeException e) {
                 return objectForm(msg);
             }
         }
-        return local;
+        return local.toString();
     }
 
     private static Object moneyToJson(DynamicMessage msg) {
@@ -131,14 +151,54 @@ final class GoogleTypeJson {
         return out;
     }
 
-    /** {@code HH:mm:ss} plus a 3, 6 or 9 digit fraction when there are nanos, as Timestamp text does. */
-    private static String time(int h, int m, int s, int nanos) {
-        String base = String.format("%02d:%02d:%02d", h, m, s);
-        if (nanos == 0) return base;
-        if (nanos % 1_000_000 == 0) return base + String.format(".%03d", nanos / 1_000_000);
-        if (nanos % 1_000 == 0) return base + String.format(".%06d", nanos / 1_000);
-        return base + String.format(".%09d", nanos);
+    /** {@code YYYY-MM-DD}, the year padded to four digits. */
+    private static StringBuilder appendDate(StringBuilder sb, int y, int m, int d) {
+        appendPadded(sb, y, 4).append('-');
+        appendPadded(sb, m, 2).append('-');
+        return appendPadded(sb, d, 2);
     }
+
+    /** {@code HH:mm:ss} plus a 3, 6 or 9 digit fraction when there are nanos, as Timestamp text does. */
+    private static StringBuilder appendTime(StringBuilder sb, int h, int m, int s, int nanos) {
+        appendPadded(sb, h, 2).append(':');
+        appendPadded(sb, m, 2).append(':');
+        appendPadded(sb, s, 2);
+        if (nanos == 0) return sb;
+        sb.append('.');
+        if (nanos % 1_000_000 == 0) return appendPadded(sb, nanos / 1_000_000, 3);
+        if (nanos % 1_000 == 0) return appendPadded(sb, nanos / 1_000, 6);
+        return appendPadded(sb, nanos, 9);
+    }
+
+    /**
+     * Appends {@code v} in decimal ASCII, left-padded with zeros to {@code width}: what
+     * {@code %0<width>d} prints, minus the pattern parsing, the Formatter and the default
+     * locale (which may print native digits). A negative or wider value keeps {@code %0Nd}'s
+     * shape: the sign counts toward the width, digits are never cut.
+     */
+    static StringBuilder appendPadded(StringBuilder sb, int v, int width) {
+        if (v < 0 || v >= POW10[width]) {
+            String digits = Integer.toString(v);
+            boolean negative = v < 0;
+            if (negative) {
+                sb.append('-');
+                digits = digits.substring(1);
+            }
+            for (int i = digits.length() + (negative ? 1 : 0); i < width; i++) sb.append('0');
+            return sb.append(digits);
+        }
+        for (int p = width - 1; p >= 0; p--) {
+            int q = POW10[p];
+            int digit = v / q;
+            sb.append((char) ('0' + digit));
+            v -= digit * q;
+        }
+        return sb;
+    }
+
+    private static final int[] POW10 = {
+        1, 10, 100, 1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000, 1_000_000_000
+    };
 
     private static String plain(BigDecimal v) {
         BigDecimal stripped = v.stripTrailingZeros();
@@ -175,26 +235,36 @@ final class GoogleTypeJson {
             day = ld.getDayOfMonth();
         } else {
             String s = text(value, d);
-            Matcher mt;
-            if ((mt = FULL_DATE.matcher(s)).matches()) {
-                y = Integer.parseInt(mt.group(1));
-                m = Integer.parseInt(mt.group(2));
-                day = Integer.parseInt(mt.group(3));
+            int n = s.length();
+            if (n == 10
+                    && digits(s, 0, 4)
+                    && s.charAt(4) == '-'
+                    && digits(s, 5, 2)
+                    && s.charAt(7) == '-'
+                    && digits(s, 8, 2)) {
+                y = number(s, 0, 4);
+                m = number(s, 5, 2);
+                day = number(s, 8, 2);
                 // Year 0 is "no year" in google.type.Date, so check the calendar in a leap year.
                 check(d, value, y == 0 ? 2000 : y, m, day);
-            } else if ((mt = YEAR_MONTH.matcher(s)).matches()) {
-                y = Integer.parseInt(mt.group(1));
-                m = Integer.parseInt(mt.group(2));
+            } else if (n == 7 && digits(s, 0, 4) && s.charAt(4) == '-' && digits(s, 5, 2)) {
+                y = number(s, 0, 4);
+                m = number(s, 5, 2);
                 day = 0;
                 check(d, value, 2000, m, 1);
-            } else if ((mt = YEAR.matcher(s)).matches()) {
-                y = Integer.parseInt(mt.group(1));
+            } else if (n == 4 && digits(s, 0, 4)) {
+                y = number(s, 0, 4);
                 m = 0;
                 day = 0;
-            } else if ((mt = MONTH_DAY.matcher(s)).matches()) {
+            } else if (n == 7
+                    && s.charAt(0) == '-'
+                    && s.charAt(1) == '-'
+                    && digits(s, 2, 2)
+                    && s.charAt(4) == '-'
+                    && digits(s, 5, 2)) {
                 y = 0;
-                m = Integer.parseInt(mt.group(1));
-                day = Integer.parseInt(mt.group(2));
+                m = number(s, 2, 2);
+                day = number(s, 5, 2);
                 // 2000 is a leap year, so --02-29 (a birthday) is valid.
                 check(d, value, 2000, m, day);
             } else {
@@ -226,15 +296,42 @@ final class GoogleTypeJson {
      * {@code 24:00:00} (end of day, e.g. closing time) and second 60 (a leap second).
      */
     private static int[] parseTime(String s, Descriptor d, Object raw) {
-        Matcher mt = TIME.matcher(s);
-        if (!mt.matches()) throw invalid(d, raw, "expected HH:mm[:ss[.fraction]]");
-        int h = Integer.parseInt(mt.group(1));
-        int m = Integer.parseInt(mt.group(2));
-        int sec = mt.group(3) == null ? 0 : Integer.parseInt(mt.group(3));
-        int nanos = mt.group(4) == null ? 0 : Integer.parseInt((mt.group(4) + "00000000").substring(0, 9));
+        int n = s.length();
+        // HH:mm, then optionally :ss, then optionally . and 1-9 digits.
+        boolean shape = n >= 5 && digits(s, 0, 2) && s.charAt(2) == ':' && digits(s, 3, 2);
+        if (shape && n > 5) {
+            shape = n >= 8 && s.charAt(5) == ':' && digits(s, 6, 2);
+            if (shape && n > 8) shape = n >= 10 && n <= 18 && s.charAt(8) == '.' && digits(s, 9, n - 9);
+        }
+        if (!shape) throw invalid(d, raw, "expected HH:mm[:ss[.fraction]]");
+        int h = number(s, 0, 2);
+        int m = number(s, 3, 2);
+        int sec = n >= 8 ? number(s, 6, 2) : 0;
+        int nanos = 0;
+        if (n > 9) {
+            nanos = number(s, 9, n - 9);
+            for (int i = n - 9; i < 9; i++) nanos *= 10;
+        }
         boolean endOfDay = h == 24 && m == 0 && sec == 0 && nanos == 0;
         if (!endOfDay && (h > 23 || m > 59 || sec > 60)) throw invalid(d, raw, "time out of range");
         return new int[] {h, m, sec, nanos};
+    }
+
+    /** True when {@code len} chars from {@code from} are all ASCII digits (and len is at least 1). */
+    private static boolean digits(String s, int from, int len) {
+        if (len < 1) return false;
+        for (int i = from, end = from + len; i < end; i++) {
+            char c = s.charAt(i);
+            if (c < '0' || c > '9') return false;
+        }
+        return true;
+    }
+
+    /** The value of {@code len} ASCII digits at {@code from}; {@link #digits} has checked them. */
+    private static int number(String s, int from, int len) {
+        int v = 0;
+        for (int i = from, end = from + len; i < end; i++) v = v * 10 + (s.charAt(i) - '0');
+        return v;
     }
 
     private static DynamicMessage dateTimeFromJava(Object value, Descriptor d) {
@@ -242,8 +339,11 @@ final class GoogleTypeJson {
         if (value instanceof TemporalAccessor ta) {
             parsed = ta;
         } else {
+            String s = text(value, d);
+            DynamicMessage fast = fastDateTime(s, d);
+            if (fast != null) return fast;
             try {
-                parsed = DateTimeFormatter.ISO_DATE_TIME.parse(text(value, d));
+                parsed = DateTimeFormatter.ISO_DATE_TIME.parse(s);
             } catch (DateTimeParseException e) {
                 throw invalid(d, value, "expected ISO-8601 date-time, e.g. 2026-09-22T14:03:11-04:00");
             }
@@ -274,6 +374,80 @@ final class GoogleTypeJson {
                     offsetFd,
                     DynamicMessage.newBuilder(od)
                             .setField(od.findFieldByNumber(1), (long) offset.getTotalSeconds())
+                            .build());
+        }
+        return b.build();
+    }
+
+    /**
+     * The strict common shape {@code YYYY-MM-DDTHH:mm[:ss[.f{1,9}]]} followed by nothing,
+     * {@code Z} or {@code ±HH:MM}, parsed without {@link DateTimeFormatter}. Returns null,
+     * leaving the verdict (accept or reject) to the formatter, for anything else and for any
+     * field the fast path is not certain about: year 0000, an impossible calendar date, second
+     * 60, an offset beyond ±17:59 or with minutes over 59.
+     */
+    private static DynamicMessage fastDateTime(String s, Descriptor d) {
+        int n = s.length();
+        if (n < 16 || !digits(s, 0, 4) || s.charAt(4) != '-' || !digits(s, 5, 2) || s.charAt(7) != '-') return null;
+        if (!digits(s, 8, 2) || s.charAt(10) != 'T' || !digits(s, 11, 2) || s.charAt(13) != ':' || !digits(s, 14, 2)) {
+            return null;
+        }
+        int y = number(s, 0, 4);
+        int mo = number(s, 5, 2);
+        int day = number(s, 8, 2);
+        int h = number(s, 11, 2);
+        int mi = number(s, 14, 2);
+        if (y == 0 || mo < 1 || mo > 12 || day < 1 || h > 23 || mi > 59) return null;
+        if (day > 28 && day > java.time.Month.of(mo).length(java.time.Year.isLeap(y))) return null;
+        int i = 16;
+        int sec = 0;
+        int nanos = 0;
+        if (i < n && s.charAt(i) == ':') {
+            if (!digits(s, i + 1, 2)) return null;
+            sec = number(s, i + 1, 2);
+            if (sec > 59) return null;
+            i += 3;
+            if (i < n && s.charAt(i) == '.') {
+                int fractionDigits = 0;
+                while (i + 1 + fractionDigits < n
+                        && s.charAt(i + 1 + fractionDigits) >= '0'
+                        && s.charAt(i + 1 + fractionDigits) <= '9') {
+                    fractionDigits++;
+                }
+                if (fractionDigits < 1 || fractionDigits > 9) return null;
+                nanos = number(s, i + 1, fractionDigits);
+                for (int k = fractionDigits; k < 9; k++) nanos *= 10;
+                i += 1 + fractionDigits;
+            }
+        }
+        Long offsetSeconds = null;
+        if (i == n - 1 && s.charAt(i) == 'Z') {
+            offsetSeconds = 0L;
+        } else if (i == n - 6 && (s.charAt(i) == '+' || s.charAt(i) == '-') && s.charAt(i + 3) == ':') {
+            if (!digits(s, i + 1, 2) || !digits(s, i + 4, 2)) return null;
+            int oh = number(s, i + 1, 2);
+            int om = number(s, i + 4, 2);
+            if (oh > 17 || om > 59) return null;
+            int total = oh * 3600 + om * 60;
+            offsetSeconds = (long) (s.charAt(i) == '-' ? -total : total);
+        } else if (i != n) {
+            return null;
+        }
+        DynamicMessage.Builder b = DynamicMessage.newBuilder(d)
+                .setField(d.findFieldByName("year"), y)
+                .setField(d.findFieldByName("month"), mo)
+                .setField(d.findFieldByName("day"), day)
+                .setField(d.findFieldByName("hours"), h)
+                .setField(d.findFieldByName("minutes"), mi)
+                .setField(d.findFieldByName("seconds"), sec)
+                .setField(d.findFieldByName("nanos"), nanos);
+        if (offsetSeconds != null) {
+            FieldDescriptor offsetFd = d.findFieldByName("utc_offset");
+            Descriptor od = offsetFd.getMessageType();
+            b.setField(
+                    offsetFd,
+                    DynamicMessage.newBuilder(od)
+                            .setField(od.findFieldByNumber(1), offsetSeconds)
                             .build());
         }
         return b.build();
