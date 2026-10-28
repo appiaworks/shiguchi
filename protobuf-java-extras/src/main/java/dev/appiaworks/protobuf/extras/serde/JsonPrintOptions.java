@@ -21,8 +21,23 @@ package dev.appiaworks.protobuf.extras.serde;
  * @param omitDefaultValues leave out fields without presence that hold their default value
  *     ({@code 0}, {@code ""}, {@code false}, an empty list or map), as {@code JsonFormat} does by
  *     default
+ * @param numberFormat how {@code double} and {@code float} values are laid out: Java text
+ *     ({@code 1.0}, the default) or the ECMAScript layout ({@code 1}); {@code null} means Java
  */
-public record JsonPrintOptions(boolean preserveProtoFieldNames, boolean enumsAsInts, boolean omitDefaultValues) {
+public record JsonPrintOptions(
+        boolean preserveProtoFieldNames,
+        boolean enumsAsInts,
+        boolean omitDefaultValues,
+        JsonNumberFormat numberFormat) {
+
+    /** Options with the default (Java) number format. */
+    public JsonPrintOptions(boolean preserveProtoFieldNames, boolean enumsAsInts, boolean omitDefaultValues) {
+        this(preserveProtoFieldNames, enumsAsInts, omitDefaultValues, JsonNumberFormat.JAVA);
+    }
+
+    public JsonPrintOptions {
+        if (numberFormat == null) numberFormat = JsonNumberFormat.JAVA;
+    }
 
     /** The gateway's historical output. */
     public static final JsonPrintOptions DEFAULT = new JsonPrintOptions(false, false, false);
@@ -31,7 +46,7 @@ public record JsonPrintOptions(boolean preserveProtoFieldNames, boolean enumsAsI
 
     /** Whether these are the historical options, which every serializer tier produces. */
     public boolean isDefault() {
-        return !preserveProtoFieldNames && !enumsAsInts && !omitDefaultValues;
+        return !preserveProtoFieldNames && !enumsAsInts && !omitDefaultValues && numberFormat == JsonNumberFormat.JAVA;
     }
 
     /** Installs the global options; done once by the gateway at startup. */

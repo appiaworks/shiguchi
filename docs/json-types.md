@@ -121,17 +121,28 @@ The OpenAPI document types these fields `integer` while the switch is on. GraphQ
 ### Doubles, floats and `google.protobuf.Value` numbers
 
 `double`, `float`, their wrappers and the numbers inside a `google.protobuf.Value` (or `Struct`,
-`ListValue`) print in Java's form, `Double.toString`. That is valid proto3 JSON, but it is not
-the text `JSON.stringify` produces:
+`ListValue`) print in Java's form, `Double.toString`, by default. That is valid proto3 JSON, but it
+is not the text `JSON.stringify` produces. Set `json.print.number-format: ecmascript` to get that
+layout:
 
-| Value | Gateway | `JSON.stringify` |
-| --- | --- | --- |
-| `1` | `1.0` | `1` |
-| `1e20` | `1.0E20` | `100000000000000000000` |
-| `123456789012345678` in a `Value` | `1.2345678901234568E17` | `123456789012345680` |
+| Value | `java` (default) | `ecmascript` | `JSON.stringify` |
+| --- | --- | --- | --- |
+| `1` | `1.0` | `1` | `1` |
+| `1e20` | `1.0E20` | `100000000000000000000` | `100000000000000000000` |
+| `1e21` | `1.0E21` | `1e+21` | `1e+21` |
+| `1e-7` | `1.0E-7` | `1e-7` | `1e-7` |
+| `Double.MIN_VALUE` | `4.9E-324` | `5e-324` | `5e-324` |
+| `123456789012345678` in a `Value` | `1.2345678901234568E17` | `123456789012345680` | `123456789012345680` |
 
 The digits are the shortest that read back to the same double, so nothing is lost. Only the layout
-differs. `NaN` and the infinities are strings (`"NaN"`, `"Infinity"`), as proto3 JSON specifies.
+differs. `ecmascript` follows the `Number::toString` layout of ECMA-262. A `float` keeps the digits
+`Float.toString` picks (`0.1f` is `0.1`), laid out the same way. Integers (`int32`, `int64` with
+`int64-as: NUMBER`) are not affected.
+
+A service on `ecmascript`, like one with any other non-default print option, is served by the
+option-aware writers (the wire transcoder and the reflective writer), not the compiled serializer
+tiers. Output is the same text on every path. GraphQL is not covered: its numbers are written by
+Spring's `ObjectMapper`. `NaN` and the infinities are strings (`"NaN"`, `"Infinity"`), as proto3 JSON specifies.
 
 `Value.number_value` is a `double`. An integer beyond 2^53 already lost precision when it was put
 into the `Value`, before the gateway printed it: that is a proto limit, not the gateway's. Use
@@ -163,12 +174,12 @@ or measure on the side that owns the data:
 
 | Path | Printer | Numbers | Notes |
 | --- | --- | --- | --- |
-| REST responses, streams and the console (Tiers 0 to 2) | Jackson | Java form | |
-| REST, types that reach `Any` (Tier 3) | `JsonFormat`, escapes rewritten | Java form | `google.type` mapping does not apply ([above](#why-this-differs-from-jsonformat)). |
-| REST `response_body` on a single field | `JsonFormat`, escapes rewritten | Java form | |
+| REST responses, streams and the console (Tiers 0 to 2) | Jackson | Java form, or `ecmascript` | `ecmascript` is served by Tier 0 and the reflective writer only. |
+| REST, types that reach `Any` (Tier 3) | `JsonFormat`, escapes rewritten | Java form, or `ecmascript` | `google.type` mapping does not apply ([above](#why-this-differs-from-jsonformat)). |
+| REST `response_body` on a single field | `JsonFormat`, escapes rewritten | Java form, or `ecmascript` | |
 | Error bodies and their `details` | Jackson (details through `JsonFormat`, then parsed) | Java form | |
-| Push `message` payloads, `push.topic` upstreams, Kafka and gRPC-stream sources | `JsonFormat`, escapes rewritten | Java form | Fields at their default value are **omitted**, unlike REST. |
-| Push `json` payloads (a `Value`) | Jackson | integral numbers below 10^15 as integers (`1`), others Java form | |
+| Push `message` payloads, `push.topic` upstreams, Kafka and gRPC-stream sources | `JsonFormat`, escapes rewritten | Java form, or `ecmascript` | Fields at their default value are **omitted**, unlike REST. Printed once at publish time with the service's option; stored events keep their text when the option changes. |
+| Push `json` payloads (a `Value`) | Jackson | integral numbers below 10^15 as integers (`1`), others Java form, or `ecmascript` (global option) | Same: stored events are not rewritten. |
 | GraphQL | graphql-java's result, written by Spring's `ObjectMapper` | Java form | |
 
 Server logs and the `cursus` CLI are not client output and are not covered here.
@@ -449,7 +460,7 @@ them. The one exception is the response layout below, which a service can overri
 
 ## Response layout (print options)
 
-Four switches change how REST responses are laid out. The defaults are the gateway's historical output.
+Five switches change how REST responses are laid out. The defaults are the gateway's historical output.
 
 ```yaml
 shiguchi:
@@ -458,6 +469,7 @@ shiguchi:
       preserve-proto-field-names: false  # true: "display_name" instead of "displayName"
       enums-as-ints: false               # true: "kind": 1 instead of "kind": "BOOK"
       omit-default-values: false         # true: leave out 0, "", false, [] and {} fields
+      number-format: java                # ecmascript: doubles as JSON.stringify prints them (1, not 1.0)
       pretty-print: false                # true: indented JSON
   services:
     - name: legacy-catalog
@@ -472,6 +484,9 @@ shiguchi:
 {"display_name":"Dune","kind":1,"released":"2026-09-22"}
 ```
 
+- `number-format: ecmascript` changes the text of `double`, `float`, their wrappers and `Value` numbers
+  only (see [Doubles, floats](#doubles-floats-and-googleprotobufvalue-numbers)); `{"price":1.0}` becomes
+  `{"price":1}`.
 - **Output only.** Requests accept both field spellings and enum names or numbers either way.
 - **Everything else still applies:** `google.type` as ISO text, `int64-as`, durations, and
   `response_body`, which sends the named field laid out the same way.

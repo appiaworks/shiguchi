@@ -233,7 +233,12 @@ public final class ProtoWkt {
 
     /** Writes a WKT DynamicMessage as its proto3 JSON value directly to the generator. */
     public static void writeJson(JsonGenerator gen, DynamicMessage wkt) throws IOException {
-        writeJsonTree(gen, toJsonValue(wkt));
+        writeJson(gen, wkt, JsonNumberFormat.JAVA);
+    }
+
+    /** {@link #writeJson(JsonGenerator, DynamicMessage)} laying doubles and floats out in {@code numbers}. */
+    public static void writeJson(JsonGenerator gen, DynamicMessage wkt, JsonNumberFormat numbers) throws IOException {
+        writeJsonTree(gen, toJsonValue(wkt), numbers);
     }
 
     /**
@@ -243,14 +248,19 @@ public final class ProtoWkt {
      * Struct, Value and ListValue take their dynamic form.
      */
     public static void writeJson(JsonGenerator gen, Message wkt) throws IOException {
+        writeJson(gen, wkt, JsonNumberFormat.JAVA);
+    }
+
+    /** {@link #writeJson(JsonGenerator, Message)} laying doubles and floats out in {@code numbers}. */
+    public static void writeJson(JsonGenerator gen, Message wkt, JsonNumberFormat numbers) throws IOException {
         if (wkt instanceof DynamicMessage dynamic) {
-            writeJson(gen, dynamic);
+            writeJson(gen, dynamic, numbers);
             return;
         }
         Descriptor d = wkt.getDescriptorForType();
         ProtoScalarCodec codec = ProtoJsonMapping.codecFor(d);
         if (codec != null) {
-            writeJsonTree(gen, codec.toJson(wkt));
+            writeJsonTree(gen, codec.toJson(wkt), numbers);
         } else if (wkt instanceof com.google.protobuf.Timestamp ts) {
             gen.writeString(timestampText(ts.getSeconds(), ts.getNanos()));
         } else if (wkt instanceof com.google.protobuf.Duration dur) {
@@ -266,9 +276,9 @@ public final class ProtoWkt {
         } else if (wkt instanceof com.google.protobuf.UInt32Value v) {
             gen.writeNumber(Integer.toUnsignedLong(v.getValue()));
         } else if (wkt instanceof com.google.protobuf.DoubleValue v) {
-            gen.writeNumber(v.getValue());
+            writeDouble(gen, v.getValue(), numbers);
         } else if (wkt instanceof com.google.protobuf.FloatValue v) {
-            gen.writeNumber(v.getValue());
+            JsonNumbers.writeFloat(gen, v.getValue(), numbers);
         } else if (wkt instanceof com.google.protobuf.BoolValue v) {
             gen.writeBoolean(v.getValue());
         } else if (wkt instanceof com.google.protobuf.StringValue v) {
@@ -276,12 +286,17 @@ public final class ProtoWkt {
         } else if (wkt instanceof com.google.protobuf.BytesValue v) {
             gen.writeString(Base64.getEncoder().encodeToString(v.getValue().toByteArray()));
         } else {
-            writeJson(gen, ProtoTypes.dynamic(wkt, d));
+            writeJson(gen, ProtoTypes.dynamic(wkt, d), numbers);
         }
     }
 
     /** Writes a JSON-safe Java tree (String/Number/Boolean/Map/List/null) to the generator. */
     public static void writeJsonTree(JsonGenerator gen, Object value) throws IOException {
+        writeJsonTree(gen, value, JsonNumberFormat.JAVA);
+    }
+
+    /** {@link #writeJsonTree(JsonGenerator, Object)} laying doubles and floats out in {@code numbers}. */
+    public static void writeJsonTree(JsonGenerator gen, Object value, JsonNumberFormat numbers) throws IOException {
         if (value == null) {
             gen.writeNull();
         } else if (value instanceof String s) {
@@ -293,23 +308,23 @@ public final class ProtoWkt {
         } else if (value instanceof java.math.BigInteger bi) {
             gen.writeNumber(bi);
         } else if (value instanceof Double dv) {
-            gen.writeNumber(dv);
+            writeDouble(gen, dv, numbers);
         } else if (value instanceof Float f) {
-            gen.writeNumber(f);
+            JsonNumbers.writeFloat(gen, f, numbers);
         } else if (value instanceof Number n) {
-            gen.writeNumber(n.doubleValue());
+            writeDouble(gen, n.doubleValue(), numbers);
         } else if (value instanceof Boolean b) {
             gen.writeBoolean(b);
         } else if (value instanceof Map<?, ?> m) {
             gen.writeStartObject();
             for (var e : m.entrySet()) {
                 gen.writeFieldName(String.valueOf(e.getKey()));
-                writeJsonTree(gen, e.getValue());
+                writeJsonTree(gen, e.getValue(), numbers);
             }
             gen.writeEndObject();
         } else if (value instanceof List<?> list) {
             gen.writeStartArray();
-            for (Object o : list) writeJsonTree(gen, o);
+            for (Object o : list) writeJsonTree(gen, o, numbers);
             gen.writeEndArray();
         } else if (value instanceof OffsetDateTime odt) {
             gen.writeString(
@@ -317,6 +332,10 @@ public final class ProtoWkt {
         } else {
             gen.writeString(String.valueOf(value));
         }
+    }
+
+    private static void writeDouble(JsonGenerator gen, double v, JsonNumberFormat numbers) throws IOException {
+        JsonNumbers.writeDouble(gen, v, numbers);
     }
 
     // ── Internals ─────────────────────────────────────────────────────────────────────

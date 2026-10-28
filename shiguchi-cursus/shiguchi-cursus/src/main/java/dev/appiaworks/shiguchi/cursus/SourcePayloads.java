@@ -5,6 +5,8 @@ import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
+import dev.appiaworks.protobuf.extras.serde.JsonNumberFormat;
+import dev.appiaworks.protobuf.extras.serde.JsonPrintOptions;
 import dev.appiaworks.shiguchi.serde.ProtoJsonText;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
@@ -35,9 +37,15 @@ public final class SourcePayloads {
 
     /** A parsed message as a typed payload: JSON rendering, type URL and bytes. */
     public static Payload typed(Message message, JsonFormat.TypeRegistry registry) throws Exception {
+        return typed(message, registry, JsonPrintOptions.global().numberFormat());
+    }
+
+    /** {@link #typed(Message, JsonFormat.TypeRegistry)} with the number layout of the service the message came from. */
+    public static Payload typed(Message message, JsonFormat.TypeRegistry registry, JsonNumberFormat numbers)
+            throws Exception {
         JsonFormat.Printer printer = JsonFormat.printer().omittingInsignificantWhitespace();
         if (registry != null) printer = printer.usingTypeRegistry(registry);
-        byte[] json = ProtoJsonText.printUtf8(printer, message);
+        byte[] json = ProtoJsonText.printUtf8(printer, message, numbers);
         return new Payload(
                 json, "type.googleapis.com/" + message.getDescriptorForType().getFullName(), message.toByteArray());
     }

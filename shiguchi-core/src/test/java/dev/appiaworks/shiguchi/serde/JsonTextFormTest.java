@@ -15,6 +15,8 @@ import com.google.protobuf.StructProto;
 import com.google.protobuf.util.JsonFormat;
 import dev.appiaworks.protobuf.extras.serde.AbstractDynamicSerializer;
 import dev.appiaworks.protobuf.extras.serde.Codegen;
+import dev.appiaworks.protobuf.extras.serde.JsonNumberFormat;
+import dev.appiaworks.protobuf.extras.serde.JsonPrintOptions;
 import dev.appiaworks.protobuf.extras.serde.ProtoMapConverter;
 import dev.appiaworks.protobuf.extras.serde.WireJsonTranscoder;
 import java.io.IOException;
@@ -38,13 +40,19 @@ class JsonTextFormTest {
     private static final String FIXTURE_PATH = "/serde/json-text-form.json";
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
 
+    private static final String ECMASCRIPT_FIXTURE_PATH = "/serde/json-text-form-ecmascript.json";
+    private static final JsonPrintOptions ECMASCRIPT =
+            new JsonPrintOptions(false, false, false, JsonNumberFormat.ECMASCRIPT);
+
     private static String expected;
+    private static String expectedEcmascript;
     private static Descriptor sampleDescriptor;
     private static DynamicMessage sample;
 
     @BeforeAll
     static void buildDescriptorAndSample() throws IOException {
-        expected = readFixture();
+        expected = readFixture(FIXTURE_PATH);
+        expectedEcmascript = readFixture(ECMASCRIPT_FIXTURE_PATH);
 
         FileDescriptorProto proto = FileDescriptorProto.newBuilder()
                 .setName("textform.proto")
@@ -167,10 +175,64 @@ class JsonTextFormTest {
         assertThat(normalized).isEqualTo("{\"n\":1.0E20,\"i\":12345678901234567890,\"s\":\"<\"}");
     }
 
-    private static String readFixture() throws IOException {
-        try (InputStream in = JsonTextFormTest.class.getResourceAsStream(FIXTURE_PATH)) {
+    @Test
+    @DisplayName("GIVEN a message WHEN ProtoJsonText prints it in ECMASCRIPT SHOULD match the ECMAScript fixture")
+    void given_sampleMessage_when_protoJsonTextPrintsEcmascript_should_matchEcmascriptFixture() throws Exception {
+        String printed = ProtoJsonText.print(
+                JsonFormat.printer().includingDefaultValueFields().omittingInsignificantWhitespace(),
+                sample,
+                JsonNumberFormat.ECMASCRIPT);
+
+        assertThat(printed).isEqualTo(expectedEcmascript);
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a message WHEN the response path serializes it with ECMASCRIPT options SHOULD match the fixture")
+    void given_sampleMessage_when_responseToJsonWithEcmascript_should_matchEcmascriptFixture() throws Exception {
+        String printed = new DynamicProtoSerde(null)
+                .responseToJson(sample, JsonFormat.TypeRegistry.getEmptyTypeRegistry(), ECMASCRIPT);
+
+        assertThat(printed).isEqualTo(expectedEcmascript);
+    }
+
+    @Test
+    @DisplayName("GIVEN a message WHEN Tier 0 transcodes it with ECMASCRIPT options SHOULD match the fixture")
+    void given_sampleMessage_when_tier0TranscodesEcmascript_should_matchEcmascriptFixture() throws Exception {
+        WireJsonTranscoder transcoder = new WireJsonTranscoder();
+        WireJsonTranscoder.Program program = transcoder.programFor(sampleDescriptor);
+
+        byte[] json = transcoder.transcode(program, sample.toByteArray(), ECMASCRIPT);
+
+        assertThat(new String(json, StandardCharsets.UTF_8)).isEqualTo(expectedEcmascript);
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a message WHEN the reflective writer writes it with ECMASCRIPT options SHOULD match the fixture")
+    void given_sampleMessage_when_reflectiveWriterWritesEcmascript_should_matchEcmascriptFixture() throws Exception {
+        StringWriter out = new StringWriter();
+        try (JsonGenerator generator = JSON_FACTORY.createGenerator(out)) {
+            ProtoMapConverter.writeMessageJson(generator, sample, ECMASCRIPT);
+        }
+
+        assertThat(out.toString()).isEqualTo(expectedEcmascript);
+    }
+
+    @Test
+    @DisplayName("GIVEN JSON text with no backslash WHEN normalized for ECMASCRIPT SHOULD still lay out the numbers")
+    void given_textWithoutBackslash_when_normalizedForEcmascript_should_layOutNumbers() {
+        String json = "{\"n\":1.0,\"i\":12345678901234567890,\"e\":1.0E-7,\"s\":\"plain\"}";
+
+        String normalized = ProtoJsonText.normalize(json, JsonNumberFormat.ECMASCRIPT);
+
+        assertThat(normalized).isEqualTo("{\"n\":1,\"i\":12345678901234567890,\"e\":1e-7,\"s\":\"plain\"}");
+    }
+
+    private static String readFixture(String path) throws IOException {
+        try (InputStream in = JsonTextFormTest.class.getResourceAsStream(path)) {
             if (in == null) {
-                throw new IllegalStateException("missing test resource " + FIXTURE_PATH);
+                throw new IllegalStateException("missing test resource " + path);
             }
             return new String(in.readAllBytes(), StandardCharsets.UTF_8).strip();
         }

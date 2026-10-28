@@ -1,5 +1,6 @@
 package dev.appiaworks.shiguchi.config;
 
+import dev.appiaworks.protobuf.extras.serde.JsonNumberFormat;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -75,6 +76,15 @@ public class JsonConfig {
          * client never has to tell a missing field from a zero one.
          */
         private boolean omitDefaultValues = false;
+
+        /**
+         * How {@code double} and {@code float} values are written: {@code java} ({@code 1.0},
+         * {@code 1.0E20}, the default) or {@code ecmascript}, the JavaScript {@code Number}
+         * layout ({@code 1}, {@code 100000000000000000000}, {@code 5e-324}). Integers are not
+         * affected. A service on {@code ecmascript} is served by the option-aware writers, not
+         * the compiled serializer tiers.
+         */
+        private JsonNumberFormat numberFormat = JsonNumberFormat.JAVA;
 
         /**
          * Indent JSON response bodies — for humans reading curl

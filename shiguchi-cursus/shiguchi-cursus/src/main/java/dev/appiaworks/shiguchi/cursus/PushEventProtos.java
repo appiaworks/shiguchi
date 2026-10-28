@@ -7,6 +7,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.Value;
 import com.google.protobuf.util.JsonFormat;
+import dev.appiaworks.protobuf.extras.serde.JsonNumberFormat;
+import dev.appiaworks.protobuf.extras.serde.JsonPrintOptions;
 import dev.appiaworks.shiguchi.proto.cursus.PublishRequest;
 import dev.appiaworks.shiguchi.proto.cursus.PushProto;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
@@ -90,11 +92,13 @@ final class PushEventProtos {
         String typeName = typeUrl.substring(typeUrl.lastIndexOf('/') + 1);
         if (typeName.isEmpty()) throw PushException.badRequest("message payload has no type URL");
         JsonFormat.TypeRegistry found = null;
+        JsonNumberFormat numbers = JsonPrintOptions.global().numberFormat();
         if (registry != null) {
             for (ServiceEndpointContext ctx : registry.allContexts()) {
                 JsonFormat.TypeRegistry types = ctx.getTypeRegistry();
                 if (types != null && types.find(typeName) != null) {
                     found = types;
+                    numbers = ctx.getPrintOptions().numberFormat();
                     break;
                 }
             }
@@ -109,7 +113,7 @@ final class PushEventProtos {
             // Parse first, so a payload that is not a valid message of its type is refused here
             // rather than failing at every subscriber.
             DynamicMessage.parseFrom(type, any.getValue());
-            return ProtoJsonText.printUtf8(PRINTER.usingTypeRegistry(found), any);
+            return ProtoJsonText.printUtf8(PRINTER.usingTypeRegistry(found), any, numbers);
         } catch (InvalidProtocolBufferException e) {
             throw PushException.badRequest("message payload is not a valid " + typeName + ": " + e.getMessage());
         }

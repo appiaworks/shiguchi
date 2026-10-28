@@ -2,6 +2,7 @@ package dev.appiaworks.shiguchi.serde;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.appiaworks.protobuf.extras.serde.JsonNumberFormat;
 import dev.appiaworks.protobuf.extras.serde.JsonPrintOptions;
 import dev.appiaworks.shiguchi.config.JsonConfig;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
@@ -45,6 +46,64 @@ class JsonPrintOptionsTest {
             boolean preserve, boolean enumsAsInts, boolean omitDefaults) {
         JsonPrintOptions options = new JsonPrintOptions(preserve, enumsAsInts, omitDefaults);
         assertThat(options.isDefault()).isFalse();
+    }
+
+    @Test
+    @DisplayName("GIVEN ECMASCRIPT number format WHEN checking isDefault SHOULD return false")
+    void given_ecmascriptNumberFormat_when_checkingIsDefault_should_returnFalse() {
+        JsonPrintOptions options = new JsonPrintOptions(false, false, false, JsonNumberFormat.ECMASCRIPT);
+
+        assertThat(options.isDefault()).isFalse();
+    }
+
+    @Test
+    @DisplayName("GIVEN a null number format WHEN constructing options SHOULD fall back to JAVA")
+    void given_nullNumberFormat_when_constructing_should_fallBackToJava() {
+        JsonPrintOptions options = new JsonPrintOptions(false, false, false, null);
+
+        assertThat(options.numberFormat()).isEqualTo(JsonNumberFormat.JAVA);
+        assertThat(options).isEqualTo(JsonPrintOptions.DEFAULT);
+    }
+
+    @Test
+    @DisplayName("GIVEN config with numberFormat=ECMASCRIPT WHEN calling printOptions() SHOULD set the format")
+    void given_numberFormatConfig_when_printOptions_should_setFormat() {
+        JsonConfig.PrintOptions config = new JsonConfig.PrintOptions();
+        config.setNumberFormat(JsonNumberFormat.ECMASCRIPT);
+
+        JsonPrintOptions options = GatewayJsonSettings.printOptions(config);
+
+        assertThat(options.numberFormat()).isEqualTo(JsonNumberFormat.ECMASCRIPT);
+        assertThat(options.omitDefaultValues()).isFalse();
+    }
+
+    @Test
+    @DisplayName("GIVEN a service overriding numberFormat WHEN calling printOptionsFor() SHOULD beat the global one")
+    void given_serviceNumberFormatOverride_when_printOptionsFor_should_overrideGlobal() {
+        JsonPrintOptions.install(new JsonPrintOptions(false, false, false, JsonNumberFormat.JAVA));
+        ServiceDefinition service = new ServiceDefinition();
+        JsonPrintOverride override = new JsonPrintOverride();
+        override.setNumberFormat(JsonNumberFormat.ECMASCRIPT);
+        service.setJsonPrint(override);
+
+        JsonPrintOptions result = GatewayJsonSettings.printOptionsFor(service);
+
+        assertThat(result.numberFormat()).isEqualTo(JsonNumberFormat.ECMASCRIPT);
+    }
+
+    @Test
+    @DisplayName("GIVEN a service without a numberFormat override WHEN calling printOptionsFor() SHOULD inherit global")
+    void given_serviceWithoutNumberFormat_when_printOptionsFor_should_inheritGlobal() {
+        JsonPrintOptions.install(new JsonPrintOptions(false, false, false, JsonNumberFormat.ECMASCRIPT));
+        ServiceDefinition service = new ServiceDefinition();
+        JsonPrintOverride override = new JsonPrintOverride();
+        override.setEnumsAsInts(true);
+        service.setJsonPrint(override);
+
+        JsonPrintOptions result = GatewayJsonSettings.printOptionsFor(service);
+
+        assertThat(result.numberFormat()).isEqualTo(JsonNumberFormat.ECMASCRIPT);
+        assertThat(result.enumsAsInts()).isTrue();
     }
 
     // ── from(JsonConfig.PrintOptions) ────────────────────────────────────────────────

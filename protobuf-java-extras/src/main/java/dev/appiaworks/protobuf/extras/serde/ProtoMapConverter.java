@@ -449,7 +449,7 @@ public final class ProtoMapConverter {
             case MESSAGE -> {
                 DynamicMessage m = (DynamicMessage) value;
                 if (ProtoWkt.isWkt(m.getDescriptorForType())) {
-                    ProtoWkt.writeJson(gen, m);
+                    ProtoWkt.writeJson(gen, m, options.numberFormat());
                 } else {
                     writeMessageJson(gen, m, options);
                 }
@@ -468,8 +468,8 @@ public final class ProtoMapConverter {
             case UINT32, FIXED32 -> gen.writeNumber(Integer.toUnsignedLong((Integer) value));
             case INT64, SINT64, SFIXED64 -> writeInt64(gen, (Long) value);
             case UINT64, FIXED64 -> writeUInt64(gen, (Long) value);
-            case FLOAT -> gen.writeNumber((Float) value);
-            case DOUBLE -> gen.writeNumber((Double) value);
+            case FLOAT -> JsonNumbers.writeFloat(gen, (Float) value, options.numberFormat());
+            case DOUBLE -> JsonNumbers.writeDouble(gen, (Double) value, options.numberFormat());
             case BOOL -> gen.writeBoolean((Boolean) value);
             default -> gen.writeString(String.valueOf(value));
         }

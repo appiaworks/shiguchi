@@ -156,7 +156,7 @@ How a request flows through the serde tiers is documented in
 - **Full proto3 JSON mapping**: well-known types, `Any` via the discovered type registry,
    64-bit ints as strings, both camelCase and snake_case accepted on input. Response layout is
    configurable globally or per service (`shiguchi.json.print`): proto field names, enum
-   numbers, omitted defaults. → [docs/json-types.md](docs/json-types.md#response-layout-print-options)
+   numbers, omitted defaults, ECMAScript number layout. → [docs/json-types.md](docs/json-types.md#response-layout-print-options)
 - **Dates as dates**: `google.type.Date`, `TimeOfDay`, `DateTime` and `Decimal` travel as ISO
   strings (`"2026-09-22"`, `"14:03:11"`, `"12.34"`) rather than `{year, month, day}` objects, in
   both directions and in query parameters. They are typed `LocalDate` / `LocalTime` /

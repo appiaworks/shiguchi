@@ -208,6 +208,11 @@ event is stored and carried in both forms, so it costs about twice its size in h
 Redis channel. The wire bytes of an event are built once and shared by every gRPC stream on the
 instance, whatever the subscriber count.
 
+The JSON of an event is printed once, when it is published, and stored as text. Its doubles and floats
+follow `json.print.number-format` of the service the message belongs to (the global setting for a `json`
+payload), so `1.0` is stored as `1` under `ecmascript`. Changing the option does not rewrite events already
+stored: history keeps the text it was printed with. See [json-types.md](json-types.md#doubles-floats-and-googleprotobufvalue-numbers).
+
 **Who is calling.** The service reads a bearer token from the `authorization` metadata, the one the
 gateway forwards from the HTTP surfaces, and decodes it with the gateway's JWT decoder, as the
 WebSocket `connect` frame does. The `x-principal` the gateway adds for backends is not trusted

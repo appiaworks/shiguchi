@@ -222,7 +222,7 @@ spring:
 | `shiguchi.json.duration.output` | `PROTO` | `google.protobuf.Duration` text: `PROTO` (`"5400s"`) or `ISO_8601` (`"PT1H30M"`) |
 | `shiguchi.json.duration.accept-iso8601` | `true` | Also read ISO-8601 durations on input |
 | `shiguchi.json.timestamp.accept-epoch-millis` | `false` | Also read a JSON number of epoch milliseconds as a `Timestamp` on input |
-| `shiguchi.json.print.preserve-proto-field-names` / `enums-as-ints` / `omit-default-values` | `false` / `false` / `false` | REST response layout: proto field names instead of lowerCamelCase, enum numbers instead of names, omit default-valued fields. Per-service override: `services[].json-print.*`. [json-types.md](json-types.md#response-layout-print-options) |
+| `shiguchi.json.print.preserve-proto-field-names` / `enums-as-ints` / `omit-default-values` / `number-format` | `false` / `false` / `false` / `java` | REST response layout: proto field names instead of lowerCamelCase, enum numbers instead of names, omit default-valued fields, and `ecmascript` for doubles and floats printed as `JSON.stringify` does (`1`, not `1.0`). Per-service override: `services[].json-print.*`. [json-types.md](json-types.md#response-layout-print-options) |
 | `shiguchi.json.print.pretty-print` | `false` | Indent whole-body JSON responses (unary, `response_body`, merged pages; not NDJSON/SSE). Keeps the fast serializer tiers. Per-service override: `services[].json-print.pretty-print` |
 | `shiguchi.json.strict-input` | `false` | Refuse a request value that does not fit its field (`"abc"` or `1.5` for an `int32`, a number for a `string`) with HTTP 400 naming field, type and value, instead of coercing it to the field's default. Off for compatibility. [json-types.md](json-types.md#strict-input) |
 | `shiguchi.json.int64-as` | `STRING` | 64-bit integers as `STRING` (`"42"`, proto3) or `NUMBER` (`42`). A number above 2^53 loses precision in JavaScript; input accepts both. [json-types.md](json-types.md#64-bit-integers) |
@@ -312,7 +312,7 @@ bean; define your own bean of that name and the gateway's backs off — call
 | `path-prefix` | — | Prefix for all HTTP routes of this service (e.g. `/ref`) |
 | `auto-mapping` | inherit | Per-service override of `rest.auto-mapping` |
 | `static-metadata` | `{}` | gRPC headers attached to every outbound call |
-| `json-print.preserve-proto-field-names` / `enums-as-ints` / `omit-default-values` / `pretty-print` | inherit | Per-service override of `shiguchi.json.print.*` (REST response layout) |
+| `json-print.preserve-proto-field-names` / `enums-as-ints` / `omit-default-values` / `number-format` / `pretty-print` | inherit | Per-service override of `shiguchi.json.print.*` (REST response layout) |
 | `max-inbound-message-size` | inherit | Largest response message accepted from this backend, overriding `client.max-inbound-message-size` for this service only |
 | `graphql-enabled` / `rest-enabled` / `openapi-enabled` | inherit | Per-service surface overrides |
 | `reject-unknown-query-parameters` | inherit | Per-service override of `rest.request-validation.reject-unknown-query-parameters` |
