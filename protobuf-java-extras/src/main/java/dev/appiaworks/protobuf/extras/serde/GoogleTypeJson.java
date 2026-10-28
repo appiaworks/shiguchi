@@ -34,8 +34,10 @@ import java.util.Map;
  * {@link dev.appiaworks.protobuf.extras.ProtoJsonException} ({@code INVALID_ARGUMENT} in the gateway),
  * never a silently dropped field.
  *
- * <p>Fields are looked up by name on the instance descriptor, which may come from gRPC reflection
- * rather than the compiled {@code com.google.type} classes.
+ * <p>Fields are looked up by number ({@code findFieldByNumber} is an allocation-free search; a
+ * by-name lookup builds a string per call) on the instance descriptor, which may come from gRPC
+ * reflection rather than the compiled {@code com.google.type} classes. The numbers are those of
+ * {@code google/type/*.proto}, which are frozen.
  *
  * <p>Text is built with {@link #appendPadded} (ASCII digits, independent of the default locale)
  * and read with index-based parsers: no {@code String.format}, no regular expressions on the
@@ -45,6 +47,34 @@ final class GoogleTypeJson {
 
     private GoogleTypeJson() {}
 
+    // Field numbers from google/type/{date,timeofday,datetime,timezone,decimal,money}.proto.
+    private static final int DATE_YEAR = 1;
+    private static final int DATE_MONTH = 2;
+    private static final int DATE_DAY = 3;
+
+    private static final int TIME_HOURS = 1;
+    private static final int TIME_MINUTES = 2;
+    private static final int TIME_SECONDS = 3;
+    private static final int TIME_NANOS = 4;
+
+    private static final int DATETIME_YEAR = 1;
+    private static final int DATETIME_MONTH = 2;
+    private static final int DATETIME_DAY = 3;
+    private static final int DATETIME_HOURS = 4;
+    private static final int DATETIME_MINUTES = 5;
+    private static final int DATETIME_SECONDS = 6;
+    private static final int DATETIME_NANOS = 7;
+    private static final int DATETIME_UTC_OFFSET = 8;
+    private static final int DATETIME_TIME_ZONE = 9;
+
+    private static final int TIMEZONE_ID = 1;
+
+    private static final int DECIMAL_VALUE = 1;
+
+    private static final int MONEY_CURRENCY_CODE = 1;
+    private static final int MONEY_UNITS = 2;
+    private static final int MONEY_NANOS = 3;
+
     // ── Write ────────────────────────────────────────────────────────────────────────
 
     /** The JSON value of a mapped message: a String, or a Map when the text form cannot carry it. */
@@ -53,16 +83,16 @@ final class GoogleTypeJson {
             case ProtoJsonMapping.DATE -> dateToJson(msg);
             case ProtoJsonMapping.TIME_OF_DAY -> timeOfDayToJson(msg);
             case ProtoJsonMapping.DATE_TIME -> dateTimeToJson(msg);
-            case ProtoJsonMapping.DECIMAL -> string(msg, "value");
+            case ProtoJsonMapping.DECIMAL -> string(msg, DECIMAL_VALUE);
             case ProtoJsonMapping.MONEY -> moneyToJson(msg);
             default -> throw new IllegalArgumentException("Not a mapped google.type: " + msg.getDescriptorForType());
         };
     }
 
     private static Object dateToJson(DynamicMessage msg) {
-        int y = integer(msg, "year");
-        int m = integer(msg, "month");
-        int d = integer(msg, "day");
+        int y = integer(msg, DATE_YEAR);
+        int m = integer(msg, DATE_MONTH);
+        int d = integer(msg, DATE_DAY);
         if (y > 0 && y <= 9999 && m > 0 && d > 0) {
             StringBuilder sb = new StringBuilder(10);
             appendDate(sb, y, m, d);
@@ -87,23 +117,32 @@ final class GoogleTypeJson {
 
     private static Object timeOfDayToJson(DynamicMessage msg) {
         StringBuilder sb = new StringBuilder(18);
-        appendTime(sb, integer(msg, "hours"), integer(msg, "minutes"), integer(msg, "seconds"), integer(msg, "nanos"));
+        appendTime(
+                sb,
+                integer(msg, TIME_HOURS),
+                integer(msg, TIME_MINUTES),
+                integer(msg, TIME_SECONDS),
+                integer(msg, TIME_NANOS));
         return sb.toString();
     }
 
     private static Object dateTimeToJson(DynamicMessage msg) {
         Descriptor d = msg.getDescriptorForType();
-        int y = integer(msg, "year");
-        int mo = integer(msg, "month");
-        int day = integer(msg, "day");
+        int y = integer(msg, DATETIME_YEAR);
+        int mo = integer(msg, DATETIME_MONTH);
+        int day = integer(msg, DATETIME_DAY);
         if (y <= 0 || y > 9999 || mo <= 0 || day <= 0) return objectForm(msg);
         StringBuilder local = new StringBuilder(48);
         appendDate(local, y, mo, day).append('T');
         appendTime(
-                local, integer(msg, "hours"), integer(msg, "minutes"), integer(msg, "seconds"), integer(msg, "nanos"));
+                local,
+                integer(msg, DATETIME_HOURS),
+                integer(msg, DATETIME_MINUTES),
+                integer(msg, DATETIME_SECONDS),
+                integer(msg, DATETIME_NANOS));
 
-        FieldDescriptor offsetFd = d.findFieldByName("utc_offset");
-        FieldDescriptor zoneFd = d.findFieldByName("time_zone");
+        FieldDescriptor offsetFd = d.findFieldByNumber(DATETIME_UTC_OFFSET);
+        FieldDescriptor zoneFd = d.findFieldByNumber(DATETIME_TIME_ZONE);
         if (offsetFd != null && msg.hasField(offsetFd)) {
             DynamicMessage offset = (DynamicMessage) msg.getField(offsetFd);
             long seconds =
@@ -118,16 +157,16 @@ final class GoogleTypeJson {
         }
         if (zoneFd != null && msg.hasField(zoneFd)) {
             DynamicMessage zone = (DynamicMessage) msg.getField(zoneFd);
-            String id = (String) zone.getField(zone.getDescriptorForType().findFieldByName("id"));
+            String id = (String) zone.getField(zone.getDescriptorForType().findFieldByNumber(TIMEZONE_ID));
             try {
                 ZoneId zoneId = ZoneId.of(id);
                 LocalDateTime ldt = LocalDateTime.of(
                         y,
                         mo,
                         day,
-                        integer(msg, "hours"),
-                        integer(msg, "minutes"),
-                        Math.min(integer(msg, "seconds"), 59));
+                        integer(msg, DATETIME_HOURS),
+                        integer(msg, DATETIME_MINUTES),
+                        Math.min(integer(msg, DATETIME_SECONDS), 59));
                 ZoneOffset offset = zoneId.getRules().getOffset(ldt);
                 return local.append(offset.getId())
                         .append('[')
@@ -142,11 +181,11 @@ final class GoogleTypeJson {
     }
 
     private static Object moneyToJson(DynamicMessage msg) {
-        long units = ((Number) field(msg, "units")).longValue();
-        int nanos = integer(msg, "nanos");
+        long units = ((Number) field(msg, MONEY_UNITS)).longValue();
+        int nanos = integer(msg, MONEY_NANOS);
         BigDecimal amount = BigDecimal.valueOf(units).add(BigDecimal.valueOf(nanos, 9));
         Map<String, Object> out = new LinkedHashMap<>(4);
-        out.put("currency", string(msg, "currency_code"));
+        out.put("currency", string(msg, MONEY_CURRENCY_CODE));
         out.put("amount", plain(amount));
         return out;
     }
@@ -273,9 +312,9 @@ final class GoogleTypeJson {
             if (y == 0 && !s.startsWith("--")) throw invalid(d, value, "year 0000 is not a valid year");
         }
         return DynamicMessage.newBuilder(d)
-                .setField(d.findFieldByName("year"), y)
-                .setField(d.findFieldByName("month"), m)
-                .setField(d.findFieldByName("day"), day)
+                .setField(d.findFieldByNumber(DATE_YEAR), y)
+                .setField(d.findFieldByNumber(DATE_MONTH), m)
+                .setField(d.findFieldByNumber(DATE_DAY), day)
                 .build();
     }
 
@@ -284,10 +323,10 @@ final class GoogleTypeJson {
                 ? new int[] {lt.getHour(), lt.getMinute(), lt.getSecond(), lt.getNano()}
                 : parseTime(text(value, d), d, value);
         return DynamicMessage.newBuilder(d)
-                .setField(d.findFieldByName("hours"), t[0])
-                .setField(d.findFieldByName("minutes"), t[1])
-                .setField(d.findFieldByName("seconds"), t[2])
-                .setField(d.findFieldByName("nanos"), t[3])
+                .setField(d.findFieldByNumber(TIME_HOURS), t[0])
+                .setField(d.findFieldByNumber(TIME_MINUTES), t[1])
+                .setField(d.findFieldByNumber(TIME_SECONDS), t[2])
+                .setField(d.findFieldByNumber(TIME_NANOS), t[3])
                 .build();
     }
 
@@ -349,26 +388,26 @@ final class GoogleTypeJson {
             }
         }
         DynamicMessage.Builder b = DynamicMessage.newBuilder(d)
-                .setField(d.findFieldByName("year"), parsed.get(ChronoField.YEAR))
-                .setField(d.findFieldByName("month"), parsed.get(ChronoField.MONTH_OF_YEAR))
-                .setField(d.findFieldByName("day"), parsed.get(ChronoField.DAY_OF_MONTH))
-                .setField(d.findFieldByName("hours"), parsed.get(ChronoField.HOUR_OF_DAY))
-                .setField(d.findFieldByName("minutes"), parsed.get(ChronoField.MINUTE_OF_HOUR))
-                .setField(d.findFieldByName("seconds"), parsed.get(ChronoField.SECOND_OF_MINUTE))
-                .setField(d.findFieldByName("nanos"), parsed.get(ChronoField.NANO_OF_SECOND));
+                .setField(d.findFieldByNumber(DATETIME_YEAR), parsed.get(ChronoField.YEAR))
+                .setField(d.findFieldByNumber(DATETIME_MONTH), parsed.get(ChronoField.MONTH_OF_YEAR))
+                .setField(d.findFieldByNumber(DATETIME_DAY), parsed.get(ChronoField.DAY_OF_MONTH))
+                .setField(d.findFieldByNumber(DATETIME_HOURS), parsed.get(ChronoField.HOUR_OF_DAY))
+                .setField(d.findFieldByNumber(DATETIME_MINUTES), parsed.get(ChronoField.MINUTE_OF_HOUR))
+                .setField(d.findFieldByNumber(DATETIME_SECONDS), parsed.get(ChronoField.SECOND_OF_MINUTE))
+                .setField(d.findFieldByNumber(DATETIME_NANOS), parsed.get(ChronoField.NANO_OF_SECOND));
 
         ZoneId zone = parsed.query(TemporalQueries.zoneId());
         ZoneOffset offset = parsed.query(TemporalQueries.offset());
         if (zone != null && !(zone instanceof ZoneOffset)) {
-            FieldDescriptor zoneFd = d.findFieldByName("time_zone");
+            FieldDescriptor zoneFd = d.findFieldByNumber(DATETIME_TIME_ZONE);
             Descriptor zd = zoneFd.getMessageType();
             b.setField(
                     zoneFd,
                     DynamicMessage.newBuilder(zd)
-                            .setField(zd.findFieldByName("id"), zone.getId())
+                            .setField(zd.findFieldByNumber(TIMEZONE_ID), zone.getId())
                             .build());
         } else if (offset != null) {
-            FieldDescriptor offsetFd = d.findFieldByName("utc_offset");
+            FieldDescriptor offsetFd = d.findFieldByNumber(DATETIME_UTC_OFFSET);
             Descriptor od = offsetFd.getMessageType();
             b.setField(
                     offsetFd,
@@ -434,15 +473,15 @@ final class GoogleTypeJson {
             return null;
         }
         DynamicMessage.Builder b = DynamicMessage.newBuilder(d)
-                .setField(d.findFieldByName("year"), y)
-                .setField(d.findFieldByName("month"), mo)
-                .setField(d.findFieldByName("day"), day)
-                .setField(d.findFieldByName("hours"), h)
-                .setField(d.findFieldByName("minutes"), mi)
-                .setField(d.findFieldByName("seconds"), sec)
-                .setField(d.findFieldByName("nanos"), nanos);
+                .setField(d.findFieldByNumber(DATETIME_YEAR), y)
+                .setField(d.findFieldByNumber(DATETIME_MONTH), mo)
+                .setField(d.findFieldByNumber(DATETIME_DAY), day)
+                .setField(d.findFieldByNumber(DATETIME_HOURS), h)
+                .setField(d.findFieldByNumber(DATETIME_MINUTES), mi)
+                .setField(d.findFieldByNumber(DATETIME_SECONDS), sec)
+                .setField(d.findFieldByNumber(DATETIME_NANOS), nanos);
         if (offsetSeconds != null) {
-            FieldDescriptor offsetFd = d.findFieldByName("utc_offset");
+            FieldDescriptor offsetFd = d.findFieldByNumber(DATETIME_UTC_OFFSET);
             Descriptor od = offsetFd.getMessageType();
             b.setField(
                     offsetFd,
@@ -468,7 +507,7 @@ final class GoogleTypeJson {
             throw invalid(d, value, "expected a decimal number, e.g. \"12.34\"");
         }
         return DynamicMessage.newBuilder(d)
-                .setField(d.findFieldByName("value"), s)
+                .setField(d.findFieldByNumber(DECIMAL_VALUE), s)
                 .build();
     }
 
@@ -509,24 +548,24 @@ final class GoogleTypeJson {
             throw invalid(d, map, "amount has more than 9 fractional digits or does not fit int64");
         }
         return DynamicMessage.newBuilder(d)
-                .setField(d.findFieldByName("currency_code"), currency == null ? "" : String.valueOf(currency))
-                .setField(d.findFieldByName("units"), units)
-                .setField(d.findFieldByName("nanos"), nanos)
+                .setField(d.findFieldByNumber(MONEY_CURRENCY_CODE), currency == null ? "" : String.valueOf(currency))
+                .setField(d.findFieldByNumber(MONEY_UNITS), units)
+                .setField(d.findFieldByNumber(MONEY_NANOS), nanos)
                 .build();
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────────────
 
-    private static Object field(DynamicMessage msg, String name) {
-        return msg.getField(msg.getDescriptorForType().findFieldByName(name));
+    private static Object field(DynamicMessage msg, int number) {
+        return msg.getField(msg.getDescriptorForType().findFieldByNumber(number));
     }
 
-    private static int integer(DynamicMessage msg, String name) {
-        return ((Number) field(msg, name)).intValue();
+    private static int integer(DynamicMessage msg, int number) {
+        return ((Number) field(msg, number)).intValue();
     }
 
-    private static String string(DynamicMessage msg, String name) {
-        return (String) field(msg, name);
+    private static String string(DynamicMessage msg, int number) {
+        return (String) field(msg, number);
     }
 
     private static String text(Object value, Descriptor d) {

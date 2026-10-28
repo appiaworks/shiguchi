@@ -271,7 +271,7 @@ public class HttpUpstreamDispatcher {
     private static Object nestedToJsonNames(FieldDescriptor fd, Object value) {
         if (fd.getType() != FieldDescriptor.Type.MESSAGE || value == null) return value;
         if (fd.isMapField()) {
-            FieldDescriptor valueFd = fd.getMessageType().findFieldByName("value");
+            FieldDescriptor valueFd = fd.getMessageType().findFieldByNumber(2);
             if (!(value instanceof Map<?, ?> m)
                     || valueFd == null
                     || valueFd.getType() != FieldDescriptor.Type.MESSAGE) {
