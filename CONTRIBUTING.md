@@ -74,11 +74,13 @@ Run a sample locally:
 2. Make your change with tests; run `./gradlew build` locally — it must pass.
 3. Use [Conventional Commits](https://www.conventionalcommits.org/) for commit messages
    (`feat:`, `fix:`, `docs:`, `chore:`, …).
-4. Open a PR against `main`. CI runs the full build (with test annotations on the Files tab and a
-   JaCoCo coverage report as an artifact — coverage is measured, never enforced), Helm lint and a
-   template smoke test, a sample smoke test that boots a sample against the libraries your branch
-   builds and calls it over HTTP, and — only when you touched `shiguchi-ui-frontend/` — a
-   `npm ci && npm run build` type-check of the console.
+4. Open a PR against `main`. CI runs the full build (with test annotations on the Files tab), Helm
+   lint and a template smoke test, a sample smoke test that boots a sample against the libraries your
+   branch builds and calls it over HTTP, and — only when you touched `shiguchi-ui-frontend/` — a
+   `npm ci && npm run build` type-check of the console. A PR that only changes Markdown or `docs/`
+   skips the Gradle build. Coverage is measured, never enforced: `./gradlew build -Pcoverage` writes
+   a JaCoCo report under each module's `build/reports/jacoco/`, and a CI dispatch with the coverage
+   input uploads one.
 5. Note any security-relevant impact in the PR description (see [SECURITY.md](SECURITY.md)).
 
 ## Reporting bugs & security issues
