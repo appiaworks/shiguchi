@@ -55,6 +55,15 @@ configure(subprojects.filter { it.name != "shiguchi-bom" }) {
                 languageVersion.set(JavaLanguageVersion.of(version))
             })
         }
+        // WORKAROUND, not a fix: one request per server connection in the Boot 3 tests. Reactor
+        // Netty reactor/reactor-netty#4361: a keep-alive request queued behind a still-live
+        // exchange and then answered at once leaves the connection with no read requested, so the
+        // next request sits unread until the client closes (CI runs 40614148681, 40614151438,
+        // 40777449100). Fixed in 1.3.8 (#4347), not in 1.2.x, which Boot 3.5 uses (1.2.18).
+        // Applications keep the default; docs/troubleshooting.md tells Boot 3 users how to opt in.
+        if (project.projectDir.parentFile.name == "spring-boot3") {
+            systemProperty("server.netty.max-keep-alive-requests", "1")
+        }
     }
     tasks.withType<JacocoReport> {
         dependsOn(tasks.withType<Test>())
