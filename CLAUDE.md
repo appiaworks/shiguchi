@@ -26,7 +26,7 @@ artifacts, packages `dev.appiaworks.shiguchi.*`, property root `shiguchi.*`.
 
 ## Branching & Releases
 
-- Fixes land on `main` first, then cherry-pick to the active `release/*` branch (none yet: cut `release/0.14.x` from the first Shiguchi tag) for patch releases.
+- Fixes land on `main` first, then cherry-pick to the active `release/*` branch (`release/0.14.x`) for patch releases.
 - **Bump `apiBaseline`'s default in the first commit AFTER a release publishes**, never in the
   release commit itself: the release workflow runs `./gradlew build`, that build runs the gate,
   and an unresolvable baseline fails — the new version is not on Maven Central until the publish it gates
