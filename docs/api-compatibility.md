@@ -78,7 +78,7 @@ A report lands in `<module>/build/reports/japicmp/` for each check.
 Bump the default baseline in the root `build.gradle.kts` (`apiBaseline`) to the version just
 released, in the first commit **after** that release has published — never in the release commit
 itself: the release build runs this gate, and a baseline that is not on Maven Central yet fails it.
-(Currently `none`: nothing has been released yet. The first release becomes the baseline.)
+(Currently `0.14.0`, the first `io.github.appiaworks` release.)
 
 > **Timing matters when you bump it.** The bump belongs in the first commit *after* the tag
 > publishes, never in the release commit: `./gradlew build` runs this gate, the release workflow
