@@ -29,6 +29,10 @@ public final class HttpBodySupport {
 
     public static final String HTTP_BODY = "google.api.HttpBody";
 
+    // Field numbers from google/api/httpbody.proto (looked up by number: no per-call string).
+    private static final int CONTENT_TYPE = 1;
+    private static final int DATA = 2;
+
     /** What a raw response carries onto the HTTP response. */
     public record Payload(String contentType, byte[] data) {}
 
@@ -72,6 +76,22 @@ public final class HttpBodySupport {
         return httpBody(input, contentType, data);
     }
 
+    /**
+     * {@link #withBody(DynamicMessage, String, String, byte[])} for a rule that names a body field
+     * the caller resolved once (see {@link #namedBodyField}), so a stream does not look it up per chunk.
+     */
+    public static DynamicMessage withBody(
+            DynamicMessage request, FieldDescriptor bodyField, String contentType, byte[] data) {
+        return request.toBuilder()
+                .setField(bodyField, httpBody(bodyField.getMessageType(), contentType, data))
+                .build();
+    }
+
+    /** The field a named {@code body} rule points at, or null when the rule is not a field name or matches none. */
+    public static FieldDescriptor namedBodyField(Descriptor input, String bodyRule) {
+        return GrpcRequestBuilder.isNamedBodyField(bodyRule) ? input.findFieldByName(bodyRule) : null;
+    }
+
     /** The {@code HttpBody} to send back: the response itself, or its {@code response_body} field. */
     public static Payload payload(DynamicMessage response, String responseBodyRule) {
         DynamicMessage body = response;
@@ -80,15 +100,15 @@ public final class HttpBodySupport {
             body = (DynamicMessage) response.getField(field);
         }
         Descriptor type = body.getDescriptorForType();
-        String contentType = (String) body.getField(type.findFieldByName("content_type"));
-        ByteString data = (ByteString) body.getField(type.findFieldByName("data"));
+        String contentType = (String) body.getField(type.findFieldByNumber(CONTENT_TYPE));
+        ByteString data = (ByteString) body.getField(type.findFieldByNumber(DATA));
         return new Payload(contentType, data.toByteArray());
     }
 
     private static DynamicMessage httpBody(Descriptor httpBodyType, String contentType, byte[] data) {
         return DynamicMessage.newBuilder(httpBodyType)
-                .setField(httpBodyType.findFieldByName("content_type"), contentType == null ? "" : contentType)
-                .setField(httpBodyType.findFieldByName("data"), ByteString.copyFrom(data))
+                .setField(httpBodyType.findFieldByNumber(CONTENT_TYPE), contentType == null ? "" : contentType)
+                .setField(httpBodyType.findFieldByNumber(DATA), ByteString.copyFrom(data))
                 .build();
     }
 

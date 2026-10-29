@@ -183,6 +183,24 @@ class HttpBodySupportTest {
     }
 
     @Test
+    @DisplayName("GIVEN a pre-resolved named body field WHEN withBody is called SHOULD match the by-name overload")
+    void given_resolvedBodyField_when_withBody_should_matchByNameOverload() {
+        byte[] data = "chunk".getBytes();
+        DynamicMessage base = DynamicMessage.newBuilder(requestWithHttpBodyField)
+                .setField(requestWithHttpBodyField.findFieldByName("filename"), "a.bin")
+                .build();
+
+        var field = HttpBodySupport.namedBodyField(requestWithHttpBodyField, "body");
+
+        assertThat(HttpBodySupport.withBody(base, field, "image/png", data))
+                .isEqualTo(HttpBodySupport.withBody(base, "body", "image/png", data));
+        assertThat(HttpBodySupport.namedBodyField(requestWithHttpBodyField, "*"))
+                .isNull();
+        assertThat(HttpBodySupport.namedBodyField(requestWithHttpBodyField, "missing"))
+                .isNull();
+    }
+
+    @Test
     @DisplayName(
             "GIVEN a response (HttpBody itself or in response_body field) WHEN payload is called SHOULD extract data and content_type")
     void given_httpBodyResponse_when_payload_should_extractDataAndContentType() {
