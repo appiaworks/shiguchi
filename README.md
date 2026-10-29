@@ -8,6 +8,7 @@
 # Shiguchi: a gateway for gRPC services, for Spring Boot
 
 [![CI](https://github.com/appiaworks/shiguchi/actions/workflows/ci.yml/badge.svg)](https://github.com/appiaworks/shiguchi/actions/workflows/ci.yml)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.appiaworks/shiguchi-core.svg?label=Maven%20Central)](https://central.sonatype.com/namespace/io.github.appiaworks)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 *Shiguchi* (仕口) is the Japanese carpenter's word for a joint where timbers meet at an angle and
