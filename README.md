@@ -708,6 +708,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
 either express or implied.
 
+The name "Shiguchi" and the logo are trademarks and are not licensed with the code; see
+[TRADEMARKS.md](TRADEMARKS.md) for how you may use them.
+
 Attribution notices for redistributed components are in [NOTICE](NOTICE); if you
 redistribute this software or a derivative, Apache-2.0 §4 requires you to carry that file
 along with the license. Contributions are accepted under the same license

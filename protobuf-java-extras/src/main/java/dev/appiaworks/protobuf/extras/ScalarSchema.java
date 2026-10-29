@@ -46,7 +46,7 @@ import java.util.regex.PatternSyntaxException;
  * @param graphQlName the name of a GraphQL custom scalar to declare for this type; null to use a
  *     built-in scalar
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.9.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public record ScalarSchema(
         JsonShape shape, String format, String pattern, String description, Object example, String graphQlName) {
 

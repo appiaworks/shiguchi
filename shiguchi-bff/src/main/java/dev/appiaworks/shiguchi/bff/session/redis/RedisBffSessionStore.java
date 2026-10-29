@@ -50,7 +50,7 @@ import reactor.core.publisher.Mono;
  * {@code version} and rewrites it with the remaining time to live. A seen logout-token
  * {@code jti} is a plain key too, {@code SET <prefix>jti:<provider>:<jti> NX PX}.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class RedisBffSessionStore implements BffSessionStore {
 
     /** KEYS[1] the hash; ARGV[1] ttl ms, ARGV[2..] field/value pairs. Replaces the whole hash (logins). */

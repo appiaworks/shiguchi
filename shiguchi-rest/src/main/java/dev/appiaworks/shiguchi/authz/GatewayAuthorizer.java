@@ -31,7 +31,7 @@ import reactor.core.publisher.Mono;
  * <p>Implementations must be thread-safe; a single instance serves all concurrent requests.
  */
 @FunctionalInterface
-@ApiStatus(value = ApiStatus.Status.STABLE, since = "0.3.0")
+@ApiStatus(value = ApiStatus.Status.STABLE, since = "0.14.0")
 public interface GatewayAuthorizer {
 
     /**

@@ -13,7 +13,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * bearer token. Off unless {@code enabled: true}. A request carrying an {@code Authorization}
  * header is always handled as a bearer request; the session cookie is consulted only without one.
  *
- * <p>Experimental. The module first ships in 0.13.0, so properties, store formats and endpoint shapes
+ * <p>Experimental. The module first ships in 0.14.0, so properties, store formats and endpoint shapes
  * may still change without a migration. Sign-in and back-channel logout have been run by hand
  * against the production issuer, outside CI. The request hardening itself is built (see docs/design/bff.md).
  *

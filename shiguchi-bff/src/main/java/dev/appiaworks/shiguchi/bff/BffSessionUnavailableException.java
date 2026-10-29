@@ -9,7 +9,7 @@ import dev.appiaworks.protobuf.extras.api.ApiStatus;
  * Returning an empty {@code Mono} instead would sign the user out (a {@code 401}) or, on an open
  * route, send the request on as anonymous.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class BffSessionUnavailableException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;

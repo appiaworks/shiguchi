@@ -3,7 +3,7 @@ package dev.appiaworks.shiguchi.cursus;
 import dev.appiaworks.protobuf.extras.api.ApiStatus;
 
 /** The delivery guarantee of a namespace, in MQTT's terms. */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public enum Qos {
     /** Only while connected; a slow subscriber loses the oldest queued events. */
     AT_MOST_ONCE,

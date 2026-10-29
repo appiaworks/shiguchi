@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
  * stay within {@link #MAX_BYTES}; claims past that are dropped with a warning that names them, never
  * their values. Stores keep them as one JSON text, which reads back as "no claims" when damaged.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class BffSessionClaims {
 
     private static final Logger log = LoggerFactory.getLogger(BffSessionClaims.class);

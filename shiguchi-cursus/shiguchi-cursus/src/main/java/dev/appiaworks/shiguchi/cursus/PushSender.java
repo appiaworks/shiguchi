@@ -28,7 +28,7 @@ import reactor.core.publisher.Mono;
  * <p>Who may send is decided by the {@code publish-auth} rules of the namespace named by {@code
  * cursus.send.namespace}; without that namespace declared, {@code Send} is refused.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class PushSender {
 
     private static final Logger log = LoggerFactory.getLogger(PushSender.class);

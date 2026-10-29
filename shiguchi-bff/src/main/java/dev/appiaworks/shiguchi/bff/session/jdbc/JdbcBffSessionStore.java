@@ -45,7 +45,7 @@ import reactor.core.scheduler.Schedulers;
  * {@code DELETE} removed a row: two instances racing for one {@code state} read the same row but
  * the database lets exactly one delete succeed, with no row lock or transaction needed.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class JdbcBffSessionStore implements BffSessionStore, InitializingBean, DisposableBean {
 
     private static final Logger log = LoggerFactory.getLogger(JdbcBffSessionStore.class);

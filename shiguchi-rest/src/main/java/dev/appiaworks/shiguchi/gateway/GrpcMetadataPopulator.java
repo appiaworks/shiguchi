@@ -40,7 +40,7 @@ import reactor.core.publisher.Mono;
  * logic, register a subclass bean marked {@code @Primary}.
  */
 @Component
-@ApiStatus(value = ApiStatus.Status.STABLE, since = "0.2.0")
+@ApiStatus(value = ApiStatus.Status.STABLE, since = "0.14.0")
 public class GrpcMetadataPopulator {
 
     private static final Logger log = LoggerFactory.getLogger(GrpcMetadataPopulator.class);
@@ -92,7 +92,7 @@ public class GrpcMetadataPopulator {
      * @throws IllegalStateException when more than one source bean exists
      */
     @Autowired
-    @ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+    @ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
     public GrpcMetadataPopulator(GatewayProperties properties, ObjectProvider<UpstreamCredentialSource> sources) {
         this(properties, single(sources));
     }

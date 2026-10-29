@@ -6,9 +6,13 @@ runners. What is left needs an account or a secret only the owner can create.
 ## npm: `@appiaworks/shiguchi-cursus-client` on npmjs.com
 
 - [x] The `@appiaworks` scope is the npmjs.com user account `appiaworks` (no organization).
-- [x] Create a granular access token: read and write on `@appiaworks`, "bypass two-factor
-      authentication" on. Note its expiry date (npm caps write tokens).
-- [x] Store it: `gh secret set NPM_TOKEN --repo appiaworks/shiguchi`.
+- [x] First publish (0.14.0) used a granular token in the `NPM_TOKEN` secret.
+- [ ] Publishing is now token-free (trusted publishing). On npmjs.com, package
+      `@appiaworks/shiguchi-cursus-client` → Settings → Trusted publishing, add two GitHub Actions
+      publishers: owner `appiaworks`, repository `shiguchi`, workflow `ci.yml`, and the same with
+      workflow `publish-npm.yml` (no environment).
+- [ ] Then Settings → Publishing access: "Require two-factor authentication and disallow tokens",
+      revoke the granular token, and `gh secret delete NPM_TOKEN --repo appiaworks/shiguchi`.
 
 ## Maven Central
 

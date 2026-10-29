@@ -27,7 +27,7 @@ import java.util.function.Function;
  * <p>The well-known types in {@code google.protobuf} cannot be given a codec: proto3 JSON fixes
  * their form.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.8.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public interface ProtoScalarCodec {
 
     /** The kind of JSON value a codec writes, for the schemas the gateway publishes. */
@@ -77,7 +77,7 @@ public interface ProtoScalarCodec {
      * optionally a format, a pattern, a description, an example and a GraphQL scalar name. See
      * {@link ScalarSchema}. The default is the shape alone.
      */
-    @ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.9.0")
+    @ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
     default ScalarSchema schema() {
         return ScalarSchema.of(jsonShape());
     }
@@ -90,7 +90,7 @@ public interface ProtoScalarCodec {
      *         .withSchema(ScalarSchema.string().withPattern("[A-Z]{2}-\\d+").withExample("AB-1"))
      * }</pre>
      */
-    @ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.9.0")
+    @ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
     default ProtoScalarCodec withSchema(ScalarSchema schema) {
         Objects.requireNonNull(schema, "schema");
         ProtoScalarCodec codec = this;

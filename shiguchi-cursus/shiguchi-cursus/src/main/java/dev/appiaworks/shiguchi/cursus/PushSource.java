@@ -13,7 +13,7 @@ import reactor.core.publisher.Flux;
  * namespace, too large) goes to the dead-letter queue; a built-in source also sends there the
  * records it cannot map. Configure the built-in ones under {@code shiguchi.cursus.sources}.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public interface PushSource {
 
     /** The source's name in the admin views, the dead-letter queue and the {@code source} attribute. */

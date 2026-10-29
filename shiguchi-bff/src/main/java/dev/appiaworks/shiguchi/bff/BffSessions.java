@@ -17,7 +17,7 @@ import reactor.core.publisher.Mono;
  * <p>An access token already sent upstream stays valid at the backends until it expires; ending the
  * session stops new calls and refreshes.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class BffSessions {
 
     private final BffProperties properties;

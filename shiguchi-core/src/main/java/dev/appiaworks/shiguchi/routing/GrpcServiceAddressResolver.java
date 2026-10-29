@@ -14,7 +14,7 @@ import java.util.Optional;
  * custom registry); resolvers are consulted in {@code @Order} order and the first non-empty
  * result wins.
  */
-@ApiStatus(value = ApiStatus.Status.STABLE, since = "0.2.0")
+@ApiStatus(value = ApiStatus.Status.STABLE, since = "0.14.0")
 public interface GrpcServiceAddressResolver {
 
     /**

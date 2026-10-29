@@ -10,7 +10,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
  * (gRPC-Web and REST server streams, GraphQL subscriptions); a cookie caller's stream follows its BFF session instead
  * ({@link CookieSessionWatch}) and is never bound to the access token it happens to carry.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class TokenExpiry {
 
     /** The reason a stream gives when its token expired. */

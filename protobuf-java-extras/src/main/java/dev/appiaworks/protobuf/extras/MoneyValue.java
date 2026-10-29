@@ -12,7 +12,7 @@ import java.util.Objects;
  *     allows codes {@link java.util.Currency} does not know
  * @param amount the amount; a Money holds at most 9 fractional digits
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.8.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public record MoneyValue(String currencyCode, BigDecimal amount) {
 
     public MoneyValue {

@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono;
  * {@link RedisRateLimiter} (shared); define your own bean of this type to plug anything else in
  * and the gateway backs off its default.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.5.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public interface RateLimiter {
 
     /**

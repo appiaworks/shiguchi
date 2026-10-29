@@ -15,7 +15,7 @@ import org.springframework.security.core.Authentication;
  * @param application the application id the session was created for, or {@code null} as for
  *     {@code handle}
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public record CookieAuthenticated(Object details, String handle, String application) {
 
     /**

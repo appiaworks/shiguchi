@@ -20,7 +20,7 @@ import reactor.core.scheduler.Schedulers;
  * writes the batch; a tick at half the row TTL rewrites every live connection so the rows of a
  * dead instance lapse by themselves. A store without a registry makes this class inert.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class PushRegistry implements AutoCloseable {
 
     private static final Logger log = LoggerFactory.getLogger(PushRegistry.class);

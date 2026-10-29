@@ -39,7 +39,7 @@ import reactor.core.publisher.Mono;
  * the server answers {@code UNIMPLEMENTED} is remembered and not called again (an old backend
  * costs one failed call, not one per event).
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class GrpcPushHook implements PushHook {
 
     private static final Logger log = LoggerFactory.getLogger(GrpcPushHook.class);

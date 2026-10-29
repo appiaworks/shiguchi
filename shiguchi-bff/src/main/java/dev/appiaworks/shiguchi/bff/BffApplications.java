@@ -17,7 +17,7 @@ import org.springframework.web.server.ServerWebExchange;
  * without that header, the request's own scheme, host and port. No match: empty, and the caller
  * refuses the request.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class BffApplications {
 
     /** An application id and its settings. */
