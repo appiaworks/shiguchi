@@ -561,7 +561,8 @@ jobs:
   # publish. Requires repo secrets: MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD (Central
   # Portal token) and SIGNING_KEY / SIGNING_KEY_PASSWORD (ASCII-armored GPG private key). A tag
   # run fails when the secrets are missing; a version already on Central is skipped. Afterwards
-  # it attaches the cursus fat jar to the GitHub Release.
+  # it creates the GitHub Release: a draft, the cursus fat jar attached, then published (releases
+  # are immutable, so the asset must be there before it goes out).
   # ──────────────────────────────────────────────────────────────────────────
   publish-central:
     name: Publish to Maven Central
@@ -571,7 +572,7 @@ jobs:
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
-      contents: write # attaches the cursus jar to the GitHub Release
+      contents: write # creates the GitHub Release with the cursus jar
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -617,7 +618,7 @@ jobs:
           ./gradlew publishAndReleaseToMavenCentral --no-daemon --no-configuration-cache
 
       # The fat jar of the cursus command line, for people who do not use jbang.
-      - name: Attach cursus to the GitHub Release
+      - name: Create the GitHub Release with cursus attached
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
