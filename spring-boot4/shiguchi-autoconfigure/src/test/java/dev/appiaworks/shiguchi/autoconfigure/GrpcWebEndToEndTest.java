@@ -498,7 +498,7 @@ class GrpcWebEndToEndTest {
             if (pos + length > data.length) return null;
             byte[] payload = new byte[(int) length];
             System.arraycopy(data, pos, payload, 0, (int) length);
-            pos += length;
+            pos += (int) length;
             return new Frame(flag, payload);
         }
     }
