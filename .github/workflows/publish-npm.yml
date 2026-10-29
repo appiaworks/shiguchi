@@ -5,7 +5,7 @@ name: Publish npm client
 # failure there skips it). Re-running the tag run does not help once Central has the version:
 # a step after the Maven publish can keep failing. This checks out the tag and runs the same
 # script, which fails on a package.json/tag mismatch and skips a version already on the registry.
-# Needs the NPM_TOKEN secret.
+# Authenticates by npm trusted publishing: this file is one of the package's trusted publishers.
 on:
   workflow_dispatch:
     inputs:
@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-      id-token: write # npm provenance
+      id-token: write # npm trusted publishing and provenance
 
     steps:
       - name: Check the tag
@@ -44,10 +44,8 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24"
-          registry-url: https://registry.npmjs.org/
 
       - name: Publish to npmjs.com
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           TAG: ${{ inputs.tag }}
         run: .github/scripts/publish-cursus-client.sh "$TAG"

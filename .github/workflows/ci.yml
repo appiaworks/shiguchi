@@ -628,7 +628,7 @@ jobs:
   # ──────────────────────────────────────────────────────────────────────────
   # @appiaworks/shiguchi-cursus-client to npmjs.com, after the Maven publish succeeded. The
   # script checks that package.json carries the tag's version and skips a version already in
-  # the registry. Needs the NPM_TOKEN secret (.github/PUBLIC-RELEASE-TODO.md).
+  # the registry. Authenticates by npm trusted publishing (OIDC); no token secret.
   # ──────────────────────────────────────────────────────────────────────────
   publish-npm:
     name: Publish cursus client to npmjs.com
@@ -638,7 +638,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-      id-token: write # npm provenance
+      id-token: write # npm trusted publishing and provenance
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -647,9 +647,6 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24"
-          registry-url: https://registry.npmjs.org/
 
       - name: Publish to npmjs.com
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: .github/scripts/publish-cursus-client.sh "${GITHUB_REF_NAME}"
