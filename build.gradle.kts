@@ -198,14 +198,14 @@ configure(subprojects.filter { it.name in functionalTestModules }) {
 
 // The baseline is the last release: every published module is compared against it on each build.
 //
-// It is "none" until the first io.github.appiaworks release publishes: no earlier release exists
-// under these coordinates, so there is nothing to compare against. That release becomes the baseline.
+// 0.14.0 is the first io.github.appiaworks release: there is nothing earlier under these coordinates
+// to compare against.
 //
 // Note for the next release: the bump belongs in the first commit AFTER the tag publishes, never
 // in the release commit. `./gradlew build` runs this gate, the release workflow runs that build
 // to produce the artefacts, and a baseline that cannot be resolved fails rather than passing
 // quietly — so naming a version before it exists on Maven Central fails the build meant to create it.
-val apiBaselineVersion = providers.gradleProperty("apiBaseline").orElse("none")
+val apiBaselineVersion = providers.gradleProperty("apiBaseline").orElse("0.14.0")
 
 // The published baselines live on Maven Central.
 // Kept as its own repository with a content filter so it is consulted only for this group's
