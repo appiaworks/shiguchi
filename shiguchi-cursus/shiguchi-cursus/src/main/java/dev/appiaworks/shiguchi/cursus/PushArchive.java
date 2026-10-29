@@ -18,7 +18,7 @@ import reactor.core.publisher.Mono;
  * gets Streams shared by every instance, the {@code MEMORY} store a per-instance ring. A
  * {@code PushArchive} bean of your own replaces any of them.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public interface PushArchive {
 
     /**

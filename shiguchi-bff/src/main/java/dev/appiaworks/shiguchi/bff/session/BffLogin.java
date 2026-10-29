@@ -17,7 +17,7 @@ import java.time.Instant;
  * @param created when the login started
  * @param maxAge the {@code max_age} (seconds) sent to the issuer, or {@code null}: the callback then checks {@code auth_time}
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public record BffLogin(
         String state,
         String codeVerifier,

@@ -3,7 +3,7 @@ package dev.appiaworks.shiguchi.security;
 import dev.appiaworks.protobuf.extras.api.ApiStatus;
 
 /** Exchange attributes the gateway's security components set on a request. */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class GatewayRequestAttributes {
 
     /**

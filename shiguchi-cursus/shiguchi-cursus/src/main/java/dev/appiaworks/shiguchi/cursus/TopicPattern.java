@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
  * route template). Segments are separated by {@code /}. A pattern without a colon is a namespace
  * name and matches every topic in it.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class TopicPattern {
 
     private final String text;

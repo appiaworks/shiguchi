@@ -10,7 +10,7 @@ import reactor.core.publisher.Mono;
  * API-key header, a tenant claim, a route, or a combination, and the default backs off.
  */
 @FunctionalInterface
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.5.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public interface RateLimitKeyResolver {
 
     /** The caller's key, or an empty {@code Mono} to let this request through unlimited. */

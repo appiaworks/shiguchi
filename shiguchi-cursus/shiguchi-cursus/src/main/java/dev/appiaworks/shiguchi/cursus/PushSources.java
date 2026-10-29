@@ -28,7 +28,7 @@ import reactor.core.scheduler.Schedulers;
  * namespaces of the built-in sources' templates are declared when they are not configured, with
  * the source's {@code payload-type} when it has one.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class PushSources implements SmartLifecycle {
 
     private static final Logger log = LoggerFactory.getLogger(PushSources.class);

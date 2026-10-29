@@ -40,7 +40,7 @@ import reactor.core.publisher.Mono;
  * fails is logged and retried from the same id, and rows tombstoned before a round reads them are
  * skipped.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class JdbcPushBroker implements PushBroker, InitializingBean, DisposableBean {
 
     static final int BATCH = 1000;

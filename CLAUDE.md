@@ -14,8 +14,8 @@ artifacts, packages `dev.appiaworks.shiguchi.*`, property root `shiguchi.*`.
 - Samples need published artifacts: run `./gradlew publishToMavenLocal` before building/running `samples/*` on a fresh machine.
 - API compatibility: `./gradlew build` runs the japicmp gate over every published module against
   the last release (`apiBaseline`). It only fails on `@ApiStatus(STABLE)` types and
-  `dev.appiaworks.shiguchi.config`. The default is the last release; it is `"none"` (gate off) until the first
-  `io.github.appiaworks` release, which becomes the baseline. Pass
+  `dev.appiaworks.shiguchi.config`. The default is the last release (`0.14.0`, the first
+  `io.github.appiaworks` release). Pass
   `-PapiBaseline=<version>` to compare against another. Extend an SPI with a `default` method — an added abstract
   method fails the gate by design. See `docs/api-compatibility.md`.
 - Formatting: Spotless (palantir-java-format), ratcheted from `origin/main` — only files changed vs main are checked. `./gradlew spotlessApply` to fix; `spotlessCheck` runs as part of `build`.
@@ -26,14 +26,13 @@ artifacts, packages `dev.appiaworks.shiguchi.*`, property root `shiguchi.*`.
 
 ## Branching & Releases
 
-- Fixes land on `main` first, then cherry-pick to the active `release/*` branch (none yet: cut `release/0.14.x` from the first Shiguchi tag) for patch releases.
+- Fixes land on `main` first, then cherry-pick to the active `release/*` branch (`release/0.14.x`) for patch releases.
 - **Bump `apiBaseline`'s default in the first commit AFTER a release publishes**, never in the
   release commit itself: the release workflow runs `./gradlew build`, that build runs the gate,
   and an unresolvable baseline fails — the new version is not on Maven Central until the publish it gates
-  has succeeded. (Currently `"none"`: nothing is released under the Shiguchi coordinates yet; set it to the
-  first `io.github.appiaworks` release once that publishes.)
-- Release is manual: bump version in `build.gradle.kts` and `shiguchi-cursus-client-js/package.json` (+ `package-lock.json`, top-level and `packages[""]` `version`; npm cannot publish `-SNAPSHOT`, and the release step fails if the package version differs from the tag), commit `chore(release): x.y.z`, push tag `vx.y.z`. The tag's `ci.yml` run (GitHub-hosted) then publishes to Maven Central (signed, Central Portal), attaches the cursus jar to the GitHub Release, publishes the npm client, builds the sample-full OCI image, and pushes the Helm chart to GHCR.
-- `@appiaworks/shiguchi-cursus-client` publishes to npmjs.com with `NPM_TOKEN` and `--provenance` (`.github/scripts/publish-cursus-client.sh`). Secrets the release needs: `MAVEN_CENTRAL_USERNAME`/`MAVEN_CENTRAL_PASSWORD`, `SIGNING_KEY`/`SIGNING_KEY_PASSWORD`, `NPM_TOKEN` (`.github/PUBLIC-RELEASE-TODO.md`).
+  has succeeded. (Currently `0.14.0`.)
+- Release is manual: bump version in `build.gradle.kts` and `shiguchi-cursus-client-js/package.json` (+ `package-lock.json`, top-level and `packages[""]` `version`; npm cannot publish `-SNAPSHOT`, and the release step fails if the package version differs from the tag), commit `chore(release): x.y.z`, push tag `vx.y.z`. The tag's `ci.yml` run (GitHub-hosted) then publishes to Maven Central (signed, Central Portal), creates the GitHub Release (a draft, the cursus jar attached, then published: releases are immutable, so nothing can be added later), publishes the npm client, builds the sample-full OCI image, and pushes the Helm chart to GHCR.
+- `@appiaworks/shiguchi-cursus-client` publishes to npmjs.com by trusted publishing (OIDC; `ci.yml` and `publish-npm.yml` are its trusted publishers on npmjs.com, no token) with provenance (`.github/scripts/publish-cursus-client.sh`). If the tag run skipped it, dispatch `publish-npm.yml` with the tag (same script, checks out the tag). Secrets the release needs: `MAVEN_CENTRAL_USERNAME`/`MAVEN_CENTRAL_PASSWORD`, `SIGNING_KEY`/`SIGNING_KEY_PASSWORD` (`.github/PUBLIC-RELEASE-TODO.md`).
 - Never publish from a local machine (`publish`, `publishAndReleaseToMavenCentral`, `npm publish`): Central refuses a second deployment of a version, and only the tag run should create one.
 
 ## Conventions

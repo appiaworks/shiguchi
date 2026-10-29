@@ -9,7 +9,7 @@ import reactor.core.publisher.Mono;
  * implementation is shared. Delivery here is best effort: what survives a disconnect is the
  * {@link PushStore}'s business.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public interface PushBroker {
 
     /** Hands an event (already carrying its id) to every current subscriber of its topic. */

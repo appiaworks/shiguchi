@@ -23,7 +23,7 @@ import reactor.core.publisher.Mono;
  * or fails allows unless {@code hooks.fail-closed} is true. An empty {@link Mono} means no opinion.
  * Topic activity is per gateway instance ({@link TopicActivity#getInstance}).
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public interface PushHook {
 
     /** The first subscriber of {@code activity.getTopic()} arrived on this instance. */

@@ -10,9 +10,9 @@ plugins {
 
 group = "dev.appiaworks.shiguchi.sample"
 
-version = "0.13.0"
+version = "0.14.0"
 
-val gatewayVersion = providers.gradleProperty("gatewayVersion").getOrElse("0.13.0")
+val gatewayVersion = providers.gradleProperty("gatewayVersion").getOrElse("0.14.0")
 
 dependencies {
     // Java 25+: ProtoJson generates a serializer per message type with the Class-File API.

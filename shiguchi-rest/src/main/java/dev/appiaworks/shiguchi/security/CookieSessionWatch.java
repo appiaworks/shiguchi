@@ -22,7 +22,7 @@ import reactor.core.scheduler.Schedulers;
  * <p>Push (WebSocket, SSE) holds its own watch with its own interval; the gateway has one more as
  * a bean for the gRPC-Web server streams and the GraphQL subscriptions.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class CookieSessionWatch {
 
     private static final Logger log = LoggerFactory.getLogger(CookieSessionWatch.class);

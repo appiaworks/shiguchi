@@ -68,7 +68,7 @@ import java.util.Map;
  * <p>The methods take generated classes. For a {@code DynamicMessage}, convert first with
  * {@link #as}: {@code toLocalDate(as(dynamic, Date.getDefaultInstance()))}.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.8.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class ProtoTypes {
 
     private ProtoTypes() {}

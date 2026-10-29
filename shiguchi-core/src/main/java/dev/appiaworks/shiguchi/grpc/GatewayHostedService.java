@@ -10,5 +10,5 @@ import io.grpc.BindableService;
  * {@code PushService} is one. A plain {@link BindableService} bean is deliberately not picked up:
  * applications declare those for other reasons (STATIC-mode stub discovery, for one).
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public interface GatewayHostedService extends BindableService {}

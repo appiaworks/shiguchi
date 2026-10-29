@@ -22,7 +22,7 @@ import reactor.core.publisher.Mono;
  * whose fields do not fill the template is dead-lettered. The stream is reopened with a backoff
  * when it ends.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class GrpcStreamPushSource implements PushSource {
 
     private static final Logger log = LoggerFactory.getLogger(GrpcStreamPushSource.class);

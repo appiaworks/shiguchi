@@ -65,7 +65,7 @@ import reactor.core.scheduler.Schedulers;
  * read>}; the row count says whether it won. Not every database has {@code SKIP LOCKED}, and the
  * optimistic form behaves the same everywhere.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class JdbcPushStore implements PushStore, PushArchive, InitializingBean, DisposableBean {
 
     private static final Logger log = LoggerFactory.getLogger(JdbcPushStore.class);

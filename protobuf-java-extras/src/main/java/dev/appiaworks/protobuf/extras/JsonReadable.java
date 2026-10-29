@@ -18,7 +18,7 @@ import java.io.IOException;
  *
  * <p>Generated code implements this; application code has no reason to.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.10.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public interface JsonReadable {
 
     /**

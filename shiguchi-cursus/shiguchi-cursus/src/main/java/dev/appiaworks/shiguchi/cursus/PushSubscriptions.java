@@ -21,7 +21,7 @@ import reactor.core.publisher.Mono;
  * disconnect) and errors with a {@link PushException} when the caller may not subscribe or an
  * {@code AT_LEAST_ONCE} subscriber stopped reading (status 429, code {@code overflow}).
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.12.0")
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
 public final class PushSubscriptions {
 
     private final PushProperties properties;
@@ -103,7 +103,7 @@ public final class PushSubscriptions {
      * {@link #open(String, Authentication, List, Qos, String, String)} declaring the subscriber's own
      * {@code origin} (may be null): events published with the same origin are not delivered to it.
      */
-    @ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.13.0")
+    @ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
     public Flux<PushEvent> open(
             String transport,
             Authentication auth,

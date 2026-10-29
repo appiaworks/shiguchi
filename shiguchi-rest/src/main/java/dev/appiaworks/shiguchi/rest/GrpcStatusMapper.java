@@ -12,7 +12,7 @@ import org.springframework.http.HttpStatus;
  * Endpoints). Register your own bean of this type to replace the mapping â€” the gateway
  * backs off automatically.
  */
-@ApiStatus(value = ApiStatus.Status.STABLE, since = "0.1.0")
+@ApiStatus(value = ApiStatus.Status.STABLE, since = "0.14.0")
 public interface GrpcStatusMapper {
 
     HttpStatus toHttpStatus(Status status);
