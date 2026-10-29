@@ -41,11 +41,18 @@ configure(subprojects.filter { it.name != "shiguchi-bom" }) {
     // Coverage is measured, not enforced. There is no minimum to clear: a ratchet on a number
     // invites tests written to move the number, and the interesting question here is which
     // branches of the transcoder and the route loaders are exercised, not what percentage is.
-    // The report is an artifact of the PR build for whoever wants to look.
-    apply(plugin = "jacoco")
+    // Opt in with -Pcoverage: the agent slows every test JVM and changes the test tasks' cache
+    // key, so a plain build neither pays for it nor misses the build cache. CI passes it on a
+    // dispatch with the coverage input and uploads the report.
+    val coverage = providers.gradleProperty("coverage").isPresent
+    if (coverage) {
+        apply(plugin = "jacoco")
+    }
     tasks.withType<Test> {
         useJUnitPlatform()
-        finalizedBy(tasks.withType<JacocoReport>())
+        if (coverage) {
+            finalizedBy(tasks.withType<JacocoReport>())
+        }
         // -PtestJavaVersion=21 runs the tests on that JDK (found through Gradle's toolchain
         // detection, e.g. -Porg.gradle.java.installations.paths=<jdk>) while the build stays on
         // the JDK running Gradle: the generated serde tiers need Java 25 at run time, and this
