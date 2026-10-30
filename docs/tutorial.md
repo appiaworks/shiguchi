@@ -20,7 +20,7 @@ Start a plain Spring Boot application with one dependency:
 
 ```kotlin
 dependencies {
-    implementation("io.github.appiaworks:shiguchi-spring-boot3-starter:0.14.0")
+    implementation("io.github.appiaworks:shiguchi-spring-boot3-starter:0.14.1")
 }
 ```
 
@@ -105,8 +105,8 @@ strings, and why fields you never set are still present with their defaults.
 ## 3. Add OpenAPI and the console
 
 ```kotlin
-implementation("io.github.appiaworks:shiguchi-openapi-spring-boot3-starter:0.14.0")
-implementation("io.github.appiaworks:shiguchi-ui-spring-boot3-starter:0.14.0")
+implementation("io.github.appiaworks:shiguchi-openapi-spring-boot3-starter:0.14.1")
+implementation("io.github.appiaworks:shiguchi-ui-spring-boot3-starter:0.14.1")
 ```
 
 ```yaml
@@ -131,7 +131,7 @@ shiguchi:
 ## 4. Add GraphQL
 
 ```kotlin
-implementation("io.github.appiaworks:shiguchi-graphql-spring-boot3-starter:0.14.0")
+implementation("io.github.appiaworks:shiguchi-graphql-spring-boot3-starter:0.14.1")
 ```
 
 ```yaml

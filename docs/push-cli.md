@@ -17,7 +17,7 @@ jbang alias add --name cursus io.github.appiaworks:shiguchi-cursus-cli:LATEST
 
 # the fat jar (also attached to each GitHub Release as cursus-<version>-all.jar, not on v0.14.0)
 ./gradlew :shiguchi-cursus-cli:shadowJar                  # build/libs/cursus-<version>-all.jar
-java -jar cursus-0.14.0-all.jar sub 'orders:*'
+java -jar cursus-0.14.1-all.jar sub 'orders:*'
 
 # the wrappers in bin/ (sh and cmd) run the jar next to them, in the build output, or $CURSUS_JAR
 bin/cursus sub 'orders:*'
