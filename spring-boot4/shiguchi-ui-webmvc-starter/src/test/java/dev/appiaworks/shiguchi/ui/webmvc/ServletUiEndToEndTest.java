@@ -103,6 +103,15 @@ class ServletUiEndToEndTest {
     }
 
     @Test
+    @DisplayName("GIVEN the host's CSRF protection WHEN invoking without a token SHOULD reject the call with 403")
+    void given_hostCsrfProtection_when_invokingWithoutToken_should_reject() throws Exception {
+        HttpResponse<String> response = http.postWithoutCsrf(
+                "/grpc-ui/api/invoke", UiHttp.invokeJson(EchoBackend.SERVICE, "Echo", "{\"text\":\"hello\"}"));
+
+        assertThat(response.statusCode()).isEqualTo(403);
+    }
+
+    @Test
     @DisplayName("GIVEN an unknown service WHEN invoking it SHOULD answer HTTP 200 with a NOT_FOUND InvokeResponse")
     void given_unknownService_when_invoking_should_returnNotFoundResponse() throws Exception {
         HttpResponse<String> response =
