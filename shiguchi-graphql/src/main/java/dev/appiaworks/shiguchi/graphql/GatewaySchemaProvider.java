@@ -8,6 +8,7 @@ import graphql.parser.Parser;
 import graphql.schema.idl.TypeDefinitionRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -17,8 +18,9 @@ import org.springframework.stereotype.Component;
  * DGS discovers all beans implementing TypeDefinitionRegistry-compatible suppliers and merges
  * them into the schema. This bean hands DGS the SDL produced by GraphQlSchemaBuilder.
  *
- * reload() is called by GatewayRefreshScheduler when downstream protos change, so the
- * DGS schema is rebuilt without a full application restart.
+ * reload() runs on every schema reload (a refresh swapped a schema, a deferred service loaded
+ * late) and asks GatewaySchemaReloadTrigger for a DGS rebuild, so the next request is served by
+ * the new schema without a restart.
  */
 @DgsComponent
 @Component
@@ -28,10 +30,17 @@ public class GatewaySchemaProvider implements dev.appiaworks.shiguchi.routing.Sc
     private static final Logger log = LoggerFactory.getLogger(GatewaySchemaProvider.class);
 
     private final GraphQlSchemaBuilder schemaBuilder;
+    private final GatewaySchemaReloadTrigger reloadTrigger;
     private volatile TypeDefinitionRegistry registry;
 
     public GatewaySchemaProvider(GraphQlSchemaBuilder schemaBuilder) {
+        this(schemaBuilder, new GatewaySchemaReloadTrigger());
+    }
+
+    @Autowired
+    public GatewaySchemaProvider(GraphQlSchemaBuilder schemaBuilder, GatewaySchemaReloadTrigger reloadTrigger) {
         this.schemaBuilder = schemaBuilder;
+        this.reloadTrigger = reloadTrigger;
     }
 
     /**
@@ -47,12 +56,13 @@ public class GatewaySchemaProvider implements dev.appiaworks.shiguchi.routing.Sc
     }
 
     /**
-     * Triggers a schema rebuild after downstream proto changes.
-     * Called by GatewayRefreshScheduler after registry.replaceContext().
+     * Regenerates the SDL from the registered services and has DGS rebuild the schema on the next request.
+     * Called after registry.replaceContext() by the refresh scheduler and after a deferred service loaded.
      */
     public void reload() {
         schemaBuilder.rebuild();
         registry = parse(schemaBuilder.getGeneratedSdl());
+        reloadTrigger.requestReload();
         log.info("GatewaySchemaProvider: schema reloaded");
     }
 
