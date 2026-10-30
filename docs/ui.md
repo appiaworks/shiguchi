@@ -133,3 +133,19 @@ endpoint, so it must be exposed; the writes carry the console's global auth toke
 The console works with every discovery mode (`DYNAMIC` reflection, `STATIC` classpath
 stubs, `PB_FILE`). Method visibility respects `services[].include-methods` /
 `exclude-methods` filters.
+
+To embed the console in the gRPC server application itself, point a `STATIC` service at the
+application's own server and let it find the `BindableService` beans:
+
+```yaml
+shiguchi:
+  services:
+    - name: self
+      host: localhost
+      port: 9090                 # this application's gRPC server port
+      mode: STATIC
+      auto-discover:
+        spring-beans: true       # the application's BindableService beans
+  ui:
+    enabled: true
+```

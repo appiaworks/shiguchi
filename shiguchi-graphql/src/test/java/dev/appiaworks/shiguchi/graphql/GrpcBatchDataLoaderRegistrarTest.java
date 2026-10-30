@@ -397,4 +397,86 @@ class GrpcBatchDataLoaderRegistrarTest {
         // Assert — no loaders registered because lookupMethod returned empty
         assertThat(registrar.getLoaders()).isEmpty();
     }
+
+    @Test
+    @DisplayName(
+            "GIVEN a registrar that already scanned one loader route WHEN a second service with a loader route is registered and scan runs again SHOULD add the new loader's type")
+    void given_registrarScannedOnce_when_newLoaderRouteRegisteredAndRescanned_should_addNewType() throws Exception {
+        // Arrange
+        FileDescriptor shopFd = buildDescriptor("shop.proto", "ShopService", "GetBooks", "Book", null, null, true);
+        registerRoute(
+                RouteDefinition.builder("ShopService", "GetBooks", MethodType.SERVER_STREAMING, "localhost:9090")
+                        .graphQl("invTypes", RouteDefinition.GraphQlOperationType.QUERY)
+                        .loaderFor("Book", "ids", "")
+                        .build(),
+                buildContext("ShopService", shopFd));
+        GrpcBatchDataLoaderRegistrar registrar = new GrpcBatchDataLoaderRegistrar(registry, dispatcher);
+        registrar.scan();
+
+        FileDescriptor authorFd =
+                buildDescriptor("author.proto", "AuthorService", "GetAuthors", "Author", null, null, true);
+        registerRoute(
+                RouteDefinition.builder("AuthorService", "GetAuthors", MethodType.SERVER_STREAMING, "localhost:9091")
+                        .graphQl("authors", RouteDefinition.GraphQlOperationType.QUERY)
+                        .loaderFor("Author", "ids", "")
+                        .build(),
+                buildContext("AuthorService", authorFd));
+
+        // Act
+        registrar.scan();
+
+        // Assert
+        assertThat(registrar.getLoaders()).containsKeys("Book", "Author");
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a loader route that is unchanged between scans WHEN scan runs again SHOULD keep the same BatchLoader instance for its type")
+    void given_unchangedLoaderRoute_when_scanRunsAgain_should_keepSameLoaderInstance() throws Exception {
+        // Arrange
+        FileDescriptor shopFd = buildDescriptor("shop.proto", "ShopService", "GetBooks", "Book", null, null, true);
+        registerRoute(
+                RouteDefinition.builder("ShopService", "GetBooks", MethodType.SERVER_STREAMING, "localhost:9090")
+                        .graphQl("invTypes", RouteDefinition.GraphQlOperationType.QUERY)
+                        .loaderFor("Book", "ids", "")
+                        .build(),
+                buildContext("ShopService", shopFd));
+        GrpcBatchDataLoaderRegistrar registrar = new GrpcBatchDataLoaderRegistrar(registry, dispatcher);
+        registrar.scan();
+        BatchLoader firstLoader = registrar.getLoaders().get("Book");
+
+        // Act
+        registrar.scan();
+
+        // Assert
+        assertThat(registrar.getLoaders().get("Book")).isSameAs(firstLoader);
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a service whose loader route is gone from the registry WHEN scan runs again SHOULD drop that type's loader")
+    void given_loaderRouteRemovedFromRegistry_when_scanRunsAgain_should_dropType() throws Exception {
+        // Arrange
+        FileDescriptor shopFd = buildDescriptor("shop.proto", "ShopService", "GetBooks", "Book", null, null, true);
+        registerRoute(
+                RouteDefinition.builder("ShopService", "GetBooks", MethodType.SERVER_STREAMING, "localhost:9090")
+                        .graphQl("invTypes", RouteDefinition.GraphQlOperationType.QUERY)
+                        .loaderFor("Book", "ids", "")
+                        .build(),
+                buildContext("ShopService", shopFd));
+        GrpcBatchDataLoaderRegistrar registrar = new GrpcBatchDataLoaderRegistrar(registry, dispatcher);
+        registrar.scan();
+        assertThat(registrar.getLoaders()).containsKey("Book");
+
+        // Replace the service's context with one that no longer declares the loader route
+        ServiceDefinition config = new ServiceDefinition();
+        config.setName("ShopService");
+        registry.replaceContext("ShopService", new ServiceEndpointContext(config, null));
+
+        // Act
+        registrar.scan();
+
+        // Assert
+        assertThat(registrar.getLoaders()).doesNotContainKey("Book");
+    }
 }
