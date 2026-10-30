@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { buildAuthHeaders, invokeClientStream, invokeUnary } from './grpcUiApi'
+import { buildAuthHeaders, fetchClientCredentialsToken, invokeClientStream, invokeStream, invokeUnary, refreshAccessToken } from './grpcUiApi'
 import type { AuthProviderDto } from '../types/schema'
 
 const apiKeyProvider: AuthProviderDto = {
@@ -88,5 +88,64 @@ describe('invoke requests', () => {
 
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(init.headers).toMatchObject({ 'X-API-Key': 'secret' })
+  })
+
+  it('posts to the API next to the page, so a context path or custom UI path still works', () => {
+    window.history.pushState({}, '', '/ctx/tools/grpc/index.html')
+    try {
+      void invokeUnary('Catalog', 'GetItem', '{}', '', null, [], [])
+      void invokeClientStream('Catalog', 'Collect', ['{}'], '', null, [], [])
+
+      const origin = window.location.origin
+      expect(fetchMock.mock.calls[0][0]).toBe(`${origin}/ctx/tools/grpc/api/invoke`)
+      expect(fetchMock.mock.calls[1][0]).toBe(`${origin}/ctx/tools/grpc/api/invoke`)
+    } finally {
+      window.history.pushState({}, '', '/')
+    }
+  })
+
+  describe('CSRF', () => {
+    afterEach(() => {
+      document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/'
+    })
+
+    function headersOf(call: number): Record<string, string> {
+      return (fetchMock.mock.calls[call][1] as RequestInit).headers as Record<string, string>
+    }
+
+    it('adds X-XSRF-TOKEN to invoke when the cookie exists', () => {
+      document.cookie = 'XSRF-TOKEN=tok%2F1; path=/'
+
+      void invokeUnary('Catalog', 'GetItem', '{}', 'secret', null, [], [])
+
+      expect(headersOf(0)).toMatchObject({ 'X-XSRF-TOKEN': 'tok/1', Authorization: 'Bearer secret' })
+      expect((fetchMock.mock.calls[0][1] as RequestInit).credentials).toBe('same-origin')
+    })
+
+    it('omits the header without the cookie', () => {
+      void invokeUnary('Catalog', 'GetItem', '{}', '', null, [], [])
+
+      expect(headersOf(0)).not.toHaveProperty('X-XSRF-TOKEN')
+    })
+
+    it('adds it to invoke/stream and the token exchange, but not to the external refresh', async () => {
+      document.cookie = 'XSRF-TOKEN=t; path=/'
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => ({ access_token: 'a', accessToken: 'a', expiresIn: 1 }),
+        body: { getReader: () => ({ read: async () => ({ done: true }) }) },
+      })
+
+      await invokeStream('S', 'M', '{}', '', new AbortController().signal).next()
+      await fetchClientCredentialsToken('basic', 'id', 'secret', [])
+      await refreshAccessToken('rt', 'https://idp.example.com/token', 'cid')
+
+      expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/api\/invoke\/stream$/)
+      expect(headersOf(0)).toMatchObject({ 'X-XSRF-TOKEN': 't' })
+      expect(String(fetchMock.mock.calls[1][0])).toMatch(/\/api\/auth\/basic\/token$/)
+      expect(headersOf(1)).toMatchObject({ 'X-XSRF-TOKEN': 't' })
+      expect(fetchMock.mock.calls[2][0]).toBe('https://idp.example.com/token')
+      expect(JSON.stringify(fetchMock.mock.calls[2][1])).not.toContain('XSRF')
+    })
   })
 })

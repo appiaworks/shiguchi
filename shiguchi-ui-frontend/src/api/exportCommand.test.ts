@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { toCurl, toGrpcurl, type ExportRequest } from './exportCommand'
 
 const base: ExportRequest = {
@@ -11,6 +11,14 @@ const base: ExportRequest = {
 }
 
 describe('toCurl', () => {
+  afterEach(() => window.history.pushState({}, '', '/'))
+
+  it('points the fallback at the real, resolved API URL under a context path', () => {
+    window.history.pushState({}, '', '/ctx/tools/grpc/index.html')
+
+    expect(toCurl(base)).toContain(`curl -X POST '${window.location.origin}/ctx/tools/grpc/api/invoke'`)
+  })
+
   it('uses the method’s REST binding, so the command is the URL a real caller would use', () => {
     const cmd = toCurl({ ...base, httpMethod: 'GET', httpPath: '/v1/items/{id}' })
 
@@ -36,7 +44,7 @@ describe('toCurl', () => {
     // the only way to reach them over HTTP.
     const cmd = toCurl(base)
 
-    expect(cmd).toContain('/grpc-ui/api/invoke')
+    expect(cmd).toContain(`'${window.location.origin}/api/invoke'`)
     expect(cmd).toContain('"serviceName":"shop.Catalog"')
   })
 

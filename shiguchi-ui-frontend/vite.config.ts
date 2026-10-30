@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/grpc-ui/',
+  base: './',
   resolve: {
     alias: {
       // The push panel uses the in-repo client from source: it is not published to npm yet and
@@ -23,9 +23,12 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/grpc-ui/api': {
+      // The dev page sits at `/`, so the relative `api/...` calls arrive as `/api/...`; the
+      // backend serves them under its default UI path.
+      '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        rewrite: (path) => `/grpc-ui${path}`,
       },
     },
   },

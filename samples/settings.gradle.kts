@@ -36,6 +36,7 @@ include(
     "sample-graphql-gateway",
     "sample-grpc-proxy",
     "sample-grpc-ui-standalone",
+    "sample-grpc-ui-servlet",
     "sample-openfga-authz",
     "sample-opa-authz",
     "sample-merge-gateway",

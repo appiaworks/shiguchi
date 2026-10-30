@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `shiguchi-ui-webmvc-spring-boot3-starter` and `shiguchi-ui-webmvc-spring-boot4-starter`: the gRPC
+  console embedded in a servlet (Spring MVC) application, with no WebFlux on the classpath. It
+  replaces the back-off warning a servlet application got from the WebFlux UI starter.
+  See `docs/ui.md` and `samples/sample-grpc-ui-servlet`.
+
+### Changed
+
+- `shiguchi-ui` no longer brings `spring-boot-starter-webflux`; the WebFlux UI starter does.
+- The console resolves its API, assets and OAuth callback relative to its own page, and sends
+  `X-XSRF-TOKEN` from the `XSRF-TOKEN` cookie on its POSTs.
+
+### Fixed
+
+- A custom `shiguchi.ui.path` now serves the console's static assets under that path.
+
 ## [0.14.1] - 2026-10-29
 
 ### Fixed

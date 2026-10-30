@@ -418,6 +418,10 @@ dependencies {
 
 The `shiguchi.*` configuration is identical on both lines.
 
+To embed only the gRPC console in a servlet (Spring MVC) application, use
+`shiguchi-ui-webmvc-spring-boot{3,4}-starter` instead of the WebFlux UI starter
+([docs/ui.md](docs/ui.md#servlet-spring-mvc-applications)).
+
 ### 2. Point it at your gRPC services
 
 `application.yml`:
@@ -541,6 +545,7 @@ Self-contained example apps under [`samples/`](samples):
 | `sample-graphql-gateway` | GraphQL + federation |
 | `sample-grpc-proxy` | Pass-through gRPC proxy |
 | `sample-grpc-ui-standalone` | Just the gRPC web console |
+| `sample-grpc-ui-servlet` | The gRPC web console embedded in a Spring MVC (servlet) application |
 | `sample-rest-downstream` | A REST (non-gRPC) backend aggregated via `REST_DOWNSTREAM` |
 | `sample-avro-downstream` | The same, spoken to in Avro: `x-avro-schema` in the document, `upstream-content.preferred: avro/binary` |
 | `sample-rate-limited-gateway` | Inbound rate limiting, in memory or shared through Redis (`--spring.profiles.active=redis`) |

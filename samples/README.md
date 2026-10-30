@@ -10,6 +10,7 @@ published `io.github.appiaworks:*` artifacts — on a fresh machine run
 | `sample-graphql-gateway` | GraphQL schema generated from protos, `(shiguchi.api.graphql)` annotations, Apollo Federation subgraph | `./gradlew -p samples sample-graphql-gateway:bootRun` |
 | `sample-grpc-proxy` | Pass-through gRPC proxy on `:9191` with merged reflection across backends | `./gradlew -p samples sample-grpc-proxy:bootRun` |
 | `sample-grpc-ui-standalone` | Just the embedded gRPC web console (`/grpc-ui`), no other surfaces | `./gradlew -p samples sample-grpc-ui-standalone:bootRun` |
+| `sample-grpc-ui-servlet` | The gRPC web console embedded in a Spring MVC (servlet) application | `./gradlew -p samples sample-grpc-ui-servlet:bootRun` |
 | `sample-openfga-authz` | Per-object authorization via a custom `GatewayAuthorizer` backed by OpenFGA: route→object mapping, contextual tuples from JWT claims, optional decision cache | `./gradlew -p samples sample-openfga-authz:bootRun` |
 | `sample-opa-authz` | The same SPI driven by Open Policy Agent: one Rego decision per request over a full input document — contrast with the OpenFGA sample's per-rule tuple checks | `./gradlew -p samples sample-opa-authz:bootRun` |
 | `sample-rest-downstream` | A legacy **REST** service (not gRPC) aggregated via `REST_DOWNSTREAM`: OpenAPI document fetched, operations proxied under `/inv` with the prefix stripped, per-operation scopes, document merged into `/v3/api-docs` with namespaced components. Backend runs in-process | `./gradlew -p samples sample-rest-downstream:bootRun` |

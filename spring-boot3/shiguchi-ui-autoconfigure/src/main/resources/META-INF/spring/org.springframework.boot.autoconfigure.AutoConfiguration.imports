@@ -1,2 +1,2 @@
 dev.appiaworks.shiguchi.ui.autoconfigure.ShiguchiUiAutoConfiguration
-dev.appiaworks.shiguchi.ui.autoconfigure.ShiguchiUiServletBackOffAutoConfiguration
+dev.appiaworks.shiguchi.ui.autoconfigure.ShiguchiUiServletAutoConfiguration

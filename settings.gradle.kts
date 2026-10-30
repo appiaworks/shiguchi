@@ -24,6 +24,7 @@ include(
     "shiguchi-spring-boot3-starter",
     "shiguchi-ui-spring-boot3-autoconfigure",
     "shiguchi-ui-spring-boot3-starter",
+    "shiguchi-ui-webmvc-spring-boot3-starter",
     "shiguchi-graphql-spring-boot3-starter",
     "shiguchi-openapi-spring-boot3-starter",
     "shiguchi-avro-spring-boot3-starter",
@@ -37,6 +38,7 @@ include(
     "shiguchi-spring-boot4-starter",
     "shiguchi-ui-spring-boot4-autoconfigure",
     "shiguchi-ui-spring-boot4-starter",
+    "shiguchi-ui-webmvc-spring-boot4-starter",
     "shiguchi-graphql-spring-boot4-starter",
     "shiguchi-openapi-spring-boot4-starter",
     "shiguchi-avro-spring-boot4-starter",
@@ -53,6 +55,7 @@ project(":shiguchi-spring-boot3-autoconfigure").projectDir    = file("spring-boo
 project(":shiguchi-spring-boot3-starter").projectDir          = file("spring-boot3/shiguchi-starter")
 project(":shiguchi-ui-spring-boot3-autoconfigure").projectDir         = file("spring-boot3/shiguchi-ui-autoconfigure")
 project(":shiguchi-ui-spring-boot3-starter").projectDir               = file("spring-boot3/shiguchi-ui-starter")
+project(":shiguchi-ui-webmvc-spring-boot3-starter").projectDir          = file("spring-boot3/shiguchi-ui-webmvc-starter")
 project(":shiguchi-graphql-spring-boot3-starter").projectDir          = file("spring-boot3/shiguchi-graphql-starter")
 project(":shiguchi-openapi-spring-boot3-starter").projectDir          = file("spring-boot3/shiguchi-openapi-starter")
 project(":shiguchi-avro-spring-boot3-starter").projectDir             = file("spring-boot3/shiguchi-avro-starter")
@@ -68,6 +71,7 @@ project(":shiguchi-spring-boot4-autoconfigure").projectDir    = file("spring-boo
 project(":shiguchi-spring-boot4-starter").projectDir          = file("spring-boot4/shiguchi-starter")
 project(":shiguchi-ui-spring-boot4-autoconfigure").projectDir         = file("spring-boot4/shiguchi-ui-autoconfigure")
 project(":shiguchi-ui-spring-boot4-starter").projectDir               = file("spring-boot4/shiguchi-ui-starter")
+project(":shiguchi-ui-webmvc-spring-boot4-starter").projectDir          = file("spring-boot4/shiguchi-ui-webmvc-starter")
 project(":shiguchi-graphql-spring-boot4-starter").projectDir          = file("spring-boot4/shiguchi-graphql-starter")
 project(":shiguchi-openapi-spring-boot4-starter").projectDir          = file("spring-boot4/shiguchi-openapi-starter")
 project(":shiguchi-avro-spring-boot4-starter").projectDir             = file("spring-boot4/shiguchi-avro-starter")

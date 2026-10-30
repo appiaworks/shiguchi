@@ -33,10 +33,10 @@ import org.springframework.context.annotation.Import;
  * finds {@code GatewaySecurityConfig}, so a standalone UI gets the gateway's security posture
  * ({@code PERMIT_ALL} by default) instead of Boot's HTTP Basic chain.
  *
- * <p>Reactive web applications only: the UI is a set of WebFlux router functions, and the scan
- * brings in WebFlux-only beans (the gateway's {@code SecurityWebFilterChain} needs {@code
- * ServerHttpSecurity}). In a servlet application the whole configuration backs off and {@link
- * ShiguchiUiServletBackOffAutoConfiguration} warns instead of failing the boot.
+ * <p>Reactive web applications only: the scan brings in WebFlux-only beans (the gateway's {@code
+ * SecurityWebFilterChain} needs {@code ServerHttpSecurity}). In a servlet application this
+ * configuration backs off and {@link ShiguchiUiServletAutoConfiguration} serves the UI through
+ * Spring MVC instead.
  *
  * <p>UI beans themselves are only enabled when {@code shiguchi.ui.enabled=true} (each is
  * guarded by {@code @ConditionalOnProperty}).

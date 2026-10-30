@@ -185,17 +185,17 @@ class GrpcUiControllerTest {
         schemaBuilder.rebuild();
         var metadataPopulator = new GrpcMetadataPopulator(props);
 
-        var controller = new GrpcUiController(
+        var service = new GrpcUiService(
                 schemaBuilder,
                 dispatcher,
                 registry,
-                metadataPopulator,
                 props,
                 "/swagger-ui.html",
                 "/graphiql",
                 false,
                 "/push",
                 "/actuator");
+        var controller = new GrpcUiController(service, metadataPopulator);
 
         var routerFunction = RouterFunctions.route()
                 .POST("/api/invoke", controller::handleInvoke)
