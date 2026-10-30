@@ -6,7 +6,7 @@ plugins {
 
 group = "dev.appiaworks.shiguchi.sample"
 
-version = "0.14.0"
+version = "0.14.1"
 
 dependencies {
     // Spring Authorization Server with Boot's auto-configuration: the client and the user come

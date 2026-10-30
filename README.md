@@ -384,12 +384,12 @@ Gradle (Spring Boot 3):
 
 ```kotlin
 dependencies {
-    implementation("io.github.appiaworks:shiguchi-spring-boot3-starter:0.14.0")
+    implementation("io.github.appiaworks:shiguchi-spring-boot3-starter:0.14.1")
     // optional surfaces:
-    implementation("io.github.appiaworks:shiguchi-openapi-spring-boot3-starter:0.14.0")
-    implementation("io.github.appiaworks:shiguchi-graphql-spring-boot3-starter:0.14.0")
-    implementation("io.github.appiaworks:shiguchi-ui-spring-boot3-starter:0.14.0")
-    implementation("io.github.appiaworks:shiguchi-avro-spring-boot3-starter:0.14.0")   // Avro to REST backends
+    implementation("io.github.appiaworks:shiguchi-openapi-spring-boot3-starter:0.14.1")
+    implementation("io.github.appiaworks:shiguchi-graphql-spring-boot3-starter:0.14.1")
+    implementation("io.github.appiaworks:shiguchi-ui-spring-boot3-starter:0.14.1")
+    implementation("io.github.appiaworks:shiguchi-avro-spring-boot3-starter:0.14.1")   // Avro to REST backends
 }
 ```
 
@@ -399,7 +399,7 @@ Maven (Spring Boot 3):
 <dependency>
   <groupId>io.github.appiaworks</groupId>
   <artifactId>shiguchi-spring-boot3-starter</artifactId>
-  <version>0.14.0</version>
+  <version>0.14.1</version>
 </dependency>
 ```
 
@@ -408,11 +408,11 @@ Boot-4-matched runtime line (Spring Cloud Gateway 5.0.x, springdoc 3.1.x, DGS 12
 
 ```kotlin
 dependencies {
-    implementation("io.github.appiaworks:shiguchi-spring-boot4-starter:0.14.0")
+    implementation("io.github.appiaworks:shiguchi-spring-boot4-starter:0.14.1")
     // optional surfaces:
-    implementation("io.github.appiaworks:shiguchi-openapi-spring-boot4-starter:0.14.0")
-    implementation("io.github.appiaworks:shiguchi-graphql-spring-boot4-starter:0.14.0")
-    implementation("io.github.appiaworks:shiguchi-ui-spring-boot4-starter:0.14.0")
+    implementation("io.github.appiaworks:shiguchi-openapi-spring-boot4-starter:0.14.1")
+    implementation("io.github.appiaworks:shiguchi-graphql-spring-boot4-starter:0.14.1")
+    implementation("io.github.appiaworks:shiguchi-ui-spring-boot4-starter:0.14.1")
 }
 ```
 
