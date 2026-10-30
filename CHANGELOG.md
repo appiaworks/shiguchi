@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-10-29
+
 ### Fixed
 
 - GraphQL picks up services that load after startup (a `DYNAMIC` backend that was down at boot,
@@ -17,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of warning.
 - The UI starter no longer stops a servlet (Spring MVC) application from starting. The console
   needs WebFlux, so on a servlet application it now backs off and logs why.
+
+### Security
+
+- The `/grpc-ui` console bundles DOMPurify 3.4.17 or later, past its published advisories.
 
 ### Documentation
 
