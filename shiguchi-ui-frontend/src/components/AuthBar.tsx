@@ -3,6 +3,7 @@ import { fetchClientCredentialsToken } from '../api/grpcUiApi'
 import { useTokenAutoRefresh } from '../hooks/useTokenAutoRefresh'
 import { getSessionSecret, setSessionSecret } from '../store/sessionSecrets'
 import { useGrpcUiStore } from '../store/useGrpcUiStore'
+import { oauthCallbackUrl } from '../api/baseUrl'
 
 // Sentinel: per-call auth explicitly set to manual bearer with no provider
 const MANUAL = '__manual__'
@@ -104,7 +105,7 @@ export function AuthBar() {
       const verifier = pkceVerifierRef.current
       if (!code || !verifier || !activeProvider?.authorizationCode?.tokenUrl) return
       pkceVerifierRef.current = null
-      const callbackUri = `${window.location.origin}/grpc-ui/oauth2-callback.html`
+      const callbackUri = oauthCallbackUrl()
       fetch(activeProvider.authorizationCode.tokenUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -133,7 +134,7 @@ export function AuthBar() {
     setLoading(true); setError(null)
     const { verifier, challenge } = await generatePkce()
     pkceVerifierRef.current = verifier
-    const callbackUri = `${window.location.origin}/grpc-ui/oauth2-callback.html`
+    const callbackUri = oauthCallbackUrl()
     const scopes = Object.keys(activeProvider.authorizationCode.scopes ?? {})
     const params = new URLSearchParams({
       response_type: 'code', client_id: clientId,

@@ -1,0 +1,16 @@
+server:
+  port: 8080
+
+shiguchi:
+  services:
+    - name: my-service
+      host: localhost
+      port: 9090
+      mode: DYNAMIC
+
+  # The console can invoke any wired gRPC method: run this only on a trusted/local network.
+  # In servlet mode the host application owns security (shiguchi.ui.require-auth is not
+  # applied): protect /grpc-ui/** with the application's own SecurityFilterChain.
+  ui:
+    enabled: true
+    path: /grpc-ui

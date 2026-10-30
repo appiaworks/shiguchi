@@ -130,11 +130,58 @@ endpoint, so it must be exposed; the writes carry the console's global auth toke
 | `shiguchi.ui.path` | `/grpc-ui` | Base path |
 | `shiguchi.ui.require-auth` | `false` | Require an authenticated principal for the whole UI surface (alias of `security.surfaces.ui.require-auth`) |
 
-The console needs a **reactive (WebFlux) web application**: it is served by WebFlux router
-functions. In a servlet (Spring MVC) application the UI starter backs off and logs a warning
-instead of starting. If the application has no Spring MVC endpoints of its own, set
-`spring.main.web-application-type=reactive`; otherwise run the console as a separate reactive
-application next to it (`samples/sample-grpc-ui-standalone`).
+The console's static assets are served under `shiguchi.ui.path` too, so a custom path works.
+
+### Servlet (Spring MVC) applications
+
+The console comes in two starters; pick the one that matches the application's web stack:
+
+| Starter | Web stack | Brings |
+| --- | --- | --- |
+| `shiguchi-ui-spring-boot{3,4}-starter` | Reactive (WebFlux) | `spring-boot-starter-webflux` |
+| `shiguchi-ui-webmvc-spring-boot{3,4}-starter` | Servlet (Spring MVC) | `spring-boot-starter-web` |
+
+```kotlin
+implementation("io.github.appiaworks:shiguchi-ui-webmvc-spring-boot3-starter:<version>")
+```
+
+The WebMVC starter embeds the console in an existing Spring MVC application, next to its own
+controllers, with no WebFlux or Netty on the classpath. It serves the same console with the same
+routes (`{path}/api/config`, `/api/schema`, `/api/invoke`, `/api/invoke/stream`,
+`/api/auth/{scheme}/token`) and calls the configured gRPC services directly. The principal
+(`x-principal`), the `Authorization` header and the `shiguchi.client.forward-headers` /
+tracing headers reach the backend as they do on the gateway.
+
+Servlet mode is the console only. These gateway features are reactive and are not started:
+
+- REST transcoding, `REST_DOWNSTREAM` services and HTTP merge sources
+- gRPC-Web, rate limiting, the access log and the security headers filter
+- the gateway's security posture (`shiguchi.security.*`): `shiguchi.ui.require-auth` is not
+  applied, and the host application's own `SecurityFilterChain` protects `{path}/**`
+- the BFF relay, the `UpstreamCredentialSource` hook, and Cursus (push)
+
+The gateway's actuator endpoints still register when Actuator is on the classpath.
+
+Spring Security comes with the console, so without a `SecurityFilterChain` of its own the
+application gets Boot's default chain: HTTP Basic with a generated password, and CSRF on POST.
+Declare a chain that covers `{path}/**`. With CSRF on, keep the token in a cookie the console
+can read and accept it raw from the header:
+
+```java
+http.csrf(csrf -> csrf
+        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+        .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()));
+```
+
+The console sends the `XSRF-TOKEN` cookie back as `X-XSRF-TOKEN` on its POSTs. Spring Security
+loads the token lazily, so the cookie is only written once something reads it: add a filter that
+reads the request's `CsrfToken`, as `samples/sample-grpc-ui-servlet` does.
+
+An anonymous caller reaches the backend as `x-principal: anonymous`, as on the gateway. The
+console resolves its API and assets relative to its own page, so it works under a
+`server.servlet.context-path`.
+
+See `samples/sample-grpc-ui-servlet`.
 
 The console works with every discovery mode (`DYNAMIC` reflection, `STATIC` classpath
 stubs, `PB_FILE`). Method visibility respects `services[].include-methods` /

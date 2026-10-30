@@ -1,16 +1,16 @@
 import type { AuthProviderDto, GatewayUiLinks, InvokeResponse, ServiceSchema } from '../types/schema'
 import type { MetadataEntry } from '../store/useGrpcUiStore'
 
-const BASE = '/grpc-ui/api'
+import { apiUrl, csrfHeaders } from './baseUrl'
 
 export async function fetchConfig(): Promise<GatewayUiLinks> {
-  const r = await fetch(`${BASE}/config`)
+  const r = await fetch(apiUrl('config'))
   if (!r.ok) throw new Error(`Config fetch failed: ${r.status}`)
   return r.json() as Promise<GatewayUiLinks>
 }
 
 export async function fetchSchema(): Promise<ServiceSchema[]> {
-  const r = await fetch(`${BASE}/schema`)
+  const r = await fetch(apiUrl('schema'))
   if (!r.ok) throw new Error(`Schema fetch failed: ${r.status}`)
   return r.json() as Promise<ServiceSchema[]>
 }
@@ -21,9 +21,10 @@ export async function fetchClientCredentialsToken(
   clientSecret: string,
   scopes: string[],
 ): Promise<{ accessToken: string; expiresIn: number; tokenType: string }> {
-  const r = await fetch(`${BASE}/auth/${encodeURIComponent(schemeId)}/token`, {
+  const r = await fetch(apiUrl(`auth/${encodeURIComponent(schemeId)}/token`), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
     body: JSON.stringify({ clientId, clientSecret, scopes }),
   })
   if (!r.ok) {
@@ -81,10 +82,11 @@ export async function invokeUnary(
   metadataEntries: MetadataEntry[] = [],
 ): Promise<InvokeResponse> {
   const authHeaders = buildAuthHeaders(authToken, activeProviderId, authProviders)
-  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...authHeaders }
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...csrfHeaders(), ...authHeaders }
 
-  const r = await fetch(`${BASE}/invoke`, {
+  const r = await fetch(apiUrl('invoke'), {
     method: 'POST',
+    credentials: 'same-origin',
     headers,
     body: JSON.stringify({
       serviceName,
@@ -111,11 +113,12 @@ export async function invokeClientStream(
   metadataEntries: MetadataEntry[] = [],
 ): Promise<InvokeResponse> {
   const authHeaders = buildAuthHeaders(authToken, activeProviderId, authProviders)
-  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...authHeaders }
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...csrfHeaders(), ...authHeaders }
 
   const messages = payloads.map((p) => p || '{}')
-  const r = await fetch(`${BASE}/invoke`, {
+  const r = await fetch(apiUrl('invoke'), {
     method: 'POST',
+    credentials: 'same-origin',
     headers,
     body: JSON.stringify({
       serviceName,
@@ -139,10 +142,11 @@ export async function* invokeStream(
   metadataEntries: MetadataEntry[] = [],
 ): AsyncGenerator<{ event: 'data' | 'done' | 'error'; data: string }> {
   const authHeaders = buildAuthHeaders(authToken, activeProviderId, authProviders)
-  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...authHeaders }
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...csrfHeaders(), ...authHeaders }
 
-  const r = await fetch(`${BASE}/invoke/stream`, {
+  const r = await fetch(apiUrl('invoke/stream'), {
     method: 'POST',
+    credentials: 'same-origin',
     headers,
     body: JSON.stringify({
       serviceName,

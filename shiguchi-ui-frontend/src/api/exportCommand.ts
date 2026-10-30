@@ -1,4 +1,5 @@
 import type { MetadataEntry } from '../store/useGrpcUiStore'
+import { apiUrl } from './baseUrl'
 
 /**
  * The current request as a command you can paste into a terminal.
@@ -77,7 +78,7 @@ export function toCurl(req: ExportRequest): string {
   }
 
   return [
-    `curl -X POST ${shellQuote(`${req.origin}/grpc-ui/api/invoke`)}`,
+    `curl -X POST ${shellQuote(apiUrl('invoke'))}`,
     `  -H ${shellQuote('Content-Type: application/json')}`,
     ...headers,
     `  -d ${shellQuote(

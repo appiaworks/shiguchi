@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { fetchClientCredentialsToken } from '../api/grpcUiApi'
 import { setSessionSecret } from '../store/sessionSecrets'
 import { useGrpcUiStore } from '../store/useGrpcUiStore'
+import { oauthCallbackUrl } from '../api/baseUrl'
 
 async function generatePkce(): Promise<{ verifier: string; challenge: string }> {
   const array = new Uint8Array(32)
@@ -66,7 +67,7 @@ export function GlobalAuthPanel({ onClose }: { onClose: () => void }) {
       const verifier = pkceVerifierRef.current
       if (!code || !verifier || !activeProvider?.authorizationCode?.tokenUrl) return
       pkceVerifierRef.current = null
-      const callbackUri = `${window.location.origin}/grpc-ui/oauth2-callback.html`
+      const callbackUri = oauthCallbackUrl()
       fetch(activeProvider.authorizationCode.tokenUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -97,7 +98,7 @@ export function GlobalAuthPanel({ onClose }: { onClose: () => void }) {
     setLoading(true); setError(null)
     const { verifier, challenge } = await generatePkce()
     pkceVerifierRef.current = verifier
-    const callbackUri = `${window.location.origin}/grpc-ui/oauth2-callback.html`
+    const callbackUri = oauthCallbackUrl()
     const scopes = Object.keys(activeProvider.authorizationCode.scopes ?? {})
     const params = new URLSearchParams({
       response_type: 'code', client_id: clientId,

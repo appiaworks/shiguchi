@@ -108,6 +108,20 @@ public class GrpcMetadataPopulator {
 
     private GrpcMetadataPopulator(GatewayProperties properties, UpstreamCredentialSource credentialSource) {
         this.credentialSource = credentialSource;
+        this.forwardHeaders = forwardedHeaderNames(properties);
+    }
+
+    /**
+     * The lowercase names of the request headers copied onto the outbound call's metadata: the
+     * tracing headers (when {@code shiguchi.client.forward-tracing-headers} is on),
+     * {@code shiguchi.client.forward-headers}, and the headers version routing reads. Never
+     * {@code x-principal} or {@code authorization}: the gateway sets both itself.
+     *
+     * <p>Shared with the servlet flavour of the embedded UI, which builds its metadata without
+     * this reactive class. Logs a warning for each configured name the gateway sets itself.
+     */
+    @ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.15.0")
+    public static List<String> forwardedHeaderNames(GatewayProperties properties) {
         var headers = new java.util.LinkedHashSet<String>();
         if (properties.getClient().isForwardTracingHeaders()) {
             headers.addAll(TRACING_HEADERS);
@@ -137,7 +151,7 @@ public class GrpcMetadataPopulator {
                 if (!isGatewaySet(name)) headers.add(name);
             }
         }
-        this.forwardHeaders = List.copyOf(headers);
+        return List.copyOf(headers);
     }
 
     private static boolean isGatewaySet(String name) {
