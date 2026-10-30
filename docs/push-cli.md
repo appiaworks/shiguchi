@@ -15,7 +15,7 @@ Verbs: `sub`, `pub`, `ls`, `find`, and for operators `repub`, `rm`, `dlq`, `seek
 jbang cursus@appiaworks/shiguchi sub 'orders:*'      # catalog: jbang-catalog.json at the repo root
 jbang alias add --name cursus io.github.appiaworks:shiguchi-cursus-cli:LATEST
 
-# the fat jar (also attached to each GitHub Release as cursus-<version>-all.jar)
+# the fat jar (also attached to each GitHub Release as cursus-<version>-all.jar, not on v0.14.0)
 ./gradlew :shiguchi-cursus-cli:shadowJar                  # build/libs/cursus-<version>-all.jar
 java -jar cursus-0.14.0-all.jar sub 'orders:*'
 

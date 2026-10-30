@@ -380,11 +380,12 @@ jobs:
         run: npm run build
 
       # Packaging errors (a bad "files" list, a missing build output) show here, before a tag.
-      # --dry-run needs no token and publishes nothing.
-      - name: Publish dry run
+      # pack, not publish --dry-run: main keeps the released version, and publish --dry-run
+      # fails against the registry once that version is on npmjs.com.
+      - name: Pack dry run
         if: steps.changed.outputs.run == 'true'
         working-directory: shiguchi-cursus-client-js
-        run: npm publish --dry-run --access public
+        run: npm pack --dry-run
 
   # ──────────────────────────────────────────────────────────────────────────
   # Build OCI image from sample-full and push to GHCR
@@ -561,7 +562,8 @@ jobs:
   # publish. Requires repo secrets: MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD (Central
   # Portal token) and SIGNING_KEY / SIGNING_KEY_PASSWORD (ASCII-armored GPG private key). A tag
   # run fails when the secrets are missing; a version already on Central is skipped. Afterwards
-  # it attaches the cursus fat jar to the GitHub Release.
+  # it creates the GitHub Release: a draft, the cursus fat jar attached, then published (releases
+  # are immutable, so the asset must be there before it goes out).
   # ──────────────────────────────────────────────────────────────────────────
   publish-central:
     name: Publish to Maven Central
@@ -571,7 +573,7 @@ jobs:
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
-      contents: write # attaches the cursus jar to the GitHub Release
+      contents: write # creates the GitHub Release with the cursus jar
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -617,7 +619,7 @@ jobs:
           ./gradlew publishAndReleaseToMavenCentral --no-daemon --no-configuration-cache
 
       # The fat jar of the cursus command line, for people who do not use jbang.
-      - name: Attach cursus to the GitHub Release
+      - name: Create the GitHub Release with cursus attached
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -627,7 +629,7 @@ jobs:
   # ──────────────────────────────────────────────────────────────────────────
   # @appiaworks/shiguchi-cursus-client to npmjs.com, after the Maven publish succeeded. The
   # script checks that package.json carries the tag's version and skips a version already in
-  # the registry. Needs the NPM_TOKEN secret (.github/PUBLIC-RELEASE-TODO.md).
+  # the registry. Authenticates by npm trusted publishing (OIDC); no token secret.
   # ──────────────────────────────────────────────────────────────────────────
   publish-npm:
     name: Publish cursus client to npmjs.com
@@ -637,7 +639,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-      id-token: write # npm provenance
+      id-token: write # npm trusted publishing and provenance
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -646,9 +648,6 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24"
-          registry-url: https://registry.npmjs.org/
 
       - name: Publish to npmjs.com
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: .github/scripts/publish-cursus-client.sh "${GITHUB_REF_NAME}"
