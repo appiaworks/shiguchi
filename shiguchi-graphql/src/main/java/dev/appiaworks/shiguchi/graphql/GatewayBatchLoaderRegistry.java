@@ -51,9 +51,15 @@ public class GatewayBatchLoaderRegistry implements BatchLoaderRegistry {
         return delegate.forName(name);
     }
 
+    /**
+     * Always {@code true}. Spring GraphQL asks once, on the first request, and caches the answer:
+     * a {@code false} there would skip {@link #registerDataLoaders} for the life of the
+     * application, so a {@code loader_for} loader registered later (a service that loaded after
+     * startup) would never reach a request. With no loaders the call adds nothing.
+     */
     @Override
     public boolean hasRegistrations() {
-        return delegate.hasRegistrations();
+        return true;
     }
 
     @Override

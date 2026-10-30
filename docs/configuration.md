@@ -96,7 +96,7 @@ spring:
 | `shiguchi.graphql.document-cache.enabled` / `max-entries` / `expire-after-access` | `false` / `2000` / `1h` | Keep parsed and validated query documents by query text, so a repeated query skips parsing and validation; emptied on every schema reload. See [caching.md](caching.md#graphql-document-cache-and-persisted-queries) |
 | `shiguchi.graphql.persisted-queries.enabled` / `max-entries` / `expire-after-access` | `false` / `1000` / `1h` | Apollo automatic persisted queries: clients send the query's SHA-256 in `extensions.persistedQuery`, the text only once; emptied on schema reload. Leave `dgs.graphql.apq.enabled` off with it |
 | `shiguchi.graphql.data-loader.max-batch-size` | `0` (unlimited) | Split a type's DataLoader batch into calls of at most this many ids |
-| `shiguchi.graphql.data-loader.cache.<Type>.ttl` | `1h` | Opt-in cross-request cache for the DataLoader of `<Type>` (the `loader_for` name): loaded entities are served for this long without calling the backend. Keyed by id only, whoever asks (the caller's identity is not part of the key), so list only types whose entities are the same for every caller |
+| `shiguchi.graphql.data-loader.cache.<Type>.ttl` | `1h` | Opt-in cross-request cache for the DataLoader of `<Type>` (the `loader_for` name): loaded entities are served for this long without calling the backend. Keyed by id only, whoever asks (the caller's identity is not part of the key), so list only types whose entities are the same for every caller. A type served by a `DYNAMIC` service that loads after startup picks up its cache when the service loads |
 | `shiguchi.graphql.data-loader.cache.<Type>.max-size` | `10000` | Most entities of `<Type>` kept in that cache |
 | `shiguchi.openapi.enabled` | `true` | OpenAPI 3 spec + Swagger UI |
 | `shiguchi.openapi.global-security` | `[]` | Scheme ids applied as global security requirement |
@@ -232,7 +232,14 @@ spring:
 
 The `gateway-refresh` actuator endpoint (expose via
 `management.endpoints.web.exposure.include`) triggers re-discovery on demand and always
-requires authentication. The read-only `gateway-routes` endpoint, exposed the same way, shows
+requires authentication. It is an Actuator write operation, so the request needs a JSON body —
+`{}` for every service, `{"name": "<service>"}` for one; without one it answers 415:
+
+```bash
+curl -X POST -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json'   -d '{}' http://localhost:8080/actuator/gateway-refresh
+```
+
+The read-only `gateway-routes` endpoint, exposed the same way, shows
 what actually loaded and which routes each service contributes —
 see [observability](observability.md#the-gateway-routes-endpoint). `gateway-traffic` shows and
 changes the traffic split of version-routed services at runtime, and reports which versions are

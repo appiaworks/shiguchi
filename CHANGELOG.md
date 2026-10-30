@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- GraphQL picks up services that load after startup (a `DYNAMIC` backend that was down at boot,
+  or a refresh): the schema is rebuilt, and the new data fetchers, `loader_for` DataLoaders and
+  their configured `data-loader.cache` entries are registered. Before, only what loaded at boot
+  was served, and with no `loader_for` loader at the first request Spring GraphQL never consulted
+  the batch loader registry again. While services are still pending, a cache entry with no matching type logs at INFO
+  instead of warning.
+- The UI starter no longer stops a servlet (Spring MVC) application from starting. The console
+  needs WebFlux, so on a servlet application it now backs off and logs why.
+
+### Documentation
+
+- Credentials for `DYNAMIC` reflection with a `GrpcChannelBuilderCustomizer`
+  (troubleshooting), the JSON body `gateway-refresh` needs, and the console embedded in the gRPC
+  server application.
+
 ## [0.14.0] - 2026-10-28
 
 First public release. Shiguchi reads a gRPC service's schema at startup (server reflection,

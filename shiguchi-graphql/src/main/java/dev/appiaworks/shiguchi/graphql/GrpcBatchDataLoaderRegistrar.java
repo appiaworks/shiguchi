@@ -9,6 +9,7 @@ import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
 import jakarta.annotation.PostConstruct;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -18,11 +19,15 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * Scans gRPC routes at startup to identify and register batch loaders.
+ * Scans gRPC routes to identify and register batch loaders.
  *
  * <p>For each batch-enabled route, this component creates a {@link GrpcBatchLoader} instance
  * and stores it keyed by the GraphQL type name. These are discovered and registered by the
  * {@link GrpcDataLoaderRegistryFactory} during DGS initialization.
+ *
+ * <p>The scan runs at startup and again whenever the registered services change (a deferred
+ * service loaded late, a refresh swapped a schema): {@link GrpcDataLoaderRegistryFactory} rescans
+ * on each schema reload. A route that did not change keeps its loader.
  */
 @Component
 @ConditionalOnProperty(prefix = "shiguchi.graphql", name = "enabled", matchIfMissing = true)
@@ -32,38 +37,58 @@ public class GrpcBatchDataLoaderRegistrar {
     private final GrpcRouteRegistry registry;
     private final ReactiveGrpcDispatcher dispatcher;
     private final Map<String, BatchLoader> loadersByType = Collections.synchronizedMap(new LinkedHashMap<>());
+    private final Map<String, RouteDefinition> routesByType = new HashMap<>();
 
     public GrpcBatchDataLoaderRegistrar(GrpcRouteRegistry registry, ReactiveGrpcDispatcher dispatcher) {
         this.registry = registry;
         this.dispatcher = dispatcher;
     }
 
+    /**
+     * Rebuilds the loaders from the routes registered now. Safe to call again: a type whose route
+     * is unchanged keeps its loader, a changed route gets a new one, a route gone drops its type.
+     */
     @PostConstruct
-    void scan() {
+    synchronized void scan() {
         log.debug("Scanning routes for batch loaders...");
 
+        Map<String, BatchLoader> found = new LinkedHashMap<>();
+        Map<String, RouteDefinition> foundRoutes = new HashMap<>();
         for (RouteDefinition route : registry.allRoutes()) {
             if (!route.isLoader()) {
                 continue;
             }
 
             try {
-                registerBatchLoader(route);
+                BatchLoader loader = routesByType.get(route.getLoaderFor()) == route
+                        ? loadersByType.get(route.getLoaderFor())
+                        : createBatchLoader(route);
+                if (loader != null) {
+                    found.put(route.getLoaderFor(), loader);
+                    foundRoutes.put(route.getLoaderFor(), route);
+                }
             } catch (Exception ex) {
                 log.warn("Failed to register batch loader for route {}", route.getGraphQlName(), ex);
             }
         }
 
-        log.info("Registered {} batch loaders for GraphQL types: {}", loadersByType.size(), loadersByType.keySet());
+        synchronized (loadersByType) {
+            loadersByType.clear();
+            loadersByType.putAll(found);
+        }
+        routesByType.clear();
+        routesByType.putAll(foundRoutes);
+
+        log.info("Registered {} batch loaders for GraphQL types: {}", found.size(), found.keySet());
     }
 
-    private void registerBatchLoader(RouteDefinition route) {
+    private BatchLoader createBatchLoader(RouteDefinition route) {
         var ctx = registry.contextFor(route);
         var methodOptional = ctx.lookupMethod(route.getFullServiceName(), route.getMethodName());
 
         if (methodOptional.isEmpty()) {
             log.warn("Could not find method descriptor for batch route {}", route.getGraphQlName());
-            return;
+            return null;
         }
 
         MethodDescriptor methodDescriptor = methodOptional.get();
@@ -76,13 +101,12 @@ public class GrpcBatchDataLoaderRegistrar {
         var loader =
                 new GrpcBatchLoader(route, ctx, dispatcher, batchKeyJsonName, batchResultJsonName, entityKeyJsonName);
 
-        loadersByType.put(route.getLoaderFor(), loader);
-
         log.debug(
                 "Registered batch loader for type {} (route: {}, entity key: {})",
                 route.getLoaderFor(),
                 route.getGraphQlName(),
                 entityKeyJsonName);
+        return loader;
     }
 
     /**

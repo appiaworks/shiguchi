@@ -97,6 +97,43 @@ The gateway speaks the **v1** reflection service (`grpc.reflection.v1`). A backe
 serves the older `v1alpha` service will not be discovered — upgrade its gRPC library, or use
 `STATIC` / `PB_FILE`.
 
+### `UNAUTHENTICATED` from `ServerReflection`
+
+The backend requires credentials on every method, reflection included, and the gateway's
+reflection call carries none: a caller's `authorization` header is forwarded on proxied calls
+only. `static-metadata` would work for a fixed key, but it is attached to every call and cannot
+follow an expiring token. Add the credentials with a `GrpcChannelBuilderCustomizer` instead,
+scoped to the reflection methods so proxied calls keep the caller's own token:
+
+```java
+@Bean
+GrpcChannelBuilderCustomizer reflectionCredentials(TokenSupplier tokens) {
+    ClientInterceptor reflectionAuth = new ClientInterceptor() {
+        @Override
+        public <Q, R> ClientCall<Q, R> interceptCall(
+                MethodDescriptor<Q, R> method, CallOptions options, Channel next) {
+            if (!method.getFullMethodName().startsWith("grpc.reflection.")) {
+                return next.newCall(method, options);
+            }
+            return new ForwardingClientCall.SimpleForwardingClientCall<>(next.newCall(method, options)) {
+                @Override
+                public void start(Listener<R> listener, Metadata headers) {
+                    headers.put(Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER),
+                            "Bearer " + tokens.currentToken());   // fetched per call, so it can rotate
+                    super.start(listener, headers);
+                }
+            };
+        }
+    };
+    return (service, builder) -> builder.intercept(reflectionAuth);
+}
+```
+
+The customizer runs for every channel the gateway builds for the service, so this covers the
+first load, the retries of a backend that was down at startup, and refresh. Use
+`service.getName()` to limit it to some services. Do not add `authorization` to every call from
+a customizer: gRPC metadata appends, so a proxied call would carry two `authorization` values.
+
 ### It loaded, then stopped working
 
 Look at `channel` in the health details. `TRANSIENT_FAILURE` means the connection dropped — the
