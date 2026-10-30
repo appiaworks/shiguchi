@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   was served, and with no `loader_for` loader at the first request Spring GraphQL never consulted
   the batch loader registry again. While services are still pending, a cache entry with no matching type logs at INFO
   instead of warning.
+- The UI starter no longer stops a servlet (Spring MVC) application from starting. The console
+  needs WebFlux, so on a servlet application it now backs off and logs why.
 
 ### Documentation
 
