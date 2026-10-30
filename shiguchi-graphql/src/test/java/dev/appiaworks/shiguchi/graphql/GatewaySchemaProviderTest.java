@@ -6,6 +6,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.netflix.graphql.dgs.ReloadSchemaIndicator;
 import dev.appiaworks.shiguchi.routing.SchemaReloadListener;
 import graphql.language.FieldDefinition;
 import graphql.language.ObjectTypeDefinition;
@@ -148,6 +149,25 @@ class GatewaySchemaProviderTest {
 
         // Assert — first "Query" definition retained, conflict swallowed rather than thrown
         assertThat(fieldNames(registry, "Query")).contains("hello").doesNotContain("duplicate");
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a provider wired to a reload trigger WHEN reload() is called SHOULD arm the trigger so the wrapped DGS indicator answers true")
+    void given_providerWithReloadTrigger_when_reload_should_armTriggerForDgsIndicator() {
+        // Arrange
+        GraphQlSchemaBuilder schemaBuilder = mock(GraphQlSchemaBuilder.class);
+        when(schemaBuilder.getGeneratedSdl()).thenReturn(SIMPLE_SDL);
+        GatewaySchemaReloadTrigger trigger = new GatewaySchemaReloadTrigger();
+        ReloadSchemaIndicator dgsIndicator = (ReloadSchemaIndicator)
+                trigger.postProcessAfterInitialization((ReloadSchemaIndicator) () -> false, "dgsReloadIndicator");
+        GatewaySchemaProvider provider = new GatewaySchemaProvider(schemaBuilder, trigger);
+
+        // Act
+        provider.reload();
+
+        // Assert
+        assertThat(dgsIndicator.reloadSchema()).isTrue();
     }
 
     private static List<String> fieldNames(TypeDefinitionRegistry registry, String typeName) {

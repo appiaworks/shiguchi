@@ -41,6 +41,8 @@ class GrpcDataLoaderRegistryFactoryTest {
     private static class RecordingBatchLoaderRegistry implements BatchLoaderRegistry {
         final Map<String, BiFunction<Set<String>, BatchLoaderEnvironment, Mono<Map<String, Map<String, Object>>>>>
                 registered = new java.util.LinkedHashMap<>();
+        /** Every registerMappedBatchLoader call, in order, so repeated registrations are visible. */
+        final List<String> registrationCalls = new java.util.ArrayList<>();
 
         @Override
         @SuppressWarnings("unchecked")
@@ -78,6 +80,7 @@ class GrpcDataLoaderRegistryFactoryTest {
                 @SuppressWarnings("unchecked")
                 public void registerMappedBatchLoader(
                         BiFunction<Set<K>, BatchLoaderEnvironment, Mono<Map<K, V>>> loader) {
+                    registrationCalls.add(name);
                     registered.put(name, (BiFunction<
                                     Set<String>, BatchLoaderEnvironment, Mono<Map<String, Map<String, Object>>>>)
                             (BiFunction<?, ?, ?>) loader);
@@ -387,5 +390,56 @@ class GrpcDataLoaderRegistryFactoryTest {
         assertThat(registry.registered).containsKeys("Book", "Author");
         // Unknown type should not cause failure
         assertThat(registry.registered).doesNotContainKey("UnknownType");
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a type that appears only after startup WHEN onSchemaReloaded runs twice SHOULD register that type with the BatchLoaderRegistry exactly once")
+    void given_newlyAppearedType_when_onSchemaReloadedRunsTwice_should_registerTypeOnce() {
+        // Arrange
+        RecordingBatchLoaderRegistry registry = new RecordingBatchLoaderRegistry();
+        GrpcBatchDataLoaderRegistrar registrar = mock(GrpcBatchDataLoaderRegistrar.class);
+        Map<String, BatchLoader> loaders = new java.util.HashMap<>();
+        when(registrar.getLoaders()).thenReturn(loaders);
+        GrpcDataLoaderRegistryFactory factory = new GrpcDataLoaderRegistryFactory(registry, registrar);
+        factory.registerLoaders();
+        loaders.put("Book", new RecordingBatchLoader());
+
+        // Act
+        factory.onSchemaReloaded();
+        factory.onSchemaReloaded();
+
+        // Assert
+        assertThat(registry.registrationCalls).containsExactly("Book");
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a type's loader was replaced in the registrar after registration WHEN the registered callback runs SHOULD call the replacement loader, not the original")
+    void given_loaderReplacedInRegistrar_when_registeredCallbackRuns_should_useReplacementLoader() {
+        // Arrange
+        RecordingBatchLoaderRegistry registry = new RecordingBatchLoaderRegistry();
+        GrpcBatchDataLoaderRegistrar registrar = mock(GrpcBatchDataLoaderRegistrar.class);
+        Map<String, BatchLoader> loaders = new java.util.HashMap<>();
+        RecordingBatchLoader original = new RecordingBatchLoader();
+        RecordingBatchLoader replacement = new RecordingBatchLoader();
+        replacement.toReturn = Mono.just(Map.of("34", Map.of("name", "Replaced")));
+        loaders.put("Book", original);
+        when(registrar.getLoaders()).thenReturn(loaders);
+        GrpcDataLoaderRegistryFactory factory = new GrpcDataLoaderRegistryFactory(registry, registrar);
+        factory.registerLoaders();
+        loaders.put("Book", replacement);
+
+        BatchLoaderEnvironment env =
+                envWithGraphQlContext(GraphQLContext.newContext().build());
+
+        // Act
+        Map<String, Map<String, Object>> result =
+                registry.registered.get("Book").apply(Set.of("34"), env).block();
+
+        // Assert
+        assertThat(result).containsEntry("34", Map.of("name", "Replaced"));
+        assertThat(replacement.lastKeys).containsExactly("34");
+        assertThat(original.lastKeys).isNull();
     }
 }

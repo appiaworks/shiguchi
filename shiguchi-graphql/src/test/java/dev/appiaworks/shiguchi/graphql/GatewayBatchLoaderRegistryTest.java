@@ -141,4 +141,13 @@ class GatewayBatchLoaderRegistryTest {
         String result = future.get(5, TimeUnit.SECONDS);
         assertThat(result).isEqualTo("customer-1");
     }
+
+    @Test
+    @DisplayName("GIVEN no loader registered yet WHEN asked whether it has registrations "
+            + "SHOULD answer true so a loader registered later still reaches requests")
+    void given_noLoaderRegisteredYet_when_hasRegistrations_should_answerTrue() {
+        GatewayBatchLoaderRegistry registry = new GatewayBatchLoaderRegistry(new DefaultBatchLoaderRegistry());
+
+        assertThat(registry.hasRegistrations()).isTrue();
+    }
 }
