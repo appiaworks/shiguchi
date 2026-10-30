@@ -130,6 +130,12 @@ endpoint, so it must be exposed; the writes carry the console's global auth toke
 | `shiguchi.ui.path` | `/grpc-ui` | Base path |
 | `shiguchi.ui.require-auth` | `false` | Require an authenticated principal for the whole UI surface (alias of `security.surfaces.ui.require-auth`) |
 
+The console needs a **reactive (WebFlux) web application**: it is served by WebFlux router
+functions. In a servlet (Spring MVC) application the UI starter backs off and logs a warning
+instead of starting. If the application has no Spring MVC endpoints of its own, set
+`spring.main.web-application-type=reactive`; otherwise run the console as a separate reactive
+application next to it (`samples/sample-grpc-ui-standalone`).
+
 The console works with every discovery mode (`DYNAMIC` reflection, `STATIC` classpath
 stubs, `PB_FILE`). Method visibility respects `services[].include-methods` /
 `exclude-methods` filters.
