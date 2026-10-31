@@ -448,6 +448,8 @@ jobs:
       contents: write
       packages: write
       security-events: write
+      pull-requests: write
+      actions: write
     uses: appiaworks/shiguchi/.github/workflows/release-pipeline.yml@main
     with:
       tag: ${{ github.ref_name }}
@@ -470,6 +472,8 @@ jobs:
       contents: write
       packages: write
       security-events: write
+      pull-requests: write
+      actions: write
     uses: ./.github/workflows/release-pipeline.yml
     with:
       tag: not-a-release

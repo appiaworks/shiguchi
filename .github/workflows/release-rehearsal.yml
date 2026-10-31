@@ -21,6 +21,8 @@ on:
       - .github/workflows/release-rehearsal.yml
       - .github/scripts/publish-central.sh
       - .github/scripts/attach-cursus.sh
+      - .github/scripts/post-release.py
+      - .github/scripts/prepare-release.py
 
 jobs:
   # The version comes from the tree being built, because a rehearsal has no tag.
@@ -56,6 +58,8 @@ jobs:
       contents: write
       packages: write
       security-events: write
+      pull-requests: write
+      actions: write
     uses: ./.github/workflows/release-pipeline.yml
     with:
       tag: ${{ needs.resolve.outputs.tag }}
