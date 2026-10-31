@@ -87,12 +87,19 @@ jobs:
 
       # A separate step, so the Central credentials are not in a dry run's environment. Without
       # them the build has no Central target, which is a stronger guarantee than an `if`.
+      - name: Generate a throwaway key
+        run: |
+          gpg --batch --pinentry-mode loopback --passphrase rehearsal --quick-generate-key 'Rehearsal <test@example.invalid>' rsa3072 sign never
+          { echo 'ORG_GRADLE_PROJECT_signingInMemoryKey<<EOF_KEY'
+            gpg --batch --pinentry-mode loopback --passphrase rehearsal --armor --export-secret-keys
+            echo 'EOF_KEY'
+            echo 'ORG_GRADLE_PROJECT_signingInMemoryKeyPassword=wrong-passphrase'
+          } >> "$GITHUB_ENV"
+
       - name: Rehearse the publish
         if: inputs.dry_run
         env:
           TAG: ${{ inputs.tag }}
-          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: .pipeline/.github/scripts/publish-central.sh "$TAG" --dry-run
 
       - name: Publish and release
