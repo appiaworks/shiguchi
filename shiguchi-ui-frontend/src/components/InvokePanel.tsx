@@ -243,7 +243,7 @@ export function InvokePanel() {
   return (
     <Group orientation="vertical" className="h-full">
       {/* Request panel */}
-      <Panel defaultSize={55} minSize={30}>
+      <Panel defaultSize="55%" minSize="30%">
         <div className="h-full flex flex-col">
           {/* Method header */}
           <div className="flex items-center gap-2 px-3 py-1.5 border-b border-slate-700 shrink-0 bg-slate-900">
@@ -315,7 +315,7 @@ export function InvokePanel() {
 
           {/* Request body + schema side-by-side */}
           <Group orientation="horizontal" className="flex-1 min-h-0">
-            <Panel defaultSize={65} minSize={40}>
+            <Panel defaultSize="65%" minSize="40%">
               <div className="h-full flex flex-col">
                 {/* Tab bar */}
                 <div className="flex items-center border-b border-slate-700 shrink-0">
@@ -405,7 +405,7 @@ export function InvokePanel() {
 
             <Separator className="w-px bg-slate-700 hover:bg-blue-600 transition-colors" />
 
-            <Panel defaultSize={35} minSize={20}>
+            <Panel defaultSize="35%" minSize="20%">
               <div className="h-full flex flex-col">
                 <div className="px-3 py-1 text-[10px] text-slate-600 border-b border-slate-700 shrink-0">
                   INPUT SCHEMA
@@ -460,7 +460,7 @@ export function InvokePanel() {
       <Separator className="h-px bg-slate-700 hover:bg-blue-600 transition-colors" />
 
       {/* Response panel */}
-      <Panel defaultSize={45} minSize={20}>
+      <Panel defaultSize="45%" minSize="20%">
         <div className="h-full flex flex-col">
           <div className="px-3 py-1 text-[10px] text-slate-600 border-b border-slate-700 shrink-0">
             RESPONSE

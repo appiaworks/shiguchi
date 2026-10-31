@@ -1,5 +1,7 @@
 package dev.appiaworks.shiguchi.ui;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.google.protobuf.Any;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
@@ -44,8 +46,13 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
+import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.reactive.function.server.EntityResponse;
+import org.springframework.web.reactive.function.server.HandlerStrategies;
 import org.springframework.web.reactive.function.server.RouterFunctions;
+import org.springframework.web.reactive.function.server.ServerRequest;
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
 
@@ -65,6 +72,7 @@ class GrpcUiControllerTest {
     private static ManagedChannel grpcChannel;
 
     private WebTestClient client;
+    private GrpcUiController controller;
 
     @BeforeAll
     static void startGrpcBackend() throws Exception {
@@ -185,7 +193,7 @@ class GrpcUiControllerTest {
         schemaBuilder.rebuild();
         var metadataPopulator = new GrpcMetadataPopulator(props);
 
-        var controller = new GrpcUiController(
+        controller = new GrpcUiController(
                 schemaBuilder,
                 dispatcher,
                 registry,
@@ -212,6 +220,25 @@ class GrpcUiControllerTest {
     @AfterEach
     void noop() {
         // per-test WebTestClient instances need no explicit teardown
+    }
+
+    @Test
+    @DisplayName("GIVEN a context path WHEN asking for the config SHOULD put it in front of every link")
+    @SuppressWarnings("unchecked")
+    void given_contextPath_when_askingForConfig_should_prefixEveryLink() {
+        var exchange = MockServerWebExchange.from(
+                MockServerHttpRequest.get("/app/grpc-ui/api/config").contextPath("/app"));
+        var request =
+                ServerRequest.create(exchange, HandlerStrategies.withDefaults().messageReaders());
+
+        var links = ((EntityResponse<GrpcUiSchemaDto.GatewayUiLinks>)
+                        controller.handleGetConfig(request).block())
+                .entity();
+
+        assertThat(links.swaggerPath()).isEqualTo("/app/swagger-ui.html");
+        assertThat(links.graphqlPath()).isEqualTo("/app/graphiql");
+        assertThat(links.pushPath()).isEqualTo("/app/push");
+        assertThat(links.pushAdminPath()).isEqualTo("/app/actuator/gateway-push");
     }
 
     @Test
