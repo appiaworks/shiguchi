@@ -9,6 +9,7 @@ plugins {
     id("com.vanniktech.maven.publish") version "0.37.0" apply false
     id("com.diffplug.spotless") version "8.10.4" apply false
     id("me.champeau.gradle.japicmp") version "0.4.6" apply false
+    id("org.gradle.test-retry") version "1.6.6" apply false
 }
 
 allprojects {
@@ -48,10 +49,24 @@ configure(subprojects.filter { it.name != "shiguchi-bom" }) {
     if (coverage) {
         apply(plugin = "jacoco")
     }
+    // One retry on CI, so a flaky test doesn't fail a PR or a release. Many failures mean something
+    // is really broken, so past maxFailures nothing is retried. mergeReruns marks a test that passed
+    // on retry with <flakyFailure>, which .github/scripts/list-retried-tests.py reports. A failure
+    // on a developer's machine always counts.
+    val retryOnCi = providers.environmentVariable("CI").isPresent
+    apply(plugin = "org.gradle.test-retry")
     tasks.withType<Test> {
         useJUnitPlatform()
         if (coverage) {
             finalizedBy(tasks.withType<JacocoReport>())
+        }
+        if (retryOnCi) {
+            extensions.configure<org.gradle.testretry.TestRetryTaskExtension> {
+                maxRetries.set(1)
+                maxFailures.set(5)
+                failOnPassedAfterRetry.set(false)
+            }
+            reports.junitXml.mergeReruns.set(true)
         }
         // -PtestJavaVersion=21 runs the tests on that JDK (found through Gradle's toolchain
         // detection, e.g. -Porg.gradle.java.installations.paths=<jdk>) while the build stays on
