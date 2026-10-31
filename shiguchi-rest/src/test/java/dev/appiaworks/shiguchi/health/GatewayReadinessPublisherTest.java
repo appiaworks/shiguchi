@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.boot.availability.AvailabilityChangeEvent;
 import org.springframework.boot.availability.LivenessState;
 import org.springframework.boot.availability.ReadinessState;
@@ -146,5 +148,24 @@ class GatewayReadinessPublisherTest {
         p.onAvailabilityChange(new AvailabilityChangeEvent<>("boot", LivenessState.CORRECT));
 
         assertThat(published).isEmpty();
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = ReadinessPolicy.class,
+            names = {"ALL_LOADED", "ANY_LOADED"})
+    @DisplayName(
+            "GIVEN a loaded service and Boot accepted traffic WHEN a later refresh fails SHOULD stay ready and never publish REFUSING_TRAFFIC")
+    void given_policySatisfiedAndTrafficAccepted_when_laterRefreshFails_should_staySatisfiedAndNotRefuse(
+            ReadinessPolicy policy) {
+        var props = props(policy, "a");
+        register(props, "a");
+        var p = new GatewayReadinessPublisher(props, registry, status, publisher);
+        p.onAvailabilityChange(boot(ReadinessState.ACCEPTING_TRAFFIC));
+
+        status.recordFailure("a", "refresh", new RuntimeException("boom"));
+
+        assertThat(p.ready()).isTrue();
+        assertThat(readinessPublished()).doesNotContain(ReadinessState.REFUSING_TRAFFIC);
     }
 }
