@@ -94,23 +94,32 @@ public class GrpcUiService {
         this.pushAdminPath = actuatorBasePath + "/gateway-push";
     }
 
-    /** The enabled UI links and auth providers. */
+    /** The enabled UI links and auth providers, for an application served at the root. */
     public GrpcUiSchemaDto.GatewayUiLinks config() {
+        return config("");
+    }
+
+    /**
+     * The enabled UI links and auth providers. The links are absolute paths on the server, so the
+     * request's context path ({@code server.servlet.context-path} or {@code
+     * spring.webflux.base-path}) goes in front of each.
+     */
+    public GrpcUiSchemaDto.GatewayUiLinks config(String contextPath) {
         List<GrpcUiSchemaDto.AuthProviderDto> authProviders =
                 gatewayProperties.getOpenapi().getSecuritySchemes().entrySet().stream()
                         .map(e -> toAuthProviderDto(e.getKey(), e.getValue()))
                         .toList();
         return new GrpcUiSchemaDto.GatewayUiLinks(
                 gatewayProperties.getOpenapi().isEnabled(),
-                swaggerUiPath,
+                contextPath + swaggerUiPath,
                 gatewayProperties.getGraphql().isEnabled(),
-                graphiqlPath,
+                contextPath + graphiqlPath,
                 gatewayProperties.getGrpc().isEnabled(),
                 gatewayProperties.getGrpc().getPort(),
                 authProviders,
                 pushEnabled,
-                pushPath,
-                pushAdminPath);
+                contextPath + pushPath,
+                contextPath + pushAdminPath);
     }
 
     /** All services, methods and input schemas. */
