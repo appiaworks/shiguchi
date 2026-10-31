@@ -448,7 +448,7 @@ jobs:
       contents: write
       packages: write
       security-events: write
-    uses: appiaworks/shiguchi/.github/workflows/release-pipeline.yml@main
+    uses: appiaworks/shiguchi/.github/workflows/release-pipeline.yml@ci/release-pipeline
     with:
       tag: ${{ github.ref_name }}
       pipeline_ref: main
