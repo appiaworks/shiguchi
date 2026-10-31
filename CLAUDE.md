@@ -28,6 +28,7 @@ artifacts, packages `dev.appiaworks.shiguchi.*`, property root `shiguchi.*`.
 
 ## Branching & Releases
 
+- A ruleset protects `main` and `release/**`: changes go through a squash-merged PR, and `Build & Test` and `Serde fallback on Java 21` must pass (no approval needed, and the branch needn't be up to date). Nobody can push to these branches directly. Admins can force a merge in an emergency with `gh pr merge --admin`. Creating or deleting a `release/x.y.x` branch is still allowed. If you rename either job in `ci.yml`, update the ruleset too, or every PR waits for a check that never reports.
 - Fixes land on `main` first, then cherry-pick to the active `release/*` branch (`release/0.15.x`) for patch releases.
 - **Bump `apiBaseline`'s default in the first commit AFTER a release publishes**, never in the
   release commit itself: the release workflow runs `./gradlew build`, that build runs the gate,
