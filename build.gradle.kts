@@ -212,7 +212,7 @@ configure(subprojects.filter { it.name in functionalTestModules }) {
 // in the release commit. `./gradlew build` runs this gate, the release workflow runs that build
 // to produce the artefacts, and a baseline that cannot be resolved fails rather than passing
 // quietly — so naming a version before it exists on Maven Central fails the build meant to create it.
-val apiBaselineVersion = providers.gradleProperty("apiBaseline").orElse("0.14.0")
+val apiBaselineVersion = providers.gradleProperty("apiBaseline").orElse("0.15.0")
 
 // The published baselines live on Maven Central.
 // Kept as its own repository with a content filter so it is consulted only for this group's
