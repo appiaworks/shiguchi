@@ -1,0 +1,38 @@
+name: zz probe (throwaway)
+on:
+  pull_request:
+    paths: [.github/workflows/zz-probe.yml]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      R: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+      - name: Create the protected branch as the script does
+        run: |
+          SHA=$(git rev-parse HEAD)
+          gh api "repos/$R/git/refs" -f ref=refs/heads/release/9.9.x -f sha="$SHA"
+          echo "CREATE release/9.9.x: ok"
+      - name: Direct push to it should be refused
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "probe: direct push"
+          if git push origin HEAD:refs/heads/release/9.9.x; then echo "PUSH: ALLOWED"; else echo "PUSH: refused"; fi
+      - name: Push a follow-up branch and dispatch CI on it
+        run: |
+          git push origin HEAD:refs/heads/test/probe-followup
+          gh workflow run ci.yml --repo "$R" --ref test/probe-followup
+          echo "DISPATCH: ok"
+      - name: Delete the protected branch
+        if: always()
+        run: gh api -X DELETE "repos/$R/git/refs/heads/release/9.9.x" && echo "DELETE: ok"
