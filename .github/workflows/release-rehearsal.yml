@@ -1,0 +1,82 @@
+name: Release rehearsal
+
+# Runs the release pipeline with dry_run, so a pipeline change is proved before a tag needs it.
+# Nothing reaches Central, npm, GHCR or a GitHub Release.
+#
+# It calls the pipeline by local path, so a PR rehearses its own version. A tag run uses @main.
+#
+# The signing secrets go only to a dispatch, never to the PR trigger. A dispatch is what proves the
+# key and passphrase still work; a PR rehearsal builds unsigned.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag or commit to build, such as release/0.15.x. Empty means the dispatched branch."
+        type: string
+        default: ""
+  pull_request:
+    branches: ["main"]
+    paths:
+      - .github/workflows/release-pipeline.yml
+      - .github/workflows/release-rehearsal.yml
+      - .github/scripts/publish-central.sh
+      - .github/scripts/attach-cursus.sh
+
+jobs:
+  # The version comes from the tree being built, because a rehearsal has no tag.
+  resolve:
+    name: Resolve the version
+    # A fork's PR gets a read-only token, which cannot run a pipeline whose jobs declare write access.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - name: Read the version
+        id: version
+        run: |
+          VERSION=$(grep -oP 'version = "\K[^"]+' build.gradle.kts | head -1)
+          echo "Rehearsing v${VERSION}"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+
+  rehearse:
+    name: Pipeline
+    needs: resolve
+    # A called job cannot hold more than its caller grants, even when a dry run never uses it. These
+    # match what the pipeline's jobs declare; the dry run's steps do not write with them.
+    permissions:
+      contents: write
+      packages: write
+      security-events: write
+    uses: ./.github/workflows/release-pipeline.yml
+    with:
+      tag: ${{ needs.resolve.outputs.tag }}
+      dry_run: true
+      ref: ${{ inputs.ref }}
+      pipeline_ref: ${{ github.sha }}
+    secrets:
+      SIGNING_KEY: ${{ github.event_name == 'workflow_dispatch' && secrets.SIGNING_KEY || '' }}
+      SIGNING_KEY_PASSWORD: ${{ github.event_name == 'workflow_dispatch' && secrets.SIGNING_KEY_PASSWORD || '' }}
+
+  # Reports the output ci.yml gates the npm publish on, so a rehearsal shows what npm would do.
+  # Runs even when a pipeline job failed, because a later failure must not clear the output.
+  npm-gate:
+    name: Would npm publish
+    needs: rehearse
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Report
+        env:
+          PUBLISHED: ${{ needs.rehearse.outputs.central-published }}
+        run: echo "central-published='${PUBLISHED}'"
