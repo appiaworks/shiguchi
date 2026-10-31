@@ -11,6 +11,7 @@
 # signing key is in the environment it also proves the key and passphrase work, by checking that a
 # signature was written.
 set -euo pipefail
+echo "PIPELINE-MARKER-FROM-THIS-COMMIT"
 
 TAG="${1:?usage: publish-central.sh vX.Y.Z [--dry-run]}"
 DRY_RUN=false
