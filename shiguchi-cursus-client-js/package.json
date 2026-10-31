@@ -1,6 +1,6 @@
 {
   "name": "@appiaworks/shiguchi-cursus-client",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "Experimental client for the Cursus (Shiguchi push) WebSocket protocol: reconnect, resume from the last id, token refresh and gap reporting.",
   "license": "Apache-2.0",
   "repository": {

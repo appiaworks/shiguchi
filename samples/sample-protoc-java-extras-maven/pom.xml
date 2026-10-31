@@ -23,7 +23,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <!-- protoc-gen-java-extras ships from 0.9.0. Against a local checkout,
          `./gradlew publishToMavenLocal` puts the current build here. -->
-    <shiguchi.version>0.14.1</shiguchi.version>
+    <shiguchi.version>0.15.0</shiguchi.version>
     <protobuf.version>4.36.2</protobuf.version>
   </properties>
 

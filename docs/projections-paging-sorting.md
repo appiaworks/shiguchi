@@ -162,7 +162,7 @@ needed:
 
 ```kotlin
 dependencies {
-    implementation("io.github.appiaworks:shiguchi-proto:0.14.1")
+    implementation("io.github.appiaworks:shiguchi-proto:0.15.0")
 }
 ```
 
@@ -189,7 +189,7 @@ Maven's `protobuf-maven-plugin` does not extract automatically; unpack them firs
           <artifactItem>
             <groupId>io.github.appiaworks</groupId>
             <artifactId>shiguchi-proto</artifactId>
-            <version>0.14.1</version>
+            <version>0.15.0</version>
             <includes>**/*.proto</includes>
             <outputDirectory>${project.build.directory}/gateway-protos</outputDirectory>
           </artifactItem>
@@ -207,8 +207,8 @@ then add `${project.build.directory}/gateway-protos` to the protoc plugin's
 jar involved, for Go, Rust, Python, buf or a plain `protoc`:
 
 ```bash
-curl -sLO https://repo1.maven.org/maven2/io/github/appiaworks/shiguchi-proto/0.14.1/shiguchi-proto-0.14.1-protos.zip
-unzip -q shiguchi-proto-0.14.1-protos.zip -d gateway-protos
+curl -sLO https://repo1.maven.org/maven2/io/github/appiaworks/shiguchi-proto/0.15.0/shiguchi-proto-0.15.0-protos.zip
+unzip -q shiguchi-proto-0.15.0-protos.zip -d gateway-protos
 
 protoc -I . -I gateway-protos --go_out=. bookstore/v1/books.proto
 ```

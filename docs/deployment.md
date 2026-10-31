@@ -60,7 +60,7 @@ same Dockerfile pattern as `sample-full` (`samples/sample-full/Dockerfile`):
 
 ```kotlin
 dependencies {
-    implementation("io.github.appiaworks:shiguchi-spring-boot3-starter:0.14.1")
+    implementation("io.github.appiaworks:shiguchi-spring-boot3-starter:0.15.0")
     implementation("com.acme:orders-stubs:1.4.0")   // the *Grpc classes and their messages
 }
 ```
@@ -71,7 +71,7 @@ copied next to them is not picked up by `java -jar`, which ignores every other c
 so the derived image starts with `-cp` instead and names the main class:
 
 ```dockerfile
-FROM ghcr.io/appiaworks/shiguchi/sample-full:v0.14.1
+FROM ghcr.io/appiaworks/shiguchi/sample-full:v0.15.0
 COPY orders-stubs-1.4.0.jar /app/stubs/
 ENTRYPOINT ["java", "-XX:AOTCache=app.aot", "-cp", "app.jar:stubs/*", \
             "dev.appiaworks.shiguchi.sample.SampleGatewayApplication"]

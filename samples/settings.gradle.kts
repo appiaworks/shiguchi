@@ -8,7 +8,7 @@ pluginManagement {
     }
     plugins {
         id("io.github.appiaworks.protoc-java-extras") version
-            providers.gradleProperty("gatewayVersion").getOrElse("0.14.1")
+            providers.gradleProperty("gatewayVersion").getOrElse("0.15.0")
     }
 }
 
