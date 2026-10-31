@@ -41,7 +41,7 @@ npm run build        # tsc --noEmit, then vite build
 Open <http://localhost:8080/>. Gradle never runs npm: rebuild the page with `npm run build` and
 restart (or reload; Boot serves the classpath copy, so a restart picks up the new files).
 
-The sample builds against `-PgatewayVersion` (default `0.14.1`), so it needs the `shiguchi-bff` and push
+The sample builds against `-PgatewayVersion` (default `0.15.0`), so it needs the `shiguchi-bff` and push
 starters in the artifacts you published locally.
 
 ## Expected flow

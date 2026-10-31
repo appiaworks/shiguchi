@@ -5,11 +5,11 @@ plugins {
 }
 
 group = "dev.appiaworks.shiguchi.sample"
-version = "0.14.1"
+version = "0.15.0"
 
 // The WebMVC UI starter first ships in 0.15.0: until then, build against a local
 // publishToMavenLocal with -PgatewayVersion=<that version>.
-val gatewayVersion = providers.gradleProperty("gatewayVersion").getOrElse("0.14.1")
+val gatewayVersion = providers.gradleProperty("gatewayVersion").getOrElse("0.15.0")
 
 dependencies {
     // A Spring MVC (servlet) application that embeds the gRPC web console next to its own

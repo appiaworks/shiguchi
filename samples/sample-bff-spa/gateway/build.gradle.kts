@@ -6,9 +6,9 @@ plugins {
 
 group = "dev.appiaworks.shiguchi.sample"
 
-version = "0.14.1"
+version = "0.15.0"
 
-val gatewayVersion = providers.gradleProperty("gatewayVersion").getOrElse("0.14.1")
+val gatewayVersion = providers.gradleProperty("gatewayVersion").getOrElse("0.15.0")
 
 dependencies {
     implementation("io.github.appiaworks:shiguchi-spring-boot3-autoconfigure:$gatewayVersion")

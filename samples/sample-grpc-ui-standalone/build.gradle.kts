@@ -5,9 +5,9 @@ plugins {
 }
 
 group = "dev.appiaworks.shiguchi.sample"
-version = "0.14.1"
+version = "0.15.0"
 
-val gatewayVersion = providers.gradleProperty("gatewayVersion").getOrElse("0.14.1")
+val gatewayVersion = providers.gradleProperty("gatewayVersion").getOrElse("0.15.0")
 
 dependencies {
     // gRPC UI only — browse any gRPC service via the embedded UI without routing
