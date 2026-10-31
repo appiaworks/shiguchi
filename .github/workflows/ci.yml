@@ -484,8 +484,8 @@ jobs:
       - name: Publish libraries to mavenLocal
         run: ./gradlew publishToMavenLocal
 
-      # The samples default to the current -SNAPSHOT; on tag builds mavenLocal holds the
-      # release version instead, so pass the root project version through explicitly.
+      # The samples default to samples/gradle.properties; mavenLocal holds the root project
+      # version, so pass that through explicitly.
       - name: Build sample boot jar
         run: |
           GATEWAY_VERSION=$(grep -oP 'version = "\K[^"]+' build.gradle.kts | head -1)
