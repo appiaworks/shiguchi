@@ -75,9 +75,10 @@ A report lands in `<module>/build/reports/japicmp/` for each check.
 
 ### After a release
 
-Bump the default baseline in the root `build.gradle.kts` (`apiBaseline`) to the version just
-released, in the first commit **after** that release has published — never in the release commit
-itself: the release build runs this gate, and a baseline that is not on Maven Central yet fails it.
+The default baseline in the root `build.gradle.kts` (`apiBaseline`) moves to a new minor in the
+first commit **after** that release has published — never in the release commit itself: the release
+build runs this gate, and a baseline that is not on Maven Central yet fails it. The release
+pipeline opens that PR once the POM is on Central; a patch leaves the baseline alone.
 (Currently `0.15.0`; the first `io.github.appiaworks` release was `0.14.0`.)
 
 > **Timing matters when you bump it.** The bump belongs in the first commit *after* the tag

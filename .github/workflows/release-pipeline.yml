@@ -10,7 +10,8 @@ name: Release pipeline
 # Maven Central goes first and helm and the image wait for it, so a Central rejection pushes nothing.
 #
 # dry_run publishes nothing: Central becomes publishToMavenLocal, helm and the image build without
-# a push, and the GitHub Release is skipped. release-rehearsal.yml runs that mode.
+# a push, the GitHub Release is skipped, and the follow-up job prints its edits instead of opening
+# a PR. release-rehearsal.yml runs that mode.
 on:
   workflow_call:
     inputs:
@@ -290,3 +291,50 @@ jobs:
         run: |
           CHART_FILE=$(ls /tmp/helm-pkg/*.tgz)
           helm push "${CHART_FILE}" oci://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/charts
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # What the release leaves behind, once its POM is on Maven Central: for a minor, release/x.y.x and
+  # the apiBaseline PR; for a patch, the PR that syncs its changelog and pins to main. It needs only
+  # Central, so a helm or image failure doesn't hold it back. Running it again is safe.
+  #
+  # Every permission here must also be on ci.yml's release and pipeline-check jobs, on the release
+  # job of each live release branch, and on the rehearsal's rehearse job.
+  # ──────────────────────────────────────────────────────────────────────────
+  post-release:
+    name: Post-release follow-ups
+    runs-on: ubuntu-latest
+    # The script gives Central 60 minutes.
+    timeout-minutes: 75
+    needs: publish-central
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+
+    steps:
+      # The edits go on main, whichever tree was released.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          path: main-tree
+          persist-credentials: ${{ !inputs.dry_run }}
+
+      - name: Check out the pipeline's scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.pipeline_ref }}
+          path: .pipeline
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
+      - name: Open the follow-up PR
+        working-directory: main-tree
+        env:
+          GH_TOKEN: ${{ !inputs.dry_run && secrets.GITHUB_TOKEN || '' }}
+          TAG: ${{ inputs.tag }}
+          SOURCE: ${{ inputs.ref || github.sha }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          args=()
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          python3 "$GITHUB_WORKSPACE/.pipeline/.github/scripts/post-release.py" "$TAG" --source "$SOURCE" "${args[@]}"
