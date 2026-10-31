@@ -15,4 +15,4 @@ Steps:
 3. Cherry-pick each commit in order with `git cherry-pick -x <sha>` (the `-x` keeps a back-reference to the original commit). On conflict, resolve it, explain the resolution to the user, and continue.
 4. Run tests for the modules touched by the cherry-picked changes. If they fail, report and stop — do not push.
 5. Push the release branch only after tests pass and the user confirms.
-6. If the user wants a patch release: bump the patch version in `build.gradle.kts`, commit `chore(release): x.y.z`, and remind them CI handles Maven Central/npmjs/GHCR/Helm publishing once the `vx.y.z` tag is pushed. Ask before pushing the tag — tagging triggers publication and is not reversible.
+6. If the user wants a patch release: dispatch the `Prepare release` workflow from `main` with the patch version and `base` set to the release branch (see the release bullet in CLAUDE.md), and remind them CI handles Maven Central/npmjs/GHCR/Helm publishing once the `vx.y.z` tag is pushed. Ask before pushing the tag — tagging triggers publication and is not reversible.
