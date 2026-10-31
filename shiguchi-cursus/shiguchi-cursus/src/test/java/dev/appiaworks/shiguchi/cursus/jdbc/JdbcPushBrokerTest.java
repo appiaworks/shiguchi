@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterAll;
@@ -108,6 +109,42 @@ class JdbcPushBrokerTest {
                         throw e.getCause();
                     }
                 });
+    }
+
+    /** A DataSource that runs the armed hook once, on the next connection the broker opens. */
+    private DataSource hooked(AtomicReference<Runnable> onConnect) {
+        return (DataSource) Proxy.newProxyInstance(
+                DataSource.class.getClassLoader(), new Class<?>[] {DataSource.class}, (proxy, method, args) -> {
+                    if (method.getName().equals("getConnection")) {
+                        Runnable hook = onConnect.getAndSet(null);
+                        if (hook != null) hook.run();
+                    }
+                    try {
+                        return method.invoke(dataSource, args);
+                    } catch (InvocationTargetException e) {
+                        throw e.getCause();
+                    }
+                });
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN an idle broker WHEN the first subscriber joins and an event is appended during a poll THEN the event is delivered")
+    void given_an_idle_broker_when_first_subscriber_joins_during_a_poll_should_deliver_the_event() throws Exception {
+        AtomicReference<Runnable> onConnect = new AtomicReference<>();
+        JdbcPushBroker a = broker(hooked(onConnect), null);
+        List<PushEvent> seen = new CopyOnWriteArrayList<>();
+        AtomicReference<PushEvent> stored = new AtomicReference<>();
+
+        // The next poll opens its connection after an idle instance's subscription check would have run.
+        onConnect.set(() -> {
+            subscriptions.add(a.subscribe(topic).subscribe(seen::add));
+            PushEvent event = new PushEvent(topic, null, "{\"n\":1}".getBytes(), null, null, Instant.now());
+            stored.set(store.append(event, 100, Duration.ZERO).block(Duration.ofSeconds(10)));
+        });
+
+        assertThat(await(() -> !seen.isEmpty(), 5000)).isTrue();
+        assertThat(seen.get(0).id()).isEqualTo(stored.get().id());
     }
 
     @Test

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Cursus JDBC broker: an event appended while the first subscriber of an idle broker was joining
+  could be skipped.
+- GraphQL: right after a service loaded late, a request could resolve the new relationships to
+  null. The DataLoaders are now registered before the schema is rebuilt.
+
 ## [0.15.0] - 2026-10-30
 
 ### Added

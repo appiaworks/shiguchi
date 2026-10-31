@@ -2,8 +2,11 @@ package dev.appiaworks.shiguchi.cursus.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.appiaworks.shiguchi.cursus.PushBroker;
 import dev.appiaworks.shiguchi.cursus.PushMetrics;
+import dev.appiaworks.shiguchi.cursus.Topic;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -66,6 +69,9 @@ class PushEndToEndTest {
 
     @Autowired
     private PushMetrics metrics;
+
+    @Autowired
+    private PushBroker broker;
 
     private WebClient client;
 
@@ -228,9 +234,15 @@ class PushEndToEndTest {
         return subscribe(Map.of(), topics);
     }
 
-    /** Opens the stream and waits until the gateway counts the connection, so a publish cannot race it. */
+    /**
+     * Opens the stream and waits until the gateway counts the connection and the broker has the
+     * stream's topic subscriptions, so a publish cannot race it: the connection is counted when the
+     * response subscribes, before the topics are.
+     */
     private Subscriber subscribe(Map<String, String> headers, String... topics) {
         int before = metrics.connections();
+        Map<Topic, Long> subscribers = new HashMap<>();
+        for (String t : topics) subscribers.put(Topic.parse(t), broker.subscriberCount(Topic.parse(t)));
         StringBuilder uri = new StringBuilder("/push/subscribe?");
         for (String t : topics) uri.append("topic=").append(t).append('&');
         Flux<ServerSentEvent<String>> stream = client.get()
@@ -241,7 +253,18 @@ class PushEndToEndTest {
                 .bodyToFlux(SSE);
         Subscriber sub = new Subscriber(stream);
         awaitConnections(before + 1);
+        subscribers.forEach(this::awaitSubscribed);
         return sub;
+    }
+
+    private void awaitSubscribed(Topic topic, long before) {
+        long deadline = System.nanoTime() + Duration.ofSeconds(30).toNanos();
+        while (broker.subscriberCount(topic) <= before) {
+            if (System.nanoTime() > deadline) {
+                throw new AssertionError("no new subscriber of " + topic + " after " + before);
+            }
+            Thread.onSpinWait();
+        }
     }
 
     private void awaitConnections(int expected) {
