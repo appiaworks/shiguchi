@@ -437,6 +437,8 @@ jobs:
       contents: write
       packages: write
       security-events: write
+      pull-requests: write # the post-release job opens the follow-up PR
+      actions: write # and dispatches CI on it
     uses: appiaworks/shiguchi/.github/workflows/release-pipeline.yml@main
     with:
       tag: ${{ github.ref_name }}
