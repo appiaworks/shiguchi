@@ -18,6 +18,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.graphql.execution.BatchLoaderRegistry;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
@@ -48,8 +50,13 @@ import reactor.core.publisher.Mono;
  * used without registering the type again. A cache entry naming a type no loaded service provides
  * yet is only reported as waiting while services are still loading; the warning that it is ignored
  * comes once every service has loaded.
+ *
+ * <p>It runs before the other schema reload listeners, {@link GatewaySchemaProvider} among them:
+ * the other way round, a request served by the rebuilt schema before the loaders were registered
+ * resolved the new relationships to null.
  */
 @Component
+@Order(Ordered.LOWEST_PRECEDENCE - 100)
 @ConditionalOnProperty(prefix = "shiguchi.graphql", name = "enabled", matchIfMissing = true)
 public class GrpcDataLoaderRegistryFactory implements SchemaReloadListener {
 

@@ -135,8 +135,10 @@ public final class JdbcPushBroker implements PushBroker, InitializingBean, Dispo
             last.set(head());
             return null;
         }
+        // The head is read before the subscriptions are checked: read after, it could take in an event
+        // appended as the first subscriber joined, and that event would be skipped.
+        long head = head();
         if (local.subscriptions().isEmpty()) {
-            long head = head();
             if (head > from) last.set(head);
             return null;
         }
