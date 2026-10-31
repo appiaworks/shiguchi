@@ -87,6 +87,8 @@ public class GrpcUiController {
 
     /** GET /grpc-ui/api/config — returns enabled UI links and auth providers. */
     Mono<ServerResponse> handleGetConfig(ServerRequest req) {
+        // The context path (spring.webflux.base-path) goes in front of every link.
+        String contextPath = req.requestPath().contextPath().value();
         List<GrpcUiSchemaDto.AuthProviderDto> authProviders =
                 gatewayProperties.getOpenapi().getSecuritySchemes().entrySet().stream()
                         .map(e -> toAuthProviderDto(e.getKey(), e.getValue()))
@@ -94,15 +96,15 @@ public class GrpcUiController {
 
         var links = new GrpcUiSchemaDto.GatewayUiLinks(
                 gatewayProperties.getOpenapi().isEnabled(),
-                swaggerUiPath,
+                contextPath + swaggerUiPath,
                 gatewayProperties.getGraphql().isEnabled(),
-                graphiqlPath,
+                contextPath + graphiqlPath,
                 gatewayProperties.getGrpc().isEnabled(),
                 gatewayProperties.getGrpc().getPort(),
                 authProviders,
                 pushEnabled,
-                pushPath,
-                pushAdminPath);
+                contextPath + pushPath,
+                contextPath + pushAdminPath);
         return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(links);
     }
 

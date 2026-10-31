@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The console's Swagger, GraphiQL, push and push-admin links include the application's context
+  path (`spring.webflux.base-path`).
+- The console's service list can be resized again: panel sizes were read as pixels, which pinned
+  the sidebar at 40px.
+- The console's editor no longer logs an `editorWorkerService` worker error on load.
+
 ## [0.14.1] - 2026-10-29
 
 ### Fixed

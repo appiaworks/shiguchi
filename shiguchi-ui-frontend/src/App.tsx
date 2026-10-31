@@ -198,7 +198,7 @@ export default function App() {
           <PushPanel adminPath={links.pushAdminPath ?? '/actuator/gateway-push'} pushPath={links.pushPath ?? '/push'} />
         ) : (
         <Group orientation="horizontal" className="h-full">
-          <Panel defaultSize={22} minSize={15} maxSize={40}>
+          <Panel defaultSize="22%" minSize="15%" maxSize="40%">
             <div className="h-full flex flex-col border-r border-slate-700">
               {/* Left panel header: title + search */}
               <div className="px-2 py-1.5 border-b border-slate-700 shrink-0 space-y-1.5">
@@ -235,7 +235,7 @@ export default function App() {
 
           <Separator className="w-px bg-slate-700 hover:bg-blue-600 transition-colors" />
 
-          <Panel defaultSize={78}>
+          <Panel defaultSize="78%">
             <InvokePanel />
           </Panel>
         </Group>
