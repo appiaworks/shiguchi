@@ -55,6 +55,19 @@ class GrpcUiServiceTest {
     }
 
     @Test
+    @DisplayName("GIVEN a context path WHEN asking for the config SHOULD put it in front of every link")
+    void given_contextPath_when_askingForConfig_should_prefixEveryLink() {
+        var service = service(new GatewayProperties(), new GrpcRouteRegistry());
+
+        var config = service.config("/app");
+
+        assertThat(config.swaggerPath()).isEqualTo("/app/swagger-ui.html");
+        assertThat(config.graphqlPath()).isEqualTo("/app/graphiql");
+        assertThat(config.pushPath()).isEqualTo("/app/push");
+        assertThat(config.pushAdminPath()).isEqualTo("/app/actuator/gateway-push");
+    }
+
+    @Test
     @DisplayName("GIVEN no registered service WHEN asking if one is registered SHOULD say no")
     void given_noRegisteredService_when_askingIfRegistered_should_sayNo() {
         var service = service(new GatewayProperties(), new GrpcRouteRegistry());

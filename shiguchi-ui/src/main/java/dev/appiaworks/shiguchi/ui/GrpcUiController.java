@@ -37,7 +37,9 @@ public class GrpcUiController {
 
     /** GET /grpc-ui/api/config — returns enabled UI links and auth providers. */
     Mono<ServerResponse> handleGetConfig(ServerRequest req) {
-        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(service.config());
+        return ServerResponse.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(service.config(req.requestPath().contextPath().value()));
     }
 
     /** GET /grpc-ui/api/schema — returns all services, methods and input schemas. */

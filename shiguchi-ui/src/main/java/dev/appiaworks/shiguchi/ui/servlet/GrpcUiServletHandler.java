@@ -56,7 +56,9 @@ public class GrpcUiServletHandler {
 
     /** GET {path}/api/config: enabled UI links and auth providers. */
     ServerResponse handleGetConfig(ServerRequest req) {
-        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(service.config());
+        return ServerResponse.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(service.config(req.requestPath().contextPath().value()));
     }
 
     /** GET {path}/api/schema: all services, methods and input schemas. */

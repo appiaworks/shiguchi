@@ -16,8 +16,8 @@ import org.springframework.core.io.ClassPathResource;
 
 /**
  * BDD tests for the two ways the servlet UI is configured away from its defaults: a custom {@code
- * shiguchi.ui.path} (the SPA, the API and the redirect all move) and {@code shiguchi.ui.enabled}
- * left unset (no UI routes at all).
+ * shiguchi.ui.path} (the SPA, the API and the redirect all move), a servlet context path (the
+ * config's links carry it) and {@code shiguchi.ui.enabled} left unset (no UI routes at all).
  */
 @DisplayName("gRPC UI in a servlet application: path and enablement")
 class ServletUiPathAndSwitchTest {
@@ -62,6 +62,30 @@ class ServletUiPathAndSwitchTest {
 
             assertThat(response.statusCode()).isEqualTo(200);
             assertThat(response.headers().firstValue("Content-Type").orElse("")).contains("text/html");
+        }
+    }
+
+    @Nested
+    @SpringBootTest(
+            classes = ServletUiTestApp.class,
+            webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+            properties = {"shiguchi.ui.enabled=true", "server.servlet.context-path=/app"})
+    @DisplayName("with server.servlet.context-path=/app")
+    class ContextPath {
+
+        @Value("${local.server.port}")
+        private int port;
+
+        @Test
+        @DisplayName("GIVEN a context path WHEN requesting the config SHOULD answer links under the context path")
+        void given_contextPath_when_requestingConfig_should_answerLinksUnderIt() throws Exception {
+            HttpResponse<String> response = new UiHttp(port).get("/app/grpc-ui/api/config");
+
+            assertThat(response.statusCode()).isEqualTo(200);
+            assertThat(response.body())
+                    .contains("\"swaggerPath\":\"/app/swagger-ui.html\"")
+                    .contains("\"pushPath\":\"/app/push\"")
+                    .contains("\"pushAdminPath\":\"/app/actuator/gateway-push\"");
         }
     }
 
