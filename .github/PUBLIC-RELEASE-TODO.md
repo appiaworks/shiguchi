@@ -23,7 +23,7 @@ runners. What is left needs an account or a secret only the owner can create.
 - [x] Secrets: `MAVEN_CENTRAL_USERNAME` / `MAVEN_CENTRAL_PASSWORD` (Portal user token),
       `SIGNING_KEY` (ASCII-armored private key) / `SIGNING_KEY_PASSWORD`.
 
-The `publish-central` job fails a tag run while these secrets are missing.
+The `publish-central` job in `release-pipeline.yml` fails a tag run while these secrets are missing.
 
 ## GitHub
 
