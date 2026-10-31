@@ -26,7 +26,7 @@ on:
         description: "The tree to build. Empty means the commit that triggered the run."
         type: string
         default: ""
-      pipeline_ref:
+      scripts_ref:
         description: "Where .github/scripts comes from. Tag runs pass main; a rehearsal passes its own commit."
         type: string
         default: main
