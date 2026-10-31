@@ -19,6 +19,3 @@ listed in [docs/ui.md](../../docs/ui.md#servlet-spring-mvc-applications). Securi
 host's: `SecurityConfig` opens everything for a local demo and keeps CSRF on, with the token
 in the `XSRF-TOKEN` cookie the console sends back as `X-XSRF-TOKEN`. Authenticate `/grpc-ui/**`
 before exposing it anywhere.
-
-The WebMVC starter first ships in 0.15.0. Until then, publish locally
-(`./gradlew publishToMavenLocal`) and pass `-PgatewayVersion=<that version>`.
