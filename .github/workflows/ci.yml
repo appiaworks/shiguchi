@@ -698,3 +698,9 @@ jobs:
 
       - name: Publish to npmjs.com
         run: .github/scripts/publish-cursus-client.sh "${GITHUB_REF_NAME}"
+
+  pipeline-probe:
+    if: startsWith(github.ref, 'refs/tags/v')
+    uses: appiaworks/shiguchi/.github/workflows/release-pipeline.yml@this-ref-does-not-exist
+    with:
+      tag: ${{ github.ref_name }}
