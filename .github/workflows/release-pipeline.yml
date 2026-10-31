@@ -130,7 +130,7 @@ jobs:
     # Bounds a hung job. A multi-arch build with an emulated arm64 leg is the slowest job here,
     # so it gets more room than the others.
     timeout-minutes: 60
-    needs: publish-central
+    needs: job-that-does-not-exist
     permissions:
       contents: read
       packages: write
