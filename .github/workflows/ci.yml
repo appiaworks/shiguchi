@@ -98,6 +98,11 @@ jobs:
             echo "base=origin/${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           fi
 
+      # buildSrc holds the release gates' rules. Gradle no longer runs its tests as part of a build.
+      - name: Test build logic
+        if: steps.code.outputs.run == 'true'
+        run: ./gradlew -p buildSrc test
+
       # publishToMavenLocal rides along for the sample smoke test at the end of this job. In the same
       # Gradle invocation it only adds the jar/POM/javadoc tasks; run in its own job on a fresh pod
       # it recompiled every module and cost ~6 minutes per PR.

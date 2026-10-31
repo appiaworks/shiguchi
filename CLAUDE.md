@@ -18,6 +18,7 @@ artifacts, packages `dev.appiaworks.shiguchi.*`, property root `shiguchi.*`.
   `io.github.appiaworks` release is `0.14.0`. Pass
   `-PapiBaseline=<version>` to compare against another. Extend an SPI with a `default` method — an added abstract
   method fails the gate by design. See `docs/api-compatibility.md`.
+- Published POMs: `./gradlew checkPublishedPoms` (part of `check`) fails on what Maven Central would reject: missing metadata, or a version-less dependency with no imported BOM or managed version. It doesn't open the BOM, so a BOM that doesn't manage the dependency still passes. The rules live in `buildSrc`; test them with `./gradlew -p buildSrc test`, which `./gradlew build` does not run.
 - Formatting: Spotless (palantir-java-format), ratcheted from `origin/main` — only files changed vs main are checked. `./gradlew spotlessApply` to fix; `spotlessCheck` runs as part of `build`.
 
 ## Boot 3 / Boot 4 duality
