@@ -132,6 +132,12 @@ jobs:
           annotate_only: true # never fail the job: the build step above already decided that
           detailed_summary: true
 
+      # A retried test leaves the job green, so this is the only sign of a flake.
+      - name: List tests that passed on retry
+        continue-on-error: true # diagnostics only
+        if: always() && steps.code.outputs.run == 'true'
+        run: python3 .github/scripts/list-retried-tests.py
+
       # JaCoCo runs only with -Pcoverage (see the root build.gradle.kts), passed by a dispatch with
       # the coverage input: its agent slows every test JVM, and it changes the test tasks' cache
       # key, so a nightly run with it would seed a build cache that PR runs cannot hit. Nothing is
@@ -279,6 +285,11 @@ jobs:
           ./gradlew :protobuf-java-extras:test :shiguchi-core:test --continue
           -PtestJavaVersion=21
           "-Porg.gradle.java.installations.paths=${{ steps.jdk21.outputs.path }}"
+
+      - name: List tests that passed on retry
+        continue-on-error: true # diagnostics only
+        if: always()
+        run: python3 .github/scripts/list-retried-tests.py
 
       - name: Upload test reports
         continue-on-error: true # diagnostics only: a full artifact quota must not fail the job (and skip publishing)
