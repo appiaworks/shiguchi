@@ -1,0 +1,292 @@
+name: Release pipeline
+
+# Everything a release publishes except the npm client, whose trusted publisher is ci.yml.
+#
+# Tag runs call this file at @main, so a fix to the pipeline reaches a patch release without a
+# backport. github.sha and github.ref stay the tag's, so what gets built and the provenance it
+# carries still name the tag. Only the logic comes from main. That is why this file may only use
+# a Gradle task or repository file that every live release branch has.
+#
+# Maven Central goes first and helm and the image wait for it, so a Central rejection pushes nothing.
+#
+# dry_run publishes nothing: Central becomes publishToMavenLocal, helm and the image build without
+# a push, and the GitHub Release is skipped. release-rehearsal.yml runs that mode.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "The release, as vX.Y.Z. It must match the version in the tree being built."
+        required: true
+        type: string
+      dry_run:
+        description: "Publish nothing."
+        type: boolean
+        default: false
+      ref:
+        description: "The tree to build. Empty means the commit that triggered the run."
+        type: string
+        default: ""
+      pipeline_ref:
+        description: "Where .github/scripts comes from. Tag runs pass main; a rehearsal passes its own commit."
+        type: string
+        default: main
+    secrets:
+      MAVEN_CENTRAL_USERNAME:
+        required: false
+      MAVEN_CENTRAL_PASSWORD:
+        required: false
+      SIGNING_KEY:
+        required: false
+      SIGNING_KEY_PASSWORD:
+        required: false
+    outputs:
+      central-published:
+        description: "'true' once the Central job succeeded. Set even if helm or the image then fail."
+        value: ${{ jobs.publish-central.outputs.published }}
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/shiguchi
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # Publish to Maven Central (Sonatype Central Portal). This is the only Maven publish. A real run
+  # fails when the secrets are missing; a version already on Central is skipped. Afterwards it
+  # creates the GitHub Release: a draft, the cursus fat jar attached, then published (releases are
+  # immutable, so the asset must be there before it goes out).
+  # ──────────────────────────────────────────────────────────────────────────
+  publish-central:
+    name: Publish to Maven Central
+    runs-on: ubuntu-latest
+    # Bounds a hung job. Signing and uploading every module takes a while.
+    timeout-minutes: 45
+    permissions:
+      contents: write # creates the GitHub Release with the cursus jar
+    outputs:
+      published: ${{ steps.done.outputs.published }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      # After the checkout above, which would clean it away.
+      - name: Check out the pipeline's scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.pipeline_ref }}
+          path: .pipeline
+          sparse-checkout: .github/scripts
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          java-version: "25"
+          distribution: temurin
+          cache: gradle
+
+      # A separate step, so the Central credentials are not in a dry run's environment. Without
+      # them the build has no Central target, which is a stronger guarantee than an `if`.
+      - name: Rehearse the publish
+        if: inputs.dry_run
+        env:
+          TAG: ${{ inputs.tag }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: .pipeline/.github/scripts/publish-central.sh "$TAG" --dry-run
+
+      - name: Publish and release
+        if: ${{ !inputs.dry_run }}
+        env:
+          TAG: ${{ inputs.tag }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: .pipeline/.github/scripts/publish-central.sh "$TAG"
+
+      # The fat jar of the cursus command line, for people who do not use jbang.
+      - name: Build the cursus jar
+        run: ./gradlew :shiguchi-cursus-cli:shadowJar --no-daemon
+
+      - name: Create the GitHub Release with cursus attached
+        if: ${{ !inputs.dry_run }}
+        env:
+          TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: .pipeline/.github/scripts/attach-cursus.sh "$TAG"
+
+      # Last, so it means the whole job succeeded. ci.yml gates the npm publish on it.
+      - name: Record success
+        id: done
+        run: echo "published=true" >> "$GITHUB_OUTPUT"
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Build the OCI image from sample-full and push it to GHCR
+  # ──────────────────────────────────────────────────────────────────────────
+  image:
+    name: Build & Push OCI Image
+    runs-on: ubuntu-latest
+    # Bounds a hung job. A multi-arch build with an emulated arm64 leg is the slowest job here,
+    # so it gets more room than the others.
+    timeout-minutes: 60
+    needs: publish-central
+    permissions:
+      contents: read
+      packages: write
+      security-events: write # uploads the Trivy SARIF to code scanning
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/shiguchi/sample-full:${{ inputs.tag }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          java-version: "25"
+          distribution: temurin
+          cache: gradle
+
+      - name: Log in to GHCR
+        if: ${{ !inputs.dry_run }}
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The samples are a standalone consumer build that resolves the published
+      # io.github.appiaworks:* artifacts. Publish them to mavenLocal first so the sample
+      # can resolve them on this fresh runner, then build the boot jar.
+      - name: Publish libraries to mavenLocal
+        run: ./gradlew publishToMavenLocal
+
+      # The samples default to samples/gradle.properties; mavenLocal holds the root project
+      # version, so pass that through explicitly.
+      - name: Build sample boot jar
+        run: |
+          GATEWAY_VERSION=$(grep -oP 'version = "\K[^"]+' build.gradle.kts | head -1)
+          ./gradlew -p samples sample-full:bootJar -PgatewayVersion="$GATEWAY_VERSION"
+
+      - name: Assemble Docker build context
+        run: |
+          JAR="$(ls samples/sample-full/build/libs/*.jar | grep -v -- '-plain.jar' | head -1)"
+          echo "Using boot jar: $JAR"
+          cp "$JAR" samples/sample-full/app.jar
+
+      # linux/amd64 + linux/arm64. The arm64 leg is emulated through QEMU, which is why this is
+      # the slowest job in the workflow.
+      - name: Set up QEMU (for the arm64 leg)
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build and push image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: samples/sample-full
+          platforms: linux/amd64,linux/arm64
+          push: ${{ !inputs.dry_run }}
+          tags: ${{ env.IMAGE }}
+          provenance: true # SLSA attestation, so the image records how it was built
+          sbom: true
+
+      # A second, standalone SBOM in SPDX form, attached to the workflow run. The one buildx
+      # attaches travels with the image for anything that reads attestations; this one is for a
+      # human (or an auditor) who just wants the file.
+      - name: Generate SBOM (SPDX)
+        if: ${{ !inputs.dry_run }}
+        continue-on-error: true # diagnostics only: a full artifact quota must not fail the job (and skip publishing)
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: ${{ env.IMAGE }}
+          format: spdx-json
+          artifact-name: sample-full-sbom.spdx.json
+          # The action also attaches the file to the tag's GitHub Release when one exists, which
+          # this job's token may not do: v0.7.0 failed here with "Resource not accessible by
+          # integration" — after the image was pushed — and the scan below was skipped. Earlier
+          # tags passed only because their Release did not exist yet at this point.
+          upload-release-assets: false
+
+      # Scans the image that was just pushed, so a dry run has nothing to scan. Reports only: a
+      # CVE published in a base image hours before a release should be visible in the run, not a
+      # reason the release fails with nothing the author can do about it.
+      #
+      # The findings are printed in the job log and uploaded as SARIF, so they also show in the
+      # repository's Security tab (code scanning).
+      - name: Scan image for vulnerabilities
+        if: ${{ !inputs.dry_run }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: "0" # report, never block a release
+          ignore-unfixed: true # a CVE with no fix available is not an action item
+
+      - name: Scan image for vulnerabilities (SARIF, for code scanning)
+        if: ${{ always() && !inputs.dry_run }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+          ignore-unfixed: true
+
+      - name: Upload scan results to code scanning
+        if: ${{ always() && !inputs.dry_run }}
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-image
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Package the Helm chart and push it to the GHCR OCI registry
+  # ──────────────────────────────────────────────────────────────────────────
+  helm:
+    name: Publish Helm Chart
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: publish-central
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+
+      - name: Log in to GHCR (Helm OCI)
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GH_TOKEN" | helm registry login ${{ env.REGISTRY }} \
+            --username ${{ github.actor }} --password-stdin
+
+      - name: Set chart version from tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          VERSION="${TAG#v}"   # strip leading 'v'
+          sed -i "s/^version:.*/version: ${VERSION}/" helm/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"${VERSION}\"/" helm/Chart.yaml
+
+      - name: Package Helm chart
+        run: helm package helm/ --destination /tmp/helm-pkg
+
+      - name: Push chart to GHCR
+        if: ${{ !inputs.dry_run }}
+        run: |
+          CHART_FILE=$(ls /tmp/helm-pkg/*.tgz)
+          helm push "${CHART_FILE}" oci://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/charts
