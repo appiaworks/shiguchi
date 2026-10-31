@@ -35,4 +35,6 @@ jobs:
           echo "DISPATCH: ok"
       - name: Delete the protected branch
         if: always()
-        run: gh api -X DELETE "repos/$R/git/refs/heads/release/9.9.x" && echo "DELETE: ok"
+        run: |
+          gh api -X DELETE "repos/$R/git/refs/heads/release/9.9.x"
+          echo "DELETE: ok"
