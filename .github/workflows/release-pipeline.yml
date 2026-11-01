@@ -87,7 +87,12 @@ jobs:
         with:
           java-version: "25"
           distribution: temurin
-          cache: gradle
+
+      # Read-only, or a rehearsal dispatched from main would write what later builds restore.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-read-only: true
 
       # A separate step, so the Central credentials are not in a dry run's environment. Without
       # them the build has no Central target, which is a stronger guarantee than an `if`.
@@ -120,27 +125,43 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: .pipeline/.github/scripts/attach-cursus.sh "$TAG"
 
+      # The image's sample build resolves these libraries. A dry run already put them in mavenLocal.
+      # Neither step can fail the release: image-jar publishes them itself when they don't arrive.
+      - name: Publish libraries to mavenLocal
+        if: ${{ !inputs.dry_run }}
+        continue-on-error: true
+        run: ./gradlew publishToMavenLocal --no-daemon --no-configuration-cache
+
+      # include-hidden-files: upload-artifact skips hidden paths, and this one is under ~/.m2.
+      - name: Hand the libraries to the image build
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: maven-local
+          path: ~/.m2/repository/io/github/appiaworks
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
       # Last, so it means the whole job succeeded. ci.yml gates the npm publish on it.
       - name: Record success
         id: done
         run: echo "published=true" >> "$GITHUB_OUTPUT"
 
   # ──────────────────────────────────────────────────────────────────────────
-  # Build the OCI image from sample-full and push it to GHCR
+  # The OCI image from sample-full, on GHCR. One job builds the boot jar, a native job per platform
+  # builds and pushes by digest, and the last joins the digests under the release's tag and scans it.
+  #
+  # The artifacts between them last a day. Re-running one of these jobs later than that needs a
+  # re-run of all jobs, which is safe: a version already on Central is skipped.
   # ──────────────────────────────────────────────────────────────────────────
-  image:
-    name: Build & Push OCI Image
+  image-jar:
+    name: Build the image's boot jar
     runs-on: ubuntu-latest
-    # Bounds a hung job. A multi-arch build with an emulated arm64 leg is the slowest job here,
-    # so it gets more room than the others.
-    timeout-minutes: 60
+    timeout-minutes: 30
     needs: publish-central
     permissions:
       contents: read
-      packages: write
-      security-events: write # uploads the Trivy SARIF to code scanning
-    env:
-      IMAGE: ghcr.io/${{ github.repository_owner }}/shiguchi/sample-full:${{ inputs.tag }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -152,7 +173,84 @@ jobs:
         with:
           java-version: "25"
           distribution: temurin
-          cache: gradle
+
+      # Read-only, or a rehearsal dispatched from main would write what later builds restore.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-read-only: true
+
+      - name: Fetch the libraries from the Central job
+        id: libraries
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: maven-local
+          path: ~/.m2/repository/io/github/appiaworks
+
+      # The samples are a standalone consumer build that resolves the published
+      # io.github.appiaworks:* artifacts from mavenLocal. A failed download can leave part of them
+      # behind, so anything but a good download is replaced by a fresh publish.
+      - name: Publish libraries to mavenLocal if they did not arrive
+        env:
+          FETCH: ${{ steps.libraries.outcome }}
+        run: |
+          VERSION=$(grep -oP 'version = "\K[^"]+' build.gradle.kts | head -1)
+          echo "GATEWAY_VERSION=$VERSION" >> "$GITHUB_ENV"
+          LIBRARIES="$HOME/.m2/repository/io/github/appiaworks"
+          if [ "$FETCH" = "success" ] && ls "$LIBRARIES/shiguchi-core/$VERSION/"*.pom >/dev/null 2>&1; then
+            echo "Using the libraries from the Central job"
+          else
+            echo "::warning::The libraries did not arrive from the Central job. Publishing them here."
+            rm -rf "$LIBRARIES"
+            ./gradlew publishToMavenLocal
+          fi
+
+      # The samples default to samples/gradle.properties; mavenLocal holds the root project
+      # version, so pass that through explicitly.
+      - name: Build sample boot jar
+        run: ./gradlew -p samples sample-full:bootJar -PgatewayVersion="$GATEWAY_VERSION"
+
+      - name: Assemble Docker build context
+        run: |
+          JAR="$(ls samples/sample-full/build/libs/*.jar | grep -v -- '-plain.jar' | head -1)"
+          echo "Using boot jar: $JAR"
+          cp "$JAR" samples/sample-full/app.jar
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: image-jar
+          path: samples/sample-full/app.jar
+          if-no-files-found: error
+          retention-days: 1
+
+  # Native on both platforms. The Dockerfile's training run writes an AOT cache, which is slow under
+  # emulation.
+  image-leg:
+    name: Build OCI Image (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    needs: image-jar
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: image-jar
+          path: samples/sample-full
 
       - name: Log in to GHCR
         if: ${{ !inputs.dry_run }}
@@ -162,42 +260,80 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # The samples are a standalone consumer build that resolves the published
-      # io.github.appiaworks:* artifacts. Publish them to mavenLocal first so the sample
-      # can resolve them on this fresh runner, then build the boot jar.
-      - name: Publish libraries to mavenLocal
-        run: ./gradlew publishToMavenLocal
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-      # The samples default to samples/gradle.properties; mavenLocal holds the root project
-      # version, so pass that through explicitly.
-      - name: Build sample boot jar
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: samples/sample-full
+          platforms: linux/${{ matrix.arch }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/sample-full,push-by-digest=true,name-canonical=true,push=${{ !inputs.dry_run }}
+          provenance: true # SLSA attestation, so the image records how it was built
+          sbom: true
+
+      - name: Record the digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
         run: |
-          GATEWAY_VERSION=$(grep -oP 'version = "\K[^"]+' build.gradle.kts | head -1)
-          ./gradlew -p samples sample-full:bootJar -PgatewayVersion="$GATEWAY_VERSION"
+          [ -n "$DIGEST" ] || { echo "::error::the build reported no digest"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
 
-      - name: Assemble Docker build context
-        run: |
-          JAR="$(ls samples/sample-full/build/libs/*.jar | grep -v -- '-plain.jar' | head -1)"
-          echo "Using boot jar: $JAR"
-          cp "$JAR" samples/sample-full/app.jar
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: image-digest-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
 
-      # linux/amd64 + linux/arm64. The arm64 leg is emulated through QEMU, which is why this is
-      # the slowest job in the workflow.
-      - name: Set up QEMU (for the arm64 leg)
-        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+  image:
+    name: Build & Push OCI Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: image-leg
+    permissions:
+      contents: read
+      packages: write
+      security-events: write # uploads the Trivy SARIF to code scanning
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/shiguchi/sample-full:${{ inputs.tag }}
+
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: image-digest-*
+          path: ${{ runner.temp }}/digests
+          merge-multiple: true
+
+      - name: Log in to GHCR
+        if: ${{ !inputs.dry_run }}
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-      - name: Build and push image
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: samples/sample-full
-          platforms: linux/amd64,linux/arm64
-          push: ${{ !inputs.dry_run }}
-          tags: ${{ env.IMAGE }}
-          provenance: true # SLSA attestation, so the image records how it was built
-          sbom: true
+      # A dry run pushed nothing, so it can only check that both platforms reported a digest.
+      - name: Join the platforms under the tag
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          REPOSITORY: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/sample-full
+        run: |
+          COUNT=$(ls | wc -l)
+          [ "$COUNT" = "2" ] || { echo "::error::expected 2 platform digests, found $COUNT"; exit 1; }
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "Dry run: would join $(ls | tr '\n' ' ')as $IMAGE"
+            exit 0
+          fi
+          # shellcheck disable=SC2046 # one word per digest
+          docker buildx imagetools create -t "$IMAGE" $(printf "$REPOSITORY@sha256:%s " *)
+          docker buildx imagetools inspect "$IMAGE"
 
       # A second, standalone SBOM in SPDX form, attached to the workflow run. The one buildx
       # attaches travels with the image for anything that reads attestations; this one is for a
