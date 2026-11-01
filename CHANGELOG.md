@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-01
+
 ### Changed
 
 - No library code has changed since 0.15.1. This release is the first minor to go through the new
