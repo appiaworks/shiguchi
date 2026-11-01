@@ -1,8 +1,8 @@
 name: Publish npm client
 
 # Manual re-publish of @appiaworks/shiguchi-cursus-client for a release tag that is already
-# out, for when the tag run's publish-npm job did not run (it needs publish-central, so any
-# failure there skips it). Re-running the tag run does not help once Central has the version:
+# out, for when the tag run's publish-npm job did not run (it needs the pipeline's Central job, so
+# a failure there skips it). Re-running the tag run does not help once Central has the version:
 # a step after the Maven publish can keep failing. This checks out the tag and runs the same
 # script, which fails on a package.json/tag mismatch and skips a version already on the registry.
 # Authenticates by npm trusted publishing: this file is one of the package's trusted publishers.
