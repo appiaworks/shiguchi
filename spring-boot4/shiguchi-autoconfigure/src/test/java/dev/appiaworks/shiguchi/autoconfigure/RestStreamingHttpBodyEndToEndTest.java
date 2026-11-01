@@ -25,6 +25,7 @@ import io.grpc.ServerServiceDefinition;
 import io.grpc.Status;
 import io.grpc.stub.ServerCalls;
 import io.grpc.stub.StreamObserver;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -32,6 +33,8 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -41,6 +44,8 @@ import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.env.Environment;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.web.reactive.function.BodyInserters;
@@ -65,6 +70,9 @@ class RestStreamingHttpBodyEndToEndTest {
     private static final Descriptor EXPORT_REQUEST = FILE.findMessageTypeByName("ExportRequest");
     private static final Descriptor IMPORT_SUMMARY = FILE.findMessageTypeByName("ImportSummary");
     private static final Descriptor HTTP_BODY = com.google.api.HttpBody.getDescriptor();
+
+    /** Chunks the backend has handed to gRPC for the download under test, if one tracks them. */
+    private static final AtomicReference<AtomicInteger> EXPORT_PROGRESS = new AtomicReference<>();
 
     private static final Server BACKEND = startBackend();
     private static final Path PB_FILE = writeDescriptorSet();
@@ -153,23 +161,50 @@ class RestStreamingHttpBodyEndToEndTest {
     @Test
     @DisplayName("GIVEN server-streaming export with 2000 chunks WHEN downloaded SHOULD stream all rows through")
     void given_exportWith2000Chunks_when_downloaded_should_streamAllRows() {
-        var reply = client.get()
-                .uri("/v1/exports/b?chunks=2000")
-                .exchangeToMono(r -> r.bodyToMono(byte[].class)
-                        .map(b -> new Reply(
-                                r.statusCode().value(),
-                                r.headers().asHttpHeaders().getContentType(),
-                                b)))
-                .block(Duration.ofSeconds(30));
-
-        assertThat(reply.status()).isEqualTo(200);
-        String body = new String(reply.body(), StandardCharsets.UTF_8);
-
         // Each row is "row-<i>\n"; sum the bytes
         int expectedBytes = 0;
         for (int i = 0; i < 2000; i++) {
             expectedBytes += ("row-" + i + "\n").getBytes().length;
         }
+
+        // Track progress so a stall says where it stopped: before the headers, mid-body, or
+        // after the last byte without completion.
+        var status = new AtomicInteger(-1);
+        var received = new AtomicLong();
+        var sent = new AtomicInteger();
+        EXPORT_PROGRESS.set(sent);
+        Reply reply;
+        try {
+            reply = client.get()
+                    .uri("/v1/exports/b?chunks=2000")
+                    .exchangeToMono(r -> {
+                        status.set(r.statusCode().value());
+                        return r.bodyToFlux(DataBuffer.class)
+                                .reduce(new ByteArrayOutputStream(), (out, buf) -> {
+                                    received.addAndGet(buf.readableByteCount());
+                                    byte[] bytes = new byte[buf.readableByteCount()];
+                                    buf.read(bytes);
+                                    DataBufferUtils.release(buf);
+                                    out.writeBytes(bytes);
+                                    return out;
+                                })
+                                .map(out -> new Reply(
+                                        r.statusCode().value(),
+                                        r.headers().asHttpHeaders().getContentType(),
+                                        out.toByteArray()));
+                    })
+                    .block(Duration.ofSeconds(30));
+        } catch (IllegalStateException timeout) {
+            throw new AssertionError(
+                    "download stalled: status=" + status.get() + ", bytes=" + received.get() + "/" + expectedBytes
+                            + ", backend sent " + sent.get() + "/2000 chunks",
+                    timeout);
+        } finally {
+            EXPORT_PROGRESS.set(null);
+        }
+
+        assertThat(reply.status()).isEqualTo(200);
+        String body = new String(reply.body(), StandardCharsets.UTF_8);
         assertThat(body.length()).isEqualTo(expectedBytes);
 
         // Spot-check some rows
@@ -405,6 +440,10 @@ class RestStreamingHttpBodyEndToEndTest {
                                                     ("row-" + i + "\n").getBytes(StandardCharsets.UTF_8)))
                                     .build();
                             observer.onNext(msg);
+                            AtomicInteger progress = EXPORT_PROGRESS.get();
+                            if (progress != null) {
+                                progress.incrementAndGet();
+                            }
                         }
                         observer.onCompleted();
                     } catch (Exception e) {
