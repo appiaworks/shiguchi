@@ -59,7 +59,6 @@ jobs:
       packages: write
       security-events: write
       pull-requests: write
-      actions: write
     uses: ./.github/workflows/release-pipeline.yml
     with:
       tag: ${{ needs.resolve.outputs.tag }}
