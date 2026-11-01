@@ -38,6 +38,8 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: read
+      actions: read # verify-tag-tested.sh reads the release PR's CI run
+      pull-requests: read # and finds that PR from the tagged commit
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -61,6 +63,15 @@ jobs:
             echo "run=false" >> "$GITHUB_OUTPUT"
             echo "Only docs changed — skipping the build."
           fi
+
+      # The release PR's run already tested this exact tree, so a tag's build repeats only what the
+      # publish depends on. Doubt means a full build; see the script.
+      - name: Check whether the release PR tested this commit
+        id: tested
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/verify-tag-tested.sh "$(git rev-parse HEAD)"
 
       - name: Set up JDK 25
         if: steps.code.outputs.run == 'true'
@@ -96,16 +107,18 @@ jobs:
 
       # buildSrc holds the release gates' rules. Gradle no longer runs its tests as part of a build.
       - name: Test build logic
-        if: steps.code.outputs.run == 'true'
+        if: steps.code.outputs.run == 'true' && steps.tested.outputs.tested != 'true'
         run: ./gradlew -p buildSrc test
 
       # publishToMavenLocal rides along for the sample smoke test at the end of this job. In the same
       # Gradle invocation it only adds the jar/POM/javadoc tasks; run in its own job on a fresh pod
       # it recompiled every module and cost ~6 minutes per PR.
+      # verify-tag-tested.sh looks this step up by name: rename it in both places.
       - name: Build and test
         if: steps.code.outputs.run == 'true'
         run: >-
-          ./gradlew build publishToMavenLocal --continue
+          ./gradlew ${{ steps.tested.outputs.tested == 'true' && 'assemble apiCompatibility checkPublishedPoms' || 'build' }}
+          publishToMavenLocal --continue
           -PspotlessRatchetFrom=${{ steps.ratchet.outputs.base }}
           ${{ inputs.coverage && '-Pcoverage' || '' }}
 
