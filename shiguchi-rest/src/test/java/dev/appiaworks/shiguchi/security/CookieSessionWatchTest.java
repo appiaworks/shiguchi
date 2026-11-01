@@ -10,6 +10,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.TestingAuthenticationToken;
@@ -78,6 +79,34 @@ class CookieSessionWatchTest {
         active.put("h1", false);
 
         StepVerifier.create(watch.ended(cookieCaller("h1"))).expectComplete().verify(Duration.ofSeconds(5));
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a session that ended just before the watch started WHEN watching SHOULD complete at once, not after an interval")
+    void given_session_ended_before_watching_when_watching_should_complete_at_once() {
+        CookieSessionWatch slow = new CookieSessionWatch(sessions, Duration.ofHours(1), null);
+        active.put("h1", false);
+
+        StepVerifier.create(slow.ended(cookieCaller("h1"))).expectComplete().verify(Duration.ofSeconds(5));
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a session that ends right after the first check said active WHEN watching SHOULD complete at once by the event")
+    void given_session_ended_after_first_check_when_watching_should_complete_at_once() {
+        AtomicReference<CookieSessionWatch> slow = new AtomicReference<>();
+        slow.set(new CookieSessionWatch(
+                handle -> Mono.fromSupplier(() -> {
+                    slow.get().onSessionEnded(new CookieSessionEnded(handle));
+                    return true;
+                }),
+                Duration.ofHours(1),
+                null));
+
+        StepVerifier.create(slow.get().ended(cookieCaller("h1")))
+                .expectComplete()
+                .verify(Duration.ofSeconds(5));
     }
 
     @Test
