@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- No library code has changed since 0.15.1. This release is the first minor to go through the new
+  release pipeline.
+- The `sample-full` image is now built natively on each platform instead of under QEMU emulation.
+
 ## [0.15.1] - 2026-11-01
 
 ### Fixed
