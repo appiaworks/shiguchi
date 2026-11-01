@@ -520,6 +520,9 @@ class BffStreamBindingEndToEndTest {
     /** One graphql-transport-ws socket: connection_init, then the operations sent after the ack. */
     private static final class GraphQlSocket implements AutoCloseable {
         private final List<JsonNode> received = new CopyOnWriteArrayList<>();
+        /** How the socket went: a failure message then says whether it was still open. */
+        private final List<String> signals = new CopyOnWriteArrayList<>();
+
         private final Sinks.Many<String> outbound = Sinks.many().unicast().onBackpressureBuffer();
         private final Disposable connection;
 
@@ -533,6 +536,7 @@ class BffStreamBindingEndToEndTest {
 
                 @Override
                 public Mono<Void> handle(WebSocketSession session) {
+                    session.closeStatus().subscribe(status -> signals.add("closed " + status));
                     Mono<Void> send = session.send(outbound.asFlux().map(session::textMessage));
                     Mono<Void> receive = session.receive()
                             .map(WebSocketMessage::getPayloadAsText)
@@ -546,14 +550,15 @@ class BffStreamBindingEndToEndTest {
             headers.accept(h);
             connection = new ReactorNettyWebSocketClient()
                     .execute(URI.create("ws://localhost:" + port + "/graphql/ws"), h, handler)
-                    .subscribe(v -> {}, e -> {});
+                    .subscribe(v -> {}, e -> signals.add("failed " + e), () -> signals.add("completed"));
         }
 
         void subscribe(String id, String query) {
             awaitType("connection_ack");
             try {
                 outbound.tryEmitNext(JSON.writeValueAsString(
-                        Map.of("id", id, "type", "subscribe", "payload", Map.of("query", query))));
+                                Map.of("id", id, "type", "subscribe", "payload", Map.of("query", query))))
+                        .orThrow();
             } catch (IOException e) {
                 throw new IllegalStateException(e);
             }
@@ -580,7 +585,8 @@ class BffStreamBindingEndToEndTest {
             try {
                 awaitTrue(() -> received.stream().anyMatch(f -> endedFrame(f, id, reason)));
             } catch (AssertionError e) {
-                throw new AssertionError("no " + reason + " frame for " + id + " in " + received, e);
+                throw new AssertionError(
+                        "no " + reason + " frame for " + id + " in " + received + ", socket signals " + signals, e);
             }
             return received.stream()
                     .filter(f -> endedFrame(f, id, reason))
