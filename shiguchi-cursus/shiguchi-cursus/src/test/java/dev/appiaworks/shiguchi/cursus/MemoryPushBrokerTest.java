@@ -5,8 +5,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import reactor.core.Disposable;
 import reactor.test.StepVerifier;
 
 /**
@@ -110,5 +117,46 @@ class MemoryPushBrokerTest {
                 .thenCancel()
                 .verify(Duration.ofSeconds(5));
         assertThat(broker.activeTopics()).isZero();
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN the last subscriber leaving WHEN a new subscriber arrives at the same moment SHOULD keep the new one attached")
+    void given_lastSubscriberLeaving_when_subscribingConcurrently_should_keepNewSubscriberAttached() throws Exception {
+        try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
+            for (int round = 0; round < 20_000; round++) {
+                Disposable leaving = broker.subscribe(topic).subscribe();
+                List<PushEvent> received = new CopyOnWriteArrayList<>();
+                AtomicReference<Disposable> arriving = new AtomicReference<>();
+                CyclicBarrier start = new CyclicBarrier(2);
+
+                Future<?> leave = pool.submit(() -> {
+                    await(start);
+                    leaving.dispose();
+                });
+                Future<?> arrive = pool.submit(() -> {
+                    await(start);
+                    arriving.set(broker.subscribe(topic).subscribe(received::add));
+                });
+                leave.get(5, TimeUnit.SECONDS);
+                arrive.get(5, TimeUnit.SECONDS);
+
+                broker.publish(event("1")).block();
+
+                assertThat(received)
+                        .as("round %d: the new subscriber must be on the sink publishers use", round)
+                        .hasSize(1);
+                arriving.get().dispose();
+                assertThat(broker.activeTopics()).isZero();
+            }
+        }
+    }
+
+    private static void await(CyclicBarrier barrier) {
+        try {
+            barrier.await(5, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 }
