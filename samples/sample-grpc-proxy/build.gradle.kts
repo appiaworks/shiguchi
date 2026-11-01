@@ -5,9 +5,8 @@ plugins {
 }
 
 group = "dev.appiaworks.shiguchi.sample"
-version = "0.15.0"
 
-val gatewayVersion = providers.gradleProperty("gatewayVersion").getOrElse("0.15.0")
+val gatewayVersion = providers.gradleProperty("gatewayVersion").get()
 
 dependencies {
     // gRPC proxy only — exposes a consolidated gRPC endpoint over reflection

@@ -6,9 +6,8 @@ plugins {
 
 group = "dev.appiaworks.shiguchi.sample"
 
-version = "0.15.0"
 
-val gatewayVersion = providers.gradleProperty("gatewayVersion").getOrElse("0.15.0")
+val gatewayVersion = providers.gradleProperty("gatewayVersion").get()
 
 dependencies {
     // REST + OpenAPI + GraphQL surfaces. The starters bring springdoc for the merged

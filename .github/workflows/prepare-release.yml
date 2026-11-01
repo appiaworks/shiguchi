@@ -1,0 +1,91 @@
+# Opens the release PR: versions, doc pins and the changelog date, from prepare-release.py.
+#
+# Dispatch it from main whatever the base: the workflow and the script come from the dispatched ref,
+# the tree they edit comes from `base`. It needs "Allow GitHub Actions to create and approve pull
+# requests" on, in the org settings and then the repo's.
+#
+# A PR opened with GITHUB_TOKEN starts no pull_request workflows, so this dispatches ci.yml on the
+# branch, and the checks report on the PR's head commit. That run differs from a PR run in two ways:
+# path filters run everything, which costs only time, and the Spotless ratchet compares the branch
+# with itself, so formatting isn't checked. The script edits no Java. pr-validation.yml doesn't run.
+name: Prepare release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, x.y.z"
+        required: true
+        type: string
+      base:
+        description: "Branch to release from: main, or release/x.y.x for a patch"
+        required: true
+        type: string
+        default: main
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Open release PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      VERSION: ${{ inputs.version }}
+      BASE: ${{ inputs.base }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out the script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: tools
+          persist-credentials: false
+
+      - name: Check out the base branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: tree
+          ref: ${{ inputs.base }}
+
+      - name: Edit versions, pins and changelog
+        working-directory: tree
+        run: python3 ../tools/.github/scripts/prepare-release.py "$VERSION"
+
+      - name: Push the branch
+        id: branch
+        working-directory: tree
+        run: |
+          if git diff --quiet; then
+            echo "::error::$BASE is already at $VERSION: there is nothing to release."
+            exit 1
+          fi
+          BRANCH="chore/release-$VERSION"
+          if [ -n "$(git ls-remote --heads origin "refs/heads/$BRANCH")" ]; then
+            echo "::error::$BRANCH already exists. Close its PR and delete the branch to prepare it again."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch --create "$BRANCH"
+          git commit --all --message "chore(release): $VERSION"
+          git push origin "$BRANCH"
+          echo "name=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Open the PR
+        working-directory: tree
+        env:
+          BRANCH: ${{ steps.branch.outputs.name }}
+        run: |
+          gh pr create --repo "$GITHUB_REPOSITORY" --base "$BASE" --head "$BRANCH" \
+            --title "chore(release): $VERSION" \
+            --body "Prepared by the Prepare release workflow. Review the changelog, merge, then push tag \`v$VERSION\` on the merge commit."
+
+      - name: Run CI on the branch
+        env:
+          BRANCH: ${{ steps.branch.outputs.name }}
+        run: gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"

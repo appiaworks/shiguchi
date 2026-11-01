@@ -9,6 +9,7 @@ plugins {
     id("com.vanniktech.maven.publish") version "0.37.0" apply false
     id("com.diffplug.spotless") version "8.10.4" apply false
     id("me.champeau.gradle.japicmp") version "0.4.6" apply false
+    id("org.gradle.test-retry") version "1.6.6" apply false
 }
 
 allprojects {
@@ -48,10 +49,24 @@ configure(subprojects.filter { it.name != "shiguchi-bom" }) {
     if (coverage) {
         apply(plugin = "jacoco")
     }
+    // One retry on CI, so a flaky test doesn't fail a PR or a release. Many failures mean something
+    // is really broken, so from maxFailures up nothing is retried. mergeReruns marks a test that passed
+    // on retry with <flakyFailure>, which .github/scripts/list-retried-tests.py reports. A failure
+    // on a developer's machine always counts.
+    val retryOnCi = providers.environmentVariable("CI").isPresent
+    apply(plugin = "org.gradle.test-retry")
     tasks.withType<Test> {
         useJUnitPlatform()
         if (coverage) {
             finalizedBy(tasks.withType<JacocoReport>())
+        }
+        if (retryOnCi) {
+            extensions.configure<org.gradle.testretry.TestRetryTaskExtension> {
+                maxRetries.set(1)
+                maxFailures.set(5)
+                failOnPassedAfterRetry.set(false)
+            }
+            reports.junitXml.mergeReruns.set(true)
         }
         // -PtestJavaVersion=21 runs the tests on that JDK (found through Gradle's toolchain
         // detection, e.g. -Porg.gradle.java.installations.paths=<jdk>) while the build stays on
@@ -130,10 +145,18 @@ configure(subprojects.filter { it.name !in samplesModules }) {
     val centralConfigured = providers.gradleProperty("mavenCentralUsername")
         .orElse(providers.environmentVariable("ORG_GRADLE_PROJECT_mavenCentralUsername"))
         .isPresent
+    // A key alone signs without configuring Central, which is how a release rehearsal proves the
+    // key and passphrase work. A workflow passes an unset secret as an empty value, hence the blank check.
+    val signingKeyConfigured = !providers.gradleProperty("signingInMemoryKey")
+        .orElse(providers.environmentVariable("ORG_GRADLE_PROJECT_signingInMemoryKey"))
+        .orNull.isNullOrBlank()
 
     extensions.configure<com.vanniktech.maven.publish.MavenPublishBaseExtension> {
         if (centralConfigured) {
             publishToMavenCentral()
+        }
+        // Also with Central and no key: that fails the build, rather than sending Central unsigned artifacts.
+        if (centralConfigured || signingKeyConfigured) {
             signAllPublications()
         }
         coordinates(project.group.toString(), project.name, project.version.toString())
@@ -163,6 +186,27 @@ configure(subprojects.filter { it.name !in samplesModules }) {
             }
         }
     }
+
+    // Fails on what Maven Central would reject, which is otherwise found only during a release.
+    // The generated POMs carry their task dependencies, so this also generates them.
+    val generatedPoms = files(tasks.withType<GenerateMavenPom>())
+    val checkPublishedPoms = tasks.register("checkPublishedPoms") {
+        group = "verification"
+        description = "Fails when a generated POM would be rejected by Maven Central."
+        inputs.files(generatedPoms)
+        doLast {
+            val problems = generatedPoms.files.flatMap { pom ->
+                PublishedPoms.problems(pom).map { "${pom.parentFile.name}: $it" }
+            }
+            if (problems.isNotEmpty()) {
+                throw GradleException(
+                    "${project.name} would be rejected by Maven Central:\n" +
+                        problems.joinToString("\n") { "  - $it" }
+                )
+            }
+        }
+    }
+    tasks.matching { it.name == "check" }.configureEach { dependsOn(checkPublishedPoms) }
 }
 
 // The functional test of the protoc-java-extras Gradle plugin builds a consumer project that

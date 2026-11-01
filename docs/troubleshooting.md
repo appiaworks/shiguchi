@@ -168,8 +168,13 @@ shiguchi:
 
 ### `Refusing traffic: the readiness policy is no longer satisfied`
 
-A backend that had loaded stopped being loadable after a refresh, so the gateway took itself out
-of rotation. It goes back by itself when the backend returns.
+A refresh does not cause this. A backend that loaded once stays loaded: when a later refresh
+fails, the gateway keeps the last good schema, stays ready, and reports the failure as `lastError`
+on the backends health indicator. Calls to that backend can still fail, as in
+[Health is `UP` but calls fail](#health-is-up-but-calls-fail).
+
+Only a backend that has not loaded yet counts against the readiness policy, which is what
+`Refusing traffic: readiness policy ...` reports at startup.
 
 ### Health is `UP` but calls fail
 

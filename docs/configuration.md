@@ -327,7 +327,7 @@ bean; define your own bean of that name and the gateway's backs off — call
 | `pb-descriptor-path` | — | `PB_FILE` mode: path to the `.pb` FileDescriptorSet |
 | `static-service-classes` | `[]` | `STATIC` mode: `*Grpc` stub class names |
 | `auto-discover.classpath` | `false` | `STATIC` mode: ClassGraph scan for stubs |
-| `auto-discover.spring-beans` | `false` | `STATIC` mode: scan Spring context for `BindableService` beans |
+| `auto-discover.spring-beans` | `false` | `STATIC` mode: add the generated `*Grpc` class of each `BindableService` bean. gRPC's own services (health, reflection) and services the gateway hosts are skipped; a bean with no generated class is skipped with a `WARN` |
 | `auto-discover.scan-packages` | `[]` | Limit the classpath scan |
 | `openapi-url` | — | `REST_DOWNSTREAM`: URL of the backend's OpenAPI 3 document (JSON or YAML). Fetched at startup and on refresh; drives route registration and the merged spec |
 | `base-url` | scheme+authority of `openapi-url` | `REST_DOWNSTREAM`: where requests are proxied to. Falls back to `http://host:port` when neither is set |

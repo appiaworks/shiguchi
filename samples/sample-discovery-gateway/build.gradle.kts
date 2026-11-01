@@ -6,9 +6,8 @@ plugins {
 
 group = "dev.appiaworks.shiguchi.sample"
 
-version = "0.15.0"
 
-val gatewayVersion = providers.gradleProperty("gatewayVersion").getOrElse("0.15.0")
+val gatewayVersion = providers.gradleProperty("gatewayVersion").get()
 
 dependencyManagement {
     // The Boot 3.5 train. spring-cloud-commons is all this sample needs (the DiscoveryClient

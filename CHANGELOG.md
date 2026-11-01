@@ -7,12 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-11-01
+
 ### Fixed
 
 - Cursus JDBC broker: an event appended while the first subscriber of an idle broker was joining
   could be skipped.
 - GraphQL: right after a service loaded late, a request could resolve the new relationships to
   null. The DataLoaders are now registered before the schema is rebuilt.
+- `auto-discover.spring-beans` found no routes for a `BindableService` written the usual way, a
+  top-level subclass of `*ImplBase`, so the app started with an empty console. It now also works
+  through proxies, no longer accepts a class just because its name ends in `Grpc`, skips gRPC's own
+  health and reflection services and gateway-hosted services, and logs a `WARN` for a bean it cannot
+  resolve.
+- Docs: a failed refresh does not take the gateway out of rotation; `troubleshooting.md` said it did.
 
 ## [0.15.0] - 2026-10-30
 
