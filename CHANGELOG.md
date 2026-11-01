@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Cursus in-memory broker: a subscriber joining a topic at the moment its last subscriber left could
+  attach to a discarded sink and silently receive nothing.
+
 ## [0.16.0] - 2026-11-01
 
 ### Changed
