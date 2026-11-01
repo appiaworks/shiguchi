@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-11-01
+
 ### Fixed
 
 - Cursus JDBC broker: an event appended while the first subscriber of an idle broker was joining
