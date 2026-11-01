@@ -144,13 +144,20 @@ class PushGroupsEndToEndTest {
             assertThat(seen).containsExactlyInAnyOrderElementsOf(published);
             assertThat(a.events()).isNotEmpty();
             assertThat(b.events()).isNotEmpty();
-            awaitTrue(() -> a.frames.stream()
-                                    .filter(f -> "acked".equals(f.path("type").asText()))
-                                    .count()
-                            + b.frames.stream()
-                                    .filter(f -> "acked".equals(f.path("type").asText()))
-                                    .count()
-                    >= 6);
+            // The wait above can end with the last events just arrived and not yet acked.
+            awaitTrue(() -> {
+                ackAll(a, topic);
+                ackAll(b, topic);
+                return a.frames.stream()
+                                        .filter(f ->
+                                                "acked".equals(f.path("type").asText()))
+                                        .count()
+                                + b.frames.stream()
+                                        .filter(f ->
+                                                "acked".equals(f.path("type").asText()))
+                                        .count()
+                        >= 6;
+            });
 
             JsonNode overview = get(ADMIN, null);
             assertThat(overview.at("/engine/groups/supported").asBoolean()).isTrue();
