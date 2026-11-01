@@ -2,6 +2,7 @@
 """Do what a release leaves behind, once its POM is on Maven Central.
 
 Usage: post-release.py <vX.Y.Z> --source <ref> [--dry-run] [--timeout-minutes N]
+       post-release.py <vX.Y.Z> --wait-only [--timeout-minutes N]
 
 Run it from a clean checkout of main. --source is where the release was built from: a new minor's
 release branch starts there, and a patch's changelog section is read from there.
@@ -239,17 +240,9 @@ def open_follow_up(branch, title, body):
             print(run("gh", "pr", "create", "--repo", repo, "--base", "main", "--head", branch, "--title", title, "--body", body))
         except ReleaseError as error:
             raise ReleaseError(
-                f"{error}\nIf Actions isn't permitted to create PRs, turn on \"Allow GitHub Actions to create and "
-                "approve pull requests\" in the org settings and then the repo's, and re-run this job."
+                f"{error}\nCheck that the release bot App is installed on this repo with contents and pull requests "
+                "write access, then re-run this job."
             ) from error
-
-    # A PR opened with GITHUB_TOKEN starts no workflows, so the required checks need a dispatch.
-    runs = run("gh", "run", "list", "--repo", repo, "--workflow", "ci.yml", "--branch", branch, "--json", "databaseId", "--jq", "length")
-    if runs == "0":
-        run("gh", "workflow", "run", "ci.yml", "--repo", repo, "--ref", branch)
-        print(f"dispatched CI on {branch}")
-    else:
-        print(f"{branch} already has a CI run")
 
 
 def post_release(tag, source, dry_run, timeout_minutes):
@@ -319,12 +312,18 @@ def post_release(tag, source, dry_run, timeout_minutes):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("tag", help="the release, vx.y.z")
-    parser.add_argument("--source", required=True, help="the ref or commit the release was built from")
+    parser.add_argument("--source", help="the ref or commit the release was built from")
     parser.add_argument("--dry-run", action="store_true", help="show the edits; write nothing")
     parser.add_argument("--timeout-minutes", type=int, default=60, help="how long to wait for Central")
+    parser.add_argument("--wait-only", action="store_true", help="wait for Central, then stop; needs no token or checkout")
     args = parser.parse_args()
+    if not args.wait_only and not args.source:
+        parser.error("--source is required unless --wait-only is given")
     try:
-        post_release(args.tag, args.source, args.dry_run, args.timeout_minutes)
+        if args.wait_only:
+            wait_for_central(args.tag.removeprefix("v"), args.timeout_minutes)
+        else:
+            post_release(args.tag, args.source, args.dry_run, args.timeout_minutes)
     except ReleaseError as error:
         print(f"post-release: {error}", file=sys.stderr)
         return 1

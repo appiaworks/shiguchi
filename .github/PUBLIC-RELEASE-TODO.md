@@ -29,3 +29,7 @@ The `publish-central` job in `release-pipeline.yml` fails a tag run while these 
 
 - [ ] After the first tag pushes the image and Helm chart to GHCR, make both packages public.
 - [ ] Install the Renovate GitHub app on the repository.
+- [ ] Create the release bot GitHub App in the org: repository permissions Contents and Pull requests set to
+      read and write, webhook off, installable only on this account. Install it on this repository only.
+      Store its client ID as the variable `RELEASE_BOT_CLIENT_ID` and a generated private key as the secret
+      `RELEASE_BOT_PRIVATE_KEY`. `prepare-release.yml` and the `post-release` job open their PRs with it.
