@@ -13,7 +13,7 @@ plugins {
 
 allprojects {
     group = "io.github.appiaworks"
-    version = "0.15.0"
+    version = "0.15.1"
     repositories {
         mavenLocal()
         mavenCentral()
