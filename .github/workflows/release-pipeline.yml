@@ -40,6 +40,9 @@ on:
         required: false
       SIGNING_KEY_PASSWORD:
         required: false
+      RELEASE_BOT_PRIVATE_KEY:
+        description: "The release bot GitHub App's key. Without it the follow-up PR's CI waits for a manual approval."
+        required: false
     outputs:
       central-published:
         description: "'true' once the Central job succeeded. Set even if helm or the image then fail."
@@ -309,16 +312,11 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      actions: write
+    env:
+      # The secrets context isn't available to a step's if.
+      HAS_BOT_KEY: ${{ secrets.RELEASE_BOT_PRIVATE_KEY != '' }}
 
     steps:
-      # The edits go on main, whichever tree was released.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: main
-          path: main-tree
-          persist-credentials: ${{ !inputs.dry_run }}
-
       - name: Check out the pipeline's scripts
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -327,10 +325,41 @@ jobs:
           sparse-checkout: .github/scripts
           persist-credentials: false
 
+      # Before the token exists: it lasts an hour, and this wait can too.
+      - name: Wait for Maven Central
+        if: ${{ !inputs.dry_run }}
+        env:
+          TAG: ${{ inputs.tag }}
+        run: python3 "$GITHUB_WORKSPACE/.pipeline/.github/scripts/post-release.py" "$TAG" --wait-only
+
+      # A PR opened with GITHUB_TOKEN holds its CI runs for a manual approval. One opened with an
+      # App's token runs CI like anyone else's.
+      - name: Get the release bot's token
+        id: bot
+        if: ${{ !inputs.dry_run && env.HAS_BOT_KEY == 'true' }}
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Warn when the bot isn't configured
+        if: ${{ !inputs.dry_run && env.HAS_BOT_KEY != 'true' }}
+        run: echo "::warning::RELEASE_BOT_PRIVATE_KEY isn't set. The follow-up PR's CI will wait for a manual approval."
+
+      # The edits go on main, whichever tree was released. The push has to use the bot's token too.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          path: main-tree
+          token: ${{ steps.bot.outputs.token || github.token }}
+          persist-credentials: ${{ !inputs.dry_run }}
+
       - name: Open the follow-up PR
         working-directory: main-tree
         env:
-          GH_TOKEN: ${{ !inputs.dry_run && secrets.GITHUB_TOKEN || '' }}
+          GH_TOKEN: ${{ !inputs.dry_run && (steps.bot.outputs.token || secrets.GITHUB_TOKEN) || '' }}
           TAG: ${{ inputs.tag }}
           SOURCE: ${{ inputs.ref || github.sha }}
           DRY_RUN: ${{ inputs.dry_run }}
