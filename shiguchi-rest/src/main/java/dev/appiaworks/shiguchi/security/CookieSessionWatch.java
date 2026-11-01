@@ -16,7 +16,8 @@ import reactor.core.scheduler.Schedulers;
  * Binds a long-lived stream opened with the BFF session cookie to that session. {@link #ended}
  * completes when the session ends: at once when this instance ends it (a {@link CookieSessionEnded}
  * event), and at the latest one check interval after another instance ends it (a poll of
- * {@link CookieSessions#active}). A store error during the poll keeps the stream. Without a
+ * {@link CookieSessions#active}, first asked when the watch starts, so a session that ended just
+ * before it started ends the stream at once). A store error during the poll keeps the stream. Without a
  * {@link CookieSessions} bean (the BFF is off) nothing is bound and nothing changes.
  *
  * <p>Push (WebSocket, SSE) holds its own watch with its own interval; the gateway has one more as
@@ -77,7 +78,10 @@ public final class CookieSessionWatch {
         if (!bound(auth)) return Mono.never();
         String handle = CookieAuthenticated.handle(auth);
         Mono<Void> local = endings.asFlux().filter(handle::equals).next().then();
-        Mono<Void> poll = Flux.interval(interval, Schedulers.parallel())
+        // The first check runs right after local subscribes (firstWithSignal subscribes in order). A
+        // session ends by delete, then event: a logout before local subscribed fails this check, and
+        // one after it reaches local. Waiting a full interval would leave the first case open that long.
+        Mono<Void> poll = Flux.interval(Duration.ZERO, interval, Schedulers.parallel())
                 .concatMap(tick -> sessions.active(handle).onErrorResume(this::checkFailed))
                 .filter(active -> !active)
                 .next()
