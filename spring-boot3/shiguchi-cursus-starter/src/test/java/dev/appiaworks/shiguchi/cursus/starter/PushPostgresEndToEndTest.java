@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -175,6 +176,12 @@ class PushPostgresEndToEndTest {
     private PushStore store;
 
     private WebClient client;
+
+    /** A disposed stream disconnects asynchronously: gone before the next test takes its baseline. */
+    @AfterEach
+    void awaitDisconnected() {
+        awaitTrue(() -> metrics.connections() == 0);
+    }
 
     @BeforeEach
     void client() {

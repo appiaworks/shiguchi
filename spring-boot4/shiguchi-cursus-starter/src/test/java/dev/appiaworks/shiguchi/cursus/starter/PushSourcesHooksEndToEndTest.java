@@ -43,6 +43,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -162,6 +163,12 @@ class PushSourcesHooksEndToEndTest {
     private PushMetrics metrics;
 
     private WebClient client;
+
+    /** A disposed stream disconnects asynchronously: gone before the next test takes its baseline. */
+    @AfterEach
+    void awaitDisconnected() {
+        awaitTrue(() -> metrics.connections() == 0);
+    }
 
     @BeforeEach
     void client() {
