@@ -104,6 +104,8 @@ class PushGapSignalEndToEndTest {
     @AfterEach
     void disconnect() throws InterruptedException {
         channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
+        // A disposed stream disconnects asynchronously: gone before the next test takes its baseline.
+        awaitTrue(() -> metrics.connections() == 0);
     }
 
     // ---- SSE ----

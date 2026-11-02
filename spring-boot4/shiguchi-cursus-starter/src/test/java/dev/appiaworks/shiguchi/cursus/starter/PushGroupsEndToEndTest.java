@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BooleanSupplier;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -103,6 +104,12 @@ class PushGroupsEndToEndTest {
 
     private WebClient client;
     private URI wsUri;
+
+    /** A disposed stream disconnects asynchronously: gone before the next test takes its baseline. */
+    @AfterEach
+    void awaitDisconnected() {
+        awaitTrue(() -> metrics.connections() == 0);
+    }
 
     @BeforeEach
     void client() {
