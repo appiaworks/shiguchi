@@ -358,8 +358,12 @@ jobs:
       #
       # The findings are printed in the job log and uploaded as SARIF, so they also show in the
       # repository's Security tab (code scanning).
+      #
+      # exit-code only covers findings. Trivy can still fail on its own, as on v0.16.1 when its
+      # vulnerability DB download returned a 404, so all three steps also continue on error.
       - name: Scan image for vulnerabilities
         if: ${{ !inputs.dry_run }}
+        continue-on-error: true # the image is already pushed: a failed report must not fail the job
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.IMAGE }}
@@ -370,6 +374,7 @@ jobs:
 
       - name: Scan image for vulnerabilities (SARIF, for code scanning)
         if: ${{ always() && !inputs.dry_run }}
+        continue-on-error: true # as above
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.IMAGE }}
@@ -381,6 +386,7 @@ jobs:
 
       - name: Upload scan results to code scanning
         if: ${{ always() && !inputs.dry_run }}
+        continue-on-error: true # as above; there is no file to upload if the SARIF scan failed
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-results.sarif
