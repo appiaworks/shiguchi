@@ -50,4 +50,9 @@ import org.springframework.context.annotation.Import;
                 @ComponentScan.Filter(
                         type = org.springframework.context.annotation.FilterType.ANNOTATION,
                         classes = org.springframework.boot.SpringBootConfiguration.class))
-public class ShiguchiAutoConfiguration {}
+public class ShiguchiAutoConfiguration {
+
+    public ShiguchiAutoConfiguration() {
+        Boot3DeprecationNotice.logOnce();
+    }
+}

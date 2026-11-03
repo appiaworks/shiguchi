@@ -25,7 +25,7 @@ artifacts, packages `dev.appiaworks.shiguchi.*`, property root `shiguchi.*`.
 
 `spring-boot3/*` and `spring-boot4/*` are parallel module lines. Any change to one must be mirrored in the other's counterpart module unless a Boot API difference makes it impossible — then note the divergence in the PR.
 
-Boot 3 is best effort: Boot 3.5 and Spring 6.2 left OSS support on 2026-06-30, and the line goes away around May 2027. It stays on the newest public 3.x versions. `sample-full`, the source of the OCI image, is on the latest Boot 4; the other samples are Boot 3 consumers.
+Boot 3 is best effort: Boot 3.5 and Spring 6.2 left OSS support on 2026-06-30, and the line is deprecated: 0.18.x is the last release line with it, `release/0.18.x` takes best-effort security fixes until May 2027, and main drops it after 0.18.0. It stays on the newest public 3.x versions. `sample-full`, the source of the OCI image, is on the latest Boot 4; the other samples are Boot 3 consumers.
 
 ## Branching & Releases
 

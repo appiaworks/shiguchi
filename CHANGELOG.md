@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Deprecated
+
+- The Spring Boot 3 starters (`*-spring-boot3-*`). 0.18.x is the last release line that ships
+  them, and the next minor release removes them. `release/0.18.x` takes security fixes on a
+  best-effort basis until May 2027. They now log a warning at startup. To move, use the
+  `*-spring-boot4-*` artifact ids on Boot 4; the `shiguchi.*` configuration is unchanged.
+
 ### Security
 
 - The build now tests the Boot 3 line on patched Tomcat, Netty 4.1, Jackson 2.21, Log4j and
