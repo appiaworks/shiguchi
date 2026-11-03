@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-11-03
+
 ### Changed
 
 - The published OCI image (`sample-full`) now runs on Spring Boot 4.1 instead of 3.5. An image
