@@ -7,7 +7,7 @@ runs, how to get your own compiled stubs into it, and how the chart tunes it.
 ## Runtime
 
 The image is `eclipse-temurin:25-jre` running the boot jar, built on the latest Spring Boot 4. The
-Boot 3 line is best effort ([Compatibility](../README.md#compatibility)). The libraries are compiled for Java 21,
+Boot 3 line is deprecated, last shipped in 0.18.x ([Compatibility](../README.md#compatibility)). The libraries are compiled for Java 21,
 so an application of your own can run them on 21, but JDK 25 is what CI tests on and what the image
 ships: it brings compact object headers, generational-only ZGC and the AOT cache, none of which 21
 has.

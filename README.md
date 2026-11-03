@@ -408,8 +408,8 @@ DGS 12.x). With the GraphQL starter, also set `json-path.version` to `3.0.0`
 ([details](docs/troubleshooting.md#noclassdeffounderror-comjaywayjsonpathspijsonjackson3jsonprovider)).
 
 On Spring Boot 3, use the same modules with `spring-boot3` artifact ids, for example
-`shiguchi-spring-boot3-starter`. That line is best effort and goes away around May 2027
-([Compatibility](#compatibility)).
+`shiguchi-spring-boot3-starter`. That line is deprecated: 0.18.x is the last release line that
+ships it ([Compatibility](#compatibility)).
 
 The `shiguchi.*` configuration is identical on both lines.
 
@@ -660,8 +660,13 @@ mixing lines is the only unsupported combination:
 
 **Use the Boot 4 line for anything new.** The published OCI image runs on it. Spring Boot 3.5 and
 Spring Framework 6.2 left open source support on 2026-06-30, so the Boot 3 line is best effort: it
-stays on the newest public 3.5.x, but a vulnerability with no public fix stays unfixed there. We
-plan to remove the Boot 3 line around May 2027.
+stays on the newest public 3.5.x, but a vulnerability with no public fix stays unfixed there.
+
+**The Boot 3 line is deprecated.** 0.18.x is the last release line that ships the
+`*-spring-boot3-*` artifacts, and they log a warning at startup. The next minor release removes
+them. `release/0.18.x` takes security fixes on a best-effort basis until May 2027. To move, swap
+`spring-boot3` for `spring-boot4` in the artifact ids and upgrade the application to Boot 4: the
+`shiguchi.*` configuration is the same.
 
 On Boot 4 with GraphQL, Boot's dependency management holds json-path too low for DGS 12. Set
 `json-path.version` to `3.0.0`

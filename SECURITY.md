@@ -132,8 +132,9 @@ This project is pre-1.0. Security fixes are applied to the latest release only.
 
 The Spring Boot 3 starters are best effort. Spring Boot 3.5 and Spring Framework 6.2 left open
 source support on 2026-06-30, so a vulnerability in them with no public fix stays unfixed on that
-line. Use the Spring Boot 4 starters, which the published OCI image runs on. We plan to remove the
-Boot 3 line around May 2027.
+line. Use the Spring Boot 4 starters, which the published OCI image runs on. The Boot 3 starters are
+deprecated: 0.18.x is the last release line that ships them, and it takes security fixes on a
+best-effort basis until May 2027.
 
 ## Reporting a vulnerability
 

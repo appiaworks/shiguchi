@@ -57,4 +57,9 @@ import org.springframework.context.annotation.Import;
 @ComponentScan(
         basePackages = "dev.appiaworks.shiguchi",
         excludeFilters = @ComponentScan.Filter(type = FilterType.ANNOTATION, classes = SpringBootConfiguration.class))
-public class ShiguchiUiAutoConfiguration {}
+public class ShiguchiUiAutoConfiguration {
+
+    public ShiguchiUiAutoConfiguration() {
+        Boot3DeprecationNotice.logOnce();
+    }
+}

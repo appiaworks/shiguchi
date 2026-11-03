@@ -52,4 +52,9 @@ import org.springframework.context.annotation.Import;
             @ComponentScan.Filter(type = FilterType.ANNOTATION, classes = SpringBootConfiguration.class),
             @ComponentScan.Filter(type = FilterType.CUSTOM, classes = ServletScanExcludes.class)
         })
-public class ShiguchiUiServletAutoConfiguration {}
+public class ShiguchiUiServletAutoConfiguration {
+
+    public ShiguchiUiServletAutoConfiguration() {
+        Boot3DeprecationNotice.logOnce();
+    }
+}
