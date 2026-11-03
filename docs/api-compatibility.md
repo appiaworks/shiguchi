@@ -79,7 +79,7 @@ The default baseline in the root `build.gradle.kts` (`apiBaseline`) moves to a n
 first commit **after** that release has published — never in the release commit itself: the release
 build runs this gate, and a baseline that is not on Maven Central yet fails it. The release
 pipeline opens that PR once the POM is on Central; a patch leaves the baseline alone.
-(Currently `0.16.0`; the first `io.github.appiaworks` release was `0.14.0`.)
+(Currently `0.17.0`; the first `io.github.appiaworks` release was `0.14.0`.)
 
 > **Timing matters when you bump it.** The bump belongs in the first commit *after* the tag
 > publishes, never in the release commit: `./gradlew build` runs this gate, the release workflow
