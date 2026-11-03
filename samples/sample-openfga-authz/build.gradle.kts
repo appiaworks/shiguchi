@@ -17,11 +17,11 @@ dependencies {
     // The official openfga/spring-boot-starter is deliberately NOT used — it is servlet-only
     // (@PreAuthorize/@fga) and this gateway is reactive WebFlux end to end. The raw SDK
     // returns CompletableFuture, which bridges to Mono without blocking.
-    implementation("dev.openfga:openfga-sdk:0.10.1")
+    implementation("dev.openfga:openfga-sdk:0.11.0")
 
     // Decision cache. Caffeine is already on the classpath transitively via the gateway,
     // but declare it explicitly since this sample uses it directly.
-    implementation("com.github.ben-manes.caffeine:caffeine:3.3.0")
+    implementation("com.github.ben-manes.caffeine:caffeine:3.3.1")
 
     // JWT resource server — the caller identity the FGA check is performed for.
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")

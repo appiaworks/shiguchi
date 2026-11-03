@@ -12,7 +12,7 @@ dependencies {
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.reactor.test)
     // The WebSocket test parses frames with Jackson 2, which the push module does not export.
-    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.22.3")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.22.4")
     // Two gateway instances over one embedded Redis: the point of the REDIS engine.
     testImplementation("org.springframework.boot:spring-boot-starter-data-redis-reactive")
     testImplementation("com.github.codemonstur:embedded-redis:1.4.4")

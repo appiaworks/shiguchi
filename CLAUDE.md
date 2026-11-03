@@ -25,6 +25,8 @@ artifacts, packages `dev.appiaworks.shiguchi.*`, property root `shiguchi.*`.
 
 `spring-boot3/*` and `spring-boot4/*` are parallel module lines. Any change to one must be mirrored in the other's counterpart module unless a Boot API difference makes it impossible — then note the divergence in the PR.
 
+Boot 3 is best effort: Boot 3.5 and Spring 6.2 left OSS support on 2026-06-30, and the line goes away around May 2027. It stays on the newest public 3.x versions. `sample-full`, the source of the OCI image, is on the latest Boot 4; the other samples are Boot 3 consumers.
+
 ## Branching & Releases
 
 - A ruleset protects `main` and `release/**`: changes go through a squash-merged PR, and `Build & Test` and `Serde fallback on Java 21` must pass (no approval needed, and the branch needn't be up to date). Nobody can push to these branches directly. Admins can force a merge in an emergency with `gh pr merge --admin`. Creating or deleting a `release/x.y.x` branch is still allowed. If you rename either job in `ci.yml`, update the ruleset too, or every PR waits for a check that never reports.

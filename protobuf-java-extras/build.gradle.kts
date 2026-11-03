@@ -11,7 +11,7 @@ dependencies {
     // com.google.type.* appears in ProtoTypes' signatures.
     api(libs.proto.common.protos)
     // JsonGenerator appears in ProtoMapConverter's and ProtoWkt's signatures.
-    api("com.fasterxml.jackson.core:jackson-core:2.22.3")
+    api("com.fasterxml.jackson.core:jackson-core:2.22.4")
     implementation(libs.protobuf.java.util)
 
     // The Spring BOM versions JUnit and AssertJ, for tests alone.

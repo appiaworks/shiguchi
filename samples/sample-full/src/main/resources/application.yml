@@ -23,7 +23,7 @@ shiguchi:
   graphql:
     enabled: true
 
-  # Avro on the REST surface (shiguchi-avro-spring-boot3-starter is on the classpath):
+  # Avro on the REST surface (shiguchi-avro-spring-boot4-starter is on the classpath):
   #   curl localhost:8080/v1/books/1 -H 'accept: avro/binary' -o book.avro -D -
   #   curl localhost:8080/avro/schemas/<proto full name of the response message>
   avro:

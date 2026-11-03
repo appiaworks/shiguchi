@@ -5,7 +5,7 @@ dependencies {
 
     implementation(libs.spring.boot.autoconfigure)
     implementation("org.slf4j:slf4j-api")
-    implementation("com.google.guava:guava:33.7.2-jre")
+    implementation("com.google.guava:guava:33.8.0-jre")
 
 
     testImplementation(libs.spring.boot.starter.test)

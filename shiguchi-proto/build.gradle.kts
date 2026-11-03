@@ -36,9 +36,9 @@ publishing {
 
 dependencies {
     implementation("com.google.protobuf:protobuf-java:4.36.2")
-    implementation("com.google.api.grpc:proto-google-common-protos:2.77.0")
-    implementation("io.grpc:grpc-protobuf:1.84.0")
-    implementation("io.grpc:grpc-stub:1.84.0")
+    implementation("com.google.api.grpc:proto-google-common-protos:2.79.0")
+    implementation("io.grpc:grpc-protobuf:1.85.1")
+    implementation("io.grpc:grpc-stub:1.85.1")
 
     // This module declares its own versions rather than inheriting the Spring BOM, so the BOM is
     // pulled in for the test configuration alone to version JUnit and AssertJ.
@@ -50,7 +50,7 @@ dependencies {
 protobuf {
     protoc { artifact = "com.google.protobuf:protoc:4.36.2" }
     plugins {
-        create("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:1.84.0" }
+        create("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:1.85.1" }
     }
     generateProtoTasks {
         all().forEach { task ->

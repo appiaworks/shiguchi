@@ -16,13 +16,16 @@ can read along.
 
 ## 1. A gateway that does nothing yet
 
-Start a plain Spring Boot application with one dependency:
+Start a plain Spring Boot 4 application with one dependency:
 
 ```kotlin
 dependencies {
-    implementation("io.github.appiaworks:shiguchi-spring-boot3-starter:0.16.1")
+    implementation("io.github.appiaworks:shiguchi-spring-boot4-starter:0.16.1")
 }
 ```
+
+On Spring Boot 3, use the `spring-boot3` artifact ids instead. That line is
+[best effort](../README.md#compatibility).
 
 (Boot 4: the same artifact with `spring-boot4` in the id. Every `shiguchi.*` property below
 is identical on both lines.)
@@ -105,8 +108,8 @@ strings, and why fields you never set are still present with their defaults.
 ## 3. Add OpenAPI and the console
 
 ```kotlin
-implementation("io.github.appiaworks:shiguchi-openapi-spring-boot3-starter:0.16.1")
-implementation("io.github.appiaworks:shiguchi-ui-spring-boot3-starter:0.16.1")
+implementation("io.github.appiaworks:shiguchi-openapi-spring-boot4-starter:0.16.1")
+implementation("io.github.appiaworks:shiguchi-ui-spring-boot4-starter:0.16.1")
 ```
 
 ```yaml
@@ -131,8 +134,11 @@ shiguchi:
 ## 4. Add GraphQL
 
 ```kotlin
-implementation("io.github.appiaworks:shiguchi-graphql-spring-boot3-starter:0.16.1")
+implementation("io.github.appiaworks:shiguchi-graphql-spring-boot4-starter:0.16.1")
 ```
+
+If your build uses Boot's dependency management, also set `extra["json-path.version"] = "3.0.0"`
+([why](troubleshooting.md#noclassdeffounderror-comjaywayjsonpathspijsonjackson3jsonprovider)).
 
 ```yaml
 shiguchi:

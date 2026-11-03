@@ -1,7 +1,7 @@
 # sample-full
 
 Every surface turned on at once: REST + OpenAPI/Swagger, GraphQL, the pass-through gRPC proxy,
-the embedded gRPC console, and Avro for REST callers (`shiguchi-avro-spring-boot3-starter`). This is
+the embedded gRPC console, and Avro for REST callers (`shiguchi-avro-spring-boot4-starter`). This is
 also the source of the published OCI image (`Dockerfile` here packages the boot jar CI builds
 from this module) — the best single reference for how the configuration surfaces compose in one
 `application.yml`.

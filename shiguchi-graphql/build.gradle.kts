@@ -11,7 +11,7 @@ dependencies {
     compileOnly(libs.dgs.extended.scalars)
     compileOnly(libs.dgs.micrometer)
     implementation(libs.spring.boot.starter.webflux)
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.22.3")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.22.4")
     // The push module's GraphQL subscription fields live here, behind @ConditionalOnClass: present
     // only when an application has both starters, so neither module depends on the other at runtime.
     compileOnly(project(":shiguchi-cursus"))

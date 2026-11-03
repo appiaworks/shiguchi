@@ -4,7 +4,7 @@ import org.gradle.internal.os.OperatingSystem
 import java.util.zip.ZipFile
 
 plugins {
-    id("me.champeau.jmh") version "0.7.3"
+    id("me.champeau.jmh") version "0.7.4"
     // Compiles src/jmh/proto so the Tier 1 (typed writer over generated classes) leg
     // has a stub class to find, exactly as a STATIC-mode service would. The protos also go
     // through protoc-gen-java-extras (below), so the stub carries its writeJson/mergeJson like
