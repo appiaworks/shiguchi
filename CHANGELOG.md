@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- The build now tests the Boot 3 line on patched Tomcat, Netty 4.1, Jackson 2.21, Log4j and
+  OpenTelemetry instead of the versions Boot 3.5 pins. Published POMs are unchanged: raise these
+  in your own build, as [troubleshooting](docs/troubleshooting.md) describes.
+
 ## [0.17.0] - 2026-11-03
 
 ### Changed

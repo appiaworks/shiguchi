@@ -344,6 +344,23 @@ wrapping it in the same GraphQL schema. See the `sample-rest-downstream` sample.
 Both, as parallel artifact lines (`spring-boot3` / `spring-boot4` in the id). Every
 `shiguchi.*` property is identical; pick the one matching your Spring Boot version.
 
+**My scanner flags Tomcat, Netty or Jackson on Boot 3. What do I raise?**
+Spring Boot 3.5 has no more open-source releases, so its BOM still pins versions with known CVEs.
+Shiguchi's own build and tests run the Boot 3 line on these patched versions, but your Boot BOM
+decides what your application gets. Raise them with Boot's version properties (Maven
+`<properties>`, or `extra["..."]` with the dependency-management plugin in Gradle):
+
+| Property                | Tested floor   |
+|-------------------------|----------------|
+| `tomcat.version`        | `10.1.61`      |
+| `netty.version`         | `4.1.140.Final`|
+| `jackson-bom.version`   | `2.21.8`       |
+| `log4j2.version`        | `2.25.5`       |
+| `opentelemetry.version` | `1.67.0`       |
+
+Spring Framework 6.2 itself has advisories with no open-source fix; moving to the Boot 4 line is
+the only way to clear those.
+
 **Is the web console safe to expose?**
 It is an RPC client holding your gateway's credentials — it can call every method on every
 backend. Never expose it with `security.mode: PERMIT_ALL` on an untrusted network. Put it behind
