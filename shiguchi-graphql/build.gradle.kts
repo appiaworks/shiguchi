@@ -7,6 +7,10 @@ dependencies {
     // the per-line graphql starters supply the matching runtime version, so this shared
     // module's POM never drags one Boot line into the other.
     compileOnly(platform(libs.dgs.platform))
+    // DGS 12.1.0's platform pins the Boot 4.0.0 generation (spring-boot, tools.jackson 3.0.2,
+    // spring-graphql 2.0.0), several with CVEs. The Boot 4 BOM raises them to the release the
+    // Boot 4 line ships with. compileOnly and test only: the published POM is unchanged.
+    compileOnly(platform(libs.spring.boot4.bom))
     compileOnly(libs.dgs.spring.graphql)
     compileOnly(libs.dgs.extended.scalars)
     compileOnly(libs.dgs.micrometer)
@@ -19,6 +23,7 @@ dependencies {
 
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(platform(libs.dgs.platform))
+    testImplementation(platform(libs.spring.boot4.bom))
     testImplementation(libs.dgs.spring.graphql)
     testImplementation(libs.dgs.extended.scalars)
     testImplementation(libs.dgs.micrometer)
@@ -28,11 +33,12 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     // DGS 12 pulls Spring 7 transitively which breaks WebClient (compiled against Spring 6).
-    // Force all spring-framework artifacts back to the Boot 3 / Spring 6 version at test runtime.
-    configurations.named("testRuntimeClasspath") {
+    // Force all spring-framework artifacts back to the Boot 3 / Spring 6 version for tests. Compile
+    // too: compiled against Spring 7, a test binds to HttpHeaders.get(String), absent from 6.2.
+    configurations.matching { it.name in setOf("testCompileClasspath", "testRuntimeClasspath") }.configureEach {
         resolutionStrategy.eachDependency {
             if (requested.group == "org.springframework" && requested.name.startsWith("spring-")) {
-                useVersion("6.2.1")
+                useVersion("6.2.19")
                 because("DGS 12 requires Spring 7 but production code uses Spring 6 WebClient")
             }
         }

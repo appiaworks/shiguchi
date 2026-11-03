@@ -1,10 +1,16 @@
 import org.gradle.api.credentials.HttpHeaderCredentials
 import org.gradle.authentication.http.HttpHeaderAuthentication
 
+// Security floor for the build's own classpath: gradle-node-plugin 7.1.0 asks for Jackson 2.14.2.
+buildscript {
+    dependencies {
+        classpath(platform("com.fasterxml.jackson:jackson-bom:2.21.8"))
+    }
+}
+
 plugins {
     base
     id("com.google.protobuf") version "0.10.0" apply false
-    id("com.netflix.dgs.codegen") version "8.8.0" apply false
     id("com.github.node-gradle.node") version "7.1.0" apply false
     id("com.vanniktech.maven.publish") version "0.37.0" apply false
     id("com.diffplug.spotless") version "8.11.0" apply false
@@ -19,6 +25,54 @@ allprojects {
         mavenLocal()
         mavenCentral()
     }
+}
+
+// Security floors. Spring Boot 3.5 has no more OSS releases, so its BOM pins versions with known
+// CVEs (Tomcat, Netty 4.1, Jackson 2.21, ...), and a few transitive libraries lag too. Every
+// resolvable configuration extends `securityFloors`, so tests, benchmarks and shipped jars
+// (cursus-cli) run on the patched versions. They are only floors: conflict resolution keeps a
+// higher version, so the Boot 4 line is unaffected. The configuration is not published, so
+// consumers' own Boot BOM still decides; docs/troubleshooting.md tells Boot 3 users what to raise.
+val securityFloors = listOf(
+    "io.netty:netty-bom:4.1.140.Final",
+    "com.fasterxml.jackson:jackson-bom:2.21.8",
+    "org.apache.logging.log4j:log4j-bom:2.25.5",
+    "io.opentelemetry:opentelemetry-bom:1.67.0",
+)
+val securityFloorModules = listOf(
+    "org.apache.tomcat.embed:tomcat-embed-core:10.1.61",
+    "org.apache.tomcat.embed:tomcat-embed-el:10.1.61",
+    "org.apache.tomcat.embed:tomcat-embed-websocket:10.1.61",
+    "org.bouncycastle:bcprov-jdk18on:1.86",
+    "com.google.guava:guava:33.7.2-jre",
+    "at.yawk.lz4:lz4-java:1.11.4",
+    "org.xerial.snappy:snappy-java:1.1.10.12",
+    "com.ongres.scram:scram-client:3.3",
+    "com.ongres.scram:scram-common:3.3",
+    "org.postgresql:postgresql:42.7.14",
+)
+subprojects {
+    val floors = configurations.create("securityFloors") {
+        isCanBeResolved = false
+        isCanBeConsumed = false
+        description = "Minimum versions for libraries with known CVEs; never published."
+    }
+    dependencies {
+        securityFloors.forEach { add(floors.name, platform(it)) }
+        constraints {
+            securityFloorModules.forEach { add(floors.name, it) }
+        }
+    }
+    fun Configuration.addFloors() {
+        // Consumable configurations (shadow's, for one) can end up in a published POM: skip them.
+        if (isCanBeResolved && !isCanBeConsumed && this != floors && floors !in extendsFrom) {
+            extendsFrom(floors)
+        }
+    }
+    configurations.configureEach { addFloors() }
+    // The protobuf plugin resets its *ProtoPath configurations' parents after creating them, which
+    // drops the floor added above; a second pass once every build script has run puts it back.
+    gradle.projectsEvaluated { configurations.configureEach { addFloors() } }
 }
 
 // java-platform (bom) and java-library are mutually exclusive — skip bom
