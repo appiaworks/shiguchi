@@ -20,7 +20,7 @@
       "enabled": false
     },
     {
-      "description": "The samples are Boot 3 consumers. Keep their Boot plugin and BOM on 3.x.",
+      "description": "The samples other than sample-full are Boot 3 consumers. Keep their Boot plugin and BOM on 3.x.",
       "matchFileNames": ["samples/**"],
       "matchPackageNames": [
         "org.springframework.boot",
@@ -28,6 +28,21 @@
         "org.springframework.boot:spring-boot-dependencies"
       ],
       "allowedVersions": "<4.0.0"
+    },
+    {
+      "description": "Except sample-full: the published OCI image runs on the latest Boot 4.",
+      "matchFileNames": ["samples/sample-full/**"],
+      "matchPackageNames": [
+        "org.springframework.boot",
+        "org.springframework.boot:org.springframework.boot.gradle.plugin",
+        "org.springframework.boot:spring-boot-dependencies"
+      ],
+      "allowedVersions": ">=4.0.0"
+    },
+    {
+      "description": "ClassGraph 6 needs Java 25 and the published libraries stay on a Java 21 floor, so it would break consumers on 21. 5.x is the last line that runs there.",
+      "matchPackageNames": ["io.github.classgraph:classgraph"],
+      "allowedVersions": "<6.0.0"
     },
     {
       "description": "Spring Cloud 2025.1 (Oakwood) targets Boot 4; on the Boot 3 samples it fails at startup with NoClassDefFoundError: ServerProperties (#216). Renovate calls 2025.0 -> 2025.1 a minor, so the major rule above does not catch it.",

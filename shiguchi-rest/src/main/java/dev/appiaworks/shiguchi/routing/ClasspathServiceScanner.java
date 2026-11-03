@@ -10,6 +10,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ClassUtils;
 
 /**
  * P4-A: Classpath scanner for gRPC static service discovery.
@@ -38,8 +39,13 @@ public class ClasspathServiceScanner {
         List<String> discovered = new ArrayList<>();
         List<String> packages = cfg.getScanPackages();
 
-        ClassGraph scanner =
-                new ClassGraph().enableClassInfo().enableMethodInfo().disableRuntimeInvisibleAnnotations();
+        // ClassGraph 5 scans nothing unless told what to, and no longer loads classes itself.
+        ClassGraph scanner = new ClassGraph()
+                .enableClasspath()
+                .enableNonSystemModules()
+                .enableClassInfo()
+                .enableMethodInfo();
+        ClassLoader classLoader = ClassUtils.getDefaultClassLoader();
 
         if (!packages.isEmpty()) {
             scanner.acceptPackages(packages.toArray(new String[0]));
@@ -53,7 +59,7 @@ public class ClasspathServiceScanner {
                 if (!ci.hasMethod("getServiceDescriptor")) continue;
 
                 try {
-                    Class<?> clazz = ci.loadClass();
+                    Class<?> clazz = Class.forName(name, false, classLoader);
                     io.grpc.ServiceDescriptor grpcSd = (io.grpc.ServiceDescriptor)
                             clazz.getMethod("getServiceDescriptor").invoke(null);
                     if (grpcSd == null) continue;
@@ -66,7 +72,7 @@ public class ClasspathServiceScanner {
                         discovered.add(name);
                         log.debug("Auto-discovered gRPC stub class '{}' for service '{}'", name, svcDef.getName());
                     }
-                } catch (Exception e) {
+                } catch (Exception | LinkageError e) {
                     log.debug("Skipping candidate '{}': {}", name, e.getMessage());
                 }
             }

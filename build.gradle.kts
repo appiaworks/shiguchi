@@ -4,10 +4,10 @@ import org.gradle.authentication.http.HttpHeaderAuthentication
 plugins {
     base
     id("com.google.protobuf") version "0.10.0" apply false
-    id("com.netflix.dgs.codegen") version "8.7.0" apply false
+    id("com.netflix.dgs.codegen") version "8.8.0" apply false
     id("com.github.node-gradle.node") version "7.1.0" apply false
     id("com.vanniktech.maven.publish") version "0.37.0" apply false
-    id("com.diffplug.spotless") version "8.10.4" apply false
+    id("com.diffplug.spotless") version "8.11.0" apply false
     id("me.champeau.gradle.japicmp") version "0.4.6" apply false
     id("org.gradle.test-retry") version "1.6.6" apply false
 }

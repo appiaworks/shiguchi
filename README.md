@@ -380,31 +380,7 @@ on any Java. (Node 22+ only if rebuilding the UI frontend.)
 
 > Releases are published to **Maven Central**: no extra repository configuration needed.
 
-Gradle (Spring Boot 3):
-
-```kotlin
-dependencies {
-    implementation("io.github.appiaworks:shiguchi-spring-boot3-starter:0.16.1")
-    // optional surfaces:
-    implementation("io.github.appiaworks:shiguchi-openapi-spring-boot3-starter:0.16.1")
-    implementation("io.github.appiaworks:shiguchi-graphql-spring-boot3-starter:0.16.1")
-    implementation("io.github.appiaworks:shiguchi-ui-spring-boot3-starter:0.16.1")
-    implementation("io.github.appiaworks:shiguchi-avro-spring-boot3-starter:0.16.1")   // Avro to REST backends
-}
-```
-
-Maven (Spring Boot 3):
-
-```xml
-<dependency>
-  <groupId>io.github.appiaworks</groupId>
-  <artifactId>shiguchi-spring-boot3-starter</artifactId>
-  <version>0.16.1</version>
-</dependency>
-```
-
-Gradle (Spring Boot 4) — same modules, `spring-boot4` artifact ids; the starter brings the
-Boot-4-matched runtime line (Spring Cloud Gateway 5.0.x, springdoc 3.1.x, DGS 12.x):
+Gradle (Spring Boot 4):
 
 ```kotlin
 dependencies {
@@ -413,8 +389,27 @@ dependencies {
     implementation("io.github.appiaworks:shiguchi-openapi-spring-boot4-starter:0.16.1")
     implementation("io.github.appiaworks:shiguchi-graphql-spring-boot4-starter:0.16.1")
     implementation("io.github.appiaworks:shiguchi-ui-spring-boot4-starter:0.16.1")
+    implementation("io.github.appiaworks:shiguchi-avro-spring-boot4-starter:0.16.1")   // Avro to REST backends
 }
 ```
+
+Maven (Spring Boot 4):
+
+```xml
+<dependency>
+  <groupId>io.github.appiaworks</groupId>
+  <artifactId>shiguchi-spring-boot4-starter</artifactId>
+  <version>0.16.1</version>
+</dependency>
+```
+
+The starter brings the Boot-4-matched runtime line (Spring Cloud Gateway 5.0.x, springdoc 3.2.x,
+DGS 12.x). With the GraphQL starter, also set `json-path.version` to `3.0.0`
+([details](docs/troubleshooting.md#noclassdeffounderror-comjaywayjsonpathspijsonjackson3jsonprovider)).
+
+On Spring Boot 3, use the same modules with `spring-boot3` artifact ids, for example
+`shiguchi-spring-boot3-starter`. That line is best effort and goes away around May 2027
+([Compatibility](#compatibility)).
 
 The `shiguchi.*` configuration is identical on both lines.
 
@@ -658,10 +653,19 @@ Metrics, tracing, and logging work out of the box — full reference in
 Each starter line ships the matching third-party runtime —
 mixing lines is the only unsupported combination:
 
-| Gateway 0.14 | Spring Boot | Spring Cloud Gateway | springdoc | DGS | Java |
+| Starter line | Spring Boot | Spring Cloud Gateway | springdoc | DGS | Java |
 | --- | --- | --- | --- | --- | --- |
-| `*-spring-boot3-starter` | 3.5.x | 4.3.x | 2.9.x | 10.6.x | 21+ (generated serde tiers on 25+) |
-| `*-spring-boot4-starter` | 4.1.x | 5.0.x | 3.1.x | 12.x | 21+ (generated serde tiers on 25+) |
+| `*-spring-boot3-starter` | 3.5.x | 4.3.x | 2.10.x | 10.6.x | 21+ (generated serde tiers on 25+) |
+| `*-spring-boot4-starter` | 4.1.x | 5.0.x | 3.2.x | 12.x | 21+ (generated serde tiers on 25+) |
+
+**Use the Boot 4 line for anything new.** The published OCI image runs on it. Spring Boot 3.5 and
+Spring Framework 6.2 left open source support on 2026-06-30, so the Boot 3 line is best effort: it
+stays on the newest public 3.5.x, but a vulnerability with no public fix stays unfixed there. We
+plan to remove the Boot 3 line around May 2027.
+
+On Boot 4 with GraphQL, Boot's dependency management holds json-path too low for DGS 12. Set
+`json-path.version` to `3.0.0`
+([details](docs/troubleshooting.md#noclassdeffounderror-comjaywayjsonpathspijsonjackson3jsonprovider)).
 
 Pre-1.0: minor releases (`0.x` → `0.y`) may contain breaking changes; they are called out
 in [CHANGELOG.md](CHANGELOG.md). Patch releases are always drop-in. Security fixes land on

@@ -15,7 +15,7 @@ dependencies {
     implementation(libs.grpc.util)
     // inprocess:<name> targets (the hosted push service, tests) dial a server in this JVM.
     implementation(libs.grpc.inprocess)
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.22.3")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.22.4")
     implementation(libs.classgraph)
     implementation("io.micrometer:micrometer-core")
     // REST_DOWNSTREAM documents may be YAML; SnakeYAML ships with spring-boot-starter at runtime.

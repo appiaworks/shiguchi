@@ -233,6 +233,26 @@ Common ones, verbatim:
 | `path-prefix must start with '/'` | Leading slash required |
 | `client.discoveryRefresh must be at least 100ms` | Guard against hammering the registry |
 
+### `NoClassDefFoundError: com/jayway/jsonpath/spi/json/Jackson3JsonProvider`
+
+The application stops while creating `springGraphQLDgsReactiveQueryExecutor`. DGS 12.1 needs
+json-path 3, and the Spring Boot 4.1 BOM holds it at 2.10. Boot's dependency management wins over
+the version DGS asks for, so this hits a Boot 4 application with GraphQL that uses the
+`io.spring.dependency-management` plugin or `spring-boot-starter-parent`. Set Boot's version
+property:
+
+```kotlin
+// build.gradle.kts
+extra["json-path.version"] = "3.0.0"
+```
+
+```xml
+<!-- pom.xml -->
+<properties>
+  <json-path.version>3.0.0</json-path.version>
+</properties>
+```
+
 ### A property seems to be ignored
 
 In a `@SpringBootTest`, setting one indexed property replaces the **whole list**: specifying

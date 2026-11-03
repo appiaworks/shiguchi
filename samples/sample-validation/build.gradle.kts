@@ -23,11 +23,11 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 
     implementation("com.google.protobuf:protobuf-java:4.36.2")
-    implementation("com.google.api.grpc:proto-google-common-protos:2.77.0")
-    implementation("io.grpc:grpc-protobuf:1.84.0")
-    implementation("io.grpc:grpc-stub:1.84.0")
-    implementation("io.grpc:grpc-services:1.84.0")
-    implementation("io.grpc:grpc-netty:1.84.0")
+    implementation("com.google.api.grpc:proto-google-common-protos:2.79.0")
+    implementation("io.grpc:grpc-protobuf:1.85.1")
+    implementation("io.grpc:grpc-stub:1.85.1")
+    implementation("io.grpc:grpc-services:1.85.1")
+    implementation("io.grpc:grpc-netty:1.85.1")
     compileOnly("org.apache.tomcat:annotations-api:6.0.53")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
@@ -38,7 +38,7 @@ dependencies {
 protobuf {
     protoc { artifact = "com.google.protobuf:protoc:4.36.2" }
     plugins {
-        create("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:1.84.0" }
+        create("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:1.85.1" }
     }
     generateProtoTasks {
         all().forEach { task -> task.plugins { create("grpc") } }

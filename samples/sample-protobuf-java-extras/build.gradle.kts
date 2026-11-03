@@ -19,9 +19,9 @@ dependencies {
     runtimeOnly("io.github.appiaworks:protobuf-java-extras-classfile:$gatewayVersion")
     implementation("com.google.protobuf:protobuf-java:4.36.2")
     // google/type/*.proto and their Java classes.
-    implementation("com.google.api.grpc:proto-google-common-protos:2.77.0")
+    implementation("com.google.api.grpc:proto-google-common-protos:2.79.0")
     // Only for the Serializer / Deserializer interfaces in com.acme.shop.kafka; no broker is needed.
-    implementation("org.apache.kafka:kafka-clients:4.3.1")
+    implementation("org.apache.kafka:kafka-clients:4.4.0")
 
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testImplementation("org.assertj:assertj-core:3.27.7")

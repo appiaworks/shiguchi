@@ -5,7 +5,7 @@ import java.util.zip.ZipFile
 // auto-configuration (Spring Framework 7, Spring Cloud Gateway 5, DGS 12). Only those suites:
 // the serde and dispatch suites measure shared modules and read the same on either line.
 plugins {
-    id("me.champeau.jmh") version "0.7.3"
+    id("me.champeau.jmh") version "0.7.4"
     id("com.google.protobuf")
 }
 

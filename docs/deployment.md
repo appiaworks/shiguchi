@@ -6,7 +6,8 @@ runs, how to get your own compiled stubs into it, and how the chart tunes it.
 
 ## Runtime
 
-The image is `eclipse-temurin:25-jre` running the boot jar. The libraries are compiled for Java 21,
+The image is `eclipse-temurin:25-jre` running the boot jar, built on the latest Spring Boot 4. The
+Boot 3 line is best effort ([Compatibility](../README.md#compatibility)). The libraries are compiled for Java 21,
 so an application of your own can run them on 21, but JDK 25 is what CI tests on and what the image
 ships: it brings compact object headers, generational-only ZGC and the AOT cache, none of which 21
 has.
@@ -60,7 +61,7 @@ same Dockerfile pattern as `sample-full` (`samples/sample-full/Dockerfile`):
 
 ```kotlin
 dependencies {
-    implementation("io.github.appiaworks:shiguchi-spring-boot3-starter:0.16.1")
+    implementation("io.github.appiaworks:shiguchi-spring-boot4-starter:0.16.1")
     implementation("com.acme:orders-stubs:1.4.0")   // the *Grpc classes and their messages
 }
 ```

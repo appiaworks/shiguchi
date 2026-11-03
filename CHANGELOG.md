@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The published OCI image (`sample-full`) now runs on Spring Boot 4.1 instead of 3.5. An image
+  derived from it, or stubs added to it, must work with the Boot 4 line. `shiguchi.*` configuration
+  is unchanged.
+- The Spring Boot 3 line is now best effort, because Boot 3.5 and Spring Framework 6.2 left open
+  source support on 2026-06-30. We plan to remove it around May 2027. New work should use the Boot 4
+  starters.
+- Dependencies raised to their latest versions, among them gRPC 1.85.1, Jackson 2.22.4, springdoc
+  3.2.0 (Boot 4) and 2.10.0 (Boot 3), Guava 33.8.0 and Caffeine 3.3.1.
+- ClassGraph moved from 4.8 (end of life) to 5.0, the last line that runs on Java 21. An application
+  that also uses ClassGraph 4 directly needs to port to the 5.x API.
+
+### Fixed
+
+- Documented the startup failure on Boot 4 with GraphQL under Boot's dependency management: the
+  Boot 4.1 BOM holds json-path at 2.10 and DGS 12.1 needs 3.0. Set `json-path.version` to `3.0.0`
+  ([troubleshooting](docs/troubleshooting.md)).
+
 ## [0.16.1] - 2026-11-01
 
 ### Fixed
