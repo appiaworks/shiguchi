@@ -44,7 +44,7 @@ import reactor.core.publisher.Sinks;
  * 2-second access token, an operation sent after it expired refreshes it (once, through the
  * session's refresh path) and sends the new one; one sent while it is fresh refreshes nothing; one
  * sent after the issuer refused the refresh token is refused as unauthenticated. A bearer socket is
- * unaffected. Mirrors {@code spring-boot3/shiguchi-bff-starter}.
+ * unaffected.
  */
 @DisplayName("BFF cookie GraphQL socket token refresh end to end (Boot 4)")
 class BffSocketTokenRefreshEndToEndTest {

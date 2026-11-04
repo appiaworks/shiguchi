@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- The Spring Boot 3 starters and auto-configuration (`*-spring-boot3-*`), deprecated in 0.18.0.
+  Stay on 0.18.x for Spring Boot 3.5; `release/0.18.x` takes security fixes on a best-effort
+  basis until May 2027. To move, use the `*-spring-boot4-*` artifact ids on Boot 4; the
+  `shiguchi.*` configuration is unchanged.
+
+### Changed
+
+- The shared modules (`shiguchi-core`, `-rest`, `-graphql`, ...) now import the Spring Boot 4
+  BOM, so their published POMs manage Boot 4 versions.
+- All samples run on Spring Boot 4.
+
 ## [0.18.0] - 2026-11-03
 
 ### Deprecated

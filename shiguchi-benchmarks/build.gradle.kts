@@ -44,7 +44,7 @@ val writeProtocLauncher = tasks.register("writeProtocLauncher") {
 }
 
 dependencies {
-    jmhImplementation(platform(libs.spring.boot.bom))
+    jmhImplementation(platform(libs.spring.boot4.bom))
     jmhImplementation(project(":shiguchi-core"))
     jmhImplementation(project(":shiguchi-rest"))
     jmhImplementation(project(":shiguchi-grpc-proxy"))
@@ -72,14 +72,14 @@ dependencies {
     // mixedPage: one REST_DOWNSTREAM source served by a reactor-netty stub, called over WebClient.
     jmhImplementation("io.projectreactor.netty:reactor-netty-http")
     jmhImplementation("org.springframework:spring-webflux")
-    // GatewayHttpBenchmark boots the Boot 3 gateway on a port and calls it over HTTP, against a
+    // GatewayHttpBenchmark boots the gateway on a port and calls it over HTTP, against a
     // reflection-served backend on a socket.
-    jmhImplementation(project(":shiguchi-spring-boot3-autoconfigure"))
+    jmhImplementation(project(":shiguchi-spring-boot4-autoconfigure"))
     jmhImplementation(libs.grpc.services)
     jmhImplementation(libs.grpc.netty)
     // GatewayGraphQlBenchmark: the same gateway with the GraphQL surface on (DGS over spring-graphql),
     // against a backend whose protos carry (shiguchi.api.graphql) / (shiguchi.api.graphql_field) options.
-    jmhImplementation(project(":shiguchi-graphql-spring-boot3-starter"))
+    jmhImplementation(project(":shiguchi-graphql-spring-boot4-starter"))
     // graphql.proto on src/jmh/proto's include path (the protobuf plugin extracts it from the jar).
     jmhImplementation(project(":shiguchi-proto"))
 

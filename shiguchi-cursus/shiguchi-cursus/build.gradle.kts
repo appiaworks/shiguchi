@@ -1,5 +1,5 @@
 dependencies {
-    implementation(platform(libs.spring.boot.bom))
+    implementation(platform(libs.spring.boot4.bom))
     api(project(":shiguchi-core"))
     // GatewayAuthorizer, the SSE keepalive and the security chain's principal all live in -rest.
     api(project(":shiguchi-rest"))

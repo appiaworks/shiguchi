@@ -85,8 +85,7 @@ never gain permissive CORS by accident.
    surface requires the JWT decoder configuration shown above.
 
 3. **Bring your own chain:** define a `SecurityWebFilterChain` bean. It replaces the
-   built-in configuration entirely via `@ConditionalOnMissingBean` (works in Spring Boot 3
-   and 4). Use this for API keys, mTLS, or any mechanism the starter doesn't cover.
+   built-in configuration entirely via `@ConditionalOnMissingBean`. Use this for API keys, mTLS, or any mechanism the starter doesn't cover.
 
 ### Additional hardening
 
@@ -128,13 +127,13 @@ This project is pre-1.0. Security fixes are applied to the latest release only.
 | Version | Supported |
 | --- | --- |
 | latest `0.x` | ✅ |
+| `0.18.x` (Spring Boot 3 starters) | best effort, until May 2027 |
 | older | ❌ |
 
-The Spring Boot 3 starters are best effort. Spring Boot 3.5 and Spring Framework 6.2 left open
-source support on 2026-06-30, so a vulnerability in them with no public fix stays unfixed on that
-line. Use the Spring Boot 4 starters, which the published OCI image runs on. The Boot 3 starters are
-deprecated: 0.18.x is the last release line that ships them, and it takes security fixes on a
-best-effort basis until May 2027.
+0.18.x is the last release line with the Spring Boot 3 starters; later releases ship Spring Boot 4
+starters only. Spring Boot 3.5 and Spring Framework 6.2 left open source support on 2026-06-30, so
+`release/0.18.x` takes security fixes on a best-effort basis until May 2027, and a vulnerability
+with no public fix stays unfixed there. Move to the Spring Boot 4 starters.
 
 ## Reporting a vulnerability
 

@@ -42,7 +42,7 @@ dependencies {
 
     // This module declares its own versions rather than inheriting the Spring BOM, so the BOM is
     // pulled in for the test configuration alone to version JUnit and AssertJ.
-    testImplementation(platform(libs.spring.boot.bom))
+    testImplementation(platform(libs.spring.boot4.bom))
     testImplementation(libs.spring.boot.starter.test)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

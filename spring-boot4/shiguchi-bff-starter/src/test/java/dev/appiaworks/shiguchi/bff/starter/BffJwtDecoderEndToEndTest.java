@@ -17,7 +17,7 @@ import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 /**
  * The bearer path's JWT decoder is Boot's own, from {@code jwk-set-uri}, whether the BFF module
  * is on or off on the Boot 4 gateway: the module must never define a {@code ReactiveJwtDecoder},
- * because Boot's backs off when one exists. Mirrors {@code spring-boot3/shiguchi-bff-starter}.
+ * because Boot's backs off when one exists.
  */
 @DisplayName("BFF module leaves the bearer JWT decoder alone (Boot 4)")
 class BffJwtDecoderEndToEndTest {

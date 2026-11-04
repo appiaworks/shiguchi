@@ -25,7 +25,7 @@ import reactor.core.publisher.Mono;
 
 /**
  * The admin verbs of {@code cursus} (run in-process through picocli) against the Boot 4 gateway
- * over a real port (mirrors {@code PushCliAdminEndToEndTest} in spring-boot3/shiguchi-cursus-starter), on the in-memory engine with the archive on: {@code repub} dry-runs and runs a
+ * over a real port, on the in-memory engine with the archive on: {@code repub} dry-runs and runs a
  * job to completion, {@code rm} redacts an archived event, {@code dlq ls}, {@code send} to an
  * unknown connection and a one-second {@code bench}.
  */

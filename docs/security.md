@@ -436,13 +436,6 @@ sets `anonymous`, and a backend that trusts that key never sees a caller-chosen 
 authenticates the token itself — the proxy's job is to let it. Expose the port only where that is
 acceptable, and prefer the HTTP surfaces for untrusted callers.
 
-## Spring Boot 3 and 4
-
-Everything above is identical on both lines: the same properties, the same beans, the same
-starters with `boot3` or `boot4` in the name. The only difference is internal — Boot 4 moved its
-reactive security auto-configurations to new packages, and the gateway registers itself ahead of
-both spellings so its chain wins the `@ConditionalOnMissingBean` race either way.
-
 ## Before you ship
 
 - `security.mode: AUTHENTICATED`, or every surface you expose has `require-auth: true` and the

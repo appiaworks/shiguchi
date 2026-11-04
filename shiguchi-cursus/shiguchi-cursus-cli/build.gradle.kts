@@ -7,7 +7,7 @@ plugins {
 // Jackson. It is deliberately outside the apiCompatibility gate and the BOM; the fat jar
 // (cursus-<version>-all.jar) is what users run.
 dependencies {
-    implementation(platform(libs.spring.boot.bom))
+    implementation(platform(libs.spring.boot4.bom))
 
     implementation(libs.picocli)
     annotationProcessor(libs.picocli.codegen)

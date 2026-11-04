@@ -67,9 +67,7 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 
 /**
- * A gRPC-stream source and the gRPC hooks on the Boot 4 gateway (mirrors
- * {@code PushSourcesHooksEndToEndTest} in spring-boot3/shiguchi-cursus-starter; the push module is
- * byte-identical between the lines): {@code ev.Orders/Events} is
+ * A gRPC-stream source and the gRPC hooks on the Boot 4 gateway: {@code ev.Orders/Events} is
  * configured as a {@code GRPC_STREAM} source with {@code topic-template: orders:{order_id}}; the
  * gateway opens it at startup (one owner, the lease), a subscriber of {@code orders:42} receives
  * its typed events, the two messages without an order id land in the dead-letter queue, where an

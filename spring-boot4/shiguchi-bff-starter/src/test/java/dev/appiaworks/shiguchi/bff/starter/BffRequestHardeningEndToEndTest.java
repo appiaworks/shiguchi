@@ -42,7 +42,7 @@ import org.springframework.web.server.WebFilter;
  * handshake whose {@code Origin} is not the session's application's, refuses form-like REST
  * bodies, never lets two cookie users share a cached response, never sends the cookie to a
  * backend and never lets a layer behind the gateway set the session cookie. Bearer callers are
- * untouched. Mirrors {@code spring-boot3/shiguchi-bff-starter}.
+ * untouched.
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,

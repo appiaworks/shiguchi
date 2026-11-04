@@ -43,7 +43,7 @@ import reactor.core.publisher.Mono;
  * against an in-process stub OIDC issuer: a burst of logins from one client address is refused
  * with 429 past the burst and stores no more logins, a normal sign-in still works, and a second
  * login in the same browser replaces the first one's cookie so the first callback fails with
- * {@code login_expired}. Mirrors {@code spring-boot3/shiguchi-bff-starter}.
+ * {@code login_expired}.
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,

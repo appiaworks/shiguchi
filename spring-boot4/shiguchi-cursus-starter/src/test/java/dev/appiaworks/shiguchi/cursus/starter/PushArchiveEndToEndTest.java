@@ -32,9 +32,7 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 
 /**
- * The archive half of the {@code gateway-push} endpoint on the Boot 4 gateway over a real port
- * (mirrors {@code PushArchiveEndToEndTest} in spring-boot3/shiguchi-cursus-starter; the push module
- * is byte-identical between the lines),
+ * The archive half of the {@code gateway-push} endpoint on the Boot 4 gateway over a real port,
  * on the in-memory engine with {@code archive.retention} set: published events are searchable by
  * topic pattern and attribute with their payload under {@code payload-visibility: FULL}; an
  * operator republishes one (dry run first) and a live subscriber receives the copy linked by

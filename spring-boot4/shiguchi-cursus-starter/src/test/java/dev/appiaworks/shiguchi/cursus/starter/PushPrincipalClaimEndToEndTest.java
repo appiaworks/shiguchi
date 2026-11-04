@@ -38,8 +38,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 /**
- * The principal claim on the Boot 4 gateway over a real port (mirrors
- * {@code PushPrincipalClaimEndToEndTest} in spring-boot3/shiguchi-cursus-starter): with Spring Boot's
+ * The principal claim on the Boot 4 gateway over a real port: with Spring Boot's
  * {@code principal-claim-name} set to {@code preferred_username}, the HTTP chain (SSE) and a
  * WebSocket {@code connect} frame name the caller by that claim, so {@code PRINCIPAL_MATCH} on
  * {@code user} accepts {@code user:<preferred_username>} and refuses {@code user:<sub>}; a token

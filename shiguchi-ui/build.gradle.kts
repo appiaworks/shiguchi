@@ -48,7 +48,7 @@ tasks.matching { it.name == "sourcesJar" }.configureEach {
 // ── Java dependencies ──────────────────────────────────────────────────────
 
 dependencies {
-    api(platform(libs.spring.boot.bom))
+    api(platform(libs.spring.boot4.bom))
     api(project(":shiguchi-core"))
     api(project(":shiguchi-rest"))
     api(libs.reactor.core)

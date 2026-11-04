@@ -44,7 +44,7 @@ import reactor.netty.DisposableServer;
 import reactor.netty.http.server.HttpServer;
 
 /**
- * The whole gateway over HTTP: a Boot 3 gateway on a port, a reflection-served {@code
+ * The whole gateway over HTTP: a gateway on a port, a reflection-served {@code
  * bench.Orders} backend on a socket, one {@code POST /bench.Orders/Get} per operation through a
  * pooled reactor-netty client. The serde benchmarks measure a few microseconds of gateway code;
  * this one shows what surrounds them — the HTTP server, Spring Cloud Gateway's filter chain,

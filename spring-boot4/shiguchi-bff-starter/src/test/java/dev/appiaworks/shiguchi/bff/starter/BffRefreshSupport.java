@@ -25,7 +25,7 @@ import reactor.core.publisher.Mono;
 /**
  * What the token-refresh end-to-end tests share: gateway instances booted the way an application
  * would, sessions seeded straight into a store with a refresh token the stub issuer knows, and a
- * burst of simultaneous requests. Mirrors {@code spring-boot3/shiguchi-bff-starter}.
+ * burst of simultaneous requests.
  */
 final class BffRefreshSupport {
 

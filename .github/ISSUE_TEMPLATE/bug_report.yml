@@ -38,4 +38,4 @@ body:
     id: env
     attributes:
       label: Environment
-      placeholder: Spring Boot 3.5 / JDK 21 / discovery mode DYNAMIC
+      placeholder: Spring Boot 4.1 / JDK 21 / discovery mode DYNAMIC

@@ -47,8 +47,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 /**
- * Echo suppression on the Boot 4 gateway over a real port (mirrors
- * {@code PushOriginEndToEndTest} in spring-boot3/shiguchi-cursus-starter): a subscriber that declares an origin
+ * Echo suppression on the Boot 4 gateway over a real port: a subscriber that declares an origin
  * does not receive events stamped with it, over SSE ({@code ?origin=}), WebSocket
  * ({@code connect{origin}}) and gRPC ({@code SubscribeRequest.origin}); an operator publish names
  * the origin, a client publish carries the one its connection declared and cannot forge it.

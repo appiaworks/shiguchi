@@ -40,9 +40,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 /**
- * Consumer groups on the Boot 4 gateway over a real port, on the in-memory store (mirrors
- * {@code PushGroupsEndToEndTest} in spring-boot3/shiguchi-cursus-starter; the push module is
- * byte-identical between the lines): two WebSocket
+ * Consumer groups on the Boot 4 gateway over a real port, on the in-memory store: two WebSocket
  * members of one group split a topic's events between them and ack with frames; a member that
  * never acks sees its events redelivered to the other after {@code ack-deadline}, then
  * dead-lettered past {@code max-deliveries}; an SSE member joins with {@code ?group=&member=} and

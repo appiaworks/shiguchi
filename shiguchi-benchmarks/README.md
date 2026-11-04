@@ -19,9 +19,9 @@ java -jar build/libs/shiguchi-benchmarks-*-jmh.jar "EndToEnd" -f 1 -wi 3 -i 5 -r
 | --- | --- |
 | `EndToEndDispatchBenchmark` | Full response path over a real in-process gRPC channel: call machinery + per-tier serde to JSON bytes, Tiers 0–3 (Tier 1 through a compiled stub from `src/jmh/proto`, built with `protoc-gen-java-extras`, so it carries its writer and the leg runs on Java 21 too). The server returns cached wire bytes, so gateway-side cost dominates. |
 | `HttpDispatchBenchmark` | The GraphQL surface's two transports for one field through the real dispatchers: `ReactiveGrpcDispatcher.dispatchToMap` over an in-process channel vs `HttpUpstreamDispatcher.dispatchToMap` (`REST_DOWNSTREAM`) over a loopback reactor-netty stub, with a bare `WebClient` GET as the HTTP floor. |
-| `GatewayHttpBenchmark` | The whole gateway over HTTP: a Boot 3 gateway booted on a port, a reflection-served backend on a socket, one `POST /bench.Orders/Get` per operation through a pooled client — next to a bare reactor-netty server answering the same JSON (the HTTP floor) and the backend call alone (the gRPC hop). Where a request's time goes outside the serde. |
-| `GatewayGraphQlBenchmark` | The GraphQL surface over HTTP next to the REST route for the same data: the Boot 3 gateway with DGS on, a reflection-served `bench.Shop` whose orders point at customers through a DataLoader. One order, a list of 10 / 100, and the list with each order's customer selected (one list hop plus one batch hop). What GraphQL execution adds on top of `GatewayHttpBenchmark`. |
-| `PushBenchmark` | The push surface: `engine_fanout` (one `MemoryPushBroker.publish` with 1 / 100 / 1000 live subscribers), `engine_publish` (`PushPublisher.publish`: JSON check, id, history of 100, fan-out), and publish-to-first-delivery through a Boot 3 gateway with that many subscribers connected: `http_publish_delivery` (`POST /push/publish` → SSE), `httpv1_publish_delivery` (`POST /push/v1/publish`, the transcoding into the hosted `PushService` → SSE), `ws_publish_delivery` (→ WebSocket), `grpc_publish_delivery` (`Publish` on the native gRPC port → a gRPC `Subscribe` stream). `engine` also takes `JDBC` (an in-memory H2, broker polling every 50 ms). Numbers under [Push](#push-jdk-25-windows-11-loopback-2026-10-08). |
+| `GatewayHttpBenchmark` | The whole gateway over HTTP: a gateway booted on a port, a reflection-served backend on a socket, one `POST /bench.Orders/Get` per operation through a pooled client — next to a bare reactor-netty server answering the same JSON (the HTTP floor) and the backend call alone (the gRPC hop). Where a request's time goes outside the serde. |
+| `GatewayGraphQlBenchmark` | The GraphQL surface over HTTP next to the REST route for the same data: the gateway with DGS on, a reflection-served `bench.Shop` whose orders point at customers through a DataLoader. One order, a list of 10 / 100, and the list with each order's customer selected (one list hop plus one batch hop). What GraphQL execution adds on top of `GatewayHttpBenchmark`. |
+| `PushBenchmark` | The push surface: `engine_fanout` (one `MemoryPushBroker.publish` with 1 / 100 / 1000 live subscribers), `engine_publish` (`PushPublisher.publish`: JSON check, id, history of 100, fan-out), and publish-to-first-delivery through a gateway with that many subscribers connected: `http_publish_delivery` (`POST /push/publish` → SSE), `httpv1_publish_delivery` (`POST /push/v1/publish`, the transcoding into the hosted `PushService` → SSE), `ws_publish_delivery` (→ WebSocket), `grpc_publish_delivery` (`Publish` on the native gRPC port → a gRPC `Subscribe` stream). `engine` also takes `JDBC` (an in-memory H2, broker polling every 50 ms). Numbers under [Push](#push-jdk-25-windows-11-loopback-2026-10-08). |
 | `SerdeBenchmark` | Tier 2 (generated) vs Tier 3 (JsonFormat / ProtoMapConverter) for flat, nested, and repeated messages — serialize, toMap, fromMap. |
 | `TimestampBenchmark` | google.protobuf.Timestamp conversion strategies (OffsetDateTime for GraphQL, RFC 3339 string for REST). |
 | `GrpcProxyBenchmark` | Proxy method lookup and descriptor/marshaller cache hot paths. |
@@ -74,7 +74,7 @@ without the Class-File API module.
 
 ### The gateway over HTTP (µs/request, JDK 25, Windows 11 loopback, 2026-10-06)
 
-`GatewayHttpBenchmark`: the Boot 3 gateway on a port, DYNAMIC discovery against a
+`GatewayHttpBenchmark`: the gateway on a port, DYNAMIC discovery against a
 reflection-served `bench.Orders` on a socket, `POST /bench.Orders/Get` with `{"id":"order-1"}`
 (auto-mapped route), one request at a time through a pooled `WebClient`.
 
@@ -118,19 +118,8 @@ saved-request filters measured inside the error bars and stayed for correctness 
 skipping the chain for open REST routes is the opt-in
 `shiguchi.security.open-rest-bypasses-chain` ([security.md](../docs/security.md)).
 
-**Boot 3 against Boot 4** (`:shiguchi-benchmarks-boot4`, the same sources on the Boot 4
-auto-configuration: Spring Framework 7, Spring Cloud Gateway 5, Spring Security 7; 2026-10-07,
-`gateway_post`, 3 forks each, back to back):
-
-| Profile | Boot 3 | Boot 4 |
-| --- | --- | --- |
-| `default` | 396 ± 20 | 395 ± 21 |
-| `lean` | 370 ± 16 | 372 ± 13 |
-| `no-security` | 337 ± 6 | 340 ± 8 |
-
-The two lines are the same gateway: no measurable difference in any profile. Read the two
-columns of one run against each other, never a number here against one taken an hour earlier —
-the same Boot 3 `default` measured 363, 396 and 423 µs in three runs on this laptop over a day,
+Read the profiles of one run against each other, never a number here against one taken an hour
+earlier — the same `default` profile measured 363, 396 and 423 µs in three runs on this laptop over a day,
 with the bare HTTP floor drifting 76–113 µs alongside it. Deltas within a run are stable to a few
 microseconds; absolute numbers are not.
 
@@ -219,7 +208,7 @@ field waited ten seconds and answered `null`. DGS gives each request a
 gateway registers through Spring GraphQL's `BatchLoaderRegistry` carried no predicate, so
 graphql-java's per-level `dispatchAll()` skipped them. graphql-java 25's chaining mode (Boot 4)
 dispatches loaders directly and hid it. `GatewayBatchLoaderRegistry` now registers every loader
-with `DISPATCH_ALWAYS`; `GraphQlRelationshipDataLoaderEndToEndTest` holds it on both lines.
+with `DISPATCH_ALWAYS`; `GraphQlRelationshipDataLoaderEndToEndTest` holds it.
 
 The JMH plugin's `jmh` task runs the forked JVM on the fat jar *and* every original jar, so a
 library that loads resources with `classpath*:` (DGS and its `META-INF/schema/*.graphqls`) sees
@@ -409,7 +398,7 @@ backend cannot be handed the merge's sort or window, so `presorted` is ignored f
 
 `PushBenchmark`, `-f 1 -wi 3 -i 5 -r 3s`, `engine` MEMORY (in-process), REDIS (Pub/Sub +
 Streams on an embedded Redis on the same host) and POSTGRES (`LISTEN/NOTIFY` + one table on an
-embedded Postgres; its rows are in a second table below). The engine alone, then the whole stack: a Boot 3
+embedded Postgres; its rows are in a second table below). The engine alone, then the whole stack: a
 gateway with push on, N Server-Sent Events subscribers connected on one topic, one
 `POST /push/publish` per operation, the operation done when the first subscriber has the event.
 
@@ -675,17 +664,16 @@ Run the whole suite (slow — full warmup + measurement on every benchmark):
 
 Results are written to `build/jmh-results.json` (also echoed to the console).
 
-The HTTP-layer suites (`GatewayHttpBenchmark`, `GatewayGraphQlBenchmark`) also build on the Boot 4
-line as `:shiguchi-benchmarks-boot4` (`spring-boot4/shiguchi-benchmarks`, the same
-sources against the Boot 4 auto-configuration):
+The HTTP-layer suites (`GatewayHttpBenchmark`, `GatewayGraphQlBenchmark`) boot the gateway on
+Spring Boot 4. To run one from the JMH jar:
 
 ```bash
-./gradlew :shiguchi-benchmarks-boot4:jmh -Pjmh.includes='GatewayHttpBenchmark'
-java -jar spring-boot4/shiguchi-benchmarks/build/libs/*-jmh.jar GatewayHttpBenchmark.gateway_post -p profile=default
+./gradlew :shiguchi-benchmarks:jmh -Pjmh.includes='GatewayHttpBenchmark'
+java -jar shiguchi-benchmarks/build/libs/*-jmh.jar GatewayHttpBenchmark.gateway_post -p profile=default
 ```
 
-The `no-otel` profile names Boot 3 auto-configuration classes; on Boot 4 it excludes nothing and
-reads as `default`.
+The `no-otel` profile's exclude list uses the Boot 3 class names, so on Boot 4 it excludes
+nothing and reads as `default`.
 
 ### Run ONE benchmark
 

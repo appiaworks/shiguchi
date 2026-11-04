@@ -84,9 +84,8 @@ class RestDownstreamEndToEndTest {
     }
 
     /**
-     * Bound to the random server port rather than autowired: Boot 3 registers a
-     * {@code WebTestClient} bean from the test starter, Boot 4 needs an extra module for that,
-     * and binding by hand keeps this test identical on both lines.
+     * Bound to the random server port rather than autowired: Boot 4 needs an extra module to
+     * register a {@code WebTestClient} bean, so binding by hand avoids that dependency.
      */
     private WebTestClient client;
 

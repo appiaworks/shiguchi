@@ -24,12 +24,6 @@ dependencies {
 }
 ```
 
-On Spring Boot 3, use the `spring-boot3` artifact ids instead. That line is
-[best effort](../README.md#compatibility).
-
-(Boot 4: the same artifact with `spring-boot4` in the id. Every `shiguchi.*` property below
-is identical on both lines.)
-
 ```yaml
 # application.yml
 server:

@@ -12,7 +12,7 @@ dependencies {
     implementation("com.google.protobuf:protobuf-gradle-plugin:0.10.0")
 
     testImplementation(gradleTestKit())
-    testImplementation(platform(libs.spring.boot.bom))
+    testImplementation(platform(libs.spring.boot4.bom))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.assertj:assertj-core")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

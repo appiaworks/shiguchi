@@ -47,8 +47,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
  * {@code keys}) replies with the sorted names of every metadata key it received, so a test can
  * prove which request headers reach a backend. {@code lib.Echo/Watch} ({@code GET
  * /v1/watch/{text}}) is a server stream that sends the same reply every 250 ms until the call is
- * cancelled; {@link #WATCH_CANCELLED} records the {@code text} of every call the backend saw cancelled. Also the callers the end-to-end tests use. Mirrors
- * {@code spring-boot3/shiguchi-bff-starter}.
+ * cancelled; {@link #WATCH_CANCELLED} records the {@code text} of every call the backend saw cancelled. Also the callers the end-to-end tests use.
  */
 final class BffTestBackend {
 

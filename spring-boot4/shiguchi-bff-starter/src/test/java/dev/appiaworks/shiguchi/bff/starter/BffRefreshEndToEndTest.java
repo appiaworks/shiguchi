@@ -31,8 +31,7 @@ import org.springframework.web.reactive.function.client.WebClient;
  * Token refresh on the Boot 4 gateway against the stub issuer, which rotates refresh tokens and
  * revokes the whole family on any reuse: a call after the access token expired reaches the backend
  * with the new token, 50 simultaneous calls refresh once, an issuer that refuses ends the session,
- * and an issuer that is down answers 503 rather than signing anybody out. Mirrors
- * {@code spring-boot3/shiguchi-bff-starter}.
+ * and an issuer that is down answers 503 rather than signing anybody out.
  */
 @DisplayName("BFF token refresh end to end (Boot 4)")
 class BffRefreshEndToEndTest {

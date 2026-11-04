@@ -154,7 +154,7 @@ class PushTokenAuthenticatorTest {
         Jwt jwt = Jwt.withTokenValue("t").header("alg", "none").subject("bob").build();
         ReactiveJwtDecoder decoder = token -> Mono.just(jwt);
         var converter = new dev.appiaworks.shiguchi.security.JwtPrincipalConverter(
-                j -> Mono.just(new JwtAuthenticationToken(j, List.of(), null)));
+                j -> Mono.just(new JwtAuthenticationToken(j, List.of(), (String) null)));
 
         PushTokenAuthenticator auth = new PushTokenAuthenticator(decoder, converter);
 

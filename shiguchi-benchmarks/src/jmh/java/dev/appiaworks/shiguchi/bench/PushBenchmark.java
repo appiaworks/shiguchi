@@ -51,7 +51,7 @@ import reactor.core.Disposable;
  *       of the sink.
  *   <li>{@code engine_publish}: {@code PushPublisher.publish}, JSON validation, id, history of
  *       100, fan-out to {@code subscribers}. What a publish costs before HTTP.
- *   <li>{@code http_publish_delivery}: a Boot 3 gateway with push on (the {@code engine}:
+ *   <li>{@code http_publish_delivery}: a gateway with push on (the {@code engine}:
  *       in-memory, or Redis Pub/Sub + Streams on an embedded Redis), {@code subscribers} SSE
  *       connections on one topic, one {@code POST /push/publish} per operation, and the operation
  *       ends when the first subscriber has the event. Publish-to-delivery latency through the

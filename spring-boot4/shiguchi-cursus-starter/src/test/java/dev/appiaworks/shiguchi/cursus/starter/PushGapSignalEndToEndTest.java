@@ -43,8 +43,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 /**
- * The {@code reset} signal on the Boot 4 gateway over a real port (mirrors
- * {@code PushGapSignalEndToEndTest} in spring-boot3/shiguchi-cursus-starter): a subscriber that resumes from
+ * The {@code reset} signal on the Boot 4 gateway over a real port: a subscriber that resumes from
  * an id older than the {@code MEMORY} store's history ({@code history-size: 3}, ten events
  * published) is told once, before the retained events, over SSE ({@code event: reset}), WebSocket
  * ({@code {"type":"reset"}}) and gRPC (an event carrying {@code push.signal=reset}); a resume id

@@ -17,7 +17,7 @@ dependencies {
     testImplementation(project(":protobuf-java-extras"))
     // The google/type/*.proto files the test protos import, and their Java classes.
     testImplementation(libs.proto.common.protos)
-    testImplementation(platform(libs.spring.boot.bom))
+    testImplementation(platform(libs.spring.boot4.bom))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.assertj:assertj-core")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

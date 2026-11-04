@@ -34,8 +34,7 @@ import reactor.core.publisher.Mono;
 /**
  * The BFF module on the Boot 4 classpath with {@code shiguchi.bff.enabled} unset: none of its
  * beans exist, and bearer and anonymous calls behave as without the module. A session
- * authenticator bean the application defines is ignored. Mirrors
- * {@code spring-boot3/shiguchi-bff-starter}.
+ * authenticator bean the application defines is ignored.
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,

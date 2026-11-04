@@ -1,5 +1,5 @@
 plugins {
-    id("org.springframework.boot") version "3.5.16"
+    id("org.springframework.boot") version "4.1.2"
     id("io.spring.dependency-management") version "1.1.7"
     java
 }
@@ -9,7 +9,7 @@ group = "dev.appiaworks.shiguchi.sample"
 val gatewayVersion = providers.gradleProperty("gatewayVersion").get()
 
 dependencies {
-    implementation("io.github.appiaworks:shiguchi-spring-boot3-autoconfigure:$gatewayVersion")
+    implementation("io.github.appiaworks:shiguchi-spring-boot4-autoconfigure:$gatewayVersion")
     implementation("io.github.appiaworks:shiguchi-core:$gatewayVersion")
     implementation("io.github.appiaworks:shiguchi-rest:$gatewayVersion")
 

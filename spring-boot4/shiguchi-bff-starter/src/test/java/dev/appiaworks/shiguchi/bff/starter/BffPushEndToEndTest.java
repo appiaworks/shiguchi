@@ -46,8 +46,7 @@ import reactor.core.publisher.Sinks;
  * {@code Origin}) opens {@code /push/ws} and {@code /push/subscribe}, is the same principal as a
  * bearer caller of the same user, outlives the 2-second access token, and is closed with 4440 (WebSocket) or a
  * final {@code closed} event (SSE) when the session ends by logout on this instance or by the
- * store losing it, which stands for a logout on another instance and is found by the poll. Mirrors
- * {@code spring-boot3/shiguchi-bff-starter}.
+ * store losing it, which stands for a logout on another instance and is found by the poll.
  */
 @DisplayName("BFF push with the session cookie end to end (Boot 4)")
 class BffPushEndToEndTest {

@@ -8,7 +8,7 @@ evaluationDependsOn(":shiguchi-rest")
 val restTestOutput = project(":shiguchi-rest").extensions.getByType<SourceSetContainer>()["test"].output
 
 dependencies {
-    implementation(platform(libs.spring.boot.bom))
+    implementation(platform(libs.spring.boot4.bom))
     // GatewaySecurityCustomizer, UpstreamCredentialSource and the request attributes live in -rest,
     // which also brings Spring Security and the JWT resource server the cookie principal shares.
     api(project(":shiguchi-rest"))

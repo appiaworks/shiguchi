@@ -27,22 +27,18 @@ allprojects {
     }
 }
 
-// Security floors. Spring Boot 3.5 has no more OSS releases, so its BOM pins versions with known
-// CVEs (Tomcat, Netty 4.1, Jackson 2.21, ...), and a few transitive libraries lag too. Every
-// resolvable configuration extends `securityFloors`, so tests, benchmarks and shipped jars
-// (cursus-cli) run on the patched versions. They are only floors: conflict resolution keeps a
-// higher version, so the Boot 4 line is unaffected. The configuration is not published, so
-// consumers' own Boot BOM still decides; docs/troubleshooting.md tells Boot 3 users what to raise.
+// Security floors. The Spring Boot BOM and a few transitive libraries (Kafka's compression codecs,
+// the Postgres driver, bcprov via Nimbus) lag behind fixes for known CVEs. Every resolvable
+// configuration extends `securityFloors`, so tests, benchmarks and shipped jars (cursus-cli) run on
+// the patched versions. They are only floors: conflict resolution keeps a higher version, so drop
+// one once the Boot BOM passes it (check with dependencyInsight). The configuration is not
+// published, so consumers' own Boot BOM still decides.
 val securityFloors = listOf(
-    "io.netty:netty-bom:4.1.140.Final",
     "com.fasterxml.jackson:jackson-bom:2.21.8",
     "org.apache.logging.log4j:log4j-bom:2.25.5",
     "io.opentelemetry:opentelemetry-bom:1.67.0",
 )
 val securityFloorModules = listOf(
-    "org.apache.tomcat.embed:tomcat-embed-core:10.1.61",
-    "org.apache.tomcat.embed:tomcat-embed-el:10.1.61",
-    "org.apache.tomcat.embed:tomcat-embed-websocket:10.1.61",
     "org.bouncycastle:bcprov-jdk18on:1.86",
     "com.google.guava:guava:33.7.2-jre",
     "at.yawk.lz4:lz4-java:1.11.4",
@@ -131,15 +127,6 @@ configure(subprojects.filter { it.name != "shiguchi-bom" }) {
                 languageVersion.set(JavaLanguageVersion.of(version))
             })
         }
-        // WORKAROUND, not a fix: one request per server connection in the Boot 3 tests. Reactor
-        // Netty reactor/reactor-netty#4361: a keep-alive request queued behind a still-live
-        // exchange and then answered at once leaves the connection with no read requested, so the
-        // next request sits unread until the client closes (CI runs 40614148681, 40614151438,
-        // 40777449100). Fixed in 1.3.8 (#4347), not in 1.2.x, which Boot 3.5 uses (1.2.18).
-        // Applications keep the default; docs/troubleshooting.md tells Boot 3 users how to opt in.
-        if (project.projectDir.parentFile.name == "spring-boot3") {
-            systemProperty("server.netty.max-keep-alive-requests", "1")
-        }
     }
     tasks.withType<JacocoReport> {
         dependsOn(tasks.withType<Test>())
@@ -176,8 +163,7 @@ configure(subprojects.filter { it.name != "shiguchi-bom" }) {
 
 // Apply publishing to all publishable modules (everything except samples and benchmarks)
 val samplesModules = setOf("sample-full", "sample-rest-gateway", "sample-graphql-gateway",
-                           "sample-grpc-proxy", "sample-grpc-ui-standalone", "shiguchi-benchmarks",
-                           "shiguchi-benchmarks-boot4")
+                           "sample-grpc-proxy", "sample-grpc-ui-standalone", "shiguchi-benchmarks")
 
 configure(subprojects.filter { it.name !in samplesModules }) {
     apply(plugin = "com.vanniktech.maven.publish")

@@ -1,5 +1,5 @@
 plugins {
-    id("org.springframework.boot") version "3.5.16"
+    id("org.springframework.boot") version "4.1.2"
     id("io.spring.dependency-management") version "1.1.7"
     java
 }
@@ -10,7 +10,7 @@ val gatewayVersion = providers.gradleProperty("gatewayVersion").get()
 
 dependencies {
     // gRPC UI only — browse any gRPC service via the embedded UI without routing
-    implementation("io.github.appiaworks:shiguchi-ui-spring-boot3-starter:$gatewayVersion")
+    implementation("io.github.appiaworks:shiguchi-ui-spring-boot4-starter:$gatewayVersion")
 }
 
 tasks.bootBuildImage {

@@ -43,8 +43,7 @@ import reactor.core.publisher.Sinks;
 import redis.embedded.RedisServer;
 
 /**
- * Targeted {@code Send} across two instances (Boot 4; mirrors {@code PushSendEndToEndTest} in
- * spring-boot3/shiguchi-cursus-starter): two gateway instances over one embedded Redis, each with its
+ * Targeted {@code Send} across two instances (Boot 4): two gateway instances over one embedded Redis, each with its
  * own instance id, native gRPC port and the shared peer token. A {@code Send} posted to instance A
  * for a connection held by instance B reaches it through the peer channel; an unknown connection is
  * {@code NOT_CONNECTED}; {@code require_ack} waits for the WebSocket client's {@code ack} frame and

@@ -19,8 +19,7 @@ import org.springframework.core.env.Environment;
 
 /**
  * The {@code cursus} command line (run in-process through picocli with captured writers) against
- * the Boot 4 gateway over a real port
- * (mirrors {@code PushCliEndToEndTest} in spring-boot3/shiguchi-cursus-starter), on the in-memory engine with the archive on: {@code pub}
+ * the Boot 4 gateway over a real port, on the in-memory engine with the archive on: {@code pub}
  * answers the new event ids, {@code sub --after} resumes over SSE and WebSocket, {@code ls} reads
  * the admin endpoint and {@code find} searches the archive.
  */

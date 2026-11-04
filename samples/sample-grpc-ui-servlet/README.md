@@ -1,7 +1,7 @@
 # sample-grpc-ui-servlet
 
 The gRPC web console embedded in a **Spring MVC (servlet)** application, through
-`shiguchi-ui-webmvc-spring-boot3-starter`. The application keeps its own controller
+`shiguchi-ui-webmvc-spring-boot4-starter`. The application keeps its own controller
 (`GET /hello`); the console mounts at `/grpc-ui` next to it. No WebFlux or Netty on the
 classpath.
 

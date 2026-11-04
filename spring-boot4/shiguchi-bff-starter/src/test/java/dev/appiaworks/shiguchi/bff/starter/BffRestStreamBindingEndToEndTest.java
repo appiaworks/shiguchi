@@ -38,8 +38,7 @@ import reactor.core.Disposable;
  * Boot 4 gateway, over a real port: each runs as the cookie's user, outlives the 2-second access
  * token, and ends when its session ends (at once on logout here, within the check interval when the
  * store loses the session) with the stream's in-band error, UNAUTHENTICATED "session ended", after
- * the backend call was cancelled. A bearer stream is not bound. Mirrors
- * {@code spring-boot3/shiguchi-bff-starter}.
+ * the backend call was cancelled. A bearer stream is not bound.
  */
 @DisplayName("BFF session-bound REST streams end to end (Boot 4)")
 class BffRestStreamBindingEndToEndTest {

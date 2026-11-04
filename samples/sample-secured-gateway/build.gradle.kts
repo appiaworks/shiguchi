@@ -1,5 +1,5 @@
 plugins {
-    id("org.springframework.boot") version "3.5.16"
+    id("org.springframework.boot") version "4.1.2"
     id("io.spring.dependency-management") version "1.1.7"
     java
 }
@@ -10,10 +10,10 @@ group = "dev.appiaworks.shiguchi.sample"
 val gatewayVersion = providers.gradleProperty("gatewayVersion").get()
 
 dependencies {
-    implementation("io.github.appiaworks:shiguchi-spring-boot3-autoconfigure:$gatewayVersion")
+    implementation("io.github.appiaworks:shiguchi-spring-boot4-autoconfigure:$gatewayVersion")
     implementation("io.github.appiaworks:shiguchi-core:$gatewayVersion")
     implementation("io.github.appiaworks:shiguchi-rest:$gatewayVersion")
-    implementation("io.github.appiaworks:shiguchi-openapi-spring-boot3-starter:$gatewayVersion")
+    implementation("io.github.appiaworks:shiguchi-openapi-spring-boot4-starter:$gatewayVersion")
 
     // Inbound authentication: resource server validates the caller's bearer token.
     implementation("org.springframework.boot:spring-boot-starter-security")
@@ -29,6 +29,7 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webflux")
+    testImplementation("org.springframework.boot:spring-boot-starter-webflux-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

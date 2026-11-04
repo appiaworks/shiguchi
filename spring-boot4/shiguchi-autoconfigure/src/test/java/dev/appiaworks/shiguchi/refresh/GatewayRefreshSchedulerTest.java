@@ -44,10 +44,6 @@ import org.springframework.web.reactive.function.client.WebClient;
  * style already used for {@code SchemaReloadListener} in {@code RestDownstreamRouteLoaderTest}.
  * {@link ScgRouteRegistrar} is mocked, matching {@code DynamicRouteLoaderTest} and
  * {@code StaticRouteLoaderTest}.
- *
- * <p>Boot 3 / Boot 4: {@code GatewayRefreshScheduler} is byte-for-byte identical between the two
- * module lines (only a comment differs) as of this writing, so this test is mirrored verbatim in
- * {@code spring-boot4/shiguchi-autoconfigure}.
  */
 @DisplayName("GatewayRefreshScheduler")
 class GatewayRefreshSchedulerTest {

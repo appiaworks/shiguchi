@@ -148,7 +148,8 @@ class AvroSchemaControllerTest {
         // Assert
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotBlank();
-        assertThat(response.getHeaders()).containsKey(AvroRestBodyCodec.FINGERPRINT_HEADER);
+        assertThat(response.getHeaders().containsHeader(AvroRestBodyCodec.FINGERPRINT_HEADER))
+                .isTrue();
         String fingerprint = response.getHeaders().getFirst(AvroRestBodyCodec.FINGERPRINT_HEADER);
         assertThat(fingerprint).hasSize(16);
         assertThat(fingerprint).matches("[0-9a-f]{16}");

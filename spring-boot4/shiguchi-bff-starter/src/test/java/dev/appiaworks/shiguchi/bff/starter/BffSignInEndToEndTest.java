@@ -51,7 +51,6 @@ import reactor.core.publisher.Mono;
  * browser-shaped navigations (redirects followed by hand, cookies carried by hand, no {@code
  * Origin} on login, callback and providers) with two applications on different origins, session
  * cookie and bearer callers reaching the same principal, logout, rotation and a nonce mismatch.
- * Mirrors {@code spring-boot3/shiguchi-bff-starter}.
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,

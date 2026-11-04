@@ -1,5 +1,5 @@
 plugins {
-    id("org.springframework.boot") version "3.5.16"
+    id("org.springframework.boot") version "4.1.2"
     id("io.spring.dependency-management") version "1.1.7"
     java
 }
@@ -10,7 +10,7 @@ val gatewayVersion = providers.gradleProperty("gatewayVersion").get()
 
 dependencies {
     // gRPC proxy only — exposes a consolidated gRPC endpoint over reflection
-    implementation("io.github.appiaworks:shiguchi-spring-boot3-autoconfigure:$gatewayVersion")
+    implementation("io.github.appiaworks:shiguchi-spring-boot4-autoconfigure:$gatewayVersion")
     implementation("io.github.appiaworks:shiguchi-core:$gatewayVersion")
     implementation("io.github.appiaworks:shiguchi-rest:$gatewayVersion")
     implementation("io.github.appiaworks:shiguchi-grpc-proxy:$gatewayVersion")

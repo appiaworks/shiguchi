@@ -1,8 +1,8 @@
 dependencies {
-    implementation(platform(libs.spring.boot.bom))
+    implementation(platform(libs.spring.boot4.bom))
     // SCG is compileOnly so the JARs are not forced onto consumers' classpaths.
-    // Gateway autoconfigure modules declare it explicitly with the right SB version.
-    compileOnly(platform(libs.spring.cloud.gateway.dep))
+    // The gateway autoconfigure module declares it explicitly.
+    compileOnly(platform(libs.spring.cloud.gateway4.dep))
     api(project(":shiguchi-core"))
     compileOnly(libs.spring.cloud.starter.gateway) {
         exclude("org.springframework.boot", "spring-boot-starter-jackson")
@@ -28,7 +28,7 @@ dependencies {
     testImplementation(libs.reactor.test)
     // Arrives through the starter anyway; declared because a test imports it directly.
     testImplementation(libs.awaitility)
-    testImplementation(platform(libs.spring.cloud.gateway.dep))
+    testImplementation(platform(libs.spring.cloud.gateway4.dep))
     testImplementation("org.springframework.cloud:spring-cloud-starter-gateway-server-webflux") {
         exclude("org.springframework.boot", "spring-boot-starter-jackson")
     }

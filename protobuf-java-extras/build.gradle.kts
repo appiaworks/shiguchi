@@ -15,7 +15,7 @@ dependencies {
     implementation(libs.protobuf.java.util)
 
     // The Spring BOM versions JUnit and AssertJ, for tests alone.
-    testImplementation(platform(libs.spring.boot.bom))
+    testImplementation(platform(libs.spring.boot4.bom))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.assertj:assertj-core")
     // Tree-equal JSON comparisons in the parity tests; the library itself never needs databind.

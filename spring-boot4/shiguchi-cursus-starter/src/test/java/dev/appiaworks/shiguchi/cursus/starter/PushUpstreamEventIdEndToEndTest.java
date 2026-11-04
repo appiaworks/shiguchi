@@ -54,8 +54,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.Disposable;
 
 /**
- * {@code event_id_field} on the Boot 4 gateway (mirrors {@code PushUpstreamEventIdEndToEndTest}
- * in spring-boot3/shiguchi-cursus-starter; the push module is byte-identical between the lines): {@code ev.Ticks/Watch} streams {@code Tick{seq}}
+ * {@code event_id_field} on the Boot 4 gateway: {@code ev.Ticks/Watch} streams {@code Tick{seq}}
  * and names {@code seq} as its event id, so the SSE frames of {@code ticks:a} carry
  * {@code id: <seq>} (zero-padded by the memory store) and a client reconnecting with that
  * {@code Last-Event-ID} receives only later ticks.

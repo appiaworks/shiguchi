@@ -36,7 +36,7 @@ import reactor.core.publisher.Mono;
  * to a session token: a cookie-only caller reaches the backend with the session token as
  * {@code authorization} and its name as {@code x-principal}; a bearer header wins over the
  * cookie; a malformed header is not rescued by the cookie; scope gates see the cookie caller's
- * authorities. Mirrors {@code spring-boot3/shiguchi-bff-starter}.
+ * authorities.
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,

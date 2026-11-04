@@ -41,7 +41,7 @@ import reactor.core.publisher.Sinks;
 
 /**
  * With {@code shiguchi.security.end-streams-at-token-expiry=false} a bearer REST stream and
- * GraphQL subscription outlive their token on the Boot 4 gateway. Mirrors {@code spring-boot3/shiguchi-bff-starter}.
+ * GraphQL subscription outlive their token on the Boot 4 gateway.
  */
 @DisplayName("Bearer streams with end-streams-at-token-expiry off end to end (Boot 4)")
 class BffBearerStreamExpiryDisabledEndToEndTest {

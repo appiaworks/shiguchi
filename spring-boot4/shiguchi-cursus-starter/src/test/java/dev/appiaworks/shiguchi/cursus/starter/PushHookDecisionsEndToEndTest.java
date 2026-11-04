@@ -38,8 +38,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 /**
- * Hook decisions on the Boot 4 gateway over a real port (mirrors
- * {@code PushHookDecisionsEndToEndTest} in spring-boot3/shiguchi-cursus-starter): an in-process {@link PushHook} bean
+ * Hook decisions on the Boot 4 gateway over a real port: an in-process {@link PushHook} bean
  * rejects a subscribe (and, when switched on, every connection) with a reason, rewrites a
  * subscribed topic, subscribes a connection to a topic on the server side, and drops, rejects or
  * rewrites what a WebSocket client publishes.

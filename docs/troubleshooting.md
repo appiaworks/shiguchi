@@ -297,15 +297,14 @@ the miss rate stays high, something is rebuilding descriptors per call.
 
 ### A request sometimes gets no answer until the client gives up
 
-On Spring Boot 3.5, a request on a kept-alive HTTP/1.1 connection can sit unread on
+On Spring Boot 4.1.1 and earlier, a request on a kept-alive HTTP/1.1 connection can sit unread on
 the server until the client times out and closes the connection. The access log then shows the
 request handled, quickly, at the moment the client gave up, and no event loop is busy. This is
 [reactor/reactor-netty#4361](https://github.com/reactor/reactor-netty/issues/4361): when a
 request queued behind a still-running exchange is answered at once, the connection is left with
-no read requested. It is fixed in Reactor Netty 1.3.8, which Spring Boot 4.1.2 and later bring.
-Boot 3.5 uses Reactor Netty 1.2.x, which has no fix.
+no read requested. It is fixed in Reactor Netty 1.3.8, which Spring Boot 4.1.2 and later bring. Upgrading is the fix.
 
-On Boot 3.5, one request per connection avoids it, at the cost of a new connection per request:
+On an earlier Boot, one request per connection avoids it, at the cost of a new connection per request:
 
 ```yaml
 server:
@@ -340,26 +339,9 @@ carry an interleaved conversation — but the console and the gRPC proxy port ha
 Yes: `mode: REST_DOWNSTREAM` reads the backend's OpenAPI document and proxies it, optionally
 wrapping it in the same GraphQL schema. See the `sample-rest-downstream` sample.
 
-**Boot 3 or Boot 4?**
-Both, as parallel artifact lines (`spring-boot3` / `spring-boot4` in the id). Every
-`shiguchi.*` property is identical; pick the one matching your Spring Boot version.
-
-**My scanner flags Tomcat, Netty or Jackson on Boot 3. What do I raise?**
-Spring Boot 3.5 has no more open-source releases, so its BOM still pins versions with known CVEs.
-Shiguchi's own build and tests run the Boot 3 line on these patched versions, but your Boot BOM
-decides what your application gets. Raise them with Boot's version properties (Maven
-`<properties>`, or `extra["..."]` with the dependency-management plugin in Gradle):
-
-| Property                | Tested floor   |
-|-------------------------|----------------|
-| `tomcat.version`        | `10.1.61`      |
-| `netty.version`         | `4.1.140.Final`|
-| `jackson-bom.version`   | `2.21.8`       |
-| `log4j2.version`        | `2.25.5`       |
-| `opentelemetry.version` | `1.67.0`       |
-
-Spring Framework 6.2 itself has advisories with no open-source fix; moving to the Boot 4 line is
-the only way to clear those.
+**Which Spring Boot versions?**
+Spring Boot 4 (`spring-boot4` in the artifact id). Boot 3 was supported up to 0.18.x; see
+[Compatibility](../README.md#compatibility).
 
 **Is the web console safe to expose?**
 It is an RPC client holding your gateway's credentials — it can call every method on every
