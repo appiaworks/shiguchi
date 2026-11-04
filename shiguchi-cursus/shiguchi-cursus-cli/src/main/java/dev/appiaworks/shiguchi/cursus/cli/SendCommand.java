@@ -1,7 +1,5 @@
 package dev.appiaworks.shiguchi.cursus.cli;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -11,6 +9,8 @@ import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ParentCommand;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /** {@code cursus send}: an event to one connection, or to every connection of a user, wherever it lives. */
 @Command(
@@ -56,7 +56,7 @@ final class SendCommand implements Callable<Integer> {
         String payload = data.startsWith("@") ? read(data.substring(1)) : data;
         try {
             Http.JSON.readTree(payload);
-        } catch (IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new CliException(CliException.USAGE, "-d is not valid JSON: " + Http.describe(e));
         }
         Http http = root.http();
@@ -65,8 +65,8 @@ final class SendCommand implements Callable<Integer> {
         if (conn != null) ids.add(conn);
         else {
             for (JsonNode c : http.getAdmin("/connections").path("connections")) {
-                if (user.equals(c.path("principal").asText(null)))
-                    ids.add(c.path("id").asText());
+                if (user.equals(c.path("principal").asString(null)))
+                    ids.add(c.path("id").asString());
             }
             if (ids.isEmpty()) {
                 out.info("no connection held by '" + user + "'");
@@ -82,7 +82,7 @@ final class SendCommand implements Callable<Integer> {
             JsonNode answer = http.postAdmin("/connections/" + Http.enc(id) + "/send", body);
             out.json(answer);
             for (JsonNode d : answer.path("deliveries")) {
-                if ("DELIVERED".equals(d.path("status").asText())) delivered = true;
+                if ("DELIVERED".equals(d.path("status").asString())) delivered = true;
             }
         }
         return delivered ? 0 : CliException.TRANSPORT;

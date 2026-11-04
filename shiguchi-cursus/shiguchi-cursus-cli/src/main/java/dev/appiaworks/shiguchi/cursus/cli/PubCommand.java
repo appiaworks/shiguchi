@@ -1,7 +1,5 @@
 package dev.appiaworks.shiguchi.cursus.cli;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,6 +19,8 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ParentCommand;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /** {@code cursus pub}: publish one event (or an NDJSON stream of them) to a topic. */
 @Command(
@@ -181,7 +181,7 @@ final class PubCommand implements Callable<Integer> {
     private static JsonNode parse(String text, String where) {
         try {
             return Http.JSON.readTree(text);
-        } catch (IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new CliException(CliException.USAGE, where + " is not valid JSON: " + Http.describe(e));
         }
     }

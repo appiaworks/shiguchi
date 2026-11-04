@@ -1,7 +1,7 @@
 package dev.appiaworks.shiguchi.avro;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Descriptors.Descriptor;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import dev.appiaworks.shiguchi.config.AvroSurfaceConfig;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.ServiceDefinition.AvroWireFormat;
@@ -12,6 +12,10 @@ import java.util.Set;
 import org.apache.avro.Schema;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Avro on the gateway's own REST surface: a caller sending {@code Content-Type: avro/binary} to a
@@ -40,7 +44,12 @@ public class AvroRestBodyCodec implements RestBodyCodec {
 
     private final ProtoToAvroSchema schemas;
     private final AvroWireFormat framing;
-    private final ObjectMapper json = new ObjectMapper();
+    // Jackson 3 sorts properties alphabetically and rejects trailing tokens by default; Jackson 2 did
+    // neither, so both stay off. The factory carries Jackson 2's read limits and number handling.
+    private final ObjectMapper json = JsonMapper.builder(JsonFactories.create())
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private volatile SchemaRegistryClient registry;
 
     @org.springframework.beans.factory.annotation.Autowired

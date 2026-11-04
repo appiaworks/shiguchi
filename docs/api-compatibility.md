@@ -99,5 +99,9 @@ It happens. When it does:
    the replacement, keep it working for a release, then remove it in the next major.
 3. Only then remove it, and let the gate fail loudly in the PR that does — `-PapiBaseline=none` is
    for the release after a deliberate break, not for getting a red build green.
+4. To land it, list the classes the gate names under the current baseline in `acceptedBreaks`
+   (root `build.gradle.kts`), with a comment naming the release and the change. The entry only
+   applies while `apiBaseline` is that version, so it lapses with the next minor's baseline bump;
+   remove it in that PR.
 
 Suppressing the gate to land a change is the one thing that makes it worthless.

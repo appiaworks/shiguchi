@@ -55,9 +55,9 @@ final class JsonReaderEmitter {
                  * protoc-gen-java-extras; {@code ProtoJson.parse} reads through it.
                  */
                 @java.lang.Override
-                public Builder mergeJson(com.fasterxml.jackson.core.JsonParser p) throws java.io.IOException {
+                public Builder mergeJson(tools.jackson.core.JsonParser p) {
                   %s.expectObject(p, getDescriptorForType());
-                  while (p.nextToken() != com.fasterxml.jackson.core.JsonToken.END_OBJECT) {
+                  while (p.nextToken() != tools.jackson.core.JsonToken.END_OBJECT) {
                     java.lang.String name = p.currentName();
                     p.nextToken();
                     switch (name) {
@@ -102,8 +102,7 @@ final class JsonReaderEmitter {
         // JSON null leaves a field unset, except google.protobuf.Value, where null is a value.
         boolean acceptsNull = !fd.isRepeated() && isValue(fd);
         if (!acceptsNull) {
-            out.append(indent)
-                    .append("if (p.currentToken() == com.fasterxml.jackson.core.JsonToken.VALUE_NULL) break;\n");
+            out.append(indent).append("if (p.currentToken() == tools.jackson.core.JsonToken.VALUE_NULL) break;\n");
         }
         if (fd.isMapField()) {
             map(out, indent, fd, name, f, "JsonFields.MV[" + index + "]");
@@ -113,7 +112,7 @@ final class JsonReaderEmitter {
                     .append(".expectArray(p, ")
                     .append(f)
                     .append(");\n");
-            out.append(indent).append("while (p.nextToken() != com.fasterxml.jackson.core.JsonToken.END_ARRAY) {\n");
+            out.append(indent).append("while (p.nextToken() != tools.jackson.core.JsonToken.END_ARRAY) {\n");
             value(out, indent + "  ", fd, f, "add" + name, "add" + name + "Value", "add" + name + "Builder()");
             out.append(indent).append("}\n");
         } else {
@@ -181,7 +180,7 @@ final class JsonReaderEmitter {
                 .append(".expectMap(p, ")
                 .append(f)
                 .append(");\n");
-        out.append(indent).append("while (p.nextToken() != com.fasterxml.jackson.core.JsonToken.END_OBJECT) {\n");
+        out.append(indent).append("while (p.nextToken() != tools.jackson.core.JsonToken.END_OBJECT) {\n");
         String inner = indent + "  ";
         out.append(inner)
                 .append(boxed(key))

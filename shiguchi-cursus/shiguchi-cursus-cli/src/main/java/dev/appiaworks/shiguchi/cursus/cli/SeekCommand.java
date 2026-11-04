@@ -1,11 +1,11 @@
 package dev.appiaworks.shiguchi.cursus.cli;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ParentCommand;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /** {@code cursus seek}: move a persistent session's or a consumer group's cursor on one topic. */
 @Command(

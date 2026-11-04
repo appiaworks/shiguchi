@@ -1,5 +1,6 @@
 package dev.appiaworks.shiguchi.avro;
 
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
@@ -26,6 +27,11 @@ import org.apache.avro.generic.GenericEnumSymbol;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Avro generic datums ⇄ the plain Java shape the gateway's Map path uses, the counterpart of
@@ -409,14 +415,18 @@ public final class AvroMapConverter {
         }
     }
 
-    private static final com.fasterxml.jackson.databind.ObjectMapper JSON =
-            new com.fasterxml.jackson.databind.ObjectMapper();
+    // Jackson 3 sorts properties alphabetically and rejects trailing tokens by default; Jackson 2 did
+    // neither, so both stay off. The factory carries Jackson 2's read limits and number handling.
+    private static final ObjectMapper JSON = JsonMapper.builder(JsonFactories.create())
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     /** A Struct / Value / ListValue / Any lands on an Avro string as its JSON text. */
     private static String jsonText(Object value, String path) {
         try {
             return JSON.writeValueAsString(value);
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw bad(path, "JSON-serialisable value", value);
         }
     }

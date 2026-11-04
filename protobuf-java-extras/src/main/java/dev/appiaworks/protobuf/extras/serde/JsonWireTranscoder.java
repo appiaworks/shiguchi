@@ -1,14 +1,10 @@
 package dev.appiaworks.protobuf.extras.serde;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.EnumValueDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.WireFormat;
-import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -17,6 +13,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
+import tools.jackson.core.json.JsonFactory;
 
 /**
  * The request-side counterpart of {@link WireJsonTranscoder}: proto3 JSON text straight to
@@ -43,7 +42,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class JsonWireTranscoder {
 
-    private static final JsonFactory JSON_FACTORY = new JsonFactory();
+    private static final JsonFactory JSON_FACTORY = JsonFactories.create();
     private static final int MAX_DEPTH = 100;
     private static final int MAX_TOP_LEVEL_FIELDS = 64;
     private static final BigInteger UINT64_MAX = BigInteger.ONE.shiftLeft(64).subtract(BigInteger.ONE);
@@ -211,12 +210,11 @@ public final class JsonWireTranscoder {
     // ── JSON walking ─────────────────────────────────────────────────────────────────
 
     /** The parser is on START_OBJECT; returns with it on the matching END_OBJECT. */
-    private static long writeObject(Program p, JsonParser parser, WireBuffer out, int depth, boolean ciEnums)
-            throws IOException {
+    private static long writeObject(Program p, JsonParser parser, WireBuffer out, int depth, boolean ciEnums) {
         if (depth > MAX_DEPTH) throw Bail.INSTANCE;
         long seen = 0L;
         JsonToken t;
-        while ((t = parser.nextToken()) == JsonToken.FIELD_NAME) {
+        while ((t = parser.nextToken()) == JsonToken.PROPERTY_NAME) {
             Entry e = p.byName.get(parser.currentName());
             JsonToken value = parser.nextToken();
             if (e == null) {
@@ -245,8 +243,7 @@ public final class JsonWireTranscoder {
     }
 
     private static void writeRepeated(
-            Entry e, JsonParser parser, JsonToken value, WireBuffer out, int depth, boolean ciEnums)
-            throws IOException {
+            Entry e, JsonParser parser, JsonToken value, WireBuffer out, int depth, boolean ciEnums) {
         if (value != JsonToken.START_ARRAY) throw Bail.INSTANCE;
         if (e.packed) {
             out.writeTag(e.number, WireFormat.WIRETYPE_LENGTH_DELIMITED);
@@ -273,11 +270,10 @@ public final class JsonWireTranscoder {
     }
 
     private static void writeMap(
-            Entry e, JsonParser parser, JsonToken value, WireBuffer out, int depth, boolean ciEnums)
-            throws IOException {
+            Entry e, JsonParser parser, JsonToken value, WireBuffer out, int depth, boolean ciEnums) {
         if (value != JsonToken.START_OBJECT) throw Bail.INSTANCE;
         JsonToken t;
-        while ((t = parser.nextToken()) == JsonToken.FIELD_NAME) {
+        while ((t = parser.nextToken()) == JsonToken.PROPERTY_NAME) {
             String key = parser.currentName();
             JsonToken v = parser.nextToken();
             if (v == JsonToken.VALUE_NULL) {
@@ -361,8 +357,7 @@ public final class JsonWireTranscoder {
             JsonToken value,
             WireBuffer out,
             int depth,
-            boolean ciEnums)
-            throws IOException {
+            boolean ciEnums) {
         switch (kind) {
             case MESSAGE -> {
                 if (value != JsonToken.START_OBJECT) throw Bail.INSTANCE;
@@ -396,7 +391,7 @@ public final class JsonWireTranscoder {
 
     /** One scalar or enum value, written without its tag (packed runs share one). */
     private static void writeScalarNoTag(
-            FieldDescriptor fd, JsonParser parser, JsonToken t, WireBuffer out, boolean ciEnums) throws IOException {
+            FieldDescriptor fd, JsonParser parser, JsonToken t, WireBuffer out, boolean ciEnums) {
         switch (fd.getType()) {
             case INT32 -> out.writeVarint64(int32(parser, t));
             case SINT32 -> out.writeSInt32(int32(parser, t));
@@ -413,7 +408,8 @@ public final class JsonWireTranscoder {
             case DOUBLE -> out.writeFixed64(Double.doubleToRawLongBits(floating(parser, t)));
             case STRING -> {
                 if (t != JsonToken.VALUE_STRING) throw Bail.INSTANCE;
-                if (!out.writeString(parser.getTextCharacters(), parser.getTextOffset(), parser.getTextLength())) {
+                if (!out.writeString(
+                        parser.getStringCharacters(), parser.getStringOffset(), parser.getStringLength())) {
                     throw Bail.INSTANCE;
                 }
             }
@@ -421,7 +417,7 @@ public final class JsonWireTranscoder {
                 if (t != JsonToken.VALUE_STRING) throw Bail.INSTANCE;
                 byte[] bytes;
                 try {
-                    bytes = BASE64.decode(parser.getText());
+                    bytes = BASE64.decode(parser.getString());
                 } catch (IllegalArgumentException e) {
                     throw Bail.INSTANCE;
                 }
@@ -434,14 +430,14 @@ public final class JsonWireTranscoder {
 
     // ── Scalar readers: the shapes both dialects take, else bail ──────────────────────
 
-    private static long wholeNumber(JsonParser parser, JsonToken t) throws IOException {
+    private static long wholeNumber(JsonParser parser, JsonToken t) {
         if (t == JsonToken.VALUE_NUMBER_INT) {
             if (parser.getNumberType() == JsonParser.NumberType.BIG_INTEGER) throw Bail.INSTANCE;
             return parser.getLongValue();
         }
         if (t == JsonToken.VALUE_STRING) {
             try {
-                return Long.parseLong(parser.getText());
+                return Long.parseLong(parser.getString());
             } catch (NumberFormatException e) {
                 throw Bail.INSTANCE;
             }
@@ -449,23 +445,23 @@ public final class JsonWireTranscoder {
         throw Bail.INSTANCE;
     }
 
-    private static int int32(JsonParser parser, JsonToken t) throws IOException {
+    private static int int32(JsonParser parser, JsonToken t) {
         long v = wholeNumber(parser, t);
         if (v < Integer.MIN_VALUE || v > Integer.MAX_VALUE) throw Bail.INSTANCE;
         return (int) v;
     }
 
-    private static int uint32(JsonParser parser, JsonToken t) throws IOException {
+    private static int uint32(JsonParser parser, JsonToken t) {
         long v = wholeNumber(parser, t);
         if (v < 0 || v > 0xFFFFFFFFL) throw Bail.INSTANCE;
         return (int) v;
     }
 
-    private static long int64(JsonParser parser, JsonToken t) throws IOException {
+    private static long int64(JsonParser parser, JsonToken t) {
         return wholeNumber(parser, t);
     }
 
-    private static long uint64(JsonParser parser, JsonToken t) throws IOException {
+    private static long uint64(JsonParser parser, JsonToken t) {
         if (t == JsonToken.VALUE_NUMBER_INT) {
             if (parser.getNumberType() == JsonParser.NumberType.BIG_INTEGER) {
                 BigInteger big = parser.getBigIntegerValue();
@@ -478,7 +474,7 @@ public final class JsonWireTranscoder {
         }
         if (t == JsonToken.VALUE_STRING) {
             try {
-                return Long.parseUnsignedLong(parser.getText());
+                return Long.parseUnsignedLong(parser.getString());
             } catch (NumberFormatException e) {
                 throw Bail.INSTANCE;
             }
@@ -486,23 +482,23 @@ public final class JsonWireTranscoder {
         throw Bail.INSTANCE;
     }
 
-    private static boolean bool(JsonParser parser, JsonToken t) throws IOException {
+    private static boolean bool(JsonParser parser, JsonToken t) {
         if (t == JsonToken.VALUE_TRUE) return true;
         if (t == JsonToken.VALUE_FALSE) return false;
         if (t == JsonToken.VALUE_STRING) {
-            String s = parser.getText();
+            String s = parser.getString();
             if ("true".equals(s)) return true;
             if ("false".equals(s)) return false;
         }
         throw Bail.INSTANCE;
     }
 
-    private static double floating(JsonParser parser, JsonToken t) throws IOException {
+    private static double floating(JsonParser parser, JsonToken t) {
         if (t == JsonToken.VALUE_NUMBER_FLOAT || t == JsonToken.VALUE_NUMBER_INT) {
             return parser.getDoubleValue();
         }
         if (t == JsonToken.VALUE_STRING) {
-            String s = parser.getText();
+            String s = parser.getString();
             switch (s) {
                 case "NaN" -> {
                     return Double.NaN;
@@ -525,11 +521,10 @@ public final class JsonWireTranscoder {
         throw Bail.INSTANCE;
     }
 
-    private static int enumNumber(FieldDescriptor fd, JsonParser parser, JsonToken t, boolean ciEnums)
-            throws IOException {
+    private static int enumNumber(FieldDescriptor fd, JsonParser parser, JsonToken t, boolean ciEnums) {
         EnumValueDescriptor ev = null;
         if (t == JsonToken.VALUE_STRING) {
-            String name = parser.getText();
+            String name = parser.getString();
             ev = fd.getEnumType().findValueByName(name);
             if (ev == null && ciEnums) {
                 for (EnumValueDescriptor candidate : fd.getEnumType().getValues()) {
@@ -549,11 +544,11 @@ public final class JsonWireTranscoder {
     }
 
     /** A JSON subtree as the plain Java value {@link ProtoWkt#fromJava} takes. */
-    private static Object readTree(JsonParser parser, JsonToken t, int depth) throws IOException {
+    private static Object readTree(JsonParser parser, JsonToken t, int depth) {
         if (depth > MAX_DEPTH) throw Bail.INSTANCE;
         switch (t) {
             case VALUE_STRING -> {
-                return parser.getText();
+                return parser.getString();
             }
             case VALUE_NUMBER_INT -> {
                 return parser.getNumberType() == JsonParser.NumberType.BIG_INTEGER
@@ -575,7 +570,7 @@ public final class JsonWireTranscoder {
             case START_OBJECT -> {
                 Map<String, Object> map = new LinkedHashMap<>();
                 JsonToken n;
-                while ((n = parser.nextToken()) == JsonToken.FIELD_NAME) {
+                while ((n = parser.nextToken()) == JsonToken.PROPERTY_NAME) {
                     String key = parser.currentName();
                     map.put(key, readTree(parser, parser.nextToken(), depth + 1));
                 }

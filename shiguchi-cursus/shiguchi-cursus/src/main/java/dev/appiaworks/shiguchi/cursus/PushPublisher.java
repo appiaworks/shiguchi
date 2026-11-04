@@ -1,11 +1,10 @@
 package dev.appiaworks.shiguchi.cursus;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
-import java.io.IOException;
 import java.util.Map;
 import reactor.core.publisher.Mono;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
+import tools.jackson.core.json.JsonFactory;
 
 /**
  * Accepts one event: the namespace must be declared, the payload must be one JSON value within
@@ -14,7 +13,7 @@ import reactor.core.publisher.Mono;
  */
 public final class PushPublisher {
 
-    private static final JsonFactory JSON = new JsonFactory();
+    private static final JsonFactory JSON = dev.appiaworks.protobuf.extras.serde.JsonFactories.create();
 
     private final PushProperties properties;
     private final PushStore store;
@@ -153,10 +152,8 @@ public final class PushPublisher {
             p.skipChildren();
             if (p.nextToken() != null) return "more than one value";
             return null;
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             return e.getOriginalMessage();
-        } catch (IOException e) {
-            return e.getMessage();
         }
     }
 }

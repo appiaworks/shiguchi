@@ -3,9 +3,6 @@ package dev.appiaworks.protobuf.extras;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
 import com.google.geo.type.Viewport;
 import com.google.protobuf.Any;
 import com.google.protobuf.DynamicMessage;
@@ -35,6 +32,9 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.json.JsonFactory;
 
 /**
  * {@link ProtoJson} has three ways to print — the wire transcoder, a compiled serializer and the
@@ -53,7 +53,8 @@ class ProtoJsonTiersTest {
                 "needs the serializer code generator: Java 25+ with protobuf-java-extras-classfile");
     }
 
-    private static final JsonFactory JSON = new JsonFactory();
+    private static final JsonFactory JSON =
+            JsonFactory.builderWithJackson2Defaults().build();
 
     private static final Viewport VIEWPORT = Viewport.newBuilder()
             .setLow(LatLng.newBuilder().setLatitude(40.5).setLongitude(-74.25))
@@ -170,9 +171,9 @@ class ProtoJsonTiersTest {
                 StringWriter out = new StringWriter();
                 try (JsonGenerator gen = JSON.createGenerator(out)) {
                     gen.writeStartObject();
-                    gen.writeFieldName("payload");
+                    gen.writeName("payload");
                     json.write(message, gen);
-                    gen.writeNumberField("after", 1);
+                    gen.writeNumberProperty("after", 1);
                     gen.writeEndObject();
                 }
                 assertThat(tree(out.toString()))

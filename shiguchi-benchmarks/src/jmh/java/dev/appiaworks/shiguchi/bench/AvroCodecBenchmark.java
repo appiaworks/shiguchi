@@ -1,6 +1,5 @@
 package dev.appiaworks.shiguchi.bench;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.avro.AvroFraming;
 import dev.appiaworks.shiguchi.avro.AvroMapConverter;
 import dev.appiaworks.shiguchi.config.ServiceDefinition.AvroWireFormat;
@@ -23,6 +22,8 @@ import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The upstream body codecs of a {@code REST_DOWNSTREAM} backend, measured at the point where they
@@ -51,7 +52,7 @@ public class AvroCodecBenchmark {
     @Param({"10", "100"})
     public int repeatedSize;
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder().build();
 
     private Schema schema;
     private byte[] avroBytes;

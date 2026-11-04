@@ -1,11 +1,11 @@
 package dev.appiaworks.shiguchi.rest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.MethodDescriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import dev.appiaworks.protobuf.extras.serde.ProjectionNode;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
@@ -38,6 +38,10 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The {@link RouteDefinition.Transport#HTTP} counterpart of {@link ReactiveGrpcDispatcher} for the
@@ -74,7 +78,12 @@ public class HttpUpstreamDispatcher {
     private final GatewayProperties properties;
     private final WebClient webClient;
     private final List<UpstreamBodyCodec> codecs;
-    private final ObjectMapper json = new ObjectMapper();
+    // Jackson 3 sorts properties alphabetically and rejects trailing tokens by default; Jackson 2 did
+    // neither, so both stay off. The factory carries Jackson 2's read limits and number handling.
+    private final ObjectMapper json = JsonMapper.builder(JsonFactories.create())
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     @Autowired
     public HttpUpstreamDispatcher(

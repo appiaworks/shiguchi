@@ -19,7 +19,7 @@ dependencies {
     compileOnly("org.apache.kafka:kafka-clients")
     // The PushService gRPC service is hosted over an in-process channel the gateway dials like any backend.
     implementation(libs.grpc.inprocess)
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.22.4")
+    implementation("tools.jackson.core:jackson-databind")
     implementation("io.micrometer:micrometer-core")
 
     compileOnly(libs.lombok)

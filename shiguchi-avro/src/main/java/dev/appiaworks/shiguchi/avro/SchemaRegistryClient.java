@@ -1,8 +1,6 @@
 package dev.appiaworks.shiguchi.avro;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
@@ -20,6 +18,12 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * The slice of the Confluent Schema Registry REST API the gateway needs, over {@code WebClient},
@@ -36,7 +40,12 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 public class SchemaRegistryClient {
 
     private static final Logger log = LoggerFactory.getLogger(SchemaRegistryClient.class);
-    private static final ObjectMapper JSON = new ObjectMapper();
+    // Jackson 3 sorts properties alphabetically and rejects trailing tokens by default; Jackson 2 did
+    // neither, so both stay off. The factory carries Jackson 2's read limits and number handling.
+    private static final ObjectMapper JSON = JsonMapper.builder(JsonFactories.create())
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     private final WebClient client;
     private final Duration timeout;

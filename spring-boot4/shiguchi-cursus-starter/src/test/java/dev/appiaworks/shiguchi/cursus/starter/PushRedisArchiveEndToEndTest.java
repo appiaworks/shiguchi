@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.cursus.PushMetrics;
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -37,6 +35,11 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import redis.embedded.RedisServer;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The archive half of the {@code gateway-push} endpoint on the Boot 4 gateway over a real port,
@@ -98,7 +101,10 @@ class PushRedisArchiveEndToEndTest {
         }
     }
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final ParameterizedTypeReference<ServerSentEvent<String>> SSE =
             new ParameterizedTypeReference<>() {};
     private static final String ADMIN = "/actuator/gateway-push";
@@ -155,18 +161,18 @@ class PushRedisArchiveEndToEndTest {
 
         JsonNode overview = get(ADMIN, null);
         assertThat(overview.at("/engine/archive/enabled").asBoolean()).isTrue();
-        assertThat(overview.at("/engine/archive/retention").asText()).isEqualTo("PT1H");
+        assertThat(overview.at("/engine/archive/retention").asString()).isEqualTo("PT1H");
 
         JsonNode all = get(ADMIN + "/messages?topic=ticker:search/*", null).get("messages");
-        assertThat(all).extracting(m -> m.get("id").asText()).containsExactly(b, a);
-        assertThat(all.get(0).get("data").asText()).isEqualTo("{\"n\":2}");
-        assertThat(all.get(0).get("attributes").get("region").asText()).isEqualTo("us");
+        assertThat(all).extracting(m -> m.get("id").asString()).containsExactly(b, a);
+        assertThat(all.get(0).get("data").asString()).isEqualTo("{\"n\":2}");
+        assertThat(all.get(0).get("attributes").get("region").asString()).isEqualTo("us");
 
         JsonNode eu = get(ADMIN + "/messages?attr=region:eu&limit=10", null).get("messages");
-        assertThat(eu).extracting(m -> m.get("topic").asText()).containsExactly("orders:search", "ticker:search/a");
+        assertThat(eu).extracting(m -> m.get("topic").asString()).containsExactly("orders:search", "ticker:search/a");
 
         JsonNode one = get(ADMIN + "/messages/" + a + "?topic=ticker:search/a", null);
-        assertThat(one.get("id").asText()).isEqualTo(a);
+        assertThat(one.get("id").asString()).isEqualTo(a);
         assertThat(one.get("tombstoned").asBoolean()).isFalse();
         assertThat(status("GET", ADMIN + "/messages/nope?topic=ticker:search/a", null))
                 .isEqualTo(404);
@@ -192,14 +198,14 @@ class PushRedisArchiveEndToEndTest {
                     .isEqualTo(403);
             JsonNode dry = body(post(path, "{\"topic\":\"orders:repub\",\"dryRun\":true}", ADMIN_TOKEN));
             assertThat(dry.get("dryRun").asBoolean()).isTrue();
-            assertThat(dry.get("target").asText()).isEqualTo("orders:repub");
+            assertThat(dry.get("target").asString()).isEqualTo("orders:repub");
             assertThat(dry.has("id")).isFalse();
             assertThat(frames).isEmpty();
 
             JsonNode sent =
                     body(post(path, "{\"topic\":\"orders:repub\",\"reason\":\"replay after outage\"}", ADMIN_TOKEN));
             assertThat(sent.get("dryRun").asBoolean()).isFalse();
-            String copy = sent.get("id").asText();
+            String copy = sent.get("id").asString();
             assertThat(copy).isNotEqualTo(id);
             awaitTrue(() -> !frames.isEmpty());
             assertThat(frames.get(0).id()).isEqualTo(copy);
@@ -207,11 +213,11 @@ class PushRedisArchiveEndToEndTest {
 
             JsonNode archived = get(ADMIN + "/messages/" + copy + "?topic=orders:repub", null);
             JsonNode attrs = archived.get("attributes");
-            assertThat(attrs.get("origin_id").asText()).isEqualTo(id);
-            assertThat(attrs.get("origin_topic").asText()).isEqualTo("orders:repub");
-            assertThat(attrs.get("republished_by").asText()).isEqualTo("ops");
-            assertThat(attrs.get("reason").asText()).isEqualTo("replay after outage");
-            assertThat(attrs.get("k").asText()).isEqualTo("v");
+            assertThat(attrs.get("origin_id").asString()).isEqualTo(id);
+            assertThat(attrs.get("origin_topic").asString()).isEqualTo("orders:repub");
+            assertThat(attrs.get("republished_by").asString()).isEqualTo("ops");
+            assertThat(attrs.get("reason").asString()).isEqualTo("replay after outage");
+            assertThat(attrs.get("k").asString()).isEqualTo("v");
 
             assertThat(post(
                                     ADMIN + "/messages/" + id + "/republish",
@@ -242,8 +248,8 @@ class PushRedisArchiveEndToEndTest {
 
         JsonNode redacted = get(ADMIN + "/messages/" + second + "?topic=orders:tomb", null);
         assertThat(redacted.get("tombstoned").asBoolean()).isTrue();
-        assertThat(redacted.get("tombstonedBy").asText()).isEqualTo("ops");
-        assertThat(redacted.get("data").asText()).isEqualTo("null");
+        assertThat(redacted.get("tombstonedBy").asString()).isEqualTo("ops");
+        assertThat(redacted.get("data").asString()).isEqualTo("null");
         assertThat(post(ADMIN + "/messages/" + second + "/republish", "{\"topic\":\"orders:tomb\"}", ADMIN_TOKEN)
                         .statusCode()
                         .value())
@@ -284,8 +290,8 @@ class PushRedisArchiveEndToEndTest {
                 .trim()
                 .split("\\n");
         assertThat(lines).hasSize(2);
-        assertThat(body(lines[0]).get("id").asText()).isEqualTo(second);
-        assertThat(body(lines[1]).get("id").asText()).isEqualTo(first);
+        assertThat(body(lines[0]).get("id").asString()).isEqualTo(second);
+        assertThat(body(lines[1]).get("id").asString()).isEqualTo(first);
     }
 
     // ---- helpers ----
@@ -304,7 +310,7 @@ class PushRedisArchiveEndToEndTest {
                     return pair[1];
                 })
                 .block(Duration.ofSeconds(30)));
-        return response.get("id").asText();
+        return response.get("id").asString();
     }
 
     private Disposable subscribe(String topic, List<ServerSentEvent<String>> frames) {
@@ -379,7 +385,7 @@ class PushRedisArchiveEndToEndTest {
     private static JsonNode body(String json) {
         try {
             return JSON.readTree(json);
-        } catch (java.io.IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(json, e);
         }
     }

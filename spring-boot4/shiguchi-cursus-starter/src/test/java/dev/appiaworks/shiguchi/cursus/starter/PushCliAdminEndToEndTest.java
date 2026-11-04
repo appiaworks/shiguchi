@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.cursus.cli.Cursus;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -22,6 +20,11 @@ import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import reactor.core.publisher.Mono;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The admin verbs of {@code cursus} (run in-process through picocli) against the Boot 4 gateway
@@ -72,7 +75,10 @@ class PushCliAdminEndToEndTest {
 
     static final String ADMIN_TOKEN = "admin-token";
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     @Autowired
     private Environment environment;
@@ -99,7 +105,7 @@ class PushCliAdminEndToEndTest {
     private String publish(String topic, int n) throws Exception {
         Result r = cli("pub", topic, "-d", "{\"n\":" + n + "}", "--attr", "region=eu");
         assertThat(r.code()).as(r.err()).isZero();
-        return JSON.readTree(r.lines().get(0)).get("id").asText();
+        return JSON.readTree(r.lines().get(0)).get("id").asString();
     }
 
     @Test
@@ -121,7 +127,7 @@ class PushCliAdminEndToEndTest {
                 cli("repub", "--topic", "orders:adm", "--from", "1h", "--target", "orders:copy", "--reason", "e2e");
         assertThat(job.code()).as(job.err()).isZero();
         JsonNode last = JSON.readTree(job.lines().get(job.lines().size() - 1));
-        assertThat(last.get("state").asText()).isEqualTo("DONE");
+        assertThat(last.get("state").asString()).isEqualTo("DONE");
         assertThat(last.get("published").asInt()).isEqualTo(2);
         assertThat(cli("find", "--topic", "orders:copy").lines()).hasSize(2);
 

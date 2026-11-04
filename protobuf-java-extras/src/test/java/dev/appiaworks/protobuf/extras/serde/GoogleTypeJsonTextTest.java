@@ -3,8 +3,6 @@ package dev.appiaworks.protobuf.extras.serde;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.type.Date;
@@ -26,6 +24,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * BDD tests for the google.type text conversion: round trips and rejections come from
@@ -40,7 +40,7 @@ class GoogleTypeJsonTextTest {
     @BeforeAll
     static void loadFixture() throws IOException {
         try (InputStream in = GoogleTypeJsonTextTest.class.getResourceAsStream("/serde/google-type-text.json")) {
-            fixture = new ObjectMapper().readTree(in);
+            fixture = JsonMapper.builder().build().readTree(in);
         }
     }
 
@@ -53,14 +53,14 @@ class GoogleTypeJsonTextTest {
         List<String[]> out = new ArrayList<>();
         fixture.get(type)
                 .get("roundTrip")
-                .forEach(n ->
-                        out.add(new String[] {n.get("in").asText(), n.get("out").asText()}));
+                .forEach(n -> out.add(
+                        new String[] {n.get("in").asString(), n.get("out").asString()}));
         return out;
     }
 
     private static List<String> rejects(String type) {
         List<String> out = new ArrayList<>();
-        fixture.get(type).get("reject").forEach(n -> out.add(n.asText()));
+        fixture.get(type).get("reject").forEach(n -> out.add(n.asString()));
         return out;
     }
 

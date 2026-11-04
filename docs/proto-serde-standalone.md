@@ -24,7 +24,7 @@ dependencies {
 ```
 
 It depends on `protobuf-java`, `protobuf-java-util`, the `com.google.type` classes
-(`proto-google-common-protos`) and `jackson-core`. No Spring, no gRPC, no `jackson-databind`. It
+(`proto-google-common-protos`) and Jackson 3's `jackson-core` (`tools.jackson.core`). No Spring, no gRPC, no `jackson-databind`. It
 is what `shiguchi-core` itself uses, so an application that already has the gateway on its
 classpath has it too.
 

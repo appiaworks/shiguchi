@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.bff.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.bff.session.BffSessionKeys;
 import dev.appiaworks.shiguchi.bff.session.BffSessionStore;
 import dev.appiaworks.shiguchi.bff.testing.StubIssuer;
@@ -37,6 +35,11 @@ import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClien
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * A GraphQL WebSocket opened with the BFF session cookie authenticates once, at the upgrade; every
@@ -50,7 +53,10 @@ import reactor.core.publisher.Sinks;
 class BffSocketTokenRefreshEndToEndTest {
 
     private static final String ORIGIN = "https://a.example.com";
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final StubIssuer STUB = StubIssuer.start();
     private static final Server BACKEND = BffTestBackend.start();
     private static final Path PB_FILE = BffTestBackend.writeDescriptorSet();
@@ -241,11 +247,11 @@ class BffSocketTokenRefreshEndToEndTest {
 
         void query(String id, String query) {
             awaitTrue(() -> received.stream()
-                    .anyMatch(f -> "connection_ack".equals(f.path("type").asText())));
+                    .anyMatch(f -> "connection_ack".equals(f.path("type").asString())));
             try {
                 outbound.tryEmitNext(JSON.writeValueAsString(
                         Map.of("id", id, "type", "subscribe", "payload", Map.of("query", query))));
-            } catch (IOException e) {
+            } catch (tools.jackson.core.JacksonException e) {
                 throw new IllegalStateException(e);
             }
         }
@@ -253,9 +259,9 @@ class BffSocketTokenRefreshEndToEndTest {
         /** Any frame answering operation {@code id}, as JSON text. */
         String awaitFrame(String id) {
             awaitTrue(
-                    () -> received.stream().anyMatch(f -> id.equals(f.path("id").asText())));
+                    () -> received.stream().anyMatch(f -> id.equals(f.path("id").asString())));
             return received.stream()
-                    .filter(f -> id.equals(f.path("id").asText()))
+                    .filter(f -> id.equals(f.path("id").asString()))
                     .findFirst()
                     .orElseThrow()
                     .toString();
@@ -264,15 +270,15 @@ class BffSocketTokenRefreshEndToEndTest {
         /** The {@code echo.text} of operation {@code id}: {@code <authorization>|<x-principal>}. */
         String awaitResult(String id) {
             awaitTrue(() -> received.stream()
-                    .anyMatch(f -> id.equals(f.path("id").asText())
+                    .anyMatch(f -> id.equals(f.path("id").asString())
                             && !f.at("/payload/data/echo/text").isMissingNode()));
             return received.stream()
-                    .filter(f -> id.equals(f.path("id").asText()))
+                    .filter(f -> id.equals(f.path("id").asString()))
                     .map(f -> f.at("/payload/data/echo/text"))
                     .filter(n -> !n.isMissingNode())
                     .findFirst()
                     .orElseThrow()
-                    .asText();
+                    .asString();
         }
 
         @Override
@@ -285,7 +291,7 @@ class BffSocketTokenRefreshEndToEndTest {
     private static JsonNode parse(String json) {
         try {
             return JSON.readTree(json);
-        } catch (IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(json, e);
         }
     }

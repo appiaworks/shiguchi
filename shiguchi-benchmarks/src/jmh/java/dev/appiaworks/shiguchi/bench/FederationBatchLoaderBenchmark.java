@@ -1,6 +1,5 @@
 package dev.appiaworks.shiguchi.bench;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.util.JsonFormat;
 import dev.appiaworks.protobuf.extras.serde.WireJsonTranscoder;
@@ -47,6 +46,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.netty.DisposableServer;
 import reactor.netty.http.server.HttpServer;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The federation batch loaders — what a GraphQL {@code _entities} request or a DataLoader-batched
@@ -155,7 +155,7 @@ public class FederationBatchLoaderBenchmark {
                         .baseUrl("http://localhost:" + httpStub.port())
                         .build(),
                 config,
-                new ObjectMapper());
+                JsonMapper.builder().build());
 
         // Both loaders must find every key before anything is measured.
         Map<String, Map<String, Object>> viaGrpc = grpcBatch();

@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.ByteString;
 import dev.appiaworks.shiguchi.cursus.PushHook;
 import dev.appiaworks.shiguchi.proto.cursus.ClientMessage;
@@ -36,6 +34,11 @@ import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClien
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Hook decisions on the Boot 4 gateway over a real port: an in-process {@link PushHook} bean
@@ -127,7 +130,10 @@ class PushHookDecisionsEndToEndTest {
         }
     }
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final ParameterizedTypeReference<ServerSentEvent<String>> SSE =
             new ParameterizedTypeReference<>() {};
 
@@ -158,8 +164,8 @@ class PushHookDecisionsEndToEndTest {
 
         assertThat(response[0]).isEqualTo("403");
         JsonNode body = parse(response[1]);
-        assertThat(body.get("error").asText()).isEqualTo("forbidden");
-        assertThat(body.get("message").asText()).isEqualTo("blocked by policy");
+        assertThat(body.get("error").asString()).isEqualTo("forbidden");
+        assertThat(body.get("message").asString()).isEqualTo("blocked by policy");
     }
 
     @Test
@@ -171,7 +177,7 @@ class PushHookDecisionsEndToEndTest {
         String[] response = exchange("/push/subscribe?topic=ticker:btc");
 
         assertThat(response[0]).isEqualTo("403");
-        assertThat(parse(response[1]).get("message").asText()).isEqualTo("closed for maintenance");
+        assertThat(parse(response[1]).get("message").asString()).isEqualTo("closed for maintenance");
     }
 
     @Test
@@ -223,15 +229,15 @@ class PushHookDecisionsEndToEndTest {
 
             b.send("{\"type\":\"pub\",\"topic\":\"chat:room1\",\"data\":{\"text\":\"drop me\"}}");
             JsonNode ack = b.await("published");
-            assertThat(ack.get("topic").asText()).isEqualTo("chat:room1");
-            assertThat(ack.get("id").asText()).isNotBlank();
+            assertThat(ack.get("topic").asString()).isEqualTo("chat:room1");
+            assertThat(ack.get("id").asString()).isNotBlank();
 
             b.send("{\"type\":\"pub\",\"topic\":\"chat:room1\",\"data\":{\"text\":\"hello\"}}");
             b.await("published", 2);
             List<JsonNode> events = a.awaitEvents(1);
             sleep(300);
             assertThat(a.events()).hasSize(1);
-            assertThat(events.get(0).get("data").get("text").asText()).isEqualTo("hello");
+            assertThat(events.get(0).get("data").get("text").asString()).isEqualTo("hello");
         }
     }
 
@@ -246,8 +252,8 @@ class PushHookDecisionsEndToEndTest {
 
             b.send("{\"type\":\"pub\",\"topic\":\"chat:room1\",\"data\":{\"text\":\"reject me\"}}");
             JsonNode error = b.await("error");
-            assertThat(error.get("code").asText()).isEqualTo("forbidden");
-            assertThat(error.get("message").asText()).isEqualTo("no spam");
+            assertThat(error.get("code").asString()).isEqualTo("forbidden");
+            assertThat(error.get("message").asString()).isEqualTo("no spam");
 
             sleep(300);
             assertThat(a.events()).isEmpty();
@@ -266,7 +272,8 @@ class PushHookDecisionsEndToEndTest {
             b.send("{\"type\":\"pub\",\"topic\":\"chat:room1\",\"data\":{\"text\":\"rewrite me\"}}");
             b.await("published");
 
-            assertThat(a.awaitEvents(1).get(0).get("data").get("text").asText()).isEqualTo("rewritten");
+            assertThat(a.awaitEvents(1).get(0).get("data").get("text").asString())
+                    .isEqualTo("rewritten");
         }
     }
 
@@ -278,8 +285,8 @@ class PushHookDecisionsEndToEndTest {
             ws.send("{\"type\":\"sub\",\"topics\":[\"ticker:blocked\"]}");
 
             JsonNode error = ws.await("error");
-            assertThat(error.get("code").asText()).isEqualTo("forbidden");
-            assertThat(error.get("message").asText()).isEqualTo("blocked by policy");
+            assertThat(error.get("code").asString()).isEqualTo("forbidden");
+            assertThat(error.get("message").asString()).isEqualTo("blocked by policy");
             ws.send("{\"type\":\"ping\"}");
             ws.await("pong");
         }
@@ -320,7 +327,7 @@ class PushHookDecisionsEndToEndTest {
     private static JsonNode parse(String text) {
         try {
             return JSON.readTree(text);
-        } catch (java.io.IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(text, e);
         }
     }
@@ -377,11 +384,11 @@ class PushHookDecisionsEndToEndTest {
         /** The {@code nth} frame of {@code type}, waiting for it. */
         JsonNode await(String type, int nth) {
             awaitTrue(() -> frames.stream()
-                            .filter(f -> type.equals(f.path("type").asText()))
+                            .filter(f -> type.equals(f.path("type").asString()))
                             .count()
                     >= nth);
             return frames.stream()
-                    .filter(f -> type.equals(f.path("type").asText()))
+                    .filter(f -> type.equals(f.path("type").asString()))
                     .skip(nth - 1)
                     .findFirst()
                     .orElseThrow();
@@ -389,7 +396,7 @@ class PushHookDecisionsEndToEndTest {
 
         List<JsonNode> events() {
             return frames.stream()
-                    .filter(f -> "event".equals(f.path("type").asText()))
+                    .filter(f -> "event".equals(f.path("type").asString()))
                     .toList();
         }
 

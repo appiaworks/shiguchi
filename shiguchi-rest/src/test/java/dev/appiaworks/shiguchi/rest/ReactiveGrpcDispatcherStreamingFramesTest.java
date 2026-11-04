@@ -2,7 +2,6 @@ package dev.appiaworks.shiguchi.rest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
@@ -39,6 +38,8 @@ import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * BDD tests for dispatchStreamingFrames: transcoding wire bytes straight to framed response buffers
@@ -48,7 +49,7 @@ import org.springframework.core.io.buffer.DefaultDataBufferFactory;
  */
 class ReactiveGrpcDispatcherStreamingFramesTest {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = JsonMapper.builder().build();
     private static final DataBufferFactory BUFFER_FACTORY = DefaultDataBufferFactory.sharedInstance;
 
     private static Descriptor itemDescriptor;
@@ -186,7 +187,7 @@ class ReactiveGrpcDispatcherStreamingFramesTest {
             var tree = MAPPER.readTree(jsonBytes);
             assertThat(tree.has("id")).isTrue();
             assertThat(tree.has("n")).isTrue();
-            assertThat(tree.get("id").asText()).isEqualTo("item-" + i);
+            assertThat(tree.get("id").asString()).isEqualTo("item-" + i);
             assertThat(tree.get("n").asInt()).isEqualTo(i * 10);
         }
     }

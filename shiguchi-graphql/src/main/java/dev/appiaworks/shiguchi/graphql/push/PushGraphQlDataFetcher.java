@@ -1,8 +1,8 @@
 package dev.appiaworks.shiguchi.graphql.push;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.util.JsonFormat;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import dev.appiaworks.shiguchi.cursus.PushEvent;
 import dev.appiaworks.shiguchi.cursus.PushSubscriptions;
 import dev.appiaworks.shiguchi.serde.SerdeSelector;
@@ -18,6 +18,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.context.SecurityContext;
 import reactor.core.publisher.Flux;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The fetcher behind one namespace's subscription field: {@code topic} names the topic within the
@@ -29,7 +33,12 @@ import reactor.core.publisher.Flux;
 final class PushGraphQlDataFetcher implements DataFetcher<Object> {
 
     static final String TRANSPORT = "graphql";
-    private static final ObjectMapper JSON = new ObjectMapper();
+    // Jackson 3 sorts properties alphabetically and rejects trailing tokens by default; Jackson 2 did
+    // neither, so both stay off. The factory carries Jackson 2's read limits and number handling.
+    private static final ObjectMapper JSON = JsonMapper.builder(JsonFactories.create())
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     private final PushGraphQlContributor.Field field;
     private final PushSubscriptions subscriptions;

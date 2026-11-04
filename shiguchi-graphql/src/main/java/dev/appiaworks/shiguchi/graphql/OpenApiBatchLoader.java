@@ -1,7 +1,5 @@
 package dev.appiaworks.shiguchi.graphql;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.config.RestBatchLoaderConfig;
 import io.grpc.Metadata;
 import java.time.Duration;
@@ -14,6 +12,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Reactive batch loader for REST_DOWNSTREAM services, implementing the same {@link BatchLoader}

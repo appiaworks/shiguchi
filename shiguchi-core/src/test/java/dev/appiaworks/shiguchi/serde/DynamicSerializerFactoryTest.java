@@ -2,10 +2,6 @@ package dev.appiaworks.shiguchi.serde;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
@@ -17,6 +13,7 @@ import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Timestamp;
 import dev.appiaworks.protobuf.extras.serde.AbstractDynamicSerializer;
 import dev.appiaworks.protobuf.extras.serde.Codegen;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import java.io.StringWriter;
 import java.time.OffsetDateTime;
 import java.util.Base64;
@@ -27,6 +24,10 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.JsonParser;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * BDD-style integration tests for DynamicSerializerFactory.
@@ -445,7 +446,7 @@ class DynamicSerializerFactoryTest {
 
     private static String toJson(AbstractDynamicSerializer serializer, DynamicMessage msg) throws Exception {
         StringWriter sw = new StringWriter();
-        JsonGenerator gen = new JsonFactory().createGenerator(sw);
+        JsonGenerator gen = JsonFactories.create().createGenerator(sw);
         serializer.serialize(msg, gen);
         gen.flush();
         gen.close();
@@ -454,7 +455,7 @@ class DynamicSerializerFactoryTest {
 
     private static DynamicMessage fromJson(AbstractDynamicSerializer serializer, Descriptor descriptor, String json)
             throws Exception {
-        ObjectMapper om = new ObjectMapper();
+        ObjectMapper om = JsonMapper.builder().build();
         try (JsonParser p = om.createParser(json)) {
             p.nextToken(); // START_OBJECT
             return serializer.deserialize(p, DynamicMessage.newBuilder(descriptor));

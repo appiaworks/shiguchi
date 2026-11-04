@@ -2,11 +2,6 @@ package dev.appiaworks.shiguchi.serde;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.EnumDescriptorProto;
@@ -27,6 +22,7 @@ import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.JsonFormat;
 import dev.appiaworks.protobuf.extras.serde.AbstractDynamicSerializer;
 import dev.appiaworks.protobuf.extras.serde.Codegen;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import dev.appiaworks.protobuf.extras.serde.JsonPrintOptions;
 import dev.appiaworks.protobuf.extras.serde.JsonWireTranscoder;
 import dev.appiaworks.protobuf.extras.serde.ProtoMapConverter;
@@ -45,6 +41,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.json.JsonFactory;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Tier-equivalence property tests: for a kitchen-sink message covering every proto field
@@ -58,8 +60,8 @@ import org.junit.jupiter.params.provider.ValueSource;
  */
 class SerdeTierParityTest {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final JsonFactory JSON_FACTORY = new JsonFactory();
+    private static final ObjectMapper OBJECT_MAPPER = JsonMapper.builder().build();
+    private static final JsonFactory JSON_FACTORY = JsonFactories.create();
 
     private static Descriptor allTypes;
     private static Descriptor inner;
@@ -135,9 +137,9 @@ class SerdeTierParityTest {
 
         String viaString = tier2Serialize(msg);
         byte[] viaBytes;
-        var bytes = new com.fasterxml.jackson.core.util.ByteArrayBuilder();
-        try (JsonGenerator gen = JSON_FACTORY.createGenerator(
-                (java.io.OutputStream) bytes, com.fasterxml.jackson.core.JsonEncoding.UTF8)) {
+        var bytes = new tools.jackson.core.util.ByteArrayBuilder();
+        try (JsonGenerator gen =
+                JSON_FACTORY.createGenerator((java.io.OutputStream) bytes, tools.jackson.core.JsonEncoding.UTF8)) {
             allTypesSerializer.serialize(msg, gen);
         }
         viaBytes = bytes.toByteArray();
@@ -480,7 +482,7 @@ class SerdeTierParityTest {
             ProtoMapConverter.writeMessageJson(gen, DynamicMessage.parseFrom(allTypes, bytes.toByteArray()), omit);
         }
         assertThat(OBJECT_MAPPER.readTree(tier0Json)).isEqualTo(OBJECT_MAPPER.readTree(reflective.toString()));
-        assertThat(OBJECT_MAPPER.readTree(tier0Json).fieldNames()).toIterable().containsExactly("i64");
+        assertThat(OBJECT_MAPPER.readTree(tier0Json).propertyNames()).containsExactly("i64");
     }
 
     @Test

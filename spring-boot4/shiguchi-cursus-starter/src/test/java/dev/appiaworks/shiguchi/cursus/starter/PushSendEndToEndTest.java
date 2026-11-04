@@ -3,8 +3,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.proto.cursus.DeliverRequest;
 import dev.appiaworks.shiguchi.proto.cursus.PushPeerGrpc;
 import io.grpc.ManagedChannel;
@@ -41,6 +39,11 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import redis.embedded.RedisServer;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Targeted {@code Send} across two instances (Boot 4): two gateway instances over one embedded Redis, each with its
@@ -104,7 +107,10 @@ class PushSendEndToEndTest {
         }
     }
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     private static RedisServer redis;
     private static int redisPort;
@@ -191,13 +197,13 @@ class PushSendEndToEndTest {
             JsonNode out = send("{\"connectionId\":\"" + id + "\",\"json\":{\"hello\":\"b\"}}");
 
             assertThat(out.get("deliveries")).hasSize(1);
-            assertThat(out.get("deliveries").get(0).get("status").asText()).isEqualTo("DELIVERED");
-            assertThat(out.get("deliveries").get(0).get("instance").asText()).isEqualTo("node-b");
+            assertThat(out.get("deliveries").get(0).get("status").asString()).isEqualTo("DELIVERED");
+            assertThat(out.get("deliveries").get(0).get("instance").asString()).isEqualTo("node-b");
             JsonNode event = ws.awaitEvent();
-            assertThat(event.get("topic").asText()).isEqualTo("_direct:" + id);
-            assertThat(event.get("data").get("hello").asText()).isEqualTo("b");
-            assertThat(event.get("id").asText()).isEqualTo(out.get("id").asText());
-            assertThat(event.get("attributes").get("push.direct").asText()).isEqualTo("true");
+            assertThat(event.get("topic").asString()).isEqualTo("_direct:" + id);
+            assertThat(event.get("data").get("hello").asString()).isEqualTo("b");
+            assertThat(event.get("id").asString()).isEqualTo(out.get("id").asString());
+            assertThat(event.get("attributes").get("push.direct").asString()).isEqualTo("true");
         }
     }
 
@@ -217,11 +223,11 @@ class PushSendEndToEndTest {
                     .bodyToMono(String.class)
                     .block(Duration.ofSeconds(30)));
 
-            assertThat(out.get("deliveries").get(0).get("status").asText()).isEqualTo("DELIVERED");
-            assertThat(out.get("deliveries").get(0).get("instance").asText()).isEqualTo("node-b");
+            assertThat(out.get("deliveries").get(0).get("status").asString()).isEqualTo("DELIVERED");
+            assertThat(out.get("deliveries").get(0).get("instance").asString()).isEqualTo("node-b");
             JsonNode event = ws.awaitEvent();
             assertThat(event.get("data").get("op").asInt()).isEqualTo(1);
-            assertThat(event.get("attributes").get("from").asText()).isEqualTo("admin");
+            assertThat(event.get("attributes").get("from").asString()).isEqualTo("admin");
         }
     }
 
@@ -231,7 +237,7 @@ class PushSendEndToEndTest {
         JsonNode out = send("{\"connectionId\":\"no-such-connection\",\"json\":{\"x\":1}}");
 
         assertThat(out.get("deliveries")).hasSize(1);
-        assertThat(out.get("deliveries").get(0).get("status").asText()).isEqualTo("NOT_CONNECTED");
+        assertThat(out.get("deliveries").get(0).get("status").asString()).isEqualTo("NOT_CONNECTED");
     }
 
     @Test
@@ -246,7 +252,7 @@ class PushSendEndToEndTest {
             JsonNode out = send(
                     "{\"connectionId\":\"" + id + "\",\"json\":{\"n\":1},\"requireAck\":true,\"timeoutMs\":20000}");
 
-            assertThat(out.get("deliveries").get(0).get("status").asText()).isEqualTo("DELIVERED");
+            assertThat(out.get("deliveries").get(0).get("status").asString()).isEqualTo("DELIVERED");
         }
     }
 
@@ -260,7 +266,7 @@ class PushSendEndToEndTest {
             JsonNode out =
                     send("{\"connectionId\":\"" + id + "\",\"json\":{\"n\":1},\"requireAck\":true,\"timeoutMs\":500}");
 
-            assertThat(out.get("deliveries").get(0).get("status").asText()).isEqualTo("TIMEOUT");
+            assertThat(out.get("deliveries").get(0).get("status").asString()).isEqualTo("TIMEOUT");
             assertThat(ws.awaitEvent().get("data").get("n").asInt()).isEqualTo(1);
         }
     }
@@ -322,7 +328,7 @@ class PushSendEndToEndTest {
                 .retrieve()
                 .bodyToMono(String.class)
                 .block(Duration.ofSeconds(30)));
-        for (JsonNode c : all.get("connections")) if (id.equals(c.get("id").asText())) return true;
+        for (JsonNode c : all.get("connections")) if (id.equals(c.get("id").asString())) return true;
         return false;
     }
 
@@ -339,7 +345,7 @@ class PushSendEndToEndTest {
     private static JsonNode json(String body) {
         try {
             return JSON.readTree(body);
-        } catch (IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(body, e);
         }
     }
@@ -375,10 +381,10 @@ class PushSendEndToEndTest {
                                     JsonNode frame = json(t);
                                     frames.add(frame);
                                     if (acking
-                                            && "event".equals(frame.path("type").asText())) {
+                                            && "event".equals(frame.path("type").asString())) {
                                         outbound.tryEmitNext("{\"type\":\"ack\",\"topic\":\""
-                                                + frame.get("topic").asText() + "\",\"id\":\""
-                                                + frame.get("id").asText() + "\"}");
+                                                + frame.get("topic").asString() + "\",\"id\":\""
+                                                + frame.get("id").asString() + "\"}");
                                     }
                                 })
                                 .then();
@@ -398,20 +404,20 @@ class PushSendEndToEndTest {
 
         String connectionId() {
             awaitTrue(() -> frames.stream()
-                    .anyMatch(f -> "connected".equals(f.path("type").asText())));
+                    .anyMatch(f -> "connected".equals(f.path("type").asString())));
             return frames.stream()
-                    .filter(f -> "connected".equals(f.path("type").asText()))
+                    .filter(f -> "connected".equals(f.path("type").asString()))
                     .findFirst()
                     .orElseThrow()
                     .get("connectionId")
-                    .asText();
+                    .asString();
         }
 
         JsonNode awaitEvent() {
             awaitTrue(() ->
-                    frames.stream().anyMatch(f -> "event".equals(f.path("type").asText())));
+                    frames.stream().anyMatch(f -> "event".equals(f.path("type").asString())));
             return frames.stream()
-                    .filter(f -> "event".equals(f.path("type").asText()))
+                    .filter(f -> "event".equals(f.path("type").asString()))
                     .findFirst()
                     .orElseThrow();
         }

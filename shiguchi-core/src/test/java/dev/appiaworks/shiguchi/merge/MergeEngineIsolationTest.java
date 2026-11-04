@@ -37,7 +37,7 @@ class MergeEngineIsolationTest {
             "import javax.",
             "import reactor.",
             "import com.google.protobuf.",
-            "import com.fasterxml.jackson.",
+            "import tools.jackson.",
             "import dev.appiaworks.shiguchi.merge.");
 
     private static List<Path> engineSources() throws IOException {

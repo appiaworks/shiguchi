@@ -77,7 +77,7 @@ final class JsonWriterEmitter {
                  * protoc-gen-java-extras; {@code ProtoJson} and the gateway print through it.
                  */
                 @java.lang.Override
-                public void writeJson(com.fasterxml.jackson.core.JsonGenerator gen) throws java.io.IOException {
+                public void writeJson(tools.jackson.core.JsonGenerator gen) {
                   gen.writeStartObject();
                 """);
         for (FieldDescriptor fd : message.getFields()) {
@@ -99,7 +99,7 @@ final class JsonWriterEmitter {
             indent = "    ";
         }
         out.append(indent)
-                .append("gen.writeFieldName(\"")
+                .append("gen.writeName(\"")
                 .append(literal(fd.getJsonName()))
                 .append("\");\n");
         if (fd.isMapField()) {
@@ -133,7 +133,7 @@ final class JsonWriterEmitter {
                 .append(accessor)
                 .append(".entrySet()) {\n");
         String inner = indent + "  ";
-        out.append(inner).append("gen.writeFieldName(").append(mapKey(key)).append(");\n");
+        out.append(inner).append("gen.writeName(").append(mapKey(key)).append(");\n");
         String cast = "(" + boxed(value) + ") entry.getValue()";
         if (value.getType() == FieldDescriptor.Type.ENUM) {
             if (openEnum) {

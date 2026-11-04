@@ -112,9 +112,9 @@ class JavaExtrasGradlePluginFunctionalTest {
         assertThat(generated)
                 .contains("getPlacedOnAsLocalDate()")
                 .contains("public Builder setPaidAt(java.time.Instant value)")
-                .contains("public void writeJson(com.fasterxml.jackson.core.JsonGenerator gen)")
+                .contains("public void writeJson(tools.jackson.core.JsonGenerator gen)")
                 .contains("dev.appiaworks.protobuf.extras.JsonWritable,")
-                .contains("public Builder mergeJson(com.fasterxml.jackson.core.JsonParser p)")
+                .contains("public Builder mergeJson(tools.jackson.core.JsonParser p)")
                 .contains("dev.appiaworks.protobuf.extras.JsonReadable,");
     }
 

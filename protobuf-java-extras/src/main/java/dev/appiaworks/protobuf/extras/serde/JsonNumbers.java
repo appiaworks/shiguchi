@@ -1,8 +1,7 @@
 package dev.appiaworks.protobuf.extras.serde;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import java.io.IOException;
 import java.math.BigDecimal;
+import tools.jackson.core.JsonGenerator;
 
 /**
  * Writes {@code double} and {@code float} values in the configured {@link JsonNumberFormat}.
@@ -15,7 +14,7 @@ public final class JsonNumbers {
     private JsonNumbers() {}
 
     /** Writes a finite double as a JSON number in the given format. */
-    public static void writeDouble(JsonGenerator g, double v, JsonNumberFormat format) throws IOException {
+    public static void writeDouble(JsonGenerator g, double v, JsonNumberFormat format) {
         if (format == JsonNumberFormat.ECMASCRIPT && Double.isFinite(v)) {
             g.writeNumber(ecmascript(v));
         } else {
@@ -24,7 +23,7 @@ public final class JsonNumbers {
     }
 
     /** Writes a finite float as a JSON number in the given format. */
-    public static void writeFloat(JsonGenerator g, float v, JsonNumberFormat format) throws IOException {
+    public static void writeFloat(JsonGenerator g, float v, JsonNumberFormat format) {
         if (format == JsonNumberFormat.ECMASCRIPT && Float.isFinite(v)) {
             g.writeNumber(ecmascript(v));
         } else {

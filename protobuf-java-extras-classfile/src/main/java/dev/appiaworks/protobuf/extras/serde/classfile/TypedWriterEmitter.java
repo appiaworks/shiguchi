@@ -10,7 +10,6 @@ import static java.lang.constant.ConstantDescs.CD_int;
 import static java.lang.constant.ConstantDescs.CD_long;
 import static java.lang.constant.ConstantDescs.CD_void;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
@@ -33,6 +32,7 @@ import java.lang.reflect.Method;
 import java.util.Base64;
 import java.util.Map;
 import java.util.function.Consumer;
+import tools.jackson.core.JsonGenerator;
 
 /**
  * The bytes of a {@link TypedMessageWriter} subclass for one {@link TypedWriterPlan}.
@@ -60,7 +60,8 @@ final class TypedWriterEmitter {
     private static final ClassDesc CD_MAP = cd(Map.class);
 
     private static final MethodTypeDesc MTD_VOID = MethodTypeDesc.of(CD_void);
-    private static final MethodTypeDesc MTD_VOID_STRING = MethodTypeDesc.of(CD_void, CD_String);
+    private static final MethodTypeDesc MTD_GEN = MethodTypeDesc.of(CD_GEN);
+    private static final MethodTypeDesc MTD_GEN_STRING = MethodTypeDesc.of(CD_GEN, CD_String);
 
     /** Slots of {@code write(Message, JsonGenerator)}'s parameters. */
     private static final int MESSAGE = 1;
@@ -140,7 +141,7 @@ final class TypedWriterEmitter {
     private void write(CodeBuilder c) {
         int msg = c.allocateLocal(TypeKind.REFERENCE);
         c.aload(MESSAGE).checkcast(stub).astore(msg);
-        c.aload(GEN).invokevirtual(CD_GEN, "writeStartObject", MTD_VOID);
+        c.aload(GEN).invokevirtual(CD_GEN, "writeStartObject", MTD_GEN).pop();
         for (TypedWriterPlan.Field field : plan.fields()) {
             if (field.has() != null) {
                 c.aload(msg);
@@ -150,7 +151,7 @@ final class TypedWriterEmitter {
                 fieldWrite(c, field, msg);
             }
         }
-        c.aload(GEN).invokevirtual(CD_GEN, "writeEndObject", MTD_VOID);
+        c.aload(GEN).invokevirtual(CD_GEN, "writeEndObject", MTD_GEN).pop();
         c.return_();
     }
 
@@ -158,7 +159,8 @@ final class TypedWriterEmitter {
     private void fieldWrite(CodeBuilder c, TypedWriterPlan.Field field, int msg) {
         c.aload(GEN)
                 .loadConstant(field.descriptor().getJsonName())
-                .invokevirtual(CD_GEN, "writeFieldName", MTD_VOID_STRING);
+                .invokevirtual(CD_GEN, "writeName", MTD_GEN_STRING)
+                .pop();
         if (field.isMap()) {
             c.aload(GEN).aload(0).getfield(self, descriptorField(field), CD_FD).aload(msg);
             invoke(c, field.getter());
@@ -176,7 +178,7 @@ final class TypedWriterEmitter {
             c.aload(msg);
             invoke(c, field.count());
             c.istore(n).iconst_0().istore(i);
-            c.aload(GEN).invokevirtual(CD_GEN, "writeStartArray", MTD_VOID);
+            c.aload(GEN).invokevirtual(CD_GEN, "writeStartArray", MTD_GEN).pop();
             Label loop = c.newBoundLabel();
             Label end = c.newLabel();
             c.iload(i).iload(n).if_icmpge(end);
@@ -195,7 +197,7 @@ final class TypedWriterEmitter {
                             });
             c.iinc(i, 1).goto_(loop);
             c.labelBinding(end);
-            c.aload(GEN).invokevirtual(CD_GEN, "writeEndArray", MTD_VOID);
+            c.aload(GEN).invokevirtual(CD_GEN, "writeEndArray", MTD_GEN).pop();
             return;
         }
         valueWrite(
@@ -249,19 +251,21 @@ final class TypedWriterEmitter {
             case STRING -> {
                 c.aload(GEN);
                 load.accept(c);
-                c.invokevirtual(CD_GEN, "writeString", MTD_VOID_STRING);
+                c.invokevirtual(CD_GEN, "writeString", MTD_GEN_STRING).pop();
             }
             case BYTES -> {
                 c.aload(GEN).invokestatic(CD_BASE64, "getEncoder", MethodTypeDesc.of(CD_ENCODER));
                 load.accept(c);
                 c.invokevirtual(CD_BYTESTRING, "toByteArray", MethodTypeDesc.of(CD_byte.arrayType()))
                         .invokevirtual(CD_ENCODER, "encodeToString", MethodTypeDesc.of(CD_String, CD_byte.arrayType()))
-                        .invokevirtual(CD_GEN, "writeString", MTD_VOID_STRING);
+                        .invokevirtual(CD_GEN, "writeString", MTD_GEN_STRING)
+                        .pop();
             }
             case INT32, SINT32, SFIXED32 -> {
                 c.aload(GEN);
                 load.accept(c);
-                c.invokevirtual(CD_GEN, "writeNumber", MethodTypeDesc.of(CD_void, CD_int));
+                c.invokevirtual(CD_GEN, "writeNumber", MethodTypeDesc.of(CD_GEN, CD_int))
+                        .pop();
             }
             case UINT32, FIXED32 -> {
                 c.aload(GEN);
@@ -269,7 +273,8 @@ final class TypedWriterEmitter {
                 c.i2l()
                         .loadConstant(0xFFFFFFFFL)
                         .land()
-                        .invokevirtual(CD_GEN, "writeNumber", MethodTypeDesc.of(CD_void, CD_long));
+                        .invokevirtual(CD_GEN, "writeNumber", MethodTypeDesc.of(CD_GEN, CD_long))
+                        .pop();
             }
             case INT64, SINT64, SFIXED64 -> {
                 c.aload(GEN);
@@ -284,17 +289,20 @@ final class TypedWriterEmitter {
             case FLOAT -> {
                 c.aload(GEN);
                 load.accept(c);
-                c.invokevirtual(CD_GEN, "writeNumber", MethodTypeDesc.of(CD_void, CD_float));
+                c.invokevirtual(CD_GEN, "writeNumber", MethodTypeDesc.of(CD_GEN, CD_float))
+                        .pop();
             }
             case DOUBLE -> {
                 c.aload(GEN);
                 load.accept(c);
-                c.invokevirtual(CD_GEN, "writeNumber", MethodTypeDesc.of(CD_void, CD_double));
+                c.invokevirtual(CD_GEN, "writeNumber", MethodTypeDesc.of(CD_GEN, CD_double))
+                        .pop();
             }
             case BOOL -> {
                 c.aload(GEN);
                 load.accept(c);
-                c.invokevirtual(CD_GEN, "writeBoolean", MethodTypeDesc.of(CD_void, CD_boolean));
+                c.invokevirtual(CD_GEN, "writeBoolean", MethodTypeDesc.of(CD_GEN, CD_boolean))
+                        .pop();
             }
             case ENUM -> {
                 c.aload(GEN).aload(0).getfield(self, descriptorField(field), CD_FD);

@@ -1,7 +1,5 @@
 package dev.appiaworks.shiguchi.cursus.postgres;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.cursus.PushBroker;
 import dev.appiaworks.shiguchi.cursus.PushEvent;
 import dev.appiaworks.shiguchi.cursus.PushEventCodec;
@@ -28,6 +26,12 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import reactor.util.retry.Retry;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Fan-out through Postgres {@code LISTEN/NOTIFY}: every instance listens on one channel over a
@@ -44,7 +48,12 @@ import reactor.util.retry.Retry;
 public final class PostgresPushBroker implements PushBroker, DisposableBean {
 
     private static final Logger log = LoggerFactory.getLogger(PostgresPushBroker.class);
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder(
+                    dev.appiaworks.protobuf.extras.serde.JsonFactories.create())
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     private final ConnectionFactory connections;
     private final DatabaseClient db;
@@ -147,13 +156,13 @@ public final class PostgresPushBroker implements PushBroker, DisposableBean {
             if (node.hasNonNull("ref")) {
                 PostgresPushStore s = store.get();
                 if (s == null) return Mono.empty();
-                return s.byId(node.get("ref").asText()).onErrorResume(e -> {
+                return s.byId(node.get("ref").asString()).onErrorResume(e -> {
                     log.warn("Push: event {} announced but not readable: {}", node.get("ref"), e.toString());
                     return Mono.empty();
                 });
             }
             return Mono.just(PushEventCodec.decode(payload));
-        } catch (java.io.IOException | IllegalArgumentException e) {
+        } catch (tools.jackson.core.JacksonException | IllegalArgumentException e) {
             log.warn("Push: ignoring a notification on {} that is not an event: {}", channel, e.toString());
             return Mono.empty();
         }

@@ -348,7 +348,7 @@ Core modules (`io.github.appiaworks:*`):
 
 - `shiguchi-core` — dynamic proto⇄JSON/Map serde, descriptor cache, routing, reflection client.
 - `protobuf-java-extras` — the proto JSON serde, scalar codecs and type converters on their own:
-  protobuf and `jackson-core` only, usable without the gateway.
+  protobuf and Jackson 3 `jackson-core` only, usable without the gateway.
 - `protobuf-java-extras-classfile` — the code generator behind the compiled serde paths,
   written against the Class-File API and so compiled for Java 25. Found through
   `ServiceLoader`; on an older JVM it is never loaded and the library runs on its wire

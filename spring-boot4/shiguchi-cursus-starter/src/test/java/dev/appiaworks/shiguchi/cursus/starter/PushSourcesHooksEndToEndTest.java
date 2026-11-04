@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
@@ -65,6 +63,11 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * A gRPC-stream source and the gRPC hooks on the Boot 4 gateway: {@code ev.Orders/Events} is
@@ -121,7 +124,10 @@ class PushSourcesHooksEndToEndTest {
         }
     }
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final ParameterizedTypeReference<ServerSentEvent<String>> SSE =
             new ParameterizedTypeReference<>() {};
     private static final String ADMIN = "/actuator/gateway-push";
@@ -183,23 +189,23 @@ class PushSourcesHooksEndToEndTest {
         try {
             awaitTrue(() -> frames.size() >= 2);
             JsonNode event = parse(frames.get(0).data());
-            assertThat(event.get("orderId").asText()).isEqualTo("42");
-            assertThat(event.get("status").asText()).isEqualTo("tick");
+            assertThat(event.get("orderId").asString()).isEqualTo("42");
+            assertThat(event.get("status").asString()).isEqualTo("tick");
             assertThat(frames.get(0).event()).isEqualTo("orders:42");
             assertThat(metrics.sources()).isEqualTo(1);
 
             JsonNode overview = get(ADMIN, null);
             JsonNode source = overview.at("/engine/sources/0");
-            assertThat(source.get("name").asText()).isEqualTo("orders-stream");
-            assertThat(source.get("state").asText()).isEqualTo("owner");
+            assertThat(source.get("name").asString()).isEqualTo("orders-stream");
+            assertThat(source.get("state").asString()).isEqualTo("owner");
             assertThat(source.get("shared").asBoolean()).isTrue();
             assertThat(source.get("published").asLong()).isPositive();
-            assertThat(source.get("kind").asText()).contains("GRPC_STREAM", "ev.Orders/Events");
+            assertThat(source.get("kind").asString()).contains("GRPC_STREAM", "ev.Orders/Events");
             assertThat(get(ADMIN + "/sources", null).get("sources")).hasSize(1);
             assertThat(overview.at("/engine/hooks/count").asInt()).isEqualTo(1);
-            assertThat(overview.at("/engine/hooks/names").get(0).asText()).isEqualTo("GrpcPushHook");
+            assertThat(overview.at("/engine/hooks/names").get(0).asString()).isEqualTo("GrpcPushHook");
             JsonNode namespaces = get(ADMIN + "/namespaces", null).get("namespaces");
-            assertThat(namespaces).extracting(n -> n.get("name").asText()).contains("orders");
+            assertThat(namespaces).extracting(n -> n.get("name").asString()).contains("orders");
         } finally {
             stream.dispose();
         }
@@ -257,14 +263,14 @@ class PushSourcesHooksEndToEndTest {
         awaitTrue(() -> get(ADMIN + "/dlq", null).get("dlq").size() >= 2);
         JsonNode dlq = get(ADMIN + "/dlq?q=orders-stream", null).get("dlq");
         JsonNode first = dlq.get(0);
-        assertThat(first.get("source").asText()).isEqualTo("orders-stream");
-        assertThat(first.get("reason").asText()).startsWith("topic:");
+        assertThat(first.get("source").asString()).isEqualTo("orders-stream");
+        assertThat(first.get("reason").asString()).startsWith("topic:");
         assertThat(first.get("topic").isNull()).isTrue();
-        assertThat(first.get("typeUrl").asText()).isEqualTo("type.googleapis.com/ev.OrderEvent");
-        assertThat(first.get("data").asText()).contains("\"status\":\"no-order\"");
-        String retryId = first.get("id").asText();
-        String deleteId = dlq.get(1).get("id").asText();
-        assertThat(get(ADMIN + "/dlq/" + retryId, null).get("id").asText()).isEqualTo(retryId);
+        assertThat(first.get("typeUrl").asString()).isEqualTo("type.googleapis.com/ev.OrderEvent");
+        assertThat(first.get("data").asString()).contains("\"status\":\"no-order\"");
+        String retryId = first.get("id").asString();
+        String deleteId = dlq.get(1).get("id").asString();
+        assertThat(get(ADMIN + "/dlq/" + retryId, null).get("id").asString()).isEqualTo(retryId);
         assertThat(get(ADMIN + "/dlq?q=nope", null).get("dlq")).isEmpty();
 
         List<ServerSentEvent<String>> frames = new CopyOnWriteArrayList<>();
@@ -277,10 +283,10 @@ class PushSourcesHooksEndToEndTest {
                     .isEqualTo(400);
             JsonNode retried = body(exchange(
                     "POST", ADMIN + "/dlq/" + retryId + "/retry", "{\"topic\":\"orders:manual\"}", ADMIN_TOKEN));
-            assertThat(retried.get("topic").asText()).isEqualTo("orders:manual");
-            assertThat(retried.get("eventId").asText()).isNotBlank();
+            assertThat(retried.get("topic").asString()).isEqualTo("orders:manual");
+            assertThat(retried.get("eventId").asString()).isNotBlank();
             awaitTrue(() -> !frames.isEmpty());
-            assertThat(parse(frames.get(0).data()).get("status").asText()).isEqualTo("no-order");
+            assertThat(parse(frames.get(0).data()).get("status").asString()).isEqualTo("no-order");
             assertThat(status("GET", ADMIN + "/dlq/" + retryId, null, null)).isEqualTo(404);
 
             assertThat(status("DELETE", ADMIN + "/dlq/" + deleteId, null, null)).isEqualTo(401);
@@ -289,7 +295,7 @@ class PushSourcesHooksEndToEndTest {
             assertThat(status("DELETE", ADMIN + "/dlq/" + deleteId, null, ADMIN_TOKEN))
                     .isEqualTo(404);
             JsonNode audit = get(ADMIN + "/audit", null).get("audit");
-            assertThat(audit).extracting(e -> e.get("action").asText()).contains("dlq_retry", "dlq_delete");
+            assertThat(audit).extracting(e -> e.get("action").asString()).contains("dlq_retry", "dlq_delete");
             assertThat(get(ADMIN, null).at("/engine/dlq/added").asLong()).isGreaterThanOrEqualTo(2);
         } finally {
             stream.dispose();
@@ -342,7 +348,7 @@ class PushSourcesHooksEndToEndTest {
     private static JsonNode parse(String json) {
         try {
             return JSON.readTree(json);
-        } catch (IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(json, e);
         }
     }

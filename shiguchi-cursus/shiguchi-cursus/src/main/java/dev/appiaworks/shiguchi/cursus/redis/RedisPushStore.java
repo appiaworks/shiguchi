@@ -23,6 +23,10 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * History in a Redis Stream per topic ({@code <prefix>stream:<topic>}): {@code XADD} with
@@ -852,8 +856,12 @@ public final class RedisPushStore implements PushStore {
             """;
 
     private static final RedisScript<Long> UNREGISTER_SCRIPT = new DefaultRedisScript<>(UNREGISTER, Long.class);
-    private static final com.fasterxml.jackson.databind.ObjectMapper JSON =
-            new com.fasterxml.jackson.databind.ObjectMapper();
+    private static final tools.jackson.databind.ObjectMapper JSON = JsonMapper.builder(
+                    dev.appiaworks.protobuf.extras.serde.JsonFactories.create())
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     @Override
     public boolean connectionRegistry() {
@@ -944,14 +952,14 @@ public final class RedisPushStore implements PushStore {
         row.put("peerAddress", r.peerAddress());
         try {
             return JSON.writeValueAsString(row);
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new IllegalArgumentException(e);
         }
     }
 
     private static ConnectionRecord parseRow(String json) {
         try {
-            com.fasterxml.jackson.databind.JsonNode n = JSON.readTree(json);
+            tools.jackson.databind.JsonNode n = JSON.readTree(json);
             return new ConnectionRecord(
                     text(n, "id"),
                     text(n, "instance"),
@@ -962,19 +970,19 @@ public final class RedisPushStore implements PushStore {
                     list(n.get("topics")),
                     list(n.get("presenceTopics")),
                     text(n, "peerAddress"));
-        } catch (java.io.IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new IllegalStateException("bad connection row: " + json, e);
         }
     }
 
-    private static String text(com.fasterxml.jackson.databind.JsonNode n, String field) {
-        com.fasterxml.jackson.databind.JsonNode v = n.get(field);
-        return v == null || v.isNull() ? null : v.asText();
+    private static String text(tools.jackson.databind.JsonNode n, String field) {
+        tools.jackson.databind.JsonNode v = n.get(field);
+        return v == null || v.isNull() ? null : v.asString();
     }
 
-    private static List<String> list(com.fasterxml.jackson.databind.JsonNode n) {
+    private static List<String> list(tools.jackson.databind.JsonNode n) {
         List<String> out = new ArrayList<>();
-        if (n != null) n.forEach(e -> out.add(e.asText()));
+        if (n != null) n.forEach(e -> out.add(e.asString()));
         return List.copyOf(out);
     }
 

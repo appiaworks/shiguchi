@@ -1,9 +1,5 @@
 package dev.appiaworks.shiguchi.cursus;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import com.google.protobuf.ListValue;
 import com.google.protobuf.NullValue;
 import com.google.protobuf.Struct;
@@ -14,6 +10,11 @@ import dev.appiaworks.protobuf.extras.serde.JsonPrintOptions;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Map;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
+import tools.jackson.core.json.JsonFactory;
 
 /**
  * JSON bytes to and from {@code google.protobuf.Value}, with Jackson's streaming parser and
@@ -24,7 +25,7 @@ import java.util.Map;
  */
 final class PushJson {
 
-    private static final JsonFactory JSON = new JsonFactory();
+    private static final JsonFactory JSON = dev.appiaworks.protobuf.extras.serde.JsonFactories.create();
 
     private PushJson() {}
 
@@ -35,6 +36,9 @@ final class PushJson {
             Value value = read(p, first);
             if (p.nextToken() != null) throw new IOException("more than one value");
             return value;
+        } catch (JacksonException e) {
+            // Jackson 3's parse errors are unchecked; callers still treat a bad payload as an IOException.
+            throw new IOException(e.getMessage(), e);
         }
     }
 
@@ -42,7 +46,7 @@ final class PushJson {
         switch (token) {
             case START_OBJECT -> {
                 Struct.Builder s = Struct.newBuilder();
-                while (p.nextToken() == JsonToken.FIELD_NAME) {
+                while (p.nextToken() == JsonToken.PROPERTY_NAME) {
                     String name = p.currentName();
                     s.putFields(name, read(p, p.nextToken()));
                 }
@@ -58,7 +62,7 @@ final class PushJson {
                 return Value.newBuilder().setListValue(l).build();
             }
             case VALUE_STRING -> {
-                return Value.newBuilder().setStringValue(p.getText()).build();
+                return Value.newBuilder().setStringValue(p.getString()).build();
             }
             case VALUE_NUMBER_INT, VALUE_NUMBER_FLOAT -> {
                 return Value.newBuilder().setNumberValue(p.getDoubleValue()).build();
@@ -104,7 +108,7 @@ final class PushJson {
                 g.writeStartObject();
                 for (Map.Entry<String, Value> e :
                         v.getStructValue().getFieldsMap().entrySet()) {
-                    g.writeFieldName(e.getKey());
+                    g.writeName(e.getKey());
                     write(g, e.getValue(), numbers);
                 }
                 g.writeEndObject();

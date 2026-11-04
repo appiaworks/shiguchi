@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.bff.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.bff.session.BffSessionKeys;
 import dev.appiaworks.shiguchi.bff.session.BffSessionStore;
 import dev.appiaworks.shiguchi.bff.testing.StubIssuer;
@@ -47,6 +45,11 @@ import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClien
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Long-lived streams opened with the BFF session cookie on the Boot 4 gateway, over a real port:
@@ -60,7 +63,10 @@ import reactor.core.publisher.Sinks;
 class BffStreamBindingEndToEndTest {
 
     private static final String ORIGIN = "https://a.example.com";
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final StubIssuer STUB = StubIssuer.start();
     private static final Server BACKEND = BffTestBackend.start();
     private static final Path PB_FILE = BffTestBackend.writeDescriptorSet();
@@ -559,14 +565,14 @@ class BffStreamBindingEndToEndTest {
                 outbound.tryEmitNext(JSON.writeValueAsString(
                                 Map.of("id", id, "type", "subscribe", "payload", Map.of("query", query))))
                         .orThrow();
-            } catch (IOException e) {
+            } catch (tools.jackson.core.JacksonException e) {
                 throw new IllegalStateException(e);
             }
         }
 
         List<JsonNode> frames(String type) {
             return received.stream()
-                    .filter(f -> type.equals(f.path("type").asText()))
+                    .filter(f -> type.equals(f.path("type").asString()))
                     .toList();
         }
 
@@ -595,7 +601,7 @@ class BffStreamBindingEndToEndTest {
         }
 
         private static boolean endedFrame(JsonNode frame, String id, String reason) {
-            return id.equals(frame.path("id").asText()) && frame.toString().contains(reason);
+            return id.equals(frame.path("id").asString()) && frame.toString().contains(reason);
         }
 
         @Override
@@ -608,7 +614,7 @@ class BffStreamBindingEndToEndTest {
     private static JsonNode parse(String json) {
         try {
             return JSON.readTree(json);
-        } catch (IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(json, e);
         }
     }

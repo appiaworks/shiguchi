@@ -1,14 +1,18 @@
 package dev.appiaworks.shiguchi.cursus;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.util.RawValue;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.util.RawValue;
 
 /**
  * The event as it travels between instances: one JSON document on a Redis channel or a Postgres
@@ -18,7 +22,12 @@ import java.util.Map;
  */
 public final class PushEventCodec {
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder(
+                    dev.appiaworks.protobuf.extras.serde.JsonFactories.create())
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     private PushEventCodec() {}
 
@@ -44,15 +53,15 @@ public final class PushEventCodec {
         try {
             JsonNode node = JSON.readTree(json);
             return fromFields(
-                    node.path("id").asText(null),
-                    node.path("topic").asText(),
+                    node.path("id").asString(null),
+                    node.path("topic").asString(),
                     JSON.writeValueAsBytes(node.get("data")),
                     attributes(node.get("attributes")),
-                    node.hasNonNull("key") ? node.get("key").asText() : null,
+                    node.hasNonNull("key") ? node.get("key").asString() : null,
                     node.path("time").asLong(0),
-                    node.hasNonNull("typeUrl") ? node.get("typeUrl").asText() : null,
+                    node.hasNonNull("typeUrl") ? node.get("typeUrl").asString() : null,
                     node.hasNonNull("proto") ? node.get("proto").binaryValue() : null);
-        } catch (java.io.IOException ex) {
+        } catch (tools.jackson.core.JacksonException ex) {
             throw new IllegalArgumentException("not a push event: " + ex.getMessage(), ex);
         }
     }
@@ -64,7 +73,7 @@ public final class PushEventCodec {
         if (!e.attributes().isEmpty()) {
             try {
                 fields.put("attributes", JSON.writeValueAsString(e.attributes()));
-            } catch (JsonProcessingException ex) {
+            } catch (JacksonException ex) {
                 throw new IllegalArgumentException(ex);
             }
         }
@@ -83,7 +92,7 @@ public final class PushEventCodec {
         if (attrJson != null && !attrJson.isEmpty()) {
             try {
                 attrs = attributes(JSON.readTree(attrJson));
-            } catch (java.io.IOException ex) {
+            } catch (tools.jackson.core.JacksonException ex) {
                 throw new IllegalArgumentException("bad attributes on " + id, ex);
             }
         }
@@ -124,7 +133,7 @@ public final class PushEventCodec {
         if (node == null || !node.isObject()) return Map.of();
         Map<String, String> out = new LinkedHashMap<>();
         for (Map.Entry<String, JsonNode> f : node.properties())
-            out.put(f.getKey(), f.getValue().asText());
+            out.put(f.getKey(), f.getValue().asString());
         return out;
     }
 }

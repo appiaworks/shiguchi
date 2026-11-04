@@ -2,7 +2,6 @@ package dev.appiaworks.protobuf.extras.serde;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
@@ -14,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * BDD tests for the stream-based transcode overload: writing JSON directly to an OutputStream
@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
  */
 class WireJsonTranscoderStreamTest {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
     private static Descriptor simpleMsg;
     private static Descriptor largeMsg;

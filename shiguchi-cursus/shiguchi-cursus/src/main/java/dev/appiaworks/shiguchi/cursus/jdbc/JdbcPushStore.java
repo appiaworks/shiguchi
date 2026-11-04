@@ -1,8 +1,5 @@
 package dev.appiaworks.shiguchi.cursus.jdbc;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.protobuf.extras.api.ApiStatus;
 import dev.appiaworks.shiguchi.cursus.PushArchive;
 import dev.appiaworks.shiguchi.cursus.PushDelivery;
@@ -41,6 +38,13 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The store and archive on any SQL database ({@link JdbcPushSchema}): the same model as the
@@ -69,7 +73,12 @@ import reactor.core.scheduler.Schedulers;
 public final class JdbcPushStore implements PushStore, PushArchive, InitializingBean, DisposableBean {
 
     private static final Logger log = LoggerFactory.getLogger(JdbcPushStore.class);
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder(
+                    dev.appiaworks.protobuf.extras.serde.JsonFactories.create())
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final TypeReference<Map<String, String>> ATTRIBUTES = new TypeReference<>() {};
     private static final TypeReference<List<String>> STRINGS = new TypeReference<>() {};
     static final String COLUMNS =
@@ -1222,7 +1231,7 @@ public final class JdbcPushStore implements PushStore, PushArchive, Initializing
     private static String jsonString(String value) {
         try {
             return JSON.writeValueAsString(value);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalArgumentException(e);
         }
     }
@@ -1230,7 +1239,7 @@ public final class JdbcPushStore implements PushStore, PushArchive, Initializing
     private static String stringsJson(List<String> values) {
         try {
             return JSON.writeValueAsString(values == null ? List.of() : values);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalArgumentException(e);
         }
     }
@@ -1239,7 +1248,7 @@ public final class JdbcPushStore implements PushStore, PushArchive, Initializing
         if (json == null || json.isBlank()) return List.of();
         try {
             return JSON.readValue(json, STRINGS);
-        } catch (java.io.IOException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("bad connection column: " + json, e);
         }
     }
@@ -1247,7 +1256,7 @@ public final class JdbcPushStore implements PushStore, PushArchive, Initializing
     private static String attributesJson(Map<String, String> attributes) {
         try {
             return JSON.writeValueAsString(attributes == null ? Map.of() : attributes);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalArgumentException(e);
         }
     }
@@ -1256,7 +1265,7 @@ public final class JdbcPushStore implements PushStore, PushArchive, Initializing
         if (json == null || json.isBlank()) return Map.of();
         try {
             return JSON.readValue(json, ATTRIBUTES);
-        } catch (java.io.IOException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("bad attributes column: " + json, e);
         }
     }

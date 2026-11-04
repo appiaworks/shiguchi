@@ -1,9 +1,5 @@
 package dev.appiaworks.shiguchi.cursus;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -16,6 +12,10 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * {@code POST <path>/publish} with {@code {"topic": "orders:123", "data": <json>, "attributes":
@@ -101,7 +101,7 @@ public final class PushPublishHandler {
         JsonNode root;
         try {
             root = body.length == 0 ? null : PushResponses.JSON.readTree(body);
-        } catch (java.io.IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw PushException.badRequest("body is not JSON: " + e.getMessage());
         }
         if (!(root instanceof ObjectNode obj)) throw PushException.badRequest("body must be a JSON object");
@@ -112,12 +112,12 @@ public final class PushPublishHandler {
                 throw PushException.badRequest("topics must be a non-empty array");
             }
             for (JsonNode n : arr) {
-                Topic t = topic(n.asText());
+                Topic t = topic(n.asString());
                 if (!topics.contains(t)) topics.add(t);
             }
             single = false;
         } else if (obj.hasNonNull("topic")) {
-            topics.add(topic(obj.get("topic").asText()));
+            topics.add(topic(obj.get("topic").asString()));
             single = true;
         } else {
             throw PushException.badRequest("topic (or topics) is required");
@@ -127,7 +127,7 @@ public final class PushPublishHandler {
         byte[] bytes;
         try {
             bytes = PushResponses.JSON.writeValueAsBytes(data);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw PushException.badRequest("data is not serialisable: " + e.getOriginalMessage());
         }
         Map<String, String> attributes = new LinkedHashMap<>();
@@ -137,12 +137,12 @@ public final class PushPublishHandler {
             for (Map.Entry<String, JsonNode> f : attrs.properties()) {
                 if (!f.getValue().isValueNode())
                     throw PushException.badRequest("attribute '" + f.getKey() + "' must be a string");
-                attributes.put(f.getKey(), f.getValue().asText());
+                attributes.put(f.getKey(), f.getValue().asString());
             }
         }
-        String key = obj.hasNonNull("key") ? obj.get("key").asText() : null;
+        String key = obj.hasNonNull("key") ? obj.get("key").asString() : null;
         String origin =
-                obj.hasNonNull("origin") ? PushOrigin.parse(obj.get("origin").asText()) : null;
+                obj.hasNonNull("origin") ? PushOrigin.parse(obj.get("origin").asString()) : null;
         for (String name : attributes.keySet()) {
             if (name.startsWith(PushOrigin.RESERVED_PREFIX)) {
                 throw PushException.badRequest("attribute '" + name + "' is reserved: the '"

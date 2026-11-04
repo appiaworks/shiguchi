@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.security.CookieAuthenticated;
 import dev.appiaworks.shiguchi.security.CookieSessionEnded;
 import dev.appiaworks.shiguchi.security.CookieSessions;
@@ -32,6 +30,11 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 @DisplayName("Push connections opened with the BFF session cookie")
 class PushCookieConnectionTest {
@@ -40,7 +43,10 @@ class PushCookieConnectionTest {
 
     private final PushProperties properties = new PushProperties();
     private final PushMetrics metrics = new PushMetrics(new SimpleMeterRegistry());
-    private final ObjectMapper json = new ObjectMapper();
+    private final ObjectMapper json = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private final FakeSessions sessions = new FakeSessions();
     private final PushWebSocketHandler handler;
     private final PushCookieSessions cookies = new PushCookieSessions(sessions, POLL, metrics);
@@ -96,7 +102,7 @@ class PushCookieConnectionTest {
 
             JsonNode close = socket.await("close");
             assertThat(close.get("code").asInt()).isEqualTo(4440);
-            assertThat(close.get("reason").asText()).isEqualTo("session ended");
+            assertThat(close.get("reason").asString()).isEqualTo("session ended");
         }
     }
 
@@ -144,7 +150,7 @@ class PushCookieConnectionTest {
 
             JsonNode close = socket.await("close");
             assertThat(close.get("code").asInt()).isEqualTo(1008);
-            assertThat(close.get("reason").asText()).isEqualTo("token not accepted on a cookie connection");
+            assertThat(close.get("reason").asString()).isEqualTo("token not accepted on a cookie connection");
         }
     }
 
@@ -251,7 +257,7 @@ class PushCookieConnectionTest {
 
         List<JsonNode> frames(String type) {
             return out.stream()
-                    .filter(f -> type.equals(f.path("type").asText()))
+                    .filter(f -> type.equals(f.path("type").asString()))
                     .toList();
         }
 
@@ -270,7 +276,7 @@ class PushCookieConnectionTest {
         private JsonNode read(String text) {
             try {
                 return json.readTree(text);
-            } catch (java.io.IOException e) {
+            } catch (tools.jackson.core.JacksonException e) {
                 throw new IllegalStateException(e);
             }
         }

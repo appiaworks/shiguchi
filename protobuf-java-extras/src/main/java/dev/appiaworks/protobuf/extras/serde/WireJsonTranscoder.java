@@ -1,10 +1,5 @@
 package dev.appiaworks.protobuf.extras.serde;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.SerializableString;
-import com.fasterxml.jackson.core.io.SerializedString;
-import com.fasterxml.jackson.core.util.ByteArrayBuilder;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.EnumValueDescriptor;
@@ -19,6 +14,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.SerializableString;
+import tools.jackson.core.io.SerializedString;
+import tools.jackson.core.json.JsonFactory;
+import tools.jackson.core.util.ByteArrayBuilder;
 
 /**
  * Tier 0: descriptor-driven streaming transcoder from protobuf wire bytes straight to
@@ -52,7 +52,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class WireJsonTranscoder {
 
-    private static final JsonFactory JSON_FACTORY = new JsonFactory();
+    private static final JsonFactory JSON_FACTORY = JsonFactories.create();
     private static final Base64.Encoder BASE64 = Base64.getEncoder();
     private static final int MAX_DEPTH = 100;
     private static final int DIRECT_INDEX_LIMIT = 1024;
@@ -104,7 +104,7 @@ public class WireJsonTranscoder {
      */
     public boolean transcode(Program program, byte[] wire, JsonPrintOptions options, java.io.OutputStream out) {
         JsonPrintOptions opts = options == null ? JsonPrintOptions.DEFAULT : options;
-        try (JsonGenerator gen = JSON_FACTORY.createGenerator(out, com.fasterxml.jackson.core.JsonEncoding.UTF8)) {
+        try (JsonGenerator gen = JSON_FACTORY.createGenerator(out, tools.jackson.core.JsonEncoding.UTF8)) {
             CodedInputStream cis = CodedInputStream.newInstance(wire);
             writeMessage(program, cis, gen, 0, opts);
             gen.flush();
@@ -118,7 +118,7 @@ public class WireJsonTranscoder {
     public byte[] transcode(Program program, byte[] wire, JsonPrintOptions options) {
         JsonPrintOptions opts = options == null ? JsonPrintOptions.DEFAULT : options;
         ByteArrayBuilder out = new ByteArrayBuilder();
-        try (JsonGenerator gen = JSON_FACTORY.createGenerator(out, com.fasterxml.jackson.core.JsonEncoding.UTF8)) {
+        try (JsonGenerator gen = JSON_FACTORY.createGenerator(out, tools.jackson.core.JsonEncoding.UTF8)) {
             CodedInputStream cis = CodedInputStream.newInstance(wire);
             writeMessage(program, cis, gen, 0, opts);
             gen.flush();
@@ -374,13 +374,13 @@ public class WireJsonTranscoder {
                 // Read first: a value equal to the default is left out, name and all.
                 Object value = readScalar(e.fd, cis);
                 if (!isDefault(value)) {
-                    gen.writeFieldName(name(e, opts));
+                    gen.writeName(name(e, opts));
                     writeScalarValue(e.fd, value, gen, opts);
                 }
                 tag = cis.readTag();
                 continue;
             }
-            gen.writeFieldName(name(e, opts));
+            gen.writeName(name(e, opts));
             tag = writeField(e, cis, gen, tag, depth, opts);
         }
 
@@ -483,10 +483,10 @@ public class WireJsonTranscoder {
             throws IOException {
         int tag = cis.readTag();
         if (tag == e.keyTag) {
-            gen.writeFieldName(readMapKey(e.keyFd, cis));
+            gen.writeName(readMapKey(e.keyFd, cis));
             tag = cis.readTag();
         } else {
-            gen.writeFieldName(defaultMapKey(e.keyFd));
+            gen.writeName(defaultMapKey(e.keyFd));
         }
         if (tag == e.valueTag) {
             writeMapValue(e, cis, gen, depth, opts);
@@ -708,7 +708,7 @@ public class WireJsonTranscoder {
             }
             if (keys == null) keys = new java.util.HashSet<>();
             if (!keys.add(key)) throw Bail.INSTANCE;
-            gen.writeFieldName(key);
+            gen.writeName(key);
             if (entryTag == TAG_2_BYTES) {
                 int valueLength = cis.readRawVarint32();
                 int valueLimit = cis.pushLimit(valueLength);
@@ -930,7 +930,7 @@ public class WireJsonTranscoder {
         // hasPresence covers singular message/WKT/optional/oneof fields — omitted when unset.
         // Repeated message/WKT fields fall through to the empty-array branch below.
         if (e.hasPresence) return;
-        gen.writeFieldName(name(e, opts));
+        gen.writeName(name(e, opts));
         if (e.kind == Kind.MAP) {
             gen.writeStartObject();
             gen.writeEndObject();

@@ -2,8 +2,6 @@ package dev.appiaworks.protobuf.extras.serde;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import com.google.protobuf.Descriptors.Descriptor;
@@ -26,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.json.JsonFactory;
 
 class ProtoWktTest {
 
@@ -280,7 +280,7 @@ class ProtoWktTest {
         data.put("metadata", Map.of("level", 5.5, "flag", false));
 
         StringWriter sw = new StringWriter();
-        JsonGenerator gen = new JsonFactory().createGenerator(sw);
+        JsonGenerator gen = JsonFactory.builderWithJackson2Defaults().build().createGenerator(sw);
         ProtoWkt.writeJsonTree(gen, data);
         gen.close();
 

@@ -2,11 +2,6 @@ package dev.appiaworks.shiguchi.serde;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
@@ -23,6 +18,7 @@ import com.google.type.TimeOfDay;
 import com.google.type.TimeOfDayProto;
 import dev.appiaworks.protobuf.extras.serde.AbstractDynamicSerializer;
 import dev.appiaworks.protobuf.extras.serde.Codegen;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import dev.appiaworks.protobuf.extras.serde.ProtoJsonMapping;
 import dev.appiaworks.protobuf.extras.serde.ProtoMapConverter;
 import dev.appiaworks.protobuf.extras.serde.WireJsonTranscoder;
@@ -35,6 +31,12 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.json.JsonFactory;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Tier-parity tests for Google Type scalar mappings across Tier 0 (WireJsonTranscoder),
@@ -46,8 +48,8 @@ import org.junit.jupiter.api.Test;
  */
 class GoogleTypeTierParityTest {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final JsonFactory JSON_FACTORY = new JsonFactory();
+    private static final ObjectMapper OBJECT_MAPPER = JsonMapper.builder().build();
+    private static final JsonFactory JSON_FACTORY = JsonFactories.create();
 
     private static Descriptor eventDescriptor;
     private static AbstractDynamicSerializer eventSerializer;
@@ -141,10 +143,10 @@ class GoogleTypeTierParityTest {
         String json = tier2Serialize(event);
         JsonNode tree = OBJECT_MAPPER.readTree(json);
 
-        assertThat(tree.get("day").asText()).isEqualTo("2026-09-22");
-        assertThat(tree.get("opens").asText()).isEqualTo("09:30:00");
-        assertThat(tree.get("starts").asText()).contains("2026-09-22T14:03:11");
-        assertThat(tree.get("price").asText()).isEqualTo("49.99");
+        assertThat(tree.get("day").asString()).isEqualTo("2026-09-22");
+        assertThat(tree.get("opens").asString()).isEqualTo("09:30:00");
+        assertThat(tree.get("starts").asString()).contains("2026-09-22T14:03:11");
+        assertThat(tree.get("price").asString()).isEqualTo("49.99");
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -216,11 +218,11 @@ class GoogleTypeTierParityTest {
         JsonNode roundTripped = OBJECT_MAPPER.readTree(serialized);
 
         // Verify core fields are preserved
-        assertThat(roundTripped.get("day").asText()).isEqualTo("2026-09-22");
-        assertThat(roundTripped.get("opens").asText()).isEqualTo("09:30:00");
-        assertThat(roundTripped.get("starts").asText()).contains("2026-09-22T14:03:11");
-        assertThat(roundTripped.get("price").asText()).isEqualTo("49.99");
-        assertThat(roundTripped.get("name").asText()).isEqualTo("TestEvent");
+        assertThat(roundTripped.get("day").asString()).isEqualTo("2026-09-22");
+        assertThat(roundTripped.get("opens").asString()).isEqualTo("09:30:00");
+        assertThat(roundTripped.get("starts").asString()).contains("2026-09-22T14:03:11");
+        assertThat(roundTripped.get("price").asString()).isEqualTo("49.99");
+        assertThat(roundTripped.get("name").asString()).isEqualTo("TestEvent");
     }
 
     // ──────────────────────────────────────────────────────────────────────────

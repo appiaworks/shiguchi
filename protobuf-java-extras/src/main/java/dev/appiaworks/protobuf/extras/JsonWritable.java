@@ -1,8 +1,7 @@
 package dev.appiaworks.protobuf.extras;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import dev.appiaworks.protobuf.extras.api.ApiStatus;
-import java.io.IOException;
+import tools.jackson.core.JsonGenerator;
 
 /**
  * A generated message class that writes its own proto JSON: what {@code protoc-gen-java-extras}
@@ -26,5 +25,5 @@ public interface JsonWritable {
      * as an object here all the same: the callers check for that first, as {@link ProtoJson}
      * does, and this method is for them.
      */
-    void writeJson(JsonGenerator gen) throws IOException;
+    void writeJson(JsonGenerator gen);
 }

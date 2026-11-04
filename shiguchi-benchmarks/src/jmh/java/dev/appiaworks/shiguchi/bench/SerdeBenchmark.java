@@ -1,8 +1,8 @@
 package dev.appiaworks.shiguchi.bench;
 
-import com.fasterxml.jackson.core.JsonFactory;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.util.JsonFormat;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import dev.appiaworks.protobuf.extras.serde.ProtoMapConverter;
 import java.io.StringWriter;
 import java.util.Map;
@@ -19,6 +19,7 @@ import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
+import tools.jackson.core.json.JsonFactory;
 
 /**
  * Benchmarks serde hot paths:
@@ -33,7 +34,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @State(Scope.Benchmark)
 public class SerdeBenchmark {
 
-    private static final JsonFactory JSON_FACTORY = new JsonFactory();
+    private static final JsonFactory JSON_FACTORY = JsonFactories.create();
 
     /**
      * Repeated-field payload size. Drives the {@code *_repeated} benchmarks so Tier-2 vs
@@ -127,12 +128,12 @@ public class SerdeBenchmark {
     }
 
     // ── ObjectMapper allocation: baseline comparison ─────────────────────────────
-    // Shows the cost of new ObjectMapper() per call vs reusing JsonFactory.
+    // Shows the cost of JsonMapper.builder().build() per call vs reusing JsonFactory.
 
     @Benchmark
     public String tier2_serialize_flat_newObjectMapper() throws Exception {
         var sw = new StringWriter();
-        try (var gen = new com.fasterxml.jackson.databind.ObjectMapper().createGenerator(sw)) {
+        try (var gen = tools.jackson.databind.json.JsonMapper.builder().build().createGenerator(sw)) {
             f.flatSerializer.serialize(f.flatMsg, gen);
         }
         return sw.toString();

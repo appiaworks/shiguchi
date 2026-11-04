@@ -1,8 +1,8 @@
 package dev.appiaworks.shiguchi.rest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.RestConfig;
 import dev.appiaworks.shiguchi.routing.ConventionArgMapper;
@@ -13,6 +13,10 @@ import java.util.Map;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Builds the proto request JSON from a mix of path variables, query parameters,
@@ -27,16 +31,20 @@ import org.springframework.stereotype.Component;
  * Relay cursor unpacking: if an "after" param is present, it is base64-decoded and
  * the pageToken component (before ":") is used as page_request.page_token.
  *
- * Uses a self-contained Jackson 2 ObjectMapper instance to remain compatible with
- * both Spring Boot 3 (Jackson 2) and Spring Boot 4 (Jackson 3) deployments.
+ * Uses a self-contained Jackson 3 ObjectMapper instance, not one sourced from the Spring context,
+ * so the request parsing does not depend on how the application configured its own mapper.
  */
 @Component
 public class GrpcRequestBuilder {
 
-    // Jackson 2 ObjectMapper — not sourced from the Spring context so that this class
-    // works unchanged whether the application uses Jackson 2 (SB3) or Jackson 3 (SB4).
-    // ObjectMapper is thread-safe for all read/write operations.
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    // Not sourced from the Spring context: the request parsing must not change with the application's
+    // own mapper settings. Thread-safe for all read/write operations.
+    // Jackson 3 sorts properties alphabetically and rejects trailing tokens by default; Jackson 2 did
+    // neither, so both stay off. The factory carries Jackson 2's read limits and number handling.
+    private static final ObjectMapper MAPPER = JsonMapper.builder(JsonFactories.create())
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     /** Query params carrying paging/sorting conventions, handed to {@link ConventionArgMapper}. */
     private static final List<String> CONVENTION_PARAMS = List.of("pageSize", "first", "pageToken", "after", "sort");

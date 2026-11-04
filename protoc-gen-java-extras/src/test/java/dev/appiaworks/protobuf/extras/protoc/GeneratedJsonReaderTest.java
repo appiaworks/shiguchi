@@ -3,9 +3,6 @@ package dev.appiaworks.protobuf.extras.protoc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import com.google.protobuf.Message;
 import com.google.protobuf.Timestamp;
 import com.google.type.Date;
@@ -26,6 +23,9 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
+import tools.jackson.core.json.JsonFactory;
 
 /**
  * The {@code mergeJson} the plugin inserts into the Builders, as the generated classes in this
@@ -34,7 +34,8 @@ import org.junit.jupiter.api.Test;
  */
 class GeneratedJsonReaderTest {
 
-    private static final JsonFactory JSON = new JsonFactory();
+    private static final JsonFactory JSON =
+            JsonFactory.builderWithJackson2Defaults().build();
 
     /** Documents the strict rules accept in the default dialect, from plain to awkward. */
     private static final List<String> ACCEPTED = List.of(

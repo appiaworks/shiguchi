@@ -2,7 +2,6 @@ package dev.appiaworks.protobuf.extras.serde;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
@@ -17,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * BDD tests for Tier 0 wire transcoding of WKTs (Timestamp, Duration), wrappers, and map fields,
@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
  */
 class WireJsonTranscoderWireWktAndMapTest {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final JsonMapper MAPPER = JsonMapper.builder().build();
     private static final WireJsonTranscoder transcoder = new WireJsonTranscoder();
 
     private static Descriptor msgDesc;

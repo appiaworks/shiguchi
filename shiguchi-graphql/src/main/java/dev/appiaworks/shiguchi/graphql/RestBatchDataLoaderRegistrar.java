@@ -1,6 +1,6 @@
 package dev.appiaworks.shiguchi.graphql;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.RestBatchLoaderConfig;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
@@ -17,6 +17,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.graphql.execution.BatchLoaderRegistry;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Scans REST_DOWNSTREAM service definitions at startup and registers an
@@ -41,7 +45,12 @@ public class RestBatchDataLoaderRegistrar {
 
     private final GatewayProperties properties;
     private final BatchLoaderRegistry batchLoaderRegistry;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    // Jackson 3 sorts properties alphabetically and rejects trailing tokens by default; Jackson 2 did
+    // neither, so both stay off. The factory carries Jackson 2's read limits and number handling.
+    private final ObjectMapper objectMapper = JsonMapper.builder(JsonFactories.create())
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     private final Map<String, BatchLoader> loadersByType = Collections.synchronizedMap(new LinkedHashMap<>());
 

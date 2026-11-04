@@ -124,7 +124,7 @@ public class WktTranscodeBenchmark {
         byte[] json = transcoder.transcode(program, wire);
         if (json == null) throw new IllegalStateException("unexpected Tier 0 bail");
         String expected = JsonFormat.printer().omittingInsignificantWhitespace().print(msg);
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = tools.jackson.databind.json.JsonMapper.builder().build();
         if (!mapper.readTree(json).equals(mapper.readTree(expected))) {
             throw new IllegalStateException("Tier 0 differs from JsonFormat:\n" + new String(json) + "\n" + expected);
         }
@@ -132,8 +132,9 @@ public class WktTranscodeBenchmark {
 
     private static Map<String, Object> structAsMap(Struct struct) throws Exception {
         String json = JsonFormat.printer().print(struct);
-        return new com.fasterxml.jackson.databind.ObjectMapper()
-                .readValue(json, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+        return tools.jackson.databind.json.JsonMapper.builder()
+                .build()
+                .readValue(json, new tools.jackson.core.type.TypeReference<Map<String, Object>>() {});
     }
 
     private static FieldDescriptorProto field(String name, int number, String typeName) {

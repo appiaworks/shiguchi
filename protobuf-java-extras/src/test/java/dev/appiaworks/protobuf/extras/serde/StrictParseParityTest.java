@@ -2,8 +2,6 @@ package dev.appiaworks.protobuf.extras.serde;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.EnumDescriptorProto;
 import com.google.protobuf.DescriptorProtos.EnumValueDescriptorProto;
@@ -25,6 +23,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.json.JsonFactory;
 
 /**
  * Under strict input the compiled parser and the reflective converter are one parser: for every
@@ -34,7 +34,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 @DisplayName("Strict input — compiled parser and reflective converter agree")
 class StrictParseParityTest {
 
-    private static final JsonFactory JSON = new JsonFactory();
+    private static final JsonFactory JSON =
+            JsonFactory.builderWithJackson2Defaults().build();
     private static final JsonDialect STRICT = JsonDialect.of(ProtoJsonMapping.DEFAULTS, List.of(), true);
 
     private static Descriptor everything;

@@ -9,7 +9,7 @@ package dev.appiaworks.protobuf.extras.serde;
  * the default options takes every fast serializer tier; one that changes any option is printed by
  * the wire-to-JSON transcoder ({@code WireJsonTranscoder}, which applies the options per call), and
  * where that cannot serve — pagination needing the decoded message, a rare wire encoding — by the
- * reflective writer ({@link ProtoMapConverter#writeMessageJson(com.fasterxml.jackson.core.JsonGenerator,
+ * reflective writer ({@link ProtoMapConverter#writeMessageJson(tools.jackson.core.JsonGenerator,
  * com.google.protobuf.DynamicMessage, JsonPrintOptions)}), or by {@code JsonFormat} when the
  * message reaches {@code google.protobuf.Any}.
  *

@@ -1,8 +1,5 @@
 package dev.appiaworks.shiguchi.cursus.cli;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -14,6 +11,9 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /** The {@code push.v1.json} WebSocket protocol at {@code <path>/ws}. */
 final class WsTransport implements Transport {
@@ -135,7 +135,7 @@ final class WsTransport implements Transport {
                 partial.setLength(0);
                 try {
                     handle(Http.JSON.readTree(text));
-                } catch (IOException e) {
+                } catch (tools.jackson.core.JacksonException e) {
                     done.completeExceptionally(e);
                 }
             }
@@ -144,11 +144,11 @@ final class WsTransport implements Transport {
         }
 
         private void handle(JsonNode frame) {
-            switch (frame.path("type").asText()) {
+            switch (frame.path("type").asString()) {
                 case "event" -> {
                     ObjectNode event = Http.JSON.createObjectNode();
-                    event.put("topic", frame.path("topic").asText());
-                    if (frame.has("id")) event.put("id", frame.path("id").asText());
+                    event.put("topic", frame.path("topic").asString());
+                    if (frame.has("id")) event.put("id", frame.path("id").asString());
                     event.set("data", frame.has("data") ? frame.get("data") : Http.JSON.nullNode());
                     for (String optional : new String[] {"attributes", "key", "time"}) {
                         if (frame.has(optional) && !frame.get(optional).isNull())
@@ -157,25 +157,25 @@ final class WsTransport implements Transport {
                     boolean more = sink.event(event);
                     if (request.ack() && frame.has("id")) {
                         ObjectNode ack = Http.JSON.createObjectNode().put("type", "ack");
-                        ack.put("topic", frame.path("topic").asText())
-                                .put("id", frame.path("id").asText());
+                        ack.put("topic", frame.path("topic").asString())
+                                .put("id", frame.path("id").asString());
                         send(ack);
                     }
                     if (!more) done.complete(End.of(End.Kind.DONE, null));
                 }
                 case "overflow" -> {
                     sink.control("overflow", frame);
-                    if (!"session_overflow".equals(frame.path("reason").asText())) {
+                    if (!"session_overflow".equals(frame.path("reason").asString())) {
                         done.complete(
-                                End.of(End.Kind.OVERFLOW, frame.path("reason").asText(null)));
+                                End.of(End.Kind.OVERFLOW, frame.path("reason").asString(null)));
                     }
                 }
                 case "reset" -> sink.control("reset", frame);
                 case "close" ->
-                    done.complete(End.of(End.Kind.CLOSED, frame.path("reason").asText(null)));
+                    done.complete(End.of(End.Kind.CLOSED, frame.path("reason").asString(null)));
                 case "error" -> {
                     String message =
-                            frame.path("message").asText(frame.path("error").asText(frame.toString()));
+                            frame.path("message").asString(frame.path("error").asString(frame.toString()));
                     String lower = message.toLowerCase();
                     boolean auth =
                             lower.contains("unauthor") || lower.contains("forbidden") || lower.contains("denied");

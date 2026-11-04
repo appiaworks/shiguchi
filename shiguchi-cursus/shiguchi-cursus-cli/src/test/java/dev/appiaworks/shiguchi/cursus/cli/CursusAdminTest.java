@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.cli;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -20,12 +18,20 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /** The admin verbs of cursus (repub, rm, dlq, seek, send, bench) against a scripted fake gateway. */
 @DisplayName("cursus admin verbs against a fake gateway")
 class CursusAdminTest {
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final String ADMIN = "/actuator/gateway-push";
 
     record Seen(String method, String uri, String body) {}
@@ -97,8 +103,8 @@ class CursusAdminTest {
         assertThat(seen.get(0).uri()).isEqualTo(ADMIN + "/messages/9/republish");
         JsonNode body = JSON.readTree(seen.get(0).body());
         assertThat(body.get("dryRun").asBoolean()).isTrue();
-        assertThat(body.get("topic").asText()).isEqualTo("orders:1");
-        assertThat(body.get("reason").asText()).isEqualTo("test");
+        assertThat(body.get("topic").asString()).isEqualTo("orders:1");
+        assertThat(body.get("reason").asString()).isEqualTo("test");
         assertThat(result.lines()).hasSize(1);
     }
 
@@ -139,11 +145,11 @@ class CursusAdminTest {
 
         assertThat(result.code()).isZero();
         JsonNode body = JSON.readTree(seen.get(0).body());
-        assertThat(body.get("topic").asText()).isEqualTo("orders:*");
-        assertThat(body.get("attr").asText()).isEqualTo("tenant:acme");
+        assertThat(body.get("topic").asString()).isEqualTo("orders:*");
+        assertThat(body.get("attr").asString()).isEqualTo("tenant:acme");
         assertThat(body.has("from")).isTrue();
         List<String> lines = result.lines();
-        assertThat(JSON.readTree(lines.get(lines.size() - 1)).get("state").asText())
+        assertThat(JSON.readTree(lines.get(lines.size() - 1)).get("state").asString())
                 .isEqualTo("DONE");
     }
 
@@ -195,11 +201,11 @@ class CursusAdminTest {
         CliRun.Result rm = run("dlq", "rm", "d1");
 
         assertThat(list.code()).isZero();
-        assertThat(JSON.readTree(list.lines().get(0)).get("source").asText()).isEqualTo("orders-kafka");
+        assertThat(JSON.readTree(list.lines().get(0)).get("source").asString()).isEqualTo("orders-kafka");
         assertThat(seen.get(0).uri()).contains("q=orders-kafka").contains("limit=5");
         assertThat(retry.code()).isZero();
         assertThat(seen.get(1).uri()).isEqualTo(ADMIN + "/dlq/d1/retry");
-        assertThat(JSON.readTree(seen.get(1).body()).get("topic").asText()).isEqualTo("orders:replay");
+        assertThat(JSON.readTree(seen.get(1).body()).get("topic").asString()).isEqualTo("orders:replay");
         assertThat(rm.code()).isZero();
         assertThat(seen.get(2).method()).isEqualTo("DELETE");
         assertThat(seen.get(2).uri()).isEqualTo(ADMIN + "/dlq/d1");
@@ -215,8 +221,8 @@ class CursusAdminTest {
         assertThat(result.code()).isZero();
         assertThat(seen.get(0).uri()).isEqualTo(ADMIN + "/groups/billing/seek");
         JsonNode body = JSON.readTree(seen.get(0).body());
-        assertThat(body.get("topic").asText()).isEqualTo("orders:1");
-        assertThat(body.get("to").asText()).isEqualTo("first");
+        assertThat(body.get("topic").asString()).isEqualTo("orders:1");
+        assertThat(body.get("to").asString()).isEqualTo("first");
     }
 
     @Test
@@ -254,7 +260,7 @@ class CursusAdminTest {
         assertThat(result.code()).isZero();
         assertThat(seen.get(0).uri()).isEqualTo(ADMIN + "/connections/c1/send");
         JsonNode body = JSON.readTree(seen.get(0).body());
-        assertThat(body.get("data").asText()).isEqualTo("{\"hello\":1}");
+        assertThat(body.get("data").asString()).isEqualTo("{\"hello\":1}");
         assertThat(body.get("requireAck").asBoolean()).isTrue();
         assertThat(body.get("timeoutMs").asLong()).isEqualTo(500);
     }

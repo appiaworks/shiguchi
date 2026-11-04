@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;
 import java.util.List;
@@ -16,6 +14,11 @@ import org.springframework.web.reactive.socket.WebSocketSession;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 @DisplayName("Push WebSocket handler")
 class PushWebSocketHandlerTest {
@@ -26,7 +29,10 @@ class PushWebSocketHandlerTest {
     private final PushMetrics metrics = new PushMetrics(new SimpleMeterRegistry());
     private final PushPublisher publisher;
     private final PushWebSocketHandler handler;
-    private final ObjectMapper json = new ObjectMapper();
+    private final ObjectMapper json = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     PushWebSocketHandlerTest() {
         // Set up a namespace for testing
@@ -135,9 +141,9 @@ class PushWebSocketHandlerTest {
         String frame = PushWebSocketHandler.eventFrame(event);
         JsonNode node = json.readTree(frame);
 
-        assertThat(node.get("type").asText()).isEqualTo("event");
-        assertThat(node.get("topic").asText()).isEqualTo("orders:123");
-        assertThat(node.get("id").asText()).isEqualTo("ev-42");
+        assertThat(node.get("type").asString()).isEqualTo("event");
+        assertThat(node.get("topic").asString()).isEqualTo("orders:123");
+        assertThat(node.get("id").asString()).isEqualTo("ev-42");
         assertThat(node.get("data")).isNotNull();
         assertThat(node.get("data").get("a").asInt()).isEqualTo(1); // data embedded raw
         assertThat(node.get("time").asLong()).isEqualTo(time.toEpochMilli());
@@ -155,8 +161,8 @@ class PushWebSocketHandlerTest {
         JsonNode node = json.readTree(frame);
 
         assertThat(node.get("attributes")).isNotNull();
-        assertThat(node.get("attributes").get("from").asText()).isEqualTo("alice");
-        assertThat(node.get("attributes").get("region").asText()).isEqualTo("us-west");
+        assertThat(node.get("attributes").get("from").asString()).isEqualTo("alice");
+        assertThat(node.get("attributes").get("region").asString()).isEqualTo("us-west");
     }
 
     @Test
@@ -179,10 +185,10 @@ class PushWebSocketHandlerTest {
         String frame = PushWebSocketHandler.subscribed(topic, "5", Qos.AT_LEAST_ONCE);
 
         JsonNode node = json.readTree(frame);
-        assertThat(node.get("type").asText()).isEqualTo("subscribed");
-        assertThat(node.get("topic").asText()).isEqualTo("orders:999");
-        assertThat(node.get("position").asText()).isEqualTo("5");
-        assertThat(node.get("qos").asText()).isEqualTo("AT_LEAST_ONCE");
+        assertThat(node.get("type").asString()).isEqualTo("subscribed");
+        assertThat(node.get("topic").asString()).isEqualTo("orders:999");
+        assertThat(node.get("position").asString()).isEqualTo("5");
+        assertThat(node.get("qos").asString()).isEqualTo("AT_LEAST_ONCE");
     }
 
     @Test
@@ -192,9 +198,9 @@ class PushWebSocketHandlerTest {
         String frame = PushWebSocketHandler.subscribed(topic, null, Qos.AT_MOST_ONCE);
 
         JsonNode node = json.readTree(frame);
-        assertThat(node.get("type").asText()).isEqualTo("subscribed");
+        assertThat(node.get("type").asString()).isEqualTo("subscribed");
         assertThat(node.get("position")).isNull();
-        assertThat(node.get("qos").asText()).isEqualTo("AT_MOST_ONCE");
+        assertThat(node.get("qos").asString()).isEqualTo("AT_MOST_ONCE");
     }
 
     @Test
@@ -204,10 +210,10 @@ class PushWebSocketHandlerTest {
         String frame = PushWebSocketHandler.error("forbidden", "no access", topic);
 
         JsonNode node = json.readTree(frame);
-        assertThat(node.get("type").asText()).isEqualTo("error");
-        assertThat(node.get("code").asText()).isEqualTo("forbidden");
-        assertThat(node.get("message").asText()).isEqualTo("no access");
-        assertThat(node.get("topic").asText()).isEqualTo("orders:111");
+        assertThat(node.get("type").asString()).isEqualTo("error");
+        assertThat(node.get("code").asString()).isEqualTo("forbidden");
+        assertThat(node.get("message").asString()).isEqualTo("no access");
+        assertThat(node.get("topic").asString()).isEqualTo("orders:111");
     }
 
     @Test
@@ -216,8 +222,8 @@ class PushWebSocketHandlerTest {
         String frame = PushWebSocketHandler.error("bad_request", "invalid frame", null);
 
         JsonNode node = json.readTree(frame);
-        assertThat(node.get("type").asText()).isEqualTo("error");
-        assertThat(node.get("code").asText()).isEqualTo("bad_request");
+        assertThat(node.get("type").asString()).isEqualTo("error");
+        assertThat(node.get("code").asString()).isEqualTo("bad_request");
         assertThat(node.get("topic")).isNull();
     }
 
@@ -228,9 +234,9 @@ class PushWebSocketHandlerTest {
         String frame = PushWebSocketHandler.overflow(topic);
 
         JsonNode node = json.readTree(frame);
-        assertThat(node.get("type").asText()).isEqualTo("overflow");
-        assertThat(node.get("topic").asText()).isEqualTo("orders:222");
-        assertThat(node.get("reason").asText()).isEqualTo("queue_full");
+        assertThat(node.get("type").asString()).isEqualTo("overflow");
+        assertThat(node.get("topic").asString()).isEqualTo("orders:222");
+        assertThat(node.get("reason").asString()).isEqualTo("queue_full");
     }
 
     @Test
@@ -241,9 +247,9 @@ class PushWebSocketHandlerTest {
 
         JsonNode node = json.readTree(PushWebSocketHandler.signalFrame(PushEvent.resetSignal(topic, "history_gap")));
 
-        assertThat(node.get("type").asText()).isEqualTo("reset");
-        assertThat(node.get("topic").asText()).isEqualTo("orders:222");
-        assertThat(node.get("reason").asText()).isEqualTo("history_gap");
+        assertThat(node.get("type").asString()).isEqualTo("reset");
+        assertThat(node.get("topic").asString()).isEqualTo("orders:222");
+        assertThat(node.get("reason").asString()).isEqualTo("history_gap");
         assertThat(node.has("id")).isFalse();
     }
 
@@ -253,7 +259,7 @@ class PushWebSocketHandlerTest {
         JsonNode node = json.readTree(
                 PushWebSocketHandler.signalFrame(PushEvent.resetSignal(Topic.parse("orders:222"), "no_history")));
 
-        assertThat(node.get("reason").asText()).isEqualTo("no_history");
+        assertThat(node.get("reason").asString()).isEqualTo("no_history");
     }
 
     @Test
@@ -262,7 +268,7 @@ class PushWebSocketHandlerTest {
         JsonNode node =
                 json.readTree(PushWebSocketHandler.signalFrame(PushEvent.overflowSignal(Topic.parse("orders:222"), 4)));
 
-        assertThat(node.get("type").asText()).isEqualTo("overflow");
+        assertThat(node.get("type").asString()).isEqualTo("overflow");
         assertThat(node.get("dropped").asInt()).isEqualTo(4);
     }
 
@@ -274,7 +280,7 @@ class PushWebSocketHandlerTest {
 
         JsonNode node = json.readTree(frame);
         assertThat(node.get("code").asInt()).isEqualTo(1012);
-        assertThat(node.get("reason").asText()).isEqualTo("rebalance");
+        assertThat(node.get("reason").asString()).isEqualTo("rebalance");
     }
 
     // ---- origin (echo suppression) ----
@@ -321,7 +327,7 @@ class PushWebSocketHandlerTest {
         try (FakeSocket socket = new FakeSocket()) {
             socket.send("{\"type\":\"connect\",\"origin\":\"no spaces!\"}");
 
-            assertThat(socket.await("error").get("code").asText()).isEqualTo("bad_request");
+            assertThat(socket.await("error").get("code").asString()).isEqualTo("bad_request");
         }
     }
 
@@ -402,7 +408,7 @@ class PushWebSocketHandlerTest {
 
         List<JsonNode> frames(String type) {
             return out.stream()
-                    .filter(f -> type.equals(f.path("type").asText()))
+                    .filter(f -> type.equals(f.path("type").asString()))
                     .toList();
         }
 
@@ -422,7 +428,7 @@ class PushWebSocketHandlerTest {
         private JsonNode read(String text) {
             try {
                 return json.readTree(text);
-            } catch (java.io.IOException e) {
+            } catch (tools.jackson.core.JacksonException e) {
                 throw new IllegalStateException(e);
             }
         }
@@ -435,7 +441,7 @@ class PushWebSocketHandlerTest {
         String frame = PushWebSocketHandler.control("unsubscribed", topic);
 
         JsonNode node = json.readTree(frame);
-        assertThat(node.get("type").asText()).isEqualTo("unsubscribed");
-        assertThat(node.get("topic").asText()).isEqualTo("orders:333");
+        assertThat(node.get("type").asString()).isEqualTo("unsubscribed");
+        assertThat(node.get("topic").asString()).isEqualTo("orders:333");
     }
 }

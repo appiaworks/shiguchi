@@ -1,7 +1,5 @@
 package dev.appiaworks.shiguchi.cursus.cli;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -12,6 +10,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /** {@code GET <path>/subscribe} as Server-Sent Events, resumed with {@code Last-Event-ID}. */
 final class SseTransport implements Transport {
@@ -84,10 +84,10 @@ final class SseTransport implements Transport {
     private End dispatch(String name, String id, String data, SubRequest request, EventSink sink) {
         JsonNode payload = parse(data);
         if ("close".equals(name)) {
-            return End.of(End.Kind.CLOSED, payload.path("reason").asText(null));
+            return End.of(End.Kind.CLOSED, payload.path("reason").asString(null));
         }
         if ("overflow".equals(name)) {
-            String reason = payload.path("reason").asText(null);
+            String reason = payload.path("reason").asString(null);
             sink.control("overflow", payload);
             // session_overflow precedes the events and the stream continues; queue_full ends it
             return "session_overflow".equals(reason) ? null : End.of(End.Kind.OVERFLOW, reason);
@@ -119,7 +119,7 @@ final class SseTransport implements Transport {
         if (data == null || data.isEmpty()) return Http.JSON.createObjectNode();
         try {
             return Http.JSON.readTree(data);
-        } catch (IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             return Http.JSON.getNodeFactory().textNode(data);
         }
     }

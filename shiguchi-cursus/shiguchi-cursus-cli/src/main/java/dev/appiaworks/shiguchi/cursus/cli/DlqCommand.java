@@ -1,12 +1,12 @@
 package dev.appiaworks.shiguchi.cursus.cli;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.List;
 import java.util.Map;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ParentCommand;
+import tools.jackson.databind.node.ObjectNode;
 
 /** {@code cursus dlq}: list, retry and delete dead-lettered source records. */
 @Command(

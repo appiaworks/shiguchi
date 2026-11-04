@@ -1,7 +1,5 @@
 package dev.appiaworks.shiguchi.gateway;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
@@ -10,6 +8,7 @@ import com.google.rpc.BadRequest;
 import com.google.rpc.ErrorDetailsProto;
 import com.google.rpc.ErrorInfo;
 import com.google.rpc.RetryInfo;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import io.grpc.Metadata;
 import io.grpc.Status;
 import io.grpc.protobuf.StatusProto;
@@ -21,6 +20,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The rich error details a gRPC backend attached to a failed call: the {@code google.rpc.Status}
@@ -38,7 +42,12 @@ import java.util.Optional;
  */
 public final class GatewayErrorDetails {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    // Jackson 3 sorts properties alphabetically and rejects trailing tokens by default; Jackson 2 did
+    // neither, so both stay off. The factory carries Jackson 2's read limits and number handling.
+    private static final ObjectMapper MAPPER = JsonMapper.builder(JsonFactories.create())
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
 
     /** All {@code google.rpc.*} error detail messages, so the standard details always print. */

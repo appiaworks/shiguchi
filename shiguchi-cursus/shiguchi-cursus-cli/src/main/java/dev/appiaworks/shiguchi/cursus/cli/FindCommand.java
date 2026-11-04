@@ -1,6 +1,5 @@
 package dev.appiaworks.shiguchi.cursus.cli;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -17,6 +16,7 @@ import java.util.regex.Pattern;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ParentCommand;
+import tools.jackson.databind.JsonNode;
 
 /** {@code cursus find}: search the archive ({@code GET messages}); needs {@code archive.retention} on the gateway. */
 @Command(

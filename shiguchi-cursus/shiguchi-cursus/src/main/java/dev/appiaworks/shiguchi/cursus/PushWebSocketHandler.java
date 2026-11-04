@@ -1,8 +1,5 @@
 package dev.appiaworks.shiguchi.cursus;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import dev.appiaworks.shiguchi.gateway.SseKeepAlive;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -31,6 +28,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * {@code GET <path>/ws}, subprotocol {@code push.v1.json}: one WebSocket carrying any number of
@@ -324,7 +324,7 @@ public final class PushWebSocketHandler implements WebSocketHandler {
             JsonNode frame;
             try {
                 frame = PushResponses.JSON.readTree(text);
-            } catch (java.io.IOException e) {
+            } catch (tools.jackson.core.JacksonException e) {
                 send(error("bad_request", "frame is not JSON: " + e.getMessage(), null));
                 return Mono.empty();
             }
@@ -332,7 +332,7 @@ public final class PushWebSocketHandler implements WebSocketHandler {
                 send(error("bad_request", "frame needs a type", null));
                 return Mono.empty();
             }
-            String type = obj.get("type").asText();
+            String type = obj.get("type").asString();
             return switch (type) {
                 case "connect", "refresh" -> authenticate(obj);
                 case "sub" -> subscribe(obj);
@@ -359,8 +359,8 @@ public final class PushWebSocketHandler implements WebSocketHandler {
                 send(error("bad_request", "ack needs topic and id", null));
                 return Mono.empty();
             }
-            String topic = obj.get("topic").asText();
-            String id = obj.get("id").asText();
+            String topic = obj.get("topic").asString();
+            String id = obj.get("id").asString();
             String[] grouped = null;
             try {
                 grouped = groupSubscriptions.get(Topic.parse(topic));
@@ -369,9 +369,9 @@ public final class PushWebSocketHandler implements WebSocketHandler {
             }
             Mono<Void> acked;
             if (grouped != null || obj.hasNonNull("group")) {
-                String group = obj.hasNonNull("group") ? obj.get("group").asText() : grouped[0];
+                String group = obj.hasNonNull("group") ? obj.get("group").asString() : grouped[0];
                 String member =
-                        obj.hasNonNull("member") ? obj.get("member").asText() : grouped != null ? grouped[1] : id;
+                        obj.hasNonNull("member") ? obj.get("member").asString() : grouped != null ? grouped[1] : id;
                 acked = sessions.groups() == null
                         ? Mono.error(PushException.badRequest("consumer groups are not configured"))
                         : sessions.groups().ack(auth.get(), group, member, topic, id, authorizer);
@@ -398,18 +398,18 @@ public final class PushWebSocketHandler implements WebSocketHandler {
                 closeWith(new CloseStatus(POLICY, "token not accepted on a cookie connection"));
                 return Mono.empty();
             }
-            if (obj.hasNonNull("session")) clientSession = obj.get("session").asText();
-            if (obj.hasNonNull("device")) live.deviceId(obj.get("device").asText());
+            if (obj.hasNonNull("session")) clientSession = obj.get("session").asString();
+            if (obj.hasNonNull("device")) live.deviceId(obj.get("device").asString());
             if (obj.hasNonNull("origin")) {
                 try {
-                    origin = PushOrigin.parse(obj.get("origin").asText());
+                    origin = PushOrigin.parse(obj.get("origin").asString());
                     live.origin(origin);
                 } catch (PushException e) {
                     send(error(e.code(), e.getMessage(), null));
                     return Mono.empty();
                 }
             }
-            String token = obj.hasNonNull("token") ? obj.get("token").asText() : null;
+            String token = obj.hasNonNull("token") ? obj.get("token").asString() : null;
             if (token == null) {
                 // A bare connect: nothing to authenticate, answer what the handshake gave.
                 send(connected());
@@ -445,21 +445,21 @@ public final class PushWebSocketHandler implements WebSocketHandler {
             Qos requested = null;
             if (obj.hasNonNull("qos")) {
                 try {
-                    requested = Qos.valueOf(obj.get("qos").asText().trim().toUpperCase());
+                    requested = Qos.valueOf(obj.get("qos").asString().trim().toUpperCase());
                 } catch (IllegalArgumentException e) {
-                    send(error("bad_request", "unknown qos '" + obj.get("qos").asText() + "'", null));
+                    send(error("bad_request", "unknown qos '" + obj.get("qos").asString() + "'", null));
                     return Mono.empty();
                 }
             }
             Map<Topic, String> after = after(obj, topics);
             int max = properties.getConnection().getMaxSubscriptions();
             Qos qos = requested;
-            String group = obj.hasNonNull("group") ? obj.get("group").asText() : null;
-            String member = obj.hasNonNull("member") ? obj.get("member").asText() : id;
+            String group = obj.hasNonNull("group") ? obj.get("group").asString() : null;
+            String member = obj.hasNonNull("member") ? obj.get("member").asString() : id;
             String subOrigin;
             try {
                 subOrigin = obj.hasNonNull("origin")
-                        ? PushOrigin.parse(obj.get("origin").asText())
+                        ? PushOrigin.parse(obj.get("origin").asString())
                         : origin;
             } catch (PushException e) {
                 send(error(e.code(), e.getMessage(), null));
@@ -613,7 +613,7 @@ public final class PushWebSocketHandler implements WebSocketHandler {
             }
             Topic topic;
             try {
-                topic = Topic.parse(obj.get("topic").asText());
+                topic = Topic.parse(obj.get("topic").asString());
             } catch (IllegalArgumentException e) {
                 send(error("bad_request", e.getMessage(), null));
                 return Mono.empty();
@@ -640,12 +640,12 @@ public final class PushWebSocketHandler implements WebSocketHandler {
             JsonNode attrs = obj.get("attributes");
             if (attrs != null && attrs.isObject()) {
                 for (Map.Entry<String, JsonNode> f : attrs.properties())
-                    attributes.put(f.getKey(), f.getValue().asText());
+                    attributes.put(f.getKey(), f.getValue().asString());
             }
             Authentication a = auth.get();
             // The reserved push.* attributes are dropped and from / push.origin stamped by the publisher call.
             String from = TopicAuthorizer.isAuthenticated(a) ? a.getName() : null;
-            String key = obj.hasNonNull("key") ? obj.get("key").asText() : null;
+            String key = obj.hasNonNull("key") ? obj.get("key").asString() : null;
             return admitted()
                     .filter(ok -> ok)
                     .flatMap(ok -> authorizer
@@ -691,9 +691,9 @@ public final class PushWebSocketHandler implements WebSocketHandler {
         private List<Topic> topics(ObjectNode obj) {
             List<String> raw = new ArrayList<>();
             if (obj.get("topics") instanceof ArrayNode arr) {
-                for (JsonNode n : arr) raw.add(n.asText());
+                for (JsonNode n : arr) raw.add(n.asString());
             } else if (obj.hasNonNull("topic")) {
-                raw.add(obj.get("topic").asText());
+                raw.add(obj.get("topic").asString());
             }
             if (raw.isEmpty()) {
                 send(error("bad_request", "topics is required", null));
@@ -720,13 +720,13 @@ public final class PushWebSocketHandler implements WebSocketHandler {
             if (after.isObject()) {
                 for (Map.Entry<String, JsonNode> f : after.properties()) {
                     try {
-                        out.put(Topic.parse(f.getKey()), f.getValue().asText());
+                        out.put(Topic.parse(f.getKey()), f.getValue().asString());
                     } catch (IllegalArgumentException ignored) {
                         // An id for a topic not in this frame is nothing to resume.
                     }
                 }
             } else {
-                for (Topic t : topics) out.put(t, after.asText());
+                for (Topic t : topics) out.put(t, after.asString());
             }
             return out;
         }

@@ -10,9 +10,6 @@ import static java.lang.constant.ConstantDescs.CD_int;
 import static java.lang.constant.ConstantDescs.CD_long;
 import static java.lang.constant.ConstantDescs.CD_void;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.EnumValueDescriptor;
@@ -38,6 +35,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
 
 /**
  * The bytes of an {@link AbstractDynamicSerializer} subclass for one message type: the Tier 2
@@ -88,7 +88,8 @@ final class DynamicSerializerEmitter {
     private static final ClassDesc CD_BYTES = CD_byte.arrayType();
 
     private static final MethodTypeDesc MTD_VOID = MethodTypeDesc.of(CD_void);
-    private static final MethodTypeDesc MTD_VOID_STRING = MethodTypeDesc.of(CD_void, CD_String);
+    private static final MethodTypeDesc MTD_GEN = MethodTypeDesc.of(CD_GEN);
+    private static final MethodTypeDesc MTD_GEN_STRING = MethodTypeDesc.of(CD_GEN, CD_String);
     private static final MethodTypeDesc MTD_OBJECT_FD = MethodTypeDesc.of(CD_Object, CD_FD);
     private static final MethodTypeDesc MTD_BOOLEAN_FD = MethodTypeDesc.of(CD_boolean, CD_FD);
     private static final MethodTypeDesc MTD_TOKEN = MethodTypeDesc.of(CD_TOKEN);
@@ -180,18 +181,21 @@ final class DynamicSerializerEmitter {
     private void serialize(CodeBuilder c) {
         final int msg = ARG0;
         final int gen = ARG1;
-        c.aload(gen).invokevirtual(CD_GEN, "writeStartObject", MTD_VOID);
+        c.aload(gen).invokevirtual(CD_GEN, "writeStartObject", MTD_GEN).pop();
         for (FieldDescriptor fd : fields) {
             Label skip = c.newLabel();
             if (!fd.isRepeated() && fd.hasPresence()) {
                 hasField(c, msg, fd);
                 c.ifeq(skip);
             }
-            c.aload(gen).loadConstant(fd.getJsonName()).invokevirtual(CD_GEN, "writeFieldName", MTD_VOID_STRING);
+            c.aload(gen)
+                    .loadConstant(fd.getJsonName())
+                    .invokevirtual(CD_GEN, "writeName", MTD_GEN_STRING)
+                    .pop();
             serializeField(c, fd, msg, gen);
             c.labelBinding(skip);
         }
-        c.aload(gen).invokevirtual(CD_GEN, "writeEndObject", MTD_VOID);
+        c.aload(gen).invokevirtual(CD_GEN, "writeEndObject", MTD_GEN).pop();
         c.return_();
     }
 
@@ -208,7 +212,7 @@ final class DynamicSerializerEmitter {
             int list = c.allocateLocal(TypeKind.REFERENCE);
             getField(c, msg, fd);
             c.checkcast(CD_LIST).astore(list);
-            c.aload(gen).invokevirtual(CD_GEN, "writeStartArray", MTD_VOID);
+            c.aload(gen).invokevirtual(CD_GEN, "writeStartArray", MTD_GEN).pop();
             forEachInList(c, list, (cc, element) -> {
                 if (isWktField(fd)) {
                     cc.aload(gen);
@@ -223,7 +227,7 @@ final class DynamicSerializerEmitter {
                     writeScalar(cc, fd, gen, element);
                 }
             });
-            c.aload(gen).invokevirtual(CD_GEN, "writeEndArray", MTD_VOID);
+            c.aload(gen).invokevirtual(CD_GEN, "writeEndArray", MTD_GEN).pop();
             return;
         }
         if (isWktField(fd)) {
@@ -265,7 +269,9 @@ final class DynamicSerializerEmitter {
         switch (fd.getType()) {
             case STRING -> {
                 value.accept(c);
-                c.checkcast(CD_String).invokevirtual(CD_GEN, "writeString", MTD_VOID_STRING);
+                c.checkcast(CD_String)
+                        .invokevirtual(CD_GEN, "writeString", MTD_GEN_STRING)
+                        .pop();
             }
             case BYTES -> {
                 c.invokestatic(CD_BASE64, "getEncoder", MethodTypeDesc.of(CD_ENCODER));
@@ -273,11 +279,14 @@ final class DynamicSerializerEmitter {
                 c.checkcast(CD_BYTESTRING)
                         .invokevirtual(CD_BYTESTRING, "toByteArray", MethodTypeDesc.of(CD_BYTES))
                         .invokevirtual(CD_ENCODER, "encodeToString", MethodTypeDesc.of(CD_String, CD_BYTES))
-                        .invokevirtual(CD_GEN, "writeString", MTD_VOID_STRING);
+                        .invokevirtual(CD_GEN, "writeString", MTD_GEN_STRING)
+                        .pop();
             }
             case INT32, SINT32, SFIXED32 -> {
                 value.accept(c);
-                unboxInt(c).invokevirtual(CD_GEN, "writeNumber", MethodTypeDesc.of(CD_void, CD_int));
+                unboxInt(c)
+                        .invokevirtual(CD_GEN, "writeNumber", MethodTypeDesc.of(CD_GEN, CD_int))
+                        .pop();
             }
             case UINT32, FIXED32 -> {
                 value.accept(c);
@@ -285,7 +294,8 @@ final class DynamicSerializerEmitter {
                         .i2l()
                         .loadConstant(0xFFFFFFFFL)
                         .land()
-                        .invokevirtual(CD_GEN, "writeNumber", MethodTypeDesc.of(CD_void, CD_long));
+                        .invokevirtual(CD_GEN, "writeNumber", MethodTypeDesc.of(CD_GEN, CD_long))
+                        .pop();
             }
             case INT64, SINT64, SFIXED64 -> {
                 value.accept(c);
@@ -299,19 +309,22 @@ final class DynamicSerializerEmitter {
                 value.accept(c);
                 c.checkcast(CD_FLOAT)
                         .invokevirtual(CD_FLOAT, "floatValue", MethodTypeDesc.of(CD_float))
-                        .invokevirtual(CD_GEN, "writeNumber", MethodTypeDesc.of(CD_void, CD_float));
+                        .invokevirtual(CD_GEN, "writeNumber", MethodTypeDesc.of(CD_GEN, CD_float))
+                        .pop();
             }
             case DOUBLE -> {
                 value.accept(c);
                 c.checkcast(CD_DOUBLE)
                         .invokevirtual(CD_DOUBLE, "doubleValue", MethodTypeDesc.of(CD_double))
-                        .invokevirtual(CD_GEN, "writeNumber", MethodTypeDesc.of(CD_void, CD_double));
+                        .invokevirtual(CD_GEN, "writeNumber", MethodTypeDesc.of(CD_GEN, CD_double))
+                        .pop();
             }
             case BOOL -> {
                 value.accept(c);
                 c.checkcast(CD_BOOLEAN)
                         .invokevirtual(CD_BOOLEAN, "booleanValue", MethodTypeDesc.of(CD_boolean))
-                        .invokevirtual(CD_GEN, "writeBoolean", MethodTypeDesc.of(CD_void, CD_boolean));
+                        .invokevirtual(CD_GEN, "writeBoolean", MethodTypeDesc.of(CD_GEN, CD_boolean))
+                        .pop();
             }
             case ENUM -> {
                 // The name, or the number for an unknown value, as every other path writes it.
@@ -321,7 +334,8 @@ final class DynamicSerializerEmitter {
             default -> {
                 value.accept(c);
                 c.invokestatic(CD_String, "valueOf", MethodTypeDesc.of(CD_String, CD_Object))
-                        .invokevirtual(CD_GEN, "writeString", MTD_VOID_STRING);
+                        .invokevirtual(CD_GEN, "writeString", MTD_GEN_STRING)
+                        .pop();
             }
         }
     }
@@ -577,7 +591,7 @@ final class DynamicSerializerEmitter {
                 then -> then.aload(p)
                         .invokevirtual(CD_PARSER, "getIntValue", MethodTypeDesc.of(CD_int))
                         .invokestatic(CD_INTEGER, "valueOf", MethodTypeDesc.of(CD_INTEGER, CD_int)),
-                otherwise -> otherwise.aload(p).invokevirtual(CD_PARSER, "getText", MethodTypeDesc.of(CD_String)));
+                otherwise -> otherwise.aload(p).invokevirtual(CD_PARSER, "getString", MethodTypeDesc.of(CD_String)));
     }
 
     private static boolean isLenientScalar(FieldDescriptor fd) {
@@ -604,11 +618,11 @@ final class DynamicSerializerEmitter {
     /** Reads the current scalar token as the boxed value the builder takes. */
     private static void lenientScalarValue(CodeBuilder c, FieldDescriptor fd, int p) {
         switch (fd.getType()) {
-            case STRING -> c.aload(p).invokevirtual(CD_PARSER, "getText", MethodTypeDesc.of(CD_String));
+            case STRING -> c.aload(p).invokevirtual(CD_PARSER, "getString", MethodTypeDesc.of(CD_String));
             case BYTES ->
                 c.invokestatic(CD_BASE64, "getDecoder", MethodTypeDesc.of(CD_DECODER))
                         .aload(p)
-                        .invokevirtual(CD_PARSER, "getText", MethodTypeDesc.of(CD_String))
+                        .invokevirtual(CD_PARSER, "getString", MethodTypeDesc.of(CD_String))
                         .invokevirtual(CD_DECODER, "decode", MethodTypeDesc.of(CD_BYTES, CD_String))
                         .invokestatic(CD_BYTESTRING, "copyFrom", MethodTypeDesc.of(CD_BYTESTRING, CD_BYTES));
             case INT32, SINT32, SFIXED32 ->
@@ -630,7 +644,7 @@ final class DynamicSerializerEmitter {
                 c.ifThenElse(
                         Opcode.IF_ACMPEQ,
                         then -> then.aload(p)
-                                .invokevirtual(CD_PARSER, "getText", MethodTypeDesc.of(CD_String))
+                                .invokevirtual(CD_PARSER, "getString", MethodTypeDesc.of(CD_String))
                                 .invokestatic(CD_LONG, "parseUnsignedLong", MethodTypeDesc.of(CD_long, CD_String)),
                         otherwise -> otherwise
                                 .aload(p)

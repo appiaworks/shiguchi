@@ -24,7 +24,7 @@ dependencies {
     testImplementation(platform("io.zonky.test.postgres:embedded-postgres-binaries-bom:18.6.0"))
     testRuntimeOnly("io.zonky.test.postgres:embedded-postgres-binaries-linux-arm64v8")
     // The stream-binding test parses GraphQL WebSocket frames with Jackson 2, which the modules do not export.
-    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.22.4")
+    testImplementation("tools.jackson.core:jackson-databind")
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.reactor.test)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

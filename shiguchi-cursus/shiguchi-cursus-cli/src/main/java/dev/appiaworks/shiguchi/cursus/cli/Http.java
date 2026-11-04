@@ -1,7 +1,5 @@
 package dev.appiaworks.shiguchi.cursus.cli;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ConnectException;
@@ -21,11 +19,21 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 /** The JDK HTTP client with the gateway's auth, error mapping and one token refresh on a 401. */
 final class Http {
 
-    static final ObjectMapper JSON = new ObjectMapper();
+    static final ObjectMapper JSON = JsonMapper.builder(dev.appiaworks.protobuf.extras.serde.JsonFactories.create())
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     private final Settings settings;
     private final HttpClient client;
@@ -174,7 +182,7 @@ final class Http {
         if (body == null || body.isBlank()) return JSON.createObjectNode();
         try {
             return JSON.readTree(body);
-        } catch (IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new CliException(CliException.TRANSPORT, "the gateway answered something that is not JSON");
         }
     }

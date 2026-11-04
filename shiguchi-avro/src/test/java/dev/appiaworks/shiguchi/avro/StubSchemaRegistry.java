@@ -1,9 +1,5 @@
 package dev.appiaworks.shiguchi.avro;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -14,6 +10,11 @@ import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 import reactor.netty.DisposableServer;
 import reactor.netty.http.server.HttpServer;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * A minimal, in-process stand-in for the slice of the Confluent Schema Registry REST API that
@@ -28,7 +29,7 @@ import reactor.netty.http.server.HttpServer;
  */
 final class StubSchemaRegistry {
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder().build();
 
     private final DisposableServer server;
     private final AtomicInteger nextId = new AtomicInteger(1);
@@ -86,7 +87,7 @@ final class StubSchemaRegistry {
         String schemaText;
         try {
             JsonNode node = JSON.readTree(body);
-            schemaText = node.path("schema").asText();
+            schemaText = node.path("schema").asString();
         } catch (Exception e) {
             return new Result(400, "{\"error_code\":42201,\"message\":\"bad request\"}");
         }

@@ -3,8 +3,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Any;
 import com.google.protobuf.Value;
 import com.google.protobuf.util.JsonFormat;
@@ -53,6 +51,11 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The hosted {@code shiguchi.cursus.v1.PushService} on the Boot 4 gateway, reached every way the
@@ -108,7 +111,10 @@ class PushGrpcEndToEndTest {
         }
     }
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final ParameterizedTypeReference<ServerSentEvent<String>> SSE =
             new ParameterizedTypeReference<>() {};
 
@@ -160,14 +166,14 @@ class PushGrpcEndToEndTest {
         assertThat(response.status()).as(response.body()).isEqualTo(200);
         JsonNode body = json(response.body());
         assertThat(body.get("events")).hasSize(1);
-        assertThat(body.get("events").get(0).get("topic").asText()).isEqualTo("ticker:v1");
-        assertThat(body.get("events").get(0).get("id").asText()).isNotEmpty();
+        assertThat(body.get("events").get(0).get("topic").asString()).isEqualTo("ticker:v1");
+        assertThat(body.get("events").get(0).get("id").asString()).isNotEmpty();
 
         awaitTrue(() -> !frames.isEmpty());
         assertThat(frames.get(0).event()).isEqualTo("ticker:v1");
         assertThat(frames.get(0).data()).isEqualTo("{\"n\":1,\"ok\":true}");
         assertThat(frames.get(0).id())
-                .isEqualTo(body.get("events").get(0).get("id").asText());
+                .isEqualTo(body.get("events").get(0).get("id").asString());
         sse.dispose();
     }
 
@@ -188,10 +194,10 @@ class PushGrpcEndToEndTest {
         post("/push/publish", "{\"topic\":\"ticker:nd\",\"data\":{\"price\":42}}", null);
         awaitTrue(() -> !lines.isEmpty());
         JsonNode event = json(lines.get(0));
-        assertThat(event.get("topic").asText()).isEqualTo("ticker:nd");
-        assertThat(event.get("id").asText()).isNotEmpty();
+        assertThat(event.get("topic").asString()).isEqualTo("ticker:nd");
+        assertThat(event.get("id").asString()).isNotEmpty();
         assertThat(event.get("json").get("price").asInt()).isEqualTo(42);
-        assertThat(event.get("time").asText()).isNotEmpty();
+        assertThat(event.get("time").asString()).isNotEmpty();
         stream.dispose();
         awaitTrue(() -> metrics.connections("grpc") == before);
     }
@@ -331,9 +337,9 @@ class PushGrpcEndToEndTest {
         // The SSE subscriber gets its proto JSON, @type included.
         awaitTrue(() -> !frames.isEmpty());
         JsonNode rendered = json(frames.get(0).data());
-        assertThat(rendered.get("@type").asText()).isEqualTo("type.googleapis.com/shiguchi.cursus.v1.PublishedEvent");
-        assertThat(rendered.get("topic").asText()).isEqualTo("a:b");
-        assertThat(rendered.get("id").asText()).isEqualTo("42");
+        assertThat(rendered.get("@type").asString()).isEqualTo("type.googleapis.com/shiguchi.cursus.v1.PublishedEvent");
+        assertThat(rendered.get("topic").asString()).isEqualTo("a:b");
+        assertThat(rendered.get("id").asString()).isEqualTo("42");
         sse.dispose();
 
         assertThatThrownBy(() -> stub.publish(PublishRequest.newBuilder()
@@ -361,7 +367,7 @@ class PushGrpcEndToEndTest {
         JsonNode connections = json(get("/actuator/gateway-push/connections?transport=grpc&topic=ticker:adm"))
                 .get("connections");
         assertThat(connections).hasSize(1);
-        String id = connections.get(0).get("id").asText();
+        String id = connections.get(0).get("id").asString();
         assertThat(json(get("/actuator/gateway-push"))
                         .get("connections")
                         .get("grpc")
@@ -504,7 +510,7 @@ class PushGrpcEndToEndTest {
     private static JsonNode json(String body) {
         try {
             return JSON.readTree(body);
-        } catch (IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(body, e);
         }
     }

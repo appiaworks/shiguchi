@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
@@ -52,6 +50,11 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.Disposable;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * {@code event_id_field} on the Boot 4 gateway: {@code ev.Ticks/Watch} streams {@code Tick{seq}}
@@ -80,7 +83,10 @@ class PushUpstreamEventIdEndToEndTest {
     @EnableAutoConfiguration
     static class TestApp {}
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final ParameterizedTypeReference<ServerSentEvent<String>> SSE =
             new ParameterizedTypeReference<>() {};
     private static final FileDescriptor FILE = buildFile();
@@ -168,7 +174,7 @@ class PushUpstreamEventIdEndToEndTest {
     private static JsonNode parse(String json) {
         try {
             return JSON.readTree(json);
-        } catch (IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(json, e);
         }
     }
