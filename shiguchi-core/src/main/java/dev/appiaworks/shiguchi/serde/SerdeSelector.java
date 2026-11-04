@@ -1,25 +1,27 @@
 package dev.appiaworks.shiguchi.serde;
 
-import com.fasterxml.jackson.core.JsonEncoding;
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.util.ByteArrayBuilder;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.util.JsonFormat;
 import dev.appiaworks.protobuf.extras.serde.AbstractDynamicSerializer;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import dev.appiaworks.protobuf.extras.serde.JsonPrintOptions;
 import dev.appiaworks.protobuf.extras.serde.ProjectionNode;
 import dev.appiaworks.protobuf.extras.serde.ProtoJsonMapping;
 import dev.appiaworks.protobuf.extras.serde.ProtoMapConverter;
 import dev.appiaworks.protobuf.extras.serde.TypedMessageWriter;
 import dev.appiaworks.shiguchi.routing.ServiceEndpointContext;
-import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JsonEncoding;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.json.JsonFactory;
+import tools.jackson.core.util.ByteArrayBuilder;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Routes proto serialization to the fastest available tier for a given Descriptor.
@@ -37,14 +39,17 @@ import org.springframework.stereotype.Component;
 @org.springframework.context.annotation.DependsOn(ProtoJsonMappingConfigurer.BEAN_NAME)
 public class SerdeSelector {
 
-    private static final JsonFactory JSON_FACTORY = new JsonFactory();
-    private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =
-            new com.fasterxml.jackson.databind.ObjectMapper();
+    private static final JsonFactory JSON_FACTORY = JsonFactories.create();
+    // Reads a request body into a Map. Jackson 3 rejects trailing tokens by default; Jackson 2 did
+    // not, and the Tier 2 parser does not either, so the tiers keep agreeing on what they accept.
+    private static final JsonMapper MAPPER = JsonMapper.builder(JSON_FACTORY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     /** A body that writes one JSON value to a generator. */
     @FunctionalInterface
     private interface JsonWrite {
-        void write(JsonGenerator gen) throws IOException;
+        void write(JsonGenerator gen);
     }
 
     private final StaticSerdeDetector tier1;
@@ -116,7 +121,7 @@ public class SerdeSelector {
     }
 
     /** One JSON value as UTF-8 bytes, written through Jackson's generator into a byte builder. */
-    private static byte[] utf8(JsonWrite body) throws IOException {
+    private static byte[] utf8(JsonWrite body) {
         ByteArrayBuilder bytes = new ByteArrayBuilder();
         try (JsonGenerator gen = JSON_FACTORY.createGenerator((OutputStream) bytes, JsonEncoding.UTF8)) {
             body.write(gen);

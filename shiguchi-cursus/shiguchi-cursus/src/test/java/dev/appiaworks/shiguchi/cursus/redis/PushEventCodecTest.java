@@ -3,7 +3,6 @@ package dev.appiaworks.shiguchi.cursus.redis;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.cursus.PushEvent;
 import dev.appiaworks.shiguchi.cursus.PushEventCodec;
 import dev.appiaworks.shiguchi.cursus.Topic;
@@ -12,12 +11,19 @@ import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 @DisplayName("PushEventCodec")
 class PushEventCodecTest {
 
     private final Topic topic = Topic.parse("orders:123");
-    private final ObjectMapper json = new ObjectMapper();
+    private final ObjectMapper json = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     @Test
     @DisplayName("GIVEN an event WHEN encoded and decoded SHOULD round-trip topic, id, data, attributes, key, and time")

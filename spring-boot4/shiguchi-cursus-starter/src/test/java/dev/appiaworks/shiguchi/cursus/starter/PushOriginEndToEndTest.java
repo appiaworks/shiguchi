@@ -3,8 +3,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Value;
 import dev.appiaworks.shiguchi.cursus.PushMetrics;
 import dev.appiaworks.shiguchi.proto.cursus.PublishRequest;
@@ -45,6 +43,11 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Echo suppression on the Boot 4 gateway over a real port: a subscriber that declares an origin
@@ -80,7 +83,10 @@ class PushOriginEndToEndTest {
     @EnableAutoConfiguration
     static class TestApp {}
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final ParameterizedTypeReference<ServerSentEvent<String>> SSE =
             new ParameterizedTypeReference<>() {};
 
@@ -197,7 +203,7 @@ class PushOriginEndToEndTest {
             sleep(300);
             assertThat(a.events()).hasSize(1);
             assertThat(b.events()).hasSize(1);
-            assertThat(b.events().get(0).get("attributes").get("push.origin").asText())
+            assertThat(b.events().get(0).get("attributes").get("push.origin").asString())
                     .isEqualTo("A");
         }
     }
@@ -218,15 +224,16 @@ class PushOriginEndToEndTest {
             a.await("published");
 
             JsonNode seen = b.awaitEvents(1).get(0);
-            assertThat(seen.get("data").get("say").asText()).isEqualTo("hi");
-            assertThat(seen.get("attributes").get("push.origin").asText()).isEqualTo("A");
+            assertThat(seen.get("data").get("say").asString()).isEqualTo("hi");
+            assertThat(seen.get("attributes").get("push.origin").asString()).isEqualTo("A");
             assertThat(seen.get("attributes").has("from")).isFalse();
             sleep(300);
             assertThat(a.events()).isEmpty();
 
             b.send("{\"type\":\"pub\",\"topic\":\"chat:room\",\"data\":{\"say\":\"yo\"}}");
             b.await("published");
-            assertThat(a.awaitEvents(1).get(0).get("data").get("say").asText()).isEqualTo("yo");
+            assertThat(a.awaitEvents(1).get(0).get("data").get("say").asString())
+                    .isEqualTo("yo");
             sleep(300);
             assertThat(b.events()).hasSize(1);
         }
@@ -322,7 +329,7 @@ class PushOriginEndToEndTest {
     private static JsonNode parse(String text) {
         try {
             return JSON.readTree(text);
-        } catch (IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(text, e);
         }
     }
@@ -398,11 +405,11 @@ class PushOriginEndToEndTest {
 
         JsonNode await(String type, int nth) {
             awaitTrue(() -> frames.stream()
-                            .filter(f -> type.equals(f.path("type").asText()))
+                            .filter(f -> type.equals(f.path("type").asString()))
                             .count()
                     >= nth);
             return frames.stream()
-                    .filter(f -> type.equals(f.path("type").asText()))
+                    .filter(f -> type.equals(f.path("type").asString()))
                     .skip(nth - 1)
                     .findFirst()
                     .orElseThrow();
@@ -410,7 +417,7 @@ class PushOriginEndToEndTest {
 
         List<JsonNode> events() {
             return frames.stream()
-                    .filter(f -> "event".equals(f.path("type").asText()))
+                    .filter(f -> "event".equals(f.path("type").asString()))
                     .toList();
         }
 

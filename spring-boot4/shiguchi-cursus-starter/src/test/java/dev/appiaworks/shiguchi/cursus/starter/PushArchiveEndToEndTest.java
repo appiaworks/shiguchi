@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.cursus.PushMetrics;
 import java.time.Duration;
 import java.time.Instant;
@@ -30,6 +28,11 @@ import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The archive half of the {@code gateway-push} endpoint on the Boot 4 gateway over a real port,
@@ -91,7 +94,10 @@ class PushArchiveEndToEndTest {
         }
     }
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final ParameterizedTypeReference<ServerSentEvent<String>> SSE =
             new ParameterizedTypeReference<>() {};
     private static final String ADMIN = "/actuator/gateway-push";
@@ -125,18 +131,18 @@ class PushArchiveEndToEndTest {
 
         JsonNode overview = get(ADMIN, null);
         assertThat(overview.at("/engine/archive/enabled").asBoolean()).isTrue();
-        assertThat(overview.at("/engine/archive/retention").asText()).isEqualTo("PT1H");
+        assertThat(overview.at("/engine/archive/retention").asString()).isEqualTo("PT1H");
 
         JsonNode all = get(ADMIN + "/messages?topic=ticker:search/*", null).get("messages");
-        assertThat(all).extracting(m -> m.get("id").asText()).containsExactly(b, a);
-        assertThat(all.get(0).get("data").asText()).isEqualTo("{\"n\":2}");
-        assertThat(all.get(0).get("attributes").get("region").asText()).isEqualTo("us");
+        assertThat(all).extracting(m -> m.get("id").asString()).containsExactly(b, a);
+        assertThat(all.get(0).get("data").asString()).isEqualTo("{\"n\":2}");
+        assertThat(all.get(0).get("attributes").get("region").asString()).isEqualTo("us");
 
         JsonNode eu = get(ADMIN + "/messages?attr=region:eu&limit=10", null).get("messages");
-        assertThat(eu).extracting(m -> m.get("topic").asText()).containsExactly("orders:search", "ticker:search/a");
+        assertThat(eu).extracting(m -> m.get("topic").asString()).containsExactly("orders:search", "ticker:search/a");
 
         JsonNode one = get(ADMIN + "/messages/" + a + "?topic=ticker:search/a", null);
-        assertThat(one.get("id").asText()).isEqualTo(a);
+        assertThat(one.get("id").asString()).isEqualTo(a);
         assertThat(one.get("tombstoned").asBoolean()).isFalse();
         assertThat(status("GET", ADMIN + "/messages/nope?topic=ticker:search/a", null))
                 .isEqualTo(404);
@@ -162,14 +168,14 @@ class PushArchiveEndToEndTest {
                     .isEqualTo(403);
             JsonNode dry = body(post(path, "{\"topic\":\"orders:repub\",\"dryRun\":true}", ADMIN_TOKEN));
             assertThat(dry.get("dryRun").asBoolean()).isTrue();
-            assertThat(dry.get("target").asText()).isEqualTo("orders:repub");
+            assertThat(dry.get("target").asString()).isEqualTo("orders:repub");
             assertThat(dry.has("id")).isFalse();
             assertThat(frames).isEmpty();
 
             JsonNode sent =
                     body(post(path, "{\"topic\":\"orders:repub\",\"reason\":\"replay after outage\"}", ADMIN_TOKEN));
             assertThat(sent.get("dryRun").asBoolean()).isFalse();
-            String copy = sent.get("id").asText();
+            String copy = sent.get("id").asString();
             assertThat(copy).isNotEqualTo(id);
             awaitTrue(() -> !frames.isEmpty());
             assertThat(frames.get(0).id()).isEqualTo(copy);
@@ -177,11 +183,11 @@ class PushArchiveEndToEndTest {
 
             JsonNode archived = get(ADMIN + "/messages/" + copy + "?topic=orders:repub", null);
             JsonNode attrs = archived.get("attributes");
-            assertThat(attrs.get("origin_id").asText()).isEqualTo(id);
-            assertThat(attrs.get("origin_topic").asText()).isEqualTo("orders:repub");
-            assertThat(attrs.get("republished_by").asText()).isEqualTo("ops");
-            assertThat(attrs.get("reason").asText()).isEqualTo("replay after outage");
-            assertThat(attrs.get("k").asText()).isEqualTo("v");
+            assertThat(attrs.get("origin_id").asString()).isEqualTo(id);
+            assertThat(attrs.get("origin_topic").asString()).isEqualTo("orders:repub");
+            assertThat(attrs.get("republished_by").asString()).isEqualTo("ops");
+            assertThat(attrs.get("reason").asString()).isEqualTo("replay after outage");
+            assertThat(attrs.get("k").asString()).isEqualTo("v");
 
             assertThat(post(
                                     ADMIN + "/messages/" + id + "/republish",
@@ -212,8 +218,8 @@ class PushArchiveEndToEndTest {
 
         JsonNode redacted = get(ADMIN + "/messages/" + second + "?topic=orders:tomb", null);
         assertThat(redacted.get("tombstoned").asBoolean()).isTrue();
-        assertThat(redacted.get("tombstonedBy").asText()).isEqualTo("ops");
-        assertThat(redacted.get("data").asText()).isEqualTo("null");
+        assertThat(redacted.get("tombstonedBy").asString()).isEqualTo("ops");
+        assertThat(redacted.get("data").asString()).isEqualTo("null");
         assertThat(post(ADMIN + "/messages/" + second + "/republish", "{\"topic\":\"orders:tomb\"}", ADMIN_TOKEN)
                         .statusCode()
                         .value())
@@ -247,26 +253,26 @@ class PushArchiveEndToEndTest {
                     ADMIN + "/messages/republish",
                     "{\"attr\":\"batch:b1\",\"dryRun\":false,\"reason\":\"bulk\"}",
                     ADMIN_TOKEN));
-            String jobId = started.get("job").get("id").asText();
+            String jobId = started.get("job").get("id").asString();
             awaitTrue(() -> "DONE"
-                    .equals(get(ADMIN + "/jobs/" + jobId, null).get("state").asText()));
+                    .equals(get(ADMIN + "/jobs/" + jobId, null).get("state").asString()));
             JsonNode job = get(ADMIN + "/jobs/" + jobId, null);
             assertThat(job.get("matched").asInt()).isEqualTo(3);
             assertThat(job.get("published").asInt()).isEqualTo(3);
             assertThat(job.get("failed").asInt()).isZero();
             assertThat(get(ADMIN + "/jobs", null).get("jobs"))
-                    .anyMatch(j -> jobId.equals(j.get("id").asText()));
+                    .anyMatch(j -> jobId.equals(j.get("id").asString()));
             awaitTrue(() -> !frames.isEmpty());
             assertThat(frames.get(0).data()).isEqualTo("{\"i\":1}");
 
             JsonNode copies = get(ADMIN + "/messages?attr=origin_topic:ticker:bulk/1", null)
                     .get("messages");
             assertThat(copies).hasSize(1);
-            assertThat(copies.get(0).get("attributes").get("reason").asText()).isEqualTo("bulk");
+            assertThat(copies.get(0).get("attributes").get("reason").asString()).isEqualTo("bulk");
 
             JsonNode audit = get(ADMIN + "/audit", null).get("audit");
-            assertThat(audit).extracting(e -> e.get("action").asText()).contains("republish_all");
-            assertThat(audit).allMatch(e -> "ops".equals(e.get("principal").asText()));
+            assertThat(audit).extracting(e -> e.get("action").asString()).contains("republish_all");
+            assertThat(audit).allMatch(e -> "ops".equals(e.get("principal").asString()));
             assertThat(status("DELETE", ADMIN + "/jobs/" + jobId, ADMIN_TOKEN)).isEqualTo(404);
         } finally {
             stream.dispose();
@@ -291,18 +297,18 @@ class PushArchiveEndToEndTest {
             awaitTrue(() -> get(path, null).get("delivered").asLong() == 1);
             JsonNode logged = get(path, null);
             assertThat(logged.get("logged").asBoolean()).isTrue();
-            assertThat(logged.get("scope").asText()).isEqualTo("cluster");
+            assertThat(logged.get("scope").asString()).isEqualTo("cluster");
             assertThat(logged.get("dropped").asLong()).isZero();
             JsonNode log = logged.get("log");
             assertThat(log).hasSize(1);
-            assertThat(log.get(0).get("transport").asText()).isEqualTo("sse");
-            assertThat(log.get(0).get("outcome").asText()).isEqualTo("delivered");
-            assertThat(log.get(0).get("connectionId").asText()).isNotBlank();
+            assertThat(log.get(0).get("transport").asString()).isEqualTo("sse");
+            assertThat(log.get(0).get("outcome").asString()).isEqualTo("delivered");
+            assertThat(log.get(0).get("connectionId").asString()).isNotBlank();
             assertThat(log.get(0).get("principal").isNull()).isTrue();
 
             JsonNode counted = get(ADMIN + "/messages/" + tick + "/deliveries?topic=ticker:deliv", null);
             assertThat(counted.get("logged").asBoolean()).isFalse();
-            assertThat(counted.get("scope").asText()).isEqualTo("instance");
+            assertThat(counted.get("scope").asString()).isEqualTo("instance");
             assertThat(counted.get("delivered").asLong()).isEqualTo(1);
             assertThat(counted.get("log")).isEmpty();
             assertThat(status("GET", ADMIN + "/messages/" + id + "/deliveries", null))
@@ -333,14 +339,14 @@ class PushArchiveEndToEndTest {
                     .trim()
                     .split("\n");
             assertThat(lines).hasSize(2);
-            assertThat(body(lines[0]).get("id").asText()).isEqualTo(second);
-            assertThat(body(lines[1]).get("id").asText()).isEqualTo(id);
-            assertThat(body(lines[0]).get("data").asText()).isEqualTo("{\"n\":2}");
+            assertThat(body(lines[0]).get("id").asString()).isEqualTo(second);
+            assertThat(body(lines[1]).get("id").asString()).isEqualTo(id);
+            assertThat(body(lines[0]).get("data").asString()).isEqualTo("{\"n\":2}");
 
             JsonNode audit = get(ADMIN + "/audit", null).get("audit");
             assertThat(audit)
-                    .anyMatch(e -> "export".equals(e.get("action").asText())
-                            && e.get("result").asText().startsWith("ok 2"));
+                    .anyMatch(e -> "export".equals(e.get("action").asString())
+                            && e.get("result").asString().startsWith("ok 2"));
         } finally {
             stream.dispose();
             tickerStream.dispose();
@@ -363,7 +369,7 @@ class PushArchiveEndToEndTest {
                     return pair[1];
                 })
                 .block(Duration.ofSeconds(30)));
-        return response.get("id").asText();
+        return response.get("id").asString();
     }
 
     private Disposable subscribe(String topic, List<ServerSentEvent<String>> frames) {
@@ -432,7 +438,7 @@ class PushArchiveEndToEndTest {
     private static JsonNode body(String json) {
         try {
             return JSON.readTree(json);
-        } catch (java.io.IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(json, e);
         }
     }

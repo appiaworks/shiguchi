@@ -2,8 +2,6 @@ package dev.appiaworks.protobuf.extras.serde;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
@@ -26,6 +24,8 @@ import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.json.JsonFactory;
 
 /**
  * The ECMAScript number layout through the option-aware writers: the wire transcoder and the
@@ -34,7 +34,8 @@ import org.junit.jupiter.api.Test;
  */
 class JsonNumberFormatMessageTest {
 
-    private static final JsonFactory JSON = new JsonFactory();
+    private static final JsonFactory JSON =
+            JsonFactory.builderWithJackson2Defaults().build();
     private static final JsonPrintOptions ECMASCRIPT =
             new JsonPrintOptions(false, false, false, JsonNumberFormat.ECMASCRIPT);
 

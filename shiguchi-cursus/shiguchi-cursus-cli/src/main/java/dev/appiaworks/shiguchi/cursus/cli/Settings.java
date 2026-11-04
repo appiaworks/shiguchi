@@ -1,13 +1,16 @@
 package dev.appiaworks.shiguchi.cursus.cli;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
-import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.Map;
+import tools.jackson.core.StreamReadConstraints;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.dataformat.yaml.YAMLFactory;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 
 /**
  * Where the gateway is and how to authenticate, resolved from flags, the environment and a profile
@@ -21,6 +24,17 @@ public record Settings(
         TokenSource token,
         String basic,
         boolean insecure) {
+
+    // Jackson 2's YAML read limits and defaults, as before the upgrade.
+    private static final ObjectMapper YAML = YAMLMapper.builder(YAMLFactory.builder()
+                    .streamReadConstraints(StreamReadConstraints.builder()
+                            .maxNestingDepth(1000)
+                            .maxStringLength(20_000_000)
+                            .build())
+                    .build())
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     static final String DEFAULT_URL = "http://localhost:8080";
 
@@ -90,8 +104,8 @@ public record Settings(
         }
         JsonNode root;
         try {
-            root = new ObjectMapper(new YAMLFactory()).readTree(file);
-        } catch (IOException e) {
+            root = YAML.readTree(file);
+        } catch (tools.jackson.core.JacksonException e) {
             throw usage("cannot read " + file + ": " + e.getMessage());
         }
         JsonNode profiles = root == null ? null : root.path("profiles");
@@ -113,7 +127,7 @@ public record Settings(
 
     private static String text(JsonNode node, String field) {
         if (node == null || node.get(field) == null || node.get(field).isNull()) return null;
-        return node.get(field).asText();
+        return node.get(field).asString();
     }
 
     private static String strip(String value) {

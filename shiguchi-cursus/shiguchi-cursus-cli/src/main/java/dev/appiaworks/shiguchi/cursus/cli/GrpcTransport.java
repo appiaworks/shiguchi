@@ -1,7 +1,5 @@
 package dev.appiaworks.shiguchi.cursus.cli;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
@@ -24,6 +22,8 @@ import java.util.Base64;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /** {@code PushService.Subscribe} over gRPC, with inline {@code Ack}s. */
 final class GrpcTransport implements Transport, AutoCloseable {
@@ -158,7 +158,7 @@ final class GrpcTransport implements Transport, AutoCloseable {
                 case MESSAGE -> node.set("message", any(event.getMessage()));
                 default -> node.putNull("data");
             }
-        } catch (java.io.IOException e) {
+        } catch (java.io.IOException | tools.jackson.core.JacksonException e) {
             node.putNull("data");
         }
         if (event.getAttributesCount() > 0) {

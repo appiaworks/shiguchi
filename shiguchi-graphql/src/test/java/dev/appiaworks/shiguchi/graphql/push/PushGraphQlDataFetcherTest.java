@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
@@ -29,6 +28,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.core.JacksonException;
 
 /**
  * BDD-style unit tests for PushGraphQlDataFetcher's envelope: what a subscriber sees for one push
@@ -184,6 +184,6 @@ class PushGraphQlDataFetcherTest {
         PushGraphQlDataFetcher fetcher = new PushGraphQlDataFetcher(untypedField(), null, serde);
         PushEvent event = jsonEvent("not json", Map.of(), null);
 
-        assertThatThrownBy(() -> fetcher.envelope(event)).isInstanceOf(JsonProcessingException.class);
+        assertThatThrownBy(() -> fetcher.envelope(event)).isInstanceOf(JacksonException.class);
     }
 }

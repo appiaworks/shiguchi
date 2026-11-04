@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.cli;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.ByteArrayInputStream;
@@ -21,12 +19,20 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /** The HTTP transports of cursus against a scripted fake gateway ({@code com.sun.net.httpserver}). */
 @DisplayName("cursus against a fake gateway")
 class CursusTransportTest {
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     /** One request the fake saw. */
     record Seen(String method, String uri, Map<String, String> headers, String body) {}
@@ -117,9 +123,9 @@ class CursusTransportTest {
         assertThat(result.code()).isZero();
         assertThat(result.lines()).hasSize(2);
         JsonNode first = JSON.readTree(result.lines().get(0));
-        assertThat(first.get("topic").asText()).isEqualTo("orders:1");
-        assertThat(first.get("id").asText()).isEqualTo("1");
-        assertThat(first.get("data").get("status").asText()).isEqualTo("NEW");
+        assertThat(first.get("topic").asString()).isEqualTo("orders:1");
+        assertThat(first.get("id").asString()).isEqualTo("1");
+        assertThat(first.get("data").get("status").asString()).isEqualTo("NEW");
         assertThat(seen.get(0).uri()).isEqualTo("/push/subscribe?topic=orders%3A1");
     }
 
@@ -178,9 +184,9 @@ class CursusTransportTest {
         assertThat(JSON.readTree(result.lines().get(0))
                         .get("reset")
                         .get("reason")
-                        .asText())
+                        .asString())
                 .isEqualTo("history_gap");
-        assertThat(JSON.readTree(result.lines().get(1)).get("id").asText()).isEqualTo("100");
+        assertThat(JSON.readTree(result.lines().get(1)).get("id").asString()).isEqualTo("100");
         assertThat(connections.get()).isEqualTo(1);
     }
 
@@ -203,7 +209,7 @@ class CursusTransportTest {
         assertThat(JSON.readTree(result.lines().get(1))
                         .get("overflow")
                         .get("reason")
-                        .asText())
+                        .asString())
                 .isEqualTo("queue_full");
         assertThat(seen.get(1).headers()).containsEntry("last-event-id", "9");
     }
@@ -350,7 +356,7 @@ class CursusTransportTest {
         CliRun.Result result = CliRun.run("pub", "orders:1", "--url", url, "-d", "{}", "--origin", "client-7");
 
         assertThat(result.code()).isZero();
-        assertThat(JSON.readTree(seen.get(0).body()).get("origin").asText()).isEqualTo("client-7");
+        assertThat(JSON.readTree(seen.get(0).body()).get("origin").asString()).isEqualTo("client-7");
     }
 
     @Test
@@ -364,10 +370,10 @@ class CursusTransportTest {
         assertThat(result.code()).isZero();
         assertThat(result.lines()).containsExactly("{\"topic\":\"orders:1\",\"id\":\"77\"}");
         JsonNode body = JSON.readTree(seen.get(0).body());
-        assertThat(body.get("topic").asText()).isEqualTo("orders:1");
-        assertThat(body.get("data").get("status").asText()).isEqualTo("NEW");
-        assertThat(body.get("attributes").get("tenant").asText()).isEqualTo("acme");
-        assertThat(body.get("key").asText()).isEqualTo("k1");
+        assertThat(body.get("topic").asString()).isEqualTo("orders:1");
+        assertThat(body.get("data").get("status").asString()).isEqualTo("NEW");
+        assertThat(body.get("attributes").get("tenant").asString()).isEqualTo("acme");
+        assertThat(body.get("key").asString()).isEqualTo("k1");
     }
 
     @Test
@@ -402,9 +408,9 @@ class CursusTransportTest {
         assertThat(result.code()).isZero();
         assertThat(result.lines()).containsExactly("{\"topic\":\"orders:1\",\"id\":\"5\"}");
         JsonNode body = JSON.readTree(seen.get(0).body());
-        assertThat(body.get("topics").get(0).asText()).isEqualTo("orders:1");
-        assertThat(body.get("message").get("@type").asText()).isEqualTo("type.googleapis.com/acme.OrderEvent");
-        assertThat(body.get("message").get("orderId").asText()).isEqualTo("1");
+        assertThat(body.get("topics").get(0).asString()).isEqualTo("orders:1");
+        assertThat(body.get("message").get("@type").asString()).isEqualTo("type.googleapis.com/acme.OrderEvent");
+        assertThat(body.get("message").get("orderId").asString()).isEqualTo("1");
     }
 
     @Test
@@ -478,7 +484,7 @@ class CursusTransportTest {
                 "5");
 
         assertThat(result.code()).isZero();
-        assertThat(JSON.readTree(result.lines().get(0)).get("id").asText()).isEqualTo("9");
+        assertThat(JSON.readTree(result.lines().get(0)).get("id").asString()).isEqualTo("9");
         assertThat(seen.get(0).uri())
                 .contains("topic=orders%3A*")
                 .contains("attr=region%3Aeu%2Ctenant%3Aacme")

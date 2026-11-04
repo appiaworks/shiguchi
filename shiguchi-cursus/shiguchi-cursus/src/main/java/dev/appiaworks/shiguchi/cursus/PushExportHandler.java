@@ -97,7 +97,7 @@ public final class PushExportHandler {
     private static String line(Map<String, Object> rendered) {
         try {
             return PushResponses.JSON.writeValueAsString(rendered) + "\n";
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new IllegalStateException(e);
         }
     }

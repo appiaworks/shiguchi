@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.cursus.PushMetrics;
 import dev.appiaworks.shiguchi.proto.cursus.PushEvent;
 import dev.appiaworks.shiguchi.proto.cursus.PushServiceGrpc;
@@ -41,6 +39,11 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The {@code reset} signal on the Boot 4 gateway over a real port: a subscriber that resumes from
@@ -77,7 +80,10 @@ class PushGapSignalEndToEndTest {
     @EnableAutoConfiguration
     static class TestApp {}
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final ParameterizedTypeReference<ServerSentEvent<String>> SSE =
             new ParameterizedTypeReference<>() {};
 
@@ -122,8 +128,8 @@ class PushGapSignalEndToEndTest {
             assertThat(frames.get(0).event()).isEqualTo("reset");
             assertThat(frames.get(0).id()).isNull();
             JsonNode body = parse(frames.get(0).data());
-            assertThat(body.get("topic").asText()).isEqualTo("gap:sse-stale");
-            assertThat(body.get("reason").asText()).isEqualTo("history_gap");
+            assertThat(body.get("topic").asString()).isEqualTo("gap:sse-stale");
+            assertThat(body.get("reason").asString()).isEqualTo("history_gap");
             assertThat(frames.subList(1, 4))
                     .extracting(ServerSentEvent::id)
                     .containsExactly(ids.get(7), ids.get(8), ids.get(9));
@@ -159,11 +165,11 @@ class PushGapSignalEndToEndTest {
 
             List<JsonNode> frames = ws.awaitData(4);
 
-            assertThat(frames.get(0).get("type").asText()).isEqualTo("reset");
-            assertThat(frames.get(0).get("topic").asText()).isEqualTo("gap:ws-stale");
-            assertThat(frames.get(0).get("reason").asText()).isEqualTo("history_gap");
+            assertThat(frames.get(0).get("type").asString()).isEqualTo("reset");
+            assertThat(frames.get(0).get("topic").asString()).isEqualTo("gap:ws-stale");
+            assertThat(frames.get(0).get("reason").asString()).isEqualTo("history_gap");
             assertThat(frames.subList(1, 4))
-                    .extracting(f -> f.get("id").asText())
+                    .extracting(f -> f.get("id").asString())
                     .containsExactly(ids.get(7), ids.get(8), ids.get(9));
         }
     }
@@ -181,8 +187,8 @@ class PushGapSignalEndToEndTest {
             sleep(500);
 
             assertThat(ws.data()).hasSize(1);
-            assertThat(frames.get(0).get("type").asText()).isEqualTo("event");
-            assertThat(frames.get(0).get("id").asText()).isEqualTo(ids.get(9));
+            assertThat(frames.get(0).get("type").asString()).isEqualTo("event");
+            assertThat(frames.get(0).get("id").asString()).isEqualTo(ids.get(9));
         }
     }
 
@@ -274,7 +280,7 @@ class PushGapSignalEndToEndTest {
     private static JsonNode parse(String text) {
         try {
             return JSON.readTree(text);
-        } catch (IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(text, e);
         }
     }
@@ -344,14 +350,14 @@ class PushGapSignalEndToEndTest {
 
         void await(String type) {
             awaitTrue(() ->
-                    frames.stream().anyMatch(f -> type.equals(f.path("type").asText())));
+                    frames.stream().anyMatch(f -> type.equals(f.path("type").asString())));
         }
 
         /** The {@code reset} and {@code event} frames, in arrival order. */
         List<JsonNode> data() {
             return frames.stream()
-                    .filter(f -> "reset".equals(f.path("type").asText())
-                            || "event".equals(f.path("type").asText()))
+                    .filter(f -> "reset".equals(f.path("type").asString())
+                            || "event".equals(f.path("type").asString()))
                     .toList();
         }
 

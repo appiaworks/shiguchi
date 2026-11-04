@@ -3,7 +3,6 @@ package dev.appiaworks.shiguchi.avro;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.Descriptors.Descriptor;
@@ -16,6 +15,8 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * BDD-style tests for AvroRestBodyCodec.
@@ -40,7 +41,7 @@ class AvroRestBodyCodecTest {
     @BeforeEach
     void setUp() throws Exception {
         schemas = new ProtoToAvroSchema();
-        json = new ObjectMapper();
+        json = JsonMapper.builder().build();
 
         // Build a test proto message with various field types
         testFile = FileDescriptor.buildFrom(

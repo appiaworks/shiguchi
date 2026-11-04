@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.cursus.PushMetrics;
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -30,6 +28,11 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import redis.embedded.RedisServer;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Who is connected, across instances (Boot 4): two gateway instances over one embedded Redis, each with an
@@ -76,7 +79,10 @@ class PushPresenceEndToEndTest {
         }
     }
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     private static RedisServer redis;
     private static int redisPort;
@@ -159,9 +165,9 @@ class PushPresenceEndToEndTest {
 
             awaitTrue(() -> connectionOf("room:listed") != null);
             JsonNode row = connectionOf("room:listed");
-            assertThat(row.get("instance").asText()).isEqualTo("node-b");
-            assertThat(row.get("deviceId").asText()).isEqualTo("phone-7");
-            assertThat(row.get("transport").asText()).isEqualTo("sse");
+            assertThat(row.get("instance").asString()).isEqualTo("node-b");
+            assertThat(row.get("deviceId").asString()).isEqualTo("phone-7");
+            assertThat(row.get("transport").asString()).isEqualTo("sse");
         } finally {
             sub.dispose();
         }
@@ -182,9 +188,9 @@ class PushPresenceEndToEndTest {
             JsonNode members = get("/push/v1/subscribers?topic=room:x");
             assertThat(members.get("count").asLong()).isEqualTo(1);
             assertThat(members.get("subscribers")).hasSize(1);
-            assertThat(members.get("subscribers").get(0).get("deviceId").asText())
+            assertThat(members.get("subscribers").get(0).get("deviceId").asString())
                     .isEqualTo("phone-9");
-            assertThat(members.get("subscribers").get(0).get("instance").asText())
+            assertThat(members.get("subscribers").get(0).get("instance").asString())
                     .isEqualTo("node-b");
         } finally {
             sub.dispose();
@@ -211,7 +217,7 @@ class PushPresenceEndToEndTest {
     /** The connection of instance A's admin view (cluster-wide) that listens to {@code topic}, or null. */
     private JsonNode connectionOf(String topic) {
         for (JsonNode c : get("/actuator/gateway-push/connections").get("connections")) {
-            for (JsonNode t : c.get("topics")) if (t.asText().equals(topic)) return c;
+            for (JsonNode t : c.get("topics")) if (t.asString().equals(topic)) return c;
         }
         return null;
     }
@@ -241,7 +247,7 @@ class PushPresenceEndToEndTest {
     private static JsonNode json(String body) {
         try {
             return JSON.readTree(body);
-        } catch (IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(body, e);
         }
     }

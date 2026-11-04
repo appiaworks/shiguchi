@@ -14,8 +14,10 @@ artifacts, packages `dev.appiaworks.shiguchi.*`, property root `shiguchi.*`.
 - Test retry: when `CI` is set, a failed test gets one retry, unless its test task has 5 or more failures. A test that passes on retry leaves the job green and appears in the job summary as "Tests that passed on retry" (`.github/scripts/list-retried-tests.py`). Set `CI=true` to reproduce this locally.
 - Samples need published artifacts: run `./gradlew publishToMavenLocal` before building/running `samples/*` on a fresh machine. They build against `gatewayVersion` in `samples/gradle.properties`; override it with `-PgatewayVersion=<version>`. The Maven sample has its own pin (`shiguchi.version` in its `pom.xml`).
 - API compatibility: `./gradlew build` runs the japicmp gate over every published module against
-  the last release (`apiBaseline`). It only fails on `@ApiStatus(STABLE)` types and
-  `dev.appiaworks.shiguchi.config`. The default is `apiBaseline` in the root `build.gradle.kts`. Pass
+  the last release (`apiBaseline`). It fails on any `@ApiStatus` type (EXPERIMENTAL included) and
+  `dev.appiaworks.shiguchi.config`; unmarked types are not checked. A deliberate, CHANGELOG-announced
+  break lands by listing the classes in `acceptedBreaks` (root build) under the current baseline,
+  which lapses when `apiBaseline` moves. The default is `apiBaseline` in the root `build.gradle.kts`. Pass
   `-PapiBaseline=<version>` to compare against another. Extend an SPI with a `default` method — an added abstract
   method fails the gate by design. See `docs/api-compatibility.md`.
 - Published POMs: `./gradlew checkPublishedPoms` (part of `check`) fails on what Maven Central would reject: missing metadata, or a version-less dependency with no imported BOM or managed version. It doesn't open the BOM, so a BOM that doesn't manage the dependency still passes. The rules live in `buildSrc`; test them with `./gradlew -p buildSrc test`, which `./gradlew build` does not run.

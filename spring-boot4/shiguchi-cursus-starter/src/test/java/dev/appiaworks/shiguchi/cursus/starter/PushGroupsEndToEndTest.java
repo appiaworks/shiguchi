@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.cursus.PushMetrics;
 import java.net.URI;
 import java.time.Duration;
@@ -38,6 +36,11 @@ import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClien
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Consumer groups on the Boot 4 gateway over a real port, on the in-memory store: two WebSocket
@@ -89,7 +92,10 @@ class PushGroupsEndToEndTest {
         }
     }
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final ParameterizedTypeReference<ServerSentEvent<String>> SSE =
             new ParameterizedTypeReference<>() {};
     private static final String ADMIN = "/actuator/gateway-push";
@@ -155,23 +161,24 @@ class PushGroupsEndToEndTest {
                 ackAll(b, topic);
                 return a.frames.stream()
                                         .filter(f ->
-                                                "acked".equals(f.path("type").asText()))
+                                                "acked".equals(f.path("type").asString()))
                                         .count()
                                 + b.frames.stream()
                                         .filter(f ->
-                                                "acked".equals(f.path("type").asText()))
+                                                "acked".equals(f.path("type").asString()))
                                         .count()
                         >= 6;
             });
 
             JsonNode overview = get(ADMIN, null);
             assertThat(overview.at("/engine/groups/supported").asBoolean()).isTrue();
-            assertThat(overview.at("/engine/groups/namespaces").get(0).asText()).isEqualTo("jobs");
+            assertThat(overview.at("/engine/groups/namespaces").get(0).asString())
+                    .isEqualTo("jobs");
             assertThat(overview.at("/engine/groups/members").asInt()).isEqualTo(2);
             JsonNode groups = get(ADMIN + "/groups?q=work", null).get("groups");
             assertThat(groups).hasSize(1);
-            assertThat(groups.get(0).get("group").asText()).isEqualTo("workers");
-            assertThat(groups.get(0).get("topic").asText()).isEqualTo(topic);
+            assertThat(groups.get(0).get("group").asString()).isEqualTo("workers");
+            assertThat(groups.get(0).get("topic").asString()).isEqualTo(topic);
             assertThat(groups.get(0).get("pending").asLong()).isZero();
         }
         awaitTrue(() -> metrics.connections("ws") == 0);
@@ -192,18 +199,18 @@ class PushGroupsEndToEndTest {
                 other.await("subscribed");
                 awaitTrue(() -> other.events().contains(e1));
                 JsonNode redelivered = other.frames.stream()
-                        .filter(f -> "event".equals(f.path("type").asText())
-                                && e1.equals(f.path("id").asText()))
+                        .filter(f -> "event".equals(f.path("type").asString())
+                                && e1.equals(f.path("id").asString()))
                         .findFirst()
                         .orElseThrow();
-                assertThat(redelivered.at("/attributes/deliveries").asText()).isEqualTo("2");
+                assertThat(redelivered.at("/attributes/deliveries").asString()).isEqualTo("2");
                 // Nobody acks: the third claim exceeds max-deliveries 2 and the event is dead-lettered.
                 awaitTrue(() -> get(ADMIN + "/dlq?q=group:g2", null).get("dlq").size() >= 1);
                 JsonNode entry = get(ADMIN + "/dlq?q=group:g2", null).get("dlq").get(0);
-                assertThat(entry.get("source").asText()).isEqualTo("group:g2");
-                assertThat(entry.get("reason").asText()).contains("max-deliveries 2");
-                assertThat(entry.get("topic").asText()).isEqualTo(topic);
-                assertThat(status("POST", ADMIN + "/dlq/" + entry.get("id").asText() + "/retry", "{}", ADMIN_TOKEN))
+                assertThat(entry.get("source").asString()).isEqualTo("group:g2");
+                assertThat(entry.get("reason").asString()).contains("max-deliveries 2");
+                assertThat(entry.get("topic").asString()).isEqualTo(topic);
+                assertThat(status("POST", ADMIN + "/dlq/" + entry.get("id").asString() + "/retry", "{}", ADMIN_TOKEN))
                         .as("a dead-lettered event can be retried into the group's topic")
                         .isEqualTo(200);
             }
@@ -237,7 +244,7 @@ class PushGroupsEndToEndTest {
                     "/push/ack",
                     "{\"topic\":\"" + topic + "\",\"id\":\"" + e1 + "\",\"group\":\"g3\",\"member\":\"sse-1\"}",
                     null));
-            assertThat(acked.get("cursor").asText()).isEqualTo(e1);
+            assertThat(acked.get("cursor").asString()).isEqualTo(e1);
             JsonNode groups = get(ADMIN + "/groups?q=g3", null).get("groups");
             assertThat(groups.get(0).get("pending").asLong()).isZero();
             assertThat(groups.get(0).get("members").asLong()).isZero();
@@ -247,7 +254,7 @@ class PushGroupsEndToEndTest {
                             .asLong())
                     .isGreaterThanOrEqualTo(1);
             assertThat(get(ADMIN + "/audit", null).get("audit"))
-                    .extracting(a -> a.get("action").asText())
+                    .extracting(a -> a.get("action").asString())
                     .contains("drop_group");
         } finally {
             stream.dispose();
@@ -266,7 +273,7 @@ class PushGroupsEndToEndTest {
     private String publish(String topic, String dataJson) {
         return body(exchange("POST", "/push/publish", "{\"topic\":\"" + topic + "\",\"data\":" + dataJson + "}", null))
                 .get("id")
-                .asText();
+                .asString();
     }
 
     private Disposable subscribe(String topicAndParams, List<ServerSentEvent<String>> frames) {
@@ -340,16 +347,16 @@ class PushGroupsEndToEndTest {
         /** The ids of the event frames received so far, in order. */
         List<String> events() {
             return frames.stream()
-                    .filter(f -> "event".equals(f.path("type").asText()))
-                    .map(f -> f.path("id").asText())
+                    .filter(f -> "event".equals(f.path("type").asString()))
+                    .map(f -> f.path("id").asString())
                     .toList();
         }
 
         JsonNode await(String type) {
             awaitTrue(() ->
-                    frames.stream().anyMatch(f -> type.equals(f.path("type").asText())));
+                    frames.stream().anyMatch(f -> type.equals(f.path("type").asString())));
             return frames.stream()
-                    .filter(f -> type.equals(f.path("type").asText()))
+                    .filter(f -> type.equals(f.path("type").asString()))
                     .findFirst()
                     .orElseThrow();
         }
@@ -369,7 +376,7 @@ class PushGroupsEndToEndTest {
     private static JsonNode parse(String json) {
         try {
             return JSON.readTree(json);
-        } catch (java.io.IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(json, e);
         }
     }

@@ -3,7 +3,6 @@ package dev.appiaworks.shiguchi.avro;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
 import dev.appiaworks.shiguchi.config.ServiceDefinition.AvroConfig;
 import dev.appiaworks.shiguchi.config.ServiceDefinition.AvroSubjectStrategy;
@@ -18,6 +17,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.DefaultResourceLoader;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * BDD-style tests for AvroUpstreamCodec's schema-registry integration (CONFLUENT wire format).
@@ -47,7 +48,7 @@ class AvroUpstreamCodecRegistryTest {
     void setUp() {
         stub = new StubSchemaRegistry();
         codec = new AvroUpstreamCodec(new AvroSchemaRegistry(), new DefaultResourceLoader());
-        json = new ObjectMapper();
+        json = JsonMapper.builder().build();
     }
 
     @AfterEach
@@ -57,7 +58,7 @@ class AvroUpstreamCodecRegistryTest {
 
     private Map<String, Map<String, Object>> componentsFixture() throws Exception {
         try (InputStream in = getClass().getResourceAsStream("/avro/components-with-x-avro-schema.json")) {
-            return json.readValue(in, new com.fasterxml.jackson.core.type.TypeReference<>() {});
+            return json.readValue(in, new tools.jackson.core.type.TypeReference<>() {});
         }
     }
 

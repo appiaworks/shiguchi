@@ -4,7 +4,7 @@ dependencies {
     api(project(":shiguchi-rest"))
     // The only Avro dependency the gateway takes: schema parsing, generic records, binary codec.
     api(libs.avro)
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.22.4")
+    implementation("tools.jackson.core:jackson-databind")
     // The schema endpoint is a WebFlux controller; the runtime comes from the gateway starter.
     compileOnly(libs.spring.boot.starter.webflux)
 

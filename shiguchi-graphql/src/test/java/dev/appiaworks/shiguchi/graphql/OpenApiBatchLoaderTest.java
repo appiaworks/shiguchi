@@ -2,7 +2,6 @@ package dev.appiaworks.shiguchi.graphql;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.config.RestBatchLoaderConfig;
 import io.grpc.Metadata;
 import java.net.URI;
@@ -21,6 +20,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * BDD-style unit tests for {@link OpenApiBatchLoader#loadMapped(List, Metadata)}.
@@ -35,7 +36,7 @@ class OpenApiBatchLoaderTest {
 
     @BeforeEach
     void setUp() {
-        objectMapper = new ObjectMapper();
+        objectMapper = JsonMapper.builder().build();
     }
 
     /** Builds a WebClient backed by a fixed response body and status. */

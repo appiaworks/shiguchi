@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
@@ -49,6 +47,11 @@ import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClien
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The push namespaces as GraphQL subscription fields on the Boot 4 gateway, over a real
@@ -99,7 +102,10 @@ class PushGraphQlEndToEndTest {
         }
     }
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final Path PB_FILE = writeDescriptorSet();
     private static final int UNUSED_BACKEND_PORT = freePort();
 
@@ -148,22 +154,22 @@ class PushGraphQlEndToEndTest {
                         "{ __type(name: \"Subscription\") { fields { name args { name } type { name } } } }")
                 .at("/data/__type/fields");
         assertThat(subscription)
-                .extracting(f -> f.get("name").asText())
+                .extracting(f -> f.get("name").asString())
                 .containsExactlyInAnyOrder("tickerEvents", "ordersEvents", "privateEvents");
         JsonNode orders = find(subscription, "ordersEvents");
         assertThat(orders.get("args"))
-                .extracting(a -> a.get("name").asText())
+                .extracting(a -> a.get("name").asString())
                 .containsExactly("topic", "after", "origin");
-        assertThat(orders.at("/type/name").asText()).isEqualTo("OrdersEventsEnvelope");
+        assertThat(orders.at("/type/name").asString()).isEqualTo("OrdersEventsEnvelope");
 
         JsonNode envelope = graphql(
                         "{ __type(name: \"OrdersEventsEnvelope\") { fields { name type { name ofType { name } } } } }")
                 .at("/data/__type/fields");
-        assertThat(find(envelope, "payload").at("/type/name").asText()).isEqualTo("OrderEvent");
+        assertThat(find(envelope, "payload").at("/type/name").asString()).isEqualTo("OrderEvent");
         JsonNode tickerEnvelope = graphql(
                         "{ __type(name: \"TickerEventsEnvelope\") { fields { name type { name } } } }")
                 .at("/data/__type/fields");
-        assertThat(find(tickerEnvelope, "payload").at("/type/name").asText()).isEqualTo("JSON");
+        assertThat(find(tickerEnvelope, "payload").at("/type/name").asString()).isEqualTo("JSON");
     }
 
     @Test
@@ -186,15 +192,15 @@ class PushGraphQlEndToEndTest {
 
             JsonNode next = sub.awaitNext(1).get(0);
             JsonNode event = next.at("/payload/data/ordersEvents");
-            assertThat(event.get("id").asText()).isEqualTo(id);
-            assertThat(event.get("topic").asText()).isEqualTo("orders:42");
-            assertThat(event.at("/payload/orderId").asText()).isEqualTo("42");
-            assertThat(event.at("/payload/status").asText()).isEqualTo("SHIPPED");
+            assertThat(event.get("id").asString()).isEqualTo(id);
+            assertThat(event.get("topic").asString()).isEqualTo("orders:42");
+            assertThat(event.at("/payload/orderId").asString()).isEqualTo("42");
+            assertThat(event.at("/payload/status").asString()).isEqualTo("SHIPPED");
             assertThat(event.at("/payload").has("amount"))
                     .as("unselected field")
                     .isFalse();
             assertThat(event.get("attributes")).hasSize(1);
-            assertThat(event.at("/attributes/0/key").asText()).isEqualTo("src");
+            assertThat(event.at("/attributes/0/key").asString()).isEqualTo("src");
             assertThat(next.at("/payload/errors").isMissingNode()).isTrue();
         }
         awaitTrue(() -> metrics.connections("graphql") == before);
@@ -213,14 +219,14 @@ class PushGraphQlEndToEndTest {
             List<JsonNode> replayed = sub.awaitNext(2);
             assertThat(replayed)
                     .extracting(n ->
-                            n.at("/payload/data/ordersEvents/payload/status").asText())
+                            n.at("/payload/data/ordersEvents/payload/status").asString())
                     .containsExactly("PAID", "SHIPPED");
             awaitTrue(() -> metrics.connections("graphql") == before + 1);
             publish("orders:7", "{\"orderId\":\"7\",\"status\":\"DELIVERED\"}", null);
             assertThat(sub.awaitNext(3)
                             .get(2)
                             .at("/payload/data/ordersEvents/payload/status")
-                            .asText())
+                            .asString())
                     .isEqualTo("DELIVERED");
         }
     }
@@ -234,7 +240,7 @@ class PushGraphQlEndToEndTest {
             publish("ticker:btc", "{\"price\":101.5,\"tags\":[\"a\"]}", null);
             JsonNode event = sub.awaitNext(1).get(0).at("/payload/data/tickerEvents");
             assertThat(event.at("/payload/price").asDouble()).isEqualTo(101.5);
-            assertThat(event.at("/payload/tags/0").asText()).isEqualTo("a");
+            assertThat(event.at("/payload/tags/0").asString()).isEqualTo("a");
         }
     }
 
@@ -244,9 +250,9 @@ class PushGraphQlEndToEndTest {
     void given_authenticatedNamespace_when_subscribed_should_refuseAnonymousAndServeToken() {
         try (Subscription anonymous = subscribe("subscription { privateEvents(topic: \"x\") { id } }", null)) {
             JsonNode error = anonymous.awaitType("error");
-            assertThat(error.at("/payload/0/extensions/code").asText()).isEqualTo("unauthenticated");
+            assertThat(error.at("/payload/0/extensions/code").asString()).isEqualTo("unauthenticated");
             assertThat(error.at("/payload/0/extensions/status").asInt()).isEqualTo(401);
-            assertThat(error.at("/payload/0/message").asText()).isNotBlank();
+            assertThat(error.at("/payload/0/message").asString()).isNotBlank();
         }
         int before = metrics.connections("graphql");
         try (Subscription authed =
@@ -255,7 +261,7 @@ class PushGraphQlEndToEndTest {
             JsonNode connections =
                     get("/actuator/gateway-push/connections?transport=graphql").get("connections");
             assertThat(connections)
-                    .anyMatch(c -> "alice".equals(c.get("principal").asText()));
+                    .anyMatch(c -> "alice".equals(c.get("principal").asString()));
             publish("secure:x", "{\"n\":1}", null);
             assertThat(authed.awaitNext(1)
                             .get(0)
@@ -268,7 +274,7 @@ class PushGraphQlEndToEndTest {
     // ---- helpers ----
 
     private static JsonNode find(JsonNode fields, String name) {
-        for (JsonNode f : fields) if (name.equals(f.get("name").asText())) return f;
+        for (JsonNode f : fields) if (name.equals(f.get("name").asString())) return f;
         throw new AssertionError("no field " + name + " in " + fields);
     }
 
@@ -297,13 +303,13 @@ class PushGraphQlEndToEndTest {
                 .retrieve()
                 .bodyToMono(String.class)
                 .block(Duration.ofSeconds(30));
-        return parse(response).get("id").asText();
+        return parse(response).get("id").asString();
     }
 
     private static JsonNode parse(String json) {
         try {
             return JSON.readTree(json);
-        } catch (IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(json, e);
         }
     }
@@ -327,7 +333,7 @@ class PushGraphQlEndToEndTest {
             try {
                 subscribeFrame = JSON.writeValueAsString(
                         Map.of("id", "1", "type", "subscribe", "payload", Map.of("query", query)));
-            } catch (IOException e) {
+            } catch (tools.jackson.core.JacksonException e) {
                 throw new IllegalStateException(e);
             }
             WebSocketHandler handler = new WebSocketHandler() {
@@ -344,7 +350,7 @@ class PushGraphQlEndToEndTest {
                             .map(PushGraphQlEndToEndTest::parse)
                             .doOnNext(frames::add)
                             .doOnNext(frame -> {
-                                if ("connection_ack".equals(frame.path("type").asText())) {
+                                if ("connection_ack".equals(frame.path("type").asString())) {
                                     outbound.tryEmitNext(subscribeFrame);
                                 }
                             })
@@ -361,7 +367,7 @@ class PushGraphQlEndToEndTest {
 
         List<JsonNode> next() {
             return frames.stream()
-                    .filter(f -> "next".equals(f.path("type").asText()))
+                    .filter(f -> "next".equals(f.path("type").asString()))
                     .toList();
         }
 
@@ -372,9 +378,9 @@ class PushGraphQlEndToEndTest {
 
         JsonNode awaitType(String type) {
             awaitTrue(() ->
-                    frames.stream().anyMatch(f -> type.equals(f.path("type").asText())));
+                    frames.stream().anyMatch(f -> type.equals(f.path("type").asString())));
             return frames.stream()
-                    .filter(f -> type.equals(f.path("type").asText()))
+                    .filter(f -> type.equals(f.path("type").asString()))
                     .findFirst()
                     .orElseThrow();
         }

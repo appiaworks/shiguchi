@@ -1,10 +1,5 @@
 package dev.appiaworks.protobuf.extras;
 
-import com.fasterxml.jackson.core.JsonEncoding;
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -13,6 +8,7 @@ import dev.appiaworks.protobuf.extras.api.ApiStatus;
 import dev.appiaworks.protobuf.extras.serde.AbstractDynamicSerializer;
 import dev.appiaworks.protobuf.extras.serde.DynamicSerializerCompiler;
 import dev.appiaworks.protobuf.extras.serde.JsonDialect;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import dev.appiaworks.protobuf.extras.serde.JsonNumberFormat;
 import dev.appiaworks.protobuf.extras.serde.JsonPrintOptions;
 import dev.appiaworks.protobuf.extras.serde.JsonTrees;
@@ -24,7 +20,6 @@ import dev.appiaworks.protobuf.extras.serde.TypedMessageWriter;
 import dev.appiaworks.protobuf.extras.serde.TypedWriters;
 import dev.appiaworks.protobuf.extras.serde.WireJsonTranscoder;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -34,6 +29,13 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.JsonEncoding;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
+import tools.jackson.core.StreamWriteFeature;
+import tools.jackson.core.json.JsonFactory;
 
 /**
  * Reads and writes proto messages as JSON in one dialect: proto3 JSON, with the
@@ -76,7 +78,13 @@ public final class ProtoJson {
         ISO_8601
     }
 
-    private static final JsonFactory JSON = new JsonFactory();
+    /** The write failure as the unchecked I/O error the public methods promise. */
+    private static java.io.UncheckedIOException unchecked(JacksonException e) {
+        return new java.io.UncheckedIOException(
+                e.getCause() instanceof java.io.IOException io ? io : new java.io.IOException(e.getMessage(), e));
+    }
+
+    private static final JsonFactory JSON = JsonFactories.create();
 
     private static final ProtoJson DEFAULTS = builder().build();
     private static final ProtoJson PROTO3 = builder()
@@ -172,21 +180,21 @@ public final class ProtoJson {
     public void print(Message message, Writer out) {
         try {
             JsonGenerator gen = JSON.createGenerator(out);
-            gen.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
+            gen.configure(StreamWriteFeature.AUTO_CLOSE_TARGET, false);
             write(message, gen);
             gen.close();
-        } catch (IOException e) {
-            throw new java.io.UncheckedIOException(e);
+        } catch (JacksonException e) {
+            throw unchecked(e);
         }
     }
 
     /** Writes the message as one JSON value to a generator you own, for embedding in a larger document. */
-    public void write(Message message, JsonGenerator gen) throws IOException {
+    public void write(Message message, JsonGenerator gen) {
         if (!(message instanceof DynamicMessage)) {
             // As in printUtf8: through a writer over the getters, else from its bytes.
             TypedMessageWriter writer = typedWriterFor(message);
             if (writer != null) {
-                dialect.<Void, IOException>call(() -> {
+                dialect.<Void, RuntimeException>call(() -> {
                     writer.write(message, gen);
                     return null;
                 });
@@ -240,12 +248,12 @@ public final class ProtoJson {
     private byte[] writeTypedToBytes(TypedMessageWriter writer, Message message) {
         ByteArrayOutputStream out = new ByteArrayOutputStream(256);
         try (JsonGenerator gen = JSON.createGenerator(out, JsonEncoding.UTF8)) {
-            dialect.<Void, IOException>call(() -> {
+            dialect.<Void, RuntimeException>call(() -> {
                 writer.write(message, gen);
                 return null;
             });
-        } catch (IOException e) {
-            throw new java.io.UncheckedIOException(e);
+        } catch (JacksonException e) {
+            throw unchecked(e);
         }
         return out.toByteArray();
     }
@@ -286,15 +294,15 @@ public final class ProtoJson {
         ByteArrayOutputStream out = new ByteArrayOutputStream(256);
         try (JsonGenerator gen = JSON.createGenerator(out, JsonEncoding.UTF8)) {
             writeDynamic(dynamic, gen);
-        } catch (IOException e) {
-            throw new java.io.UncheckedIOException(e);
+        } catch (JacksonException e) {
+            throw unchecked(e);
         }
         return out.toByteArray();
     }
 
-    private void writeDynamic(DynamicMessage dynamic, JsonGenerator gen) throws IOException {
+    private void writeDynamic(DynamicMessage dynamic, JsonGenerator gen) {
         Descriptor descriptor = dynamic.getDescriptorForType();
-        dialect.<Void, IOException>call(() -> {
+        dialect.<Void, RuntimeException>call(() -> {
             if (ProtoWkt.isWkt(descriptor)) {
                 // A Timestamp, a wrapper, a codec-mapped message: its JSON is one value, not an object.
                 ProtoWkt.writeJson(gen, dynamic, print.numberFormat());
@@ -411,14 +419,14 @@ public final class ProtoJson {
                 throw new ProtoJsonException(descriptor.getFullName(), "", "expected a JSON value, got nothing", null);
             }
             if (first != JsonToken.START_OBJECT) return null;
-            Message message = dialect.<Message, IOException>call(
+            Message message = dialect.<Message, RuntimeException>call(
                     () -> readable.mergeJson(parser).build());
             if (parser.nextToken() != null) {
                 throw new ProtoJsonException(
                         descriptor.getFullName(), abbreviate(json), "unexpected content after the JSON value", null);
             }
             return message;
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new ProtoJsonException(
                     descriptor.getFullName(), abbreviate(json), "malformed JSON: " + e.getMessage(), e);
         } catch (ProtoJsonException e) {
@@ -503,7 +511,7 @@ public final class ProtoJson {
                         descriptor.getFullName(), abbreviate(json), "unexpected content after the JSON value", null);
             }
             return message;
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new ProtoJsonException(
                     descriptor.getFullName(), abbreviate(json), "malformed JSON: " + e.getMessage(), e);
         } catch (ProtoJsonException e) {
@@ -527,7 +535,7 @@ public final class ProtoJson {
                         descriptor.getFullName(), abbreviate(json), "unexpected content after the JSON value", null);
             }
             return value;
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new ProtoJsonException(
                     descriptor.getFullName(), abbreviate(json), "malformed JSON: " + e.getMessage(), e);
         }

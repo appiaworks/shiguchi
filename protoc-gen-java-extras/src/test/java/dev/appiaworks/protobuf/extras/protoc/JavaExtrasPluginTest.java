@@ -58,9 +58,9 @@ class JavaExtrasPluginTest {
         assertThat(classContent).contains("dev.appiaworks.protobuf.extras.ProtoTypes.toLocalDate");
         assertThat(classContent).doesNotContain("setSessionDate");
         assertThat(classContent)
-                .contains("public void writeJson(com.fasterxml.jackson.core.JsonGenerator gen)")
+                .contains("public void writeJson(tools.jackson.core.JsonGenerator gen)")
                 .contains("if (hasSessionDate()) {")
-                .contains("gen.writeFieldName(\"sessionDate\");")
+                .contains("gen.writeName(\"sessionDate\");")
                 .contains("dev.appiaworks.protobuf.extras.GeneratedJson.message(gen, getSessionDate());");
 
         String builderContent = response.getFile(1).getContent();
@@ -68,7 +68,7 @@ class JavaExtrasPluginTest {
         assertThat(builderContent).contains("public Builder setSessionDate(java.time.LocalDate value)");
         assertThat(builderContent)
                 .doesNotContain("writeJson")
-                .contains("public Builder mergeJson(com.fasterxml.jackson.core.JsonParser p)")
+                .contains("public Builder mergeJson(tools.jackson.core.JsonParser p)")
                 .contains("case \"sessionDate\", \"session_date\" -> {")
                 .contains(
                         "dev.appiaworks.protobuf.extras.GeneratedJson.message(p, JsonFields.F[0], getSessionDateBuilder());");
@@ -100,7 +100,7 @@ class JavaExtrasPluginTest {
         assertThat(response.getFile(0).getInsertionPoint()).isEqualTo("class_scope:acme.Order");
         assertThat(response.getFile(0).getContent())
                 .contains("public void writeJson(")
-                .contains("gen.writeFieldName(\"name\");")
+                .contains("gen.writeName(\"name\");")
                 .contains("gen.writeString(getName());")
                 .doesNotContain("if (has");
         assertThat(response.getFile(0).getContent()).contains("private static final class JsonFields {");

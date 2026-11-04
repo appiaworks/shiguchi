@@ -1,6 +1,6 @@
 package dev.appiaworks.shiguchi.routing;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,6 +12,10 @@ import java.util.Set;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The gateway-relevant slice of a downstream OpenAPI 3 document: one entry per operation with its
@@ -37,7 +41,12 @@ public final class DownstreamOpenApiDocument {
     public static final String MEDIA_JSON = "application/json";
     public static final String MEDIA_YAML = "application/yaml";
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    // Jackson 3 sorts properties alphabetically and rejects trailing tokens by default; Jackson 2 did
+    // neither, so both stay off. The factory carries Jackson 2's read limits and number handling.
+    private static final ObjectMapper JSON = JsonMapper.builder(JsonFactories.create())
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     /** One declared parameter, {@code $ref}s already resolved. */
     public record Parameter(String name, String in, boolean required, Map<String, Object> schema) {}

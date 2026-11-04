@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.cli;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Value;
 import com.google.protobuf.util.JsonFormat;
 import dev.appiaworks.shiguchi.proto.cursus.AckRequest;
@@ -31,12 +29,20 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /** The gRPC transport against an in-process {@code PushService} stub. */
 @DisplayName("cursus gRPC transport against an in-process PushService")
 class GrpcTransportTest {
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final Metadata.Key<String> AUTHORIZATION =
             Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER);
     private static final Metadata.Key<String> CLOSE_REASON =
@@ -144,10 +150,10 @@ class GrpcTransportTest {
         List<String> lines = stdout.toString().lines().toList();
         assertThat(lines).hasSize(2);
         JsonNode first = JSON.readTree(lines.get(0));
-        assertThat(first.get("topic").asText()).isEqualTo("orders:1");
-        assertThat(first.get("id").asText()).isEqualTo("a1");
+        assertThat(first.get("topic").asString()).isEqualTo("orders:1");
+        assertThat(first.get("id").asString()).isEqualTo("a1");
         assertThat(first.get("data").get("n").asInt()).isEqualTo(1);
-        assertThat(first.get("attributes").get("tenant").asText()).isEqualTo("acme");
+        assertThat(first.get("attributes").get("tenant").asString()).isEqualTo("acme");
     }
 
     @Test

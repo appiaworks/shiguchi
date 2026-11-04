@@ -2,10 +2,6 @@ package dev.appiaworks.shiguchi.serde;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Label;
@@ -18,6 +14,7 @@ import com.google.protobuf.Int64Value;
 import com.google.protobuf.UInt64Value;
 import dev.appiaworks.protobuf.extras.serde.AbstractDynamicSerializer;
 import dev.appiaworks.protobuf.extras.serde.Codegen;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import dev.appiaworks.protobuf.extras.serde.ProtoJsonMapping;
 import dev.appiaworks.protobuf.extras.serde.ProtoJsonMapping.DurationFormat;
 import dev.appiaworks.protobuf.extras.serde.ProtoMapConverter;
@@ -29,6 +26,11 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.json.JsonFactory;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * {@code shiguchi.json.int64-as: NUMBER}: every tier writes 64-bit integers as JSON numbers,
@@ -45,8 +47,8 @@ class Int64AsNumberTest {
                 "needs the serializer code generator: Java 25+ with protobuf-java-extras-classfile");
     }
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final JsonFactory JSON = new JsonFactory();
+    private static final ObjectMapper MAPPER = JsonMapper.builder().build();
+    private static final JsonFactory JSON = JsonFactories.create();
     private static final Descriptor COUNTERS = buildCounters();
 
     @AfterEach
@@ -138,10 +140,10 @@ class Int64AsNumberTest {
     void given_defaults_when_written_should_keepStrings() throws Exception {
         JsonNode json = tier2(counters());
 
-        assertThat(json.get("total").isTextual()).isTrue();
-        assertThat(json.get("total").asText()).isEqualTo("9007199254740993");
-        assertThat(json.get("big").asText()).isEqualTo("18446744073709551615");
-        assertThat(json.get("maybe").isTextual()).isTrue();
+        assertThat(json.get("total").isString()).isTrue();
+        assertThat(json.get("total").asString()).isEqualTo("9007199254740993");
+        assertThat(json.get("big").asString()).isEqualTo("18446744073709551615");
+        assertThat(json.get("maybe").isString()).isTrue();
         assertThat(tier0(counters())).isEqualTo(json);
     }
 

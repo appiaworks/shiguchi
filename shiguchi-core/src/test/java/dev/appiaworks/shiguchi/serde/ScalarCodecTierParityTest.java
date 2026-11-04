@@ -2,11 +2,6 @@ package dev.appiaworks.shiguchi.serde;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
@@ -19,6 +14,7 @@ import dev.appiaworks.protobuf.extras.ProtoScalarCodec;
 import dev.appiaworks.protobuf.extras.ProtoTypes;
 import dev.appiaworks.protobuf.extras.serde.AbstractDynamicSerializer;
 import dev.appiaworks.protobuf.extras.serde.Codegen;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import dev.appiaworks.protobuf.extras.serde.ProtoJsonMapping;
 import dev.appiaworks.protobuf.extras.serde.ProtoMapConverter;
 import dev.appiaworks.protobuf.extras.serde.WireJsonTranscoder;
@@ -33,6 +29,12 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.json.JsonFactory;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * An application's {@link ProtoScalarCodec} must come out the same from every serde tier: Tier 0
@@ -44,8 +46,8 @@ import org.junit.jupiter.api.Test;
  */
 class ScalarCodecTierParityTest {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final JsonFactory JSON_FACTORY = new JsonFactory();
+    private static final ObjectMapper OBJECT_MAPPER = JsonMapper.builder().build();
+    private static final JsonFactory JSON_FACTORY = JsonFactories.create();
 
     private static Descriptor placeDescriptor;
     private static AbstractDynamicSerializer placeSerializer;
@@ -81,9 +83,9 @@ class ScalarCodecTierParityTest {
         JsonNode reflective =
                 OBJECT_MAPPER.readTree(OBJECT_MAPPER.writeValueAsString(ProtoMapConverter.dynamicToMap(place)));
 
-        assertThat(tier2.get("spot").asText()).isEqualTo("40.5,-73.25");
+        assertThat(tier2.get("spot").asString()).isEqualTo("40.5,-73.25");
         assertThat(tier2.get("path")).hasSize(2);
-        assertThat(tier2.get("path").get(1).asText()).isEqualTo("3.0,4.0");
+        assertThat(tier2.get("path").get(1).asString()).isEqualTo("3.0,4.0");
         assertThat(tier0).as("Tier 0 vs Tier 2").isEqualTo(tier2);
         assertThat(reflective).as("reflective vs Tier 2").isEqualTo(tier2);
     }

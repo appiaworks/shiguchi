@@ -2,7 +2,6 @@ package dev.appiaworks.shiguchi.avro;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.DynamicMessage;
 import dev.appiaworks.protobuf.extras.serde.ProtoMapConverter;
@@ -17,6 +16,8 @@ import org.apache.avro.generic.GenericRecord;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The contract the Avro codec has to keep: for the same values, the Avro path and the JSON path
@@ -27,7 +28,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Avro and JSON downstream paths produce identical Maps")
 class AvroDownstreamParityTest {
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder().build();
 
     private static Descriptor itemDescriptor;
     private static AvroUpstreamCodec codec;

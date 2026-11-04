@@ -1,18 +1,20 @@
 package dev.appiaworks.shiguchi.serde;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.util.JsonFormat;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import dev.appiaworks.protobuf.extras.serde.JsonNumberFormat;
 import dev.appiaworks.protobuf.extras.serde.JsonNumbers;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
+import tools.jackson.core.json.JsonFactory;
 
 /**
  * {@code JsonFormat} output re-written in the gateway's one JSON text form, so a message prints
@@ -33,7 +35,7 @@ import java.nio.charset.StandardCharsets;
  */
 public final class ProtoJsonText {
 
-    private static final JsonFactory FACTORY = new JsonFactory();
+    private static final JsonFactory FACTORY = JsonFactories.create();
 
     private ProtoJsonText() {}
 
@@ -77,12 +79,12 @@ public final class ProtoJsonText {
             while ((token = parser.nextToken()) != null) {
                 // Numbers as their text: copyCurrentEventExact goes through BigDecimal (1.0E+20).
                 if (token == JsonToken.VALUE_NUMBER_FLOAT && ecmascript) {
-                    generator.writeNumber(JsonNumbers.ecmascriptFromText(parser.getText()));
-                } else if (token.isNumeric()) generator.writeNumber(parser.getText());
+                    generator.writeNumber(JsonNumbers.ecmascriptFromText(parser.getString()));
+                } else if (token.isNumeric()) generator.writeNumber(parser.getString());
                 else generator.copyCurrentEvent(parser);
             }
-        } catch (IOException e) {
-            throw new UncheckedIOException("JsonFormat output is not JSON", e);
+        } catch (JacksonException e) {
+            throw new UncheckedIOException("JsonFormat output is not JSON", new IOException(e));
         }
         return out.toString();
     }

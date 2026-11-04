@@ -65,7 +65,7 @@ dependencies {
     jmhImplementation("org.springframework:spring-jdbc")
     jmhImplementation("com.h2database:h2")
     // Version managed by the Spring Boot BOM above — do not pin here.
-    jmhImplementation("com.fasterxml.jackson.core:jackson-databind")
+    jmhImplementation("tools.jackson.core:jackson-databind")
     jmhImplementation(libs.grpc.inprocess)
     // The merge benchmark measures the streaming path, which is Flux-based.
     jmhImplementation("io.projectreactor:reactor-core")

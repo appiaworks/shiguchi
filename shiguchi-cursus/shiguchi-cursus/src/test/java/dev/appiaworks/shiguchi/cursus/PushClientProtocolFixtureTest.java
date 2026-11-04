@@ -2,9 +2,6 @@ package dev.appiaworks.shiguchi.cursus;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.IOException;
 import java.net.URI;
@@ -33,6 +30,12 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Keeps the TypeScript client ({@code shiguchi-cursus-client-js}) and the gateway from drifting apart: the
@@ -49,7 +52,10 @@ class PushClientProtocolFixtureTest {
     /** Fixture server frames no test drives: {@code ack} answers only on a gateway with persistent sessions. */
     private static final List<String> NOT_DRIVEN = List.of("acked");
 
-    private final ObjectMapper json = new ObjectMapper();
+    private final ObjectMapper json = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private final PushProperties properties = new PushProperties();
     private final MemoryPushBroker broker = new MemoryPushBroker();
     private final MemoryPushStore store = new MemoryPushStore();
@@ -115,7 +121,7 @@ class PushClientProtocolFixtureTest {
             socket.send(json.readTree("{\"type\":\"sub\",\"topics\":[\"ghost:1\"]}"));
             assertSameFields("errorWithTopic", server.get("errorWithTopic"), socket.awaitError("ghost:1"));
 
-            assertThat(socket.frames("error").stream().map(f -> f.path("code").asText()))
+            assertThat(socket.frames("error").stream().map(f -> f.path("code").asString()))
                     .contains("bad_request", "unknown_namespace");
         }
     }
@@ -153,7 +159,7 @@ class PushClientProtocolFixtureTest {
             "GIVEN the fixture WHEN its server frame names are listed SHOULD be exactly the ones these tests check, so a new frame cannot slip in untested")
     void given_fixture_when_server_frames_listed_should_all_be_checked() throws Exception {
         TreeSet<String> names = new TreeSet<>();
-        fixture().get("server").fieldNames().forEachRemaining(names::add);
+        fixture().get("server").propertyNames().forEach(names::add);
         TreeSet<String> checked = new TreeSet<>(List.of(
                 "connected",
                 "subscribed",
@@ -177,13 +183,13 @@ class PushClientProtocolFixtureTest {
     @DisplayName("GIVEN the fixture WHEN the client frame types are listed SHOULD be types the handler dispatches")
     void given_fixture_when_client_frame_types_listed_should_be_known_to_the_handler() throws Exception {
         TreeSet<String> names = new TreeSet<>();
-        fixture().get("client").fieldNames().forEachRemaining(names::add);
+        fixture().get("client").propertyNames().forEach(names::add);
 
         assertThat(names).containsExactly("ack", "connect", "ping", "pub", "refresh", "sub", "unsub");
         fixture()
                 .get("client")
                 .properties()
-                .forEach(f -> assertThat(f.getValue().get("type").asText()).isEqualTo(f.getKey()));
+                .forEach(f -> assertThat(f.getValue().get("type").asString()).isEqualTo(f.getKey()));
     }
 
     // ---- helpers ----
@@ -196,20 +202,21 @@ class PushClientProtocolFixtureTest {
     }
 
     private ObjectNode withTopicsAfter(JsonNode sub, String after) {
-        ObjectNode copy = sub.deepCopy();
+        ObjectNode copy = (ObjectNode) sub.deepCopy();
         ObjectNode map = copy.putObject("after");
-        copy.get("topics").forEach(t -> map.put(t.asText(), after));
+        copy.get("topics").forEach(t -> map.put(t.asString(), after));
         return copy;
     }
 
     /** Same top-level field names, whatever the values. */
     private void assertSameFields(String name, JsonNode expected, JsonNode actual) {
         List<String> want = new ArrayList<>();
-        expected.fieldNames().forEachRemaining(want::add);
+        expected.propertyNames().forEach(want::add);
         List<String> got = new ArrayList<>();
-        actual.fieldNames().forEachRemaining(got::add);
+        actual.propertyNames().forEach(got::add);
         assertThat(got).as("fields of the '%s' frame: %s", name, actual).containsExactlyInAnyOrderElementsOf(want);
-        assertThat(actual.path("type").asText()).isEqualTo(expected.path("type").asText());
+        assertThat(actual.path("type").asString())
+                .isEqualTo(expected.path("type").asString());
     }
 
     private void operatorPublish(Map<String, String> attributes, String key, String data) {
@@ -253,13 +260,13 @@ class PushClientProtocolFixtureTest {
         }
 
         JsonNode await(String type) throws InterruptedException {
-            return awaitFrame(f -> type.equals(f.path("type").asText()), "'" + type + "' frame");
+            return awaitFrame(f -> type.equals(f.path("type").asString()), "'" + type + "' frame");
         }
 
         JsonNode awaitError(String topic) throws InterruptedException {
             return awaitFrame(
-                    f -> "error".equals(f.path("type").asText())
-                            && topic.equals(f.path("topic").asText()),
+                    f -> "error".equals(f.path("type").asString())
+                            && topic.equals(f.path("topic").asString()),
                     "error frame for " + topic);
         }
 
@@ -275,7 +282,7 @@ class PushClientProtocolFixtureTest {
 
         List<JsonNode> frames(String type) {
             return out.stream()
-                    .filter(f -> type.equals(f.path("type").asText()))
+                    .filter(f -> type.equals(f.path("type").asString()))
                     .toList();
         }
 
@@ -294,7 +301,7 @@ class PushClientProtocolFixtureTest {
         private JsonNode read(String text) {
             try {
                 return json.readTree(text);
-            } catch (IOException e) {
+            } catch (tools.jackson.core.JacksonException e) {
                 throw new IllegalStateException(e);
             }
         }

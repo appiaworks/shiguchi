@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.cursus.PushMetrics;
 import java.net.URI;
 import java.time.Duration;
@@ -35,6 +33,11 @@ import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClien
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Persistent sessions on the Boot 4 gateway over a real port, on the in-memory store: a
@@ -97,7 +100,10 @@ class PushSessionsEndToEndTest {
         }
     }
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final ParameterizedTypeReference<ServerSentEvent<String>> SSE =
             new ParameterizedTypeReference<>() {};
     private static final String ADMIN = "/actuator/gateway-push";
@@ -151,7 +157,7 @@ class PushSessionsEndToEndTest {
                 .isEqualTo(401);
         JsonNode acked =
                 body(exchange("POST", "/push/ack", "{\"topic\":\"" + topic + "\",\"id\":\"" + b + "\"}", ALICE_TOKEN));
-        assertThat(acked.get("cursor").asText()).isEqualTo(b);
+        assertThat(acked.get("cursor").asString()).isEqualTo(b);
         assertThat(status("POST", "/push/ack", "{\"topic\":\"" + topic + "\",\"id\":\"" + a + "\"}", ALICE_TOKEN))
                 .as("moving back is accepted and ignored")
                 .isEqualTo(200);
@@ -179,9 +185,9 @@ class PushSessionsEndToEndTest {
 
         JsonNode sessions = get(ADMIN + "/sessions?q=alice", null).get("sessions");
         assertThat(sessions).hasSize(1);
-        assertThat(sessions.get(0).get("session").asText()).isEqualTo("alice");
-        assertThat(sessions.get(0).get("topic").asText()).isEqualTo(topic);
-        assertThat(sessions.get(0).get("cursor").asText()).isEqualTo(c);
+        assertThat(sessions.get(0).get("session").asString()).isEqualTo("alice");
+        assertThat(sessions.get(0).get("topic").asString()).isEqualTo(topic);
+        assertThat(sessions.get(0).get("cursor").asString()).isEqualTo(c);
         assertThat(get(ADMIN, null).at("/engine/sessions/namespaces"))
                 .extracting(JsonNode::asText)
                 .containsExactlyInAnyOrder("inbox", "alerts");
@@ -199,12 +205,12 @@ class PushSessionsEndToEndTest {
             first.await("subscribed");
             String e1 = publish(topic, "{\"n\":1}");
             JsonNode event = first.await("event");
-            assertThat(event.get("id").asText()).isEqualTo(e1);
+            assertThat(event.get("id").asString()).isEqualTo(e1);
             first.send("{\"type\":\"ack\",\"topic\":\"" + topic + "\",\"id\":\"" + e1 + "\"}");
             JsonNode acked = first.await("acked");
-            assertThat(acked.get("cursor").asText()).isEqualTo(e1);
+            assertThat(acked.get("cursor").asString()).isEqualTo(e1);
             first.send("{\"type\":\"ack\",\"topic\":\"ticker:x\",\"id\":\"" + e1 + "\"}");
-            assertThat(first.await("error").get("code").asText()).isEqualTo("bad_request");
+            assertThat(first.await("error").get("code").asString()).isEqualTo("bad_request");
         }
         awaitTrue(() -> metrics.connections("ws") == 0);
 
@@ -215,12 +221,12 @@ class PushSessionsEndToEndTest {
             second.send("{\"type\":\"sub\",\"topics\":[\"" + topic + "\"]}");
             second.await("subscribed");
             JsonNode overflow = second.await("overflow");
-            assertThat(overflow.get("reason").asText()).isEqualTo("session_overflow");
+            assertThat(overflow.get("reason").asString()).isEqualTo("session_overflow");
             assertThat(overflow.get("dropped").asInt()).isEqualTo(3);
             second.await("event", 3);
             assertThat(second.frames.stream()
-                            .filter(f -> "event".equals(f.path("type").asText()))
-                            .map(f -> f.get("id").asText())
+                            .filter(f -> "event".equals(f.path("type").asString()))
+                            .map(f -> f.get("id").asString())
                             .toList())
                     .containsExactly(ids[3], ids[4], ids[5]);
         }
@@ -232,12 +238,12 @@ class PushSessionsEndToEndTest {
             other.await("subscribed");
             sleep(300);
             assertThat(other.frames.stream()
-                            .noneMatch(f -> "event".equals(f.path("type").asText())))
+                            .noneMatch(f -> "event".equals(f.path("type").asString())))
                     .isTrue();
         }
         JsonNode sessions = get(ADMIN + "/sessions?q=dev-7", null).get("sessions");
         assertThat(sessions)
-                .extracting(s -> s.get("session").asText())
+                .extracting(s -> s.get("session").asString())
                 .containsExactlyInAnyOrder("dev-7@-", "dev-7@alice");
     }
 
@@ -259,12 +265,12 @@ class PushSessionsEndToEndTest {
                 "/push/v1/ack",
                 "{\"topic\":\"" + topic + "\",\"id\":\"" + e1 + "\",\"session\":\"cli-1\"}",
                 null));
-        assertThat(acked.get("cursor").asText()).isEqualTo(e1);
+        assertThat(acked.get("cursor").asString()).isEqualTo(e1);
         assertThat(get(ADMIN + "/sessions?q=cli-1", null)
                         .get("sessions")
                         .get(0)
                         .get("cursor")
-                        .asText())
+                        .asString())
                 .isEqualTo(e1);
 
         assertThat(status("DELETE", ADMIN + "/sessions/cli-1@-", null, null)).isEqualTo(401);
@@ -273,7 +279,7 @@ class PushSessionsEndToEndTest {
         assertThat(status("DELETE", ADMIN + "/sessions/cli-1@-", null, ADMIN_TOKEN))
                 .isEqualTo(404);
         assertThat(get(ADMIN + "/audit", null).get("audit"))
-                .extracting(a -> a.get("action").asText())
+                .extracting(a -> a.get("action").asString())
                 .contains("drop_session");
 
         try (Socket again = socket("cli-1")) {
@@ -281,7 +287,7 @@ class PushSessionsEndToEndTest {
             again.await("subscribed");
             sleep(300);
             assertThat(again.frames.stream()
-                            .noneMatch(f -> "event".equals(f.path("type").asText())))
+                            .noneMatch(f -> "event".equals(f.path("type").asString())))
                     .as("a forgotten session starts at the head: " + e2 + " is not replayed")
                     .isTrue();
         }
@@ -292,7 +298,7 @@ class PushSessionsEndToEndTest {
     private String publish(String topic, String dataJson) {
         JsonNode response = body(
                 exchange("POST", "/push/publish", "{\"topic\":\"" + topic + "\",\"data\":" + dataJson + "}", null));
-        return response.get("id").asText();
+        return response.get("id").asString();
     }
 
     private Disposable subscribe(String topic, String token, String lastEventId, List<ServerSentEvent<String>> frames) {
@@ -379,11 +385,11 @@ class PushSessionsEndToEndTest {
 
         JsonNode await(String type, int nth) {
             awaitTrue(() -> frames.stream()
-                            .filter(f -> type.equals(f.path("type").asText()))
+                            .filter(f -> type.equals(f.path("type").asString()))
                             .count()
                     >= nth);
             return frames.stream()
-                    .filter(f -> type.equals(f.path("type").asText()))
+                    .filter(f -> type.equals(f.path("type").asString()))
                     .skip(nth - 1)
                     .findFirst()
                     .orElseThrow();
@@ -404,7 +410,7 @@ class PushSessionsEndToEndTest {
     private static JsonNode parse(String json) {
         try {
             return JSON.readTree(json);
-        } catch (java.io.IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(json, e);
         }
     }

@@ -3,9 +3,6 @@ package dev.appiaworks.shiguchi.cursus;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -28,11 +25,20 @@ import org.springframework.web.reactive.function.server.HandlerStrategies;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import org.springframework.web.reactive.result.view.ViewResolver;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 @DisplayName("Push export handler: NDJSON archive export gated by role, validated and audited")
 class PushExportHandlerTest {
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final MediaType NDJSON = MediaType.parseMediaType("application/x-ndjson");
 
     private final PushProperties props = new PushProperties();
@@ -117,8 +123,8 @@ class PushExportHandlerTest {
                 .toList();
         assertThat(lines).hasSize(2);
         assertThat(lines).allSatisfy(line -> {
-            assertThat(line.get("topic").asText()).startsWith("orders:");
-            assertThat(line.get("id").asText()).isNotBlank();
+            assertThat(line.get("topic").asString()).startsWith("orders:");
+            assertThat(line.get("id").asString()).isNotBlank();
         });
         assertThat(report.audit().list(10))
                 .extracting(PushAudit.Entry::action, PushAudit.Entry::principal)
@@ -226,7 +232,7 @@ class PushExportHandlerTest {
     private static JsonNode json(String line) {
         try {
             return JSON.readTree(line);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("export line is not JSON: " + line, e);
         }
     }

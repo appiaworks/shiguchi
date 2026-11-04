@@ -1,13 +1,13 @@
 package dev.appiaworks.shiguchi.cursus.cli;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ParentCommand;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /** {@code cursus repub}: publish archived events again, one by id or everything a query matches (a job). */
 @Command(
@@ -109,7 +109,7 @@ final class RepubCommand implements Callable<Integer> {
         out.json(started);
         JsonNode job = started.path("job");
         if (dryRun || noWait || !job.hasNonNull("id")) return 0;
-        return follow(http, out, job.path("id").asText());
+        return follow(http, out, job.path("id").asString());
     }
 
     /** Polls the job until it leaves RUNNING, printing a line whenever its counters move. */
@@ -122,7 +122,7 @@ final class RepubCommand implements Callable<Integer> {
                 out.json(job);
                 last = line;
             }
-            String state = job.path("state").asText();
+            String state = job.path("state").asString();
             if (!"RUNNING".equals(state)) return "DONE".equals(state) ? 0 : CliException.TRANSPORT;
             if (!root.lifecycle().sleep(pollMs)) return 0;
         }

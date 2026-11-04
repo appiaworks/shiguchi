@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.cursus.PushMetrics;
 import dev.appiaworks.shiguchi.cursus.PushStore;
 import dev.appiaworks.shiguchi.cursus.Topic;
@@ -37,6 +35,11 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The JDBC engine on the Boot 4 gateway: two gateway instances over one in-memory H2 database
@@ -122,7 +125,10 @@ class PushJdbcEndToEndTest {
         }
     }
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final ParameterizedTypeReference<ServerSentEvent<String>> SSE =
             new ParameterizedTypeReference<>() {};
     private static final String ADMIN = "/actuator/gateway-push";
@@ -260,7 +266,7 @@ class PushJdbcEndToEndTest {
                 .isEqualTo(401);
         JsonNode acked = body(
                 exchange("POST", "/push/ack", "{\"topic\":\"" + topic + "\",\"id\":\"" + b + "\"}", ALICE_TOKEN)[1]);
-        assertThat(acked.get("cursor").asText()).isEqualTo(b);
+        assertThat(acked.get("cursor").asString()).isEqualTo(b);
 
         try (Subscriber s3 = subscribe(client, metrics, null, ALICE_TOKEN, topic)) {
             assertThat(s3.awaitEvents(1)).extracting(ServerSentEvent::id).containsExactly(c);
@@ -289,7 +295,7 @@ class PushJdbcEndToEndTest {
                     "/push/ack",
                     "{\"topic\":\"" + topic + "\",\"id\":\"" + e1 + "\",\"group\":\"g1\",\"member\":\"m1\"}",
                     null)[1]);
-            assertThat(acked.get("cursor").asText()).isEqualTo(e1);
+            assertThat(acked.get("cursor").asString()).isEqualTo(e1);
             JsonNode groups =
                     body(exchange("GET", ADMIN + "/groups?q=g1", null, null)[1]).get("groups");
             assertThat(groups).hasSize(1);
@@ -307,9 +313,9 @@ class PushJdbcEndToEndTest {
 
         JsonNode found = body(exchange("GET", ADMIN + "/messages?topic=orders:arch", null, null)[1]);
         assertThat(found.get("messages"))
-                .extracting(m -> m.get("id").asText())
+                .extracting(m -> m.get("id").asString())
                 .containsExactlyInAnyOrder(first, middle, last);
-        assertThat(found.get("messages").get(0).get("data").asText()).startsWith("{\"n\":");
+        assertThat(found.get("messages").get(0).get("data").asString()).startsWith("{\"n\":");
 
         assertThat(status("DELETE", ADMIN + "/messages/" + middle + "?topic=orders:arch", null))
                 .isEqualTo(401);
@@ -322,8 +328,8 @@ class PushJdbcEndToEndTest {
                     .bodyToMono(String.class)
                     .block(Duration.ofSeconds(30)));
             assertThat(redacted.get("tombstoned").asBoolean()).isTrue();
-            assertThat(redacted.get("tombstonedBy").asText()).isEqualTo("ops");
-            assertThat(redacted.get("data").asText()).isEqualTo("null");
+            assertThat(redacted.get("tombstonedBy").asString()).isEqualTo("ops");
+            assertThat(redacted.get("data").asString()).isEqualTo("null");
         }
 
         try (Subscriber resumed = subscribe(client, metrics, first, "orders:arch")) {
@@ -334,13 +340,13 @@ class PushJdbcEndToEndTest {
         assertThat(exported[0]).isEqualTo("200");
         String[] lines = exported[1].trim().split("\n");
         assertThat(lines).hasSize(3);
-        assertThat(body(lines[0]).get("id").asText()).isEqualTo(last);
+        assertThat(body(lines[0]).get("id").asString()).isEqualTo(last);
         assertThat(body(lines[0]).get("tombstoned").asBoolean()).isFalse();
-        assertThat(body(lines[1]).get("id").asText()).isEqualTo(middle);
+        assertThat(body(lines[1]).get("id").asString()).isEqualTo(middle);
         assertThat(body(lines[1]).get("tombstoned").asBoolean())
                 .as("a tombstone stays in the export")
                 .isTrue();
-        assertThat(body(lines[2]).get("id").asText()).isEqualTo(first);
+        assertThat(body(lines[2]).get("id").asString()).isEqualTo(first);
         assertThat(status("GET", "/push/export?attr=batch:e1", null)).isEqualTo(401);
     }
 
@@ -360,7 +366,7 @@ class PushJdbcEndToEndTest {
                     return pair[1];
                 })
                 .block(Duration.ofSeconds(30));
-        return body(response).get("id").asText();
+        return body(response).get("id").asString();
     }
 
     private int status(String method, String path, String json) {
@@ -389,7 +395,7 @@ class PushJdbcEndToEndTest {
     private static JsonNode body(String json) {
         try {
             return JSON.readTree(json);
-        } catch (java.io.IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(json, e);
         }
     }

@@ -1,9 +1,9 @@
 package dev.appiaworks.shiguchi.cursus.cli;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
+import tools.jackson.databind.JsonNode;
 
 /** What a command prints: NDJSON lines on stdout, diagnostics on stderr, a tiny table for {@code --pretty}. */
 final class Out {
@@ -87,9 +87,9 @@ final class Out {
         if (node == null || node.isMissingNode() || node.isNull()) return "-";
         if (node.isArray()) {
             List<String> parts = new ArrayList<>();
-            node.forEach(n -> parts.add(n.asText()));
+            node.forEach(n -> parts.add(n.asString()));
             return String.join(",", parts);
         }
-        return node.isValueNode() ? node.asText() : node.toString();
+        return node.isValueNode() ? node.asString() : node.toString();
     }
 }

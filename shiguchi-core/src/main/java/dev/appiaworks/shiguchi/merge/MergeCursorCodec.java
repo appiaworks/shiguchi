@@ -1,9 +1,5 @@
 package dev.appiaworks.shiguchi.merge;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
@@ -11,6 +7,13 @@ import java.util.Base64;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Encodes a {@link MergeCursor} as one URL-safe string and reads it back.
@@ -38,7 +41,13 @@ public final class MergeCursorCodec {
      */
     public static final int MAX_ENCODED_LENGTH = 4096;
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    // Jackson 3 changed two defaults: it sorts properties alphabetically and rejects trailing
+    // tokens. The cursor's key order is part of its wire form, and a hand-edited cursor is rejected
+    // by the structural checks below either way, so both stay as they were under Jackson 2.
+    private static final ObjectMapper MAPPER = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final Base64.Encoder ENCODER = Base64.getUrlEncoder().withoutPadding();
     private static final Base64.Decoder DECODER = Base64.getUrlDecoder();
 
@@ -107,7 +116,7 @@ public final class MergeCursorCodec {
             JsonNode root = MAPPER.readTree(json);
             JsonNode keyNode = root.get("k");
             JsonNode sourcesNode = root.get("s");
-            if (keyNode == null || !keyNode.isTextual() || sourcesNode == null || !sourcesNode.isArray()) {
+            if (keyNode == null || !keyNode.isString() || sourcesNode == null || !sourcesNode.isArray()) {
                 throw new InvalidCursorException("cursor is missing its sort key or source list");
             }
             if (sourcesNode.size() != expectedSources) {
@@ -120,15 +129,15 @@ public final class MergeCursorCodec {
             for (JsonNode entry : sourcesNode) {
                 JsonNode token = entry.get("t");
                 JsonNode emitted = entry.get("n");
-                if (token == null || !token.isTextual() || emitted == null || !emitted.isInt()) {
+                if (token == null || !token.isString() || emitted == null || !emitted.isInt()) {
                     throw new InvalidCursorException("cursor has a malformed source entry");
                 }
                 if (emitted.asInt() < 0) {
                     throw new InvalidCursorException("cursor has a negative tie count");
                 }
-                positions.add(new MergeCursor.SourcePosition(token.asText(), emitted.asInt()));
+                positions.add(new MergeCursor.SourcePosition(token.asString(), emitted.asInt()));
             }
-            return new MergeCursor(keyNode.asText(), positions);
+            return new MergeCursor(keyNode.asString(), positions);
         } catch (InvalidCursorException e) {
             throw e;
         } catch (Exception e) {

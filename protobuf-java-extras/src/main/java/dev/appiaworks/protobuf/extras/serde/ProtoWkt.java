@@ -1,6 +1,5 @@
 package dev.appiaworks.protobuf.extras.serde;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.EnumValueDescriptor;
@@ -15,7 +14,6 @@ import com.google.protobuf.util.Timestamps;
 import dev.appiaworks.protobuf.extras.ProtoJsonException;
 import dev.appiaworks.protobuf.extras.ProtoScalarCodec;
 import dev.appiaworks.protobuf.extras.ProtoTypes;
-import java.io.IOException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -24,6 +22,7 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import tools.jackson.core.JsonGenerator;
 
 /**
  * Proto3 JSON mapping for well-known types (WKTs), used by Tier 2 generated serializers and
@@ -232,12 +231,12 @@ public final class ProtoWkt {
     // ── Streaming JSON write (Tier 2 serialize path) ──────────────────────────────────
 
     /** Writes a WKT DynamicMessage as its proto3 JSON value directly to the generator. */
-    public static void writeJson(JsonGenerator gen, DynamicMessage wkt) throws IOException {
+    public static void writeJson(JsonGenerator gen, DynamicMessage wkt) {
         writeJson(gen, wkt, JsonNumberFormat.JAVA);
     }
 
     /** {@link #writeJson(JsonGenerator, DynamicMessage)} laying doubles and floats out in {@code numbers}. */
-    public static void writeJson(JsonGenerator gen, DynamicMessage wkt, JsonNumberFormat numbers) throws IOException {
+    public static void writeJson(JsonGenerator gen, DynamicMessage wkt, JsonNumberFormat numbers) {
         writeJsonTree(gen, toJsonValue(wkt), numbers);
     }
 
@@ -247,12 +246,12 @@ public final class ProtoWkt {
      * a Duration, a FieldMask or a wrapper. A codec-mapped message goes to its codec as it is;
      * Struct, Value and ListValue take their dynamic form.
      */
-    public static void writeJson(JsonGenerator gen, Message wkt) throws IOException {
+    public static void writeJson(JsonGenerator gen, Message wkt) {
         writeJson(gen, wkt, JsonNumberFormat.JAVA);
     }
 
     /** {@link #writeJson(JsonGenerator, Message)} laying doubles and floats out in {@code numbers}. */
-    public static void writeJson(JsonGenerator gen, Message wkt, JsonNumberFormat numbers) throws IOException {
+    public static void writeJson(JsonGenerator gen, Message wkt, JsonNumberFormat numbers) {
         if (wkt instanceof DynamicMessage dynamic) {
             writeJson(gen, dynamic, numbers);
             return;
@@ -291,12 +290,12 @@ public final class ProtoWkt {
     }
 
     /** Writes a JSON-safe Java tree (String/Number/Boolean/Map/List/null) to the generator. */
-    public static void writeJsonTree(JsonGenerator gen, Object value) throws IOException {
+    public static void writeJsonTree(JsonGenerator gen, Object value) {
         writeJsonTree(gen, value, JsonNumberFormat.JAVA);
     }
 
     /** {@link #writeJsonTree(JsonGenerator, Object)} laying doubles and floats out in {@code numbers}. */
-    public static void writeJsonTree(JsonGenerator gen, Object value, JsonNumberFormat numbers) throws IOException {
+    public static void writeJsonTree(JsonGenerator gen, Object value, JsonNumberFormat numbers) {
         if (value == null) {
             gen.writeNull();
         } else if (value instanceof String s) {
@@ -318,7 +317,7 @@ public final class ProtoWkt {
         } else if (value instanceof Map<?, ?> m) {
             gen.writeStartObject();
             for (var e : m.entrySet()) {
-                gen.writeFieldName(String.valueOf(e.getKey()));
+                gen.writeName(String.valueOf(e.getKey()));
                 writeJsonTree(gen, e.getValue(), numbers);
             }
             gen.writeEndObject();
@@ -334,7 +333,7 @@ public final class ProtoWkt {
         }
     }
 
-    private static void writeDouble(JsonGenerator gen, double v, JsonNumberFormat numbers) throws IOException {
+    private static void writeDouble(JsonGenerator gen, double v, JsonNumberFormat numbers) {
         JsonNumbers.writeDouble(gen, v, numbers);
     }
 

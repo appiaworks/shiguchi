@@ -1317,7 +1317,7 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
     }
 
     private static void writeMessageValue(
-            com.fasterxml.jackson.core.JsonGenerator gen,
+            tools.jackson.core.JsonGenerator gen,
             com.google.protobuf.DynamicMessage value,
             dev.appiaworks.protobuf.extras.serde.JsonPrintOptions options)
             throws java.io.IOException {
@@ -1328,8 +1328,8 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
         }
     }
 
-    private static final com.fasterxml.jackson.core.JsonFactory RESPONSE_BODY_JSON =
-            new com.fasterxml.jackson.core.JsonFactory();
+    private static final tools.jackson.core.json.JsonFactory RESPONSE_BODY_JSON =
+            dev.appiaworks.protobuf.extras.serde.JsonFactories.create();
 
     /**
      * What an unset field renders as once defaults are omitted from the wrapper.

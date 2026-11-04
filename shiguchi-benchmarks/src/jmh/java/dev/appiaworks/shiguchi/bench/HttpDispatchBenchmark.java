@@ -1,6 +1,5 @@
 package dev.appiaworks.shiguchi.bench;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.DynamicMessage;
@@ -50,6 +49,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.netty.DisposableServer;
 import reactor.netty.http.server.HttpServer;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The GraphQL surface's two transports for one field, measured through the dispatchers the data
@@ -177,7 +177,7 @@ public class HttpDispatchBenchmark {
         // The bind step's input: the response body parsed to a Map, as the dispatcher hands it to bind().
         outputType = file.findMessageTypeByName("OrderResponse");
         @SuppressWarnings("unchecked")
-        Map<String, Object> parsed = new ObjectMapper().readValue(json, Map.class);
+        Map<String, Object> parsed = JsonMapper.builder().build().readValue(json, Map.class);
         decodedBody = parsed;
 
         // Both legs must agree before anything is measured.

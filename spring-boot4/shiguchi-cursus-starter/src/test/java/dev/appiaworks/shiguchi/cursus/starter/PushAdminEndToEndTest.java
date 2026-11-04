@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.cursus.PushMetrics;
 import java.time.Duration;
 import java.time.Instant;
@@ -30,6 +28,11 @@ import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The {@code gateway-push} actuator endpoint on the Boot 4 gateway over a real port: the overview
@@ -83,7 +86,10 @@ class PushAdminEndToEndTest {
         }
     }
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final ParameterizedTypeReference<ServerSentEvent<String>> SSE =
             new ParameterizedTypeReference<>() {};
 
@@ -110,11 +116,11 @@ class PushAdminEndToEndTest {
     @DisplayName("GIVEN the endpoint exposed WHEN read anonymously SHOULD answer the overview and the lists")
     void given_exposed_when_readAnonymously_should_answerOverviewAndLists() {
         JsonNode overview = get("/actuator/gateway-push", null);
-        assertThat(overview.get("engine").get("broker").asText()).isEqualTo("MEMORY");
+        assertThat(overview.get("engine").get("broker").asString()).isEqualTo("MEMORY");
         assertThat(overview.get("namespaces").asInt()).isEqualTo(2);
-        assertThat(overview.get("path").asText()).isEqualTo("/push");
+        assertThat(overview.get("path").asString()).isEqualTo("/push");
         JsonNode namespaces = get("/actuator/gateway-push/namespaces", null).get("namespaces");
-        assertThat(namespaces).extracting(n -> n.get("name").asText()).containsExactlyInAnyOrder("ticker", "orders");
+        assertThat(namespaces).extracting(n -> n.get("name").asString()).containsExactlyInAnyOrder("ticker", "orders");
         assertThat(get("/actuator/gateway-push/topics", null).get("topics")).isEmpty();
         assertThat(get("/actuator/gateway-push/connections", null).get("connections"))
                 .isEmpty();
@@ -138,13 +144,13 @@ class PushAdminEndToEndTest {
 
         JsonNode topics = get("/actuator/gateway-push/topics?q=ticker", null).get("topics");
         assertThat(topics).hasSize(1);
-        assertThat(topics.get(0).get("topic").asText()).isEqualTo("ticker:btc");
+        assertThat(topics.get(0).get("topic").asString()).isEqualTo("ticker:btc");
         assertThat(topics.get(0).get("subscribers").asInt()).isEqualTo(1);
         JsonNode connections =
                 get("/actuator/gateway-push/connections?topic=ticker:btc", null).get("connections");
         assertThat(connections).hasSize(1);
-        String id = connections.get(0).get("id").asText();
-        assertThat(connections.get(0).get("transport").asText()).isEqualTo("sse");
+        String id = connections.get(0).get("id").asString();
+        assertThat(connections.get(0).get("transport").asString()).isEqualTo("sse");
         assertThat(connections.get(0).get("principal").isNull()).isTrue();
 
         assertThat(status("DELETE", "/actuator/gateway-push/connections/" + id, null))
@@ -206,8 +212,8 @@ class PushAdminEndToEndTest {
     void given_consoleOn_when_configRead_should_advertisePush() {
         JsonNode config = get("/grpc-ui/api/config", null);
         assertThat(config.get("pushEnabled").asBoolean()).isTrue();
-        assertThat(config.get("pushPath").asText()).isEqualTo("/push");
-        assertThat(config.get("pushAdminPath").asText()).isEqualTo("/actuator/gateway-push");
+        assertThat(config.get("pushPath").asString()).isEqualTo("/push");
+        assertThat(config.get("pushAdminPath").asString()).isEqualTo("/actuator/gateway-push");
     }
 
     // ---- helpers ----
@@ -223,7 +229,7 @@ class PushAdminEndToEndTest {
                 .block(Duration.ofSeconds(30));
         try {
             return JSON.readTree(body);
-        } catch (java.io.IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(body, e);
         }
     }

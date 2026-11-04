@@ -1,6 +1,6 @@
 package dev.appiaworks.shiguchi.avro;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
 import dev.appiaworks.shiguchi.config.ServiceDefinition.AvroSchemaSource;
 import dev.appiaworks.shiguchi.config.ServiceDefinition.AvroWireFormat;
@@ -25,6 +25,11 @@ import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Speaks Avro to {@code REST_DOWNSTREAM} backends. Registered as the {@link UpstreamBodyCodec} for
@@ -68,7 +73,12 @@ public class AvroUpstreamCodec implements UpstreamBodyCodec {
 
     private final AvroSchemaRegistry registry;
     private final ResourceLoader resourceLoader;
-    private final ObjectMapper json = new ObjectMapper();
+    // Jackson 3 sorts properties alphabetically and rejects trailing tokens by default; Jackson 2 did
+    // neither, so both stay off. The factory carries Jackson 2's read limits and number handling.
+    private final ObjectMapper json = JsonMapper.builder(JsonFactories.create())
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private final Map<String, AvroWireFormat> wireFormats = new ConcurrentHashMap<>();
     private final Map<String, RegistryBinding> registries = new ConcurrentHashMap<>();
     private volatile SchemaRegistryClients clients = SchemaRegistryClient::new;
@@ -332,7 +342,7 @@ public class AvroUpstreamCodec implements UpstreamBodyCodec {
     private String toJson(Object node) {
         try {
             return json.writeValueAsString(node);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new IllegalArgumentException(SCHEMA_EXTENSION + " is not serialisable: " + e.getMessage(), e);
         }
     }

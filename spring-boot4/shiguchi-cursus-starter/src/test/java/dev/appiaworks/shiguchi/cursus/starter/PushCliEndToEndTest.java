@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.cursus.cli.Cursus;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -16,6 +14,11 @@ import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.env.Environment;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The {@code cursus} command line (run in-process through picocli with captured writers) against
@@ -46,7 +49,10 @@ class PushCliEndToEndTest {
     @EnableAutoConfiguration
     static class TestApp {}
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     @Autowired
     private Environment environment;
@@ -76,21 +82,21 @@ class PushCliEndToEndTest {
         Result second = cli("pub", "orders:cli", "-d", "{\"n\":2}", "--attr", "region=us");
         assertThat(first.code()).as(first.err()).isZero();
         assertThat(second.code()).as(second.err()).isZero();
-        String firstId = JSON.readTree(first.lines().get(0)).get("id").asText();
-        String secondId = JSON.readTree(second.lines().get(0)).get("id").asText();
+        String firstId = JSON.readTree(first.lines().get(0)).get("id").asString();
+        String secondId = JSON.readTree(second.lines().get(0)).get("id").asString();
         assertThat(secondId).isNotEqualTo(firstId);
 
         Result sse = cli("sub", "orders:cli", "--after", firstId, "-n", "1", "--timeout", "20");
         assertThat(sse.code()).as(sse.err()).isZero();
         assertThat(sse.lines()).hasSize(1);
         JsonNode event = JSON.readTree(sse.lines().get(0));
-        assertThat(event.get("id").asText()).isEqualTo(secondId);
-        assertThat(event.get("topic").asText()).isEqualTo("orders:cli");
+        assertThat(event.get("id").asString()).isEqualTo(secondId);
+        assertThat(event.get("topic").asString()).isEqualTo("orders:cli");
         assertThat(event.get("data").get("n").asInt()).isEqualTo(2);
 
         Result ws = cli("sub", "orders:cli", "--ws", "--after", firstId, "-n", "1", "--timeout", "20");
         assertThat(ws.code()).as(ws.err()).isZero();
-        assertThat(JSON.readTree(ws.lines().get(0)).get("id").asText()).isEqualTo(secondId);
+        assertThat(JSON.readTree(ws.lines().get(0)).get("id").asString()).isEqualTo(secondId);
 
         Result namespaces = cli("ls", "ns");
         assertThat(namespaces.code()).as(namespaces.err()).isZero();
@@ -100,7 +106,7 @@ class PushCliEndToEndTest {
         Result found = cli("find", "--topic", "orders:cli", "--attr", "region=eu");
         assertThat(found.code()).as(found.err()).isZero();
         assertThat(found.lines()).hasSize(1);
-        assertThat(JSON.readTree(found.lines().get(0)).get("id").asText()).isEqualTo(firstId);
+        assertThat(JSON.readTree(found.lines().get(0)).get("id").asString()).isEqualTo(firstId);
         assertThat(found.lines().get(0)).contains("\"data\":\"{\\\"n\\\":1}\"");
     }
 

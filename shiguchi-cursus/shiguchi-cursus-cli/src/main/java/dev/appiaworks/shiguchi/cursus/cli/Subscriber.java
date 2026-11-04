@@ -1,12 +1,12 @@
 package dev.appiaworks.shiguchi.cursus.cli;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Runs a subscription for as long as it is wanted: reconnects with backoff and jitter, resumes
@@ -111,13 +111,13 @@ final class Subscriber implements Transport.EventSink {
     @Override
     public boolean event(ObjectNode event) {
         count++;
-        String id = event.path("id").asText(null);
+        String id = event.path("id").asString(null);
         if (id != null && !id.isEmpty()) {
             lastId = id;
-            lastByTopic.put(event.path("topic").asText(), id);
+            lastByTopic.put(event.path("topic").asString(), id);
         }
         if (out.pretty()) {
-            out.text(LocalTime.now().format(CLOCK) + "  " + event.path("topic").asText() + "  " + id + "  "
+            out.text(LocalTime.now().format(CLOCK) + "  " + event.path("topic").asString() + "  " + id + "  "
                     + event.path("data").toString());
         } else {
             out.json(event);

@@ -1,18 +1,17 @@
 package dev.appiaworks.protobuf.extras.serde;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.EnumValueDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
-import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import tools.jackson.core.JsonGenerator;
 
 /**
  * Tier 3 fallback: DynamicMessage ↔ Map&lt;String, Object&gt; without any JSON intermediary.
@@ -320,20 +319,20 @@ public final class ProtoMapConverter {
     }
 
     /** Streams a map field as a JSON object. Used by Tier 2 generated serialize(). */
-    public static void writeMapField(FieldDescriptor mapFd, List<?> entries, JsonGenerator gen) throws IOException {
+    public static void writeMapField(FieldDescriptor mapFd, List<?> entries, JsonGenerator gen) {
         writeMapField(mapFd, entries, gen, JsonPrintOptions.DEFAULT);
     }
 
     /** {@link #writeMapField(FieldDescriptor, List, JsonGenerator)} with a service's print options. */
     public static void writeMapField(
-            FieldDescriptor mapFd, List<?> entries, JsonGenerator gen, JsonPrintOptions options) throws IOException {
+            FieldDescriptor mapFd, List<?> entries, JsonGenerator gen, JsonPrintOptions options) {
         Descriptor entryDesc = mapFd.getMessageType();
         FieldDescriptor keyFd = entryDesc.findFieldByNumber(1);
         FieldDescriptor valFd = entryDesc.findFieldByNumber(2);
         gen.writeStartObject();
         for (Object entryObj : entries) {
             DynamicMessage entry = (DynamicMessage) entryObj;
-            gen.writeFieldName(mapKeyToString(keyFd, entry.getField(keyFd)));
+            gen.writeName(mapKeyToString(keyFd, entry.getField(keyFd)));
             writeScalarJson(gen, valFd, entry.getField(valFd), options);
         }
         gen.writeEndObject();
@@ -409,7 +408,7 @@ public final class ProtoMapConverter {
      * it (an open enum's unknown value, which protobuf represents with a synthetic descriptor), as
      * {@code JsonFormat} and the typed writers do.
      */
-    public static void writeEnum(JsonGenerator gen, EnumValueDescriptor value) throws IOException {
+    public static void writeEnum(JsonGenerator gen, EnumValueDescriptor value) {
         if (value.getIndex() < 0) {
             gen.writeNumber(value.getNumber());
         } else {
@@ -422,7 +421,7 @@ public final class ProtoMapConverter {
         return value.getIndex() < 0 ? (Object) value.getNumber() : value.getName();
     }
 
-    public static void writeInt64(JsonGenerator gen, long value) throws IOException {
+    public static void writeInt64(JsonGenerator gen, long value) {
         if (ProtoJsonMapping.current().int64AsNumber()) {
             gen.writeNumber(value);
         } else {
@@ -431,7 +430,7 @@ public final class ProtoMapConverter {
     }
 
     /** {@link #writeInt64} for an unsigned 64-bit integer held in a long's bit pattern. */
-    public static void writeUInt64(JsonGenerator gen, long value) throws IOException {
+    public static void writeUInt64(JsonGenerator gen, long value) {
         if (ProtoJsonMapping.current().int64AsNumber()) {
             gen.writeNumber(
                     value >= 0
@@ -443,8 +442,7 @@ public final class ProtoMapConverter {
     }
 
     /** Writes one scalar/message value with proto3 JSON rules (int64 → string, etc.). */
-    private static void writeScalarJson(JsonGenerator gen, FieldDescriptor fd, Object value, JsonPrintOptions options)
-            throws IOException {
+    private static void writeScalarJson(JsonGenerator gen, FieldDescriptor fd, Object value, JsonPrintOptions options) {
         switch (fd.getType()) {
             case MESSAGE -> {
                 DynamicMessage m = (DynamicMessage) value;
@@ -481,7 +479,7 @@ public final class ProtoMapConverter {
      * serializer exists for a nested type, and by map fields with message values. Mirrors
      * JsonFormat.printer().includingDefaultValueFields() output.
      */
-    public static void writeMessageJson(JsonGenerator gen, DynamicMessage msg) throws IOException {
+    public static void writeMessageJson(JsonGenerator gen, DynamicMessage msg) {
         writeMessageJson(gen, msg, JsonPrintOptions.DEFAULT);
     }
 
@@ -490,8 +488,7 @@ public final class ProtoMapConverter {
      * the writer for every service that changes them, so it must match {@code JsonFormat} with
      * the same options wherever {@code JsonFormat} applies (see JsonPrintOptionsParityTest).
      */
-    public static void writeMessageJson(JsonGenerator gen, DynamicMessage msg, JsonPrintOptions options)
-            throws IOException {
+    public static void writeMessageJson(JsonGenerator gen, DynamicMessage msg, JsonPrintOptions options) {
         Descriptor descriptor = msg.getDescriptorForType();
         boolean omitDefaults = options.omitDefaultValues();
         gen.writeStartObject();
@@ -499,12 +496,12 @@ public final class ProtoMapConverter {
             if (fd.isMapField()) {
                 List<?> entries = (List<?>) msg.getField(fd);
                 if (omitDefaults && entries.isEmpty()) continue;
-                gen.writeFieldName(options.fieldName(fd));
+                gen.writeName(options.fieldName(fd));
                 writeMapField(fd, entries, gen, options);
             } else if (fd.isRepeated()) {
                 List<?> items = (List<?>) msg.getField(fd);
                 if (omitDefaults && items.isEmpty()) continue;
-                gen.writeFieldName(options.fieldName(fd));
+                gen.writeName(options.fieldName(fd));
                 gen.writeStartArray();
                 for (Object item : items) {
                     writeScalarJson(gen, fd, item, options);
@@ -512,13 +509,13 @@ public final class ProtoMapConverter {
                 gen.writeEndArray();
             } else if (fd.hasPresence()) {
                 if (msg.hasField(fd)) {
-                    gen.writeFieldName(options.fieldName(fd));
+                    gen.writeName(options.fieldName(fd));
                     writeScalarJson(gen, fd, msg.getField(fd), options);
                 }
             } else {
                 // Without presence, hasField is false exactly when the field holds its default.
                 if (omitDefaults && !msg.hasField(fd)) continue;
-                gen.writeFieldName(options.fieldName(fd));
+                gen.writeName(options.fieldName(fd));
                 writeScalarJson(gen, fd, msg.getField(fd), options);
             }
         }

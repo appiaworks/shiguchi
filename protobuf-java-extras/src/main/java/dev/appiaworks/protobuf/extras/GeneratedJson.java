@@ -1,8 +1,5 @@
 package dev.appiaworks.protobuf.extras;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
@@ -12,7 +9,9 @@ import dev.appiaworks.protobuf.extras.serde.JsonTrees;
 import dev.appiaworks.protobuf.extras.serde.ProtoMapConverter;
 import dev.appiaworks.protobuf.extras.serde.ProtoWkt;
 import dev.appiaworks.protobuf.extras.serde.StrictScalars;
-import java.io.IOException;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
 
 /**
  * What the {@link JsonWritable#writeJson} and {@link JsonReadable#mergeJson} methods
@@ -35,7 +34,7 @@ public final class GeneratedJson {
      * force has a codec for it (or it is a well-known type), through its own
      * {@link JsonWritable#writeJson} when it has one, else reflectively.
      */
-    public static void message(JsonGenerator gen, Message value) throws IOException {
+    public static void message(JsonGenerator gen, Message value) {
         Descriptor type = value.getDescriptorForType();
         if (ProtoWkt.isWkt(type)) {
             ProtoWkt.writeJson(gen, value);
@@ -50,7 +49,7 @@ public final class GeneratedJson {
      * An open enum's value: the constant's name, or the number when the schema the class was
      * built from does not know it ({@code forNumber} returned null), as {@code JsonFormat} does.
      */
-    public static void enumValue(JsonGenerator gen, Enum<?> constant, int number) throws IOException {
+    public static void enumValue(JsonGenerator gen, Enum<?> constant, int number) {
         if (constant == null) {
             gen.writeNumber(number);
         } else {
@@ -75,18 +74,18 @@ public final class GeneratedJson {
     }
 
     /** Refuses a parser that is not on the start of an object, naming the message type. */
-    public static void expectObject(JsonParser p, Descriptor type) throws IOException {
+    public static void expectObject(JsonParser p, Descriptor type) {
         if (p.currentToken() != JsonToken.START_OBJECT) throw StrictScalars.notAnObject(type, JsonTrees.read(p));
     }
 
     /** Refuses a parser that is not on the start of an array, for a repeated field. */
-    public static void expectArray(JsonParser p, FieldDescriptor field) throws IOException {
+    public static void expectArray(JsonParser p, FieldDescriptor field) {
         if (p.currentToken() != JsonToken.START_ARRAY)
             throw StrictScalars.reject(field, JsonTrees.read(p), "takes a JSON array");
     }
 
     /** Refuses a parser that is not on the start of an object, for a map field. */
-    public static void expectMap(JsonParser p, FieldDescriptor field) throws IOException {
+    public static void expectMap(JsonParser p, FieldDescriptor field) {
         if (p.currentToken() != JsonToken.START_OBJECT)
             throw StrictScalars.reject(field, JsonTrees.read(p), "takes a JSON object");
     }
@@ -104,7 +103,7 @@ public final class GeneratedJson {
      * the generated code leaves a singular field unset before coming here, so a null here is an
      * element or a map value.
      */
-    public static void message(JsonParser p, FieldDescriptor field, Message.Builder target) throws IOException {
+    public static void message(JsonParser p, FieldDescriptor field, Message.Builder target) {
         Descriptor type = field.getMessageType();
         if (ProtoWkt.isWkt(type)) {
             Object value = StrictScalars.read(p, field);

@@ -1,12 +1,12 @@
 package dev.appiaworks.shiguchi.cursus.cli;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import java.io.PrintWriter;
 import java.util.Map;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ScopeType;
+import tools.jackson.databind.JsonNode;
 
 /**
  * {@code cursus}: subscribe, publish, list and search a gateway's push surface from a terminal.

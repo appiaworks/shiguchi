@@ -1,9 +1,6 @@
 package dev.appiaworks.shiguchi.ui;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.OpenApiConfig;
 import dev.appiaworks.shiguchi.gateway.GatewayErrorDetails;
@@ -29,6 +26,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * The embedded gRPC UI's logic, independent of the web stack: link and schema lookups, unary and
@@ -47,7 +51,12 @@ public class GrpcUiService {
 
     private static final Logger log = LoggerFactory.getLogger(GrpcUiService.class);
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    // Jackson 3 sorts properties alphabetically and rejects trailing tokens by default; Jackson 2 did
+    // neither, so both stay off. The factory carries Jackson 2's read limits and number handling.
+    private static final ObjectMapper JSON = JsonMapper.builder(JsonFactories.create())
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
 
@@ -287,7 +296,7 @@ public class GrpcUiService {
                                 (String) r.get("access_token"),
                                 r.containsKey("expires_in") ? ((Number) r.get("expires_in")).longValue() : 3600L,
                                 (String) r.getOrDefault("token_type", "Bearer"));
-                    } catch (JsonProcessingException e) {
+                    } catch (JacksonException e) {
                         throw new IllegalStateException("Token endpoint returned an unreadable body", e);
                     }
                 })
@@ -322,7 +331,7 @@ public class GrpcUiService {
         if (!details.isEmpty()) node.set("details", JSON.valueToTree(details.asJson()));
         try {
             return JSON.writeValueAsString(node);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             return "{\"code\":\"" + code + "\",\"message\":" + jsonStr(message) + "}";
         }
     }

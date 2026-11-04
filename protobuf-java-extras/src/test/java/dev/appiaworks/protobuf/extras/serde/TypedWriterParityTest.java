@@ -3,9 +3,6 @@ package dev.appiaworks.protobuf.extras.serde;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
@@ -26,6 +23,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.json.JsonFactory;
 
 /**
  * The Tier 1 contract: for a kitchen-sink message compiled to Java, the typed writer must emit
@@ -35,7 +35,8 @@ import org.junit.jupiter.params.provider.ValueSource;
  */
 class TypedWriterParityTest {
 
-    private static final JsonFactory JSON = new JsonFactory();
+    private static final JsonFactory JSON =
+            JsonFactory.builderWithJackson2Defaults().build();
 
     private static TypedMessageWriter writer;
     private static Map<Descriptor, AbstractDynamicSerializer> tier2;

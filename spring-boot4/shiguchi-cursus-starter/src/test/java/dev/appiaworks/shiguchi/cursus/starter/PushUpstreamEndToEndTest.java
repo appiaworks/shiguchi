@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
@@ -56,6 +54,11 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.Disposable;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * A topic backed by an upstream server stream on the Boot 4 gateway: {@code ev.Orders/Watch}
@@ -87,7 +90,10 @@ class PushUpstreamEndToEndTest {
     @EnableAutoConfiguration
     static class TestApp {}
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final ParameterizedTypeReference<ServerSentEvent<String>> SSE =
             new ParameterizedTypeReference<>() {};
     private static final FileDescriptor FILE = buildFile();
@@ -151,8 +157,8 @@ class PushUpstreamEndToEndTest {
                     .as("one upstream call for two subscribers")
                     .isEqualTo(1);
             JsonNode event = parse(a.get(0).data());
-            assertThat(event.get("orderId").asText()).isEqualTo("42");
-            assertThat(event.get("status").asText()).isEqualTo("tick");
+            assertThat(event.get("orderId").asString()).isEqualTo("42");
+            assertThat(event.get("status").asString()).isEqualTo("tick");
             assertThat(event.get("seq").isInt()).isTrue();
             assertThat(a.get(0).event()).isEqualTo("orders:42");
             assertThat(metrics.upstreams()).isEqualTo(1);
@@ -163,7 +169,7 @@ class PushUpstreamEndToEndTest {
                     .extracting(JsonNode::asText)
                     .contains("orders:42");
             JsonNode topics = get("/actuator/gateway-push/topics?q=orders:42").get("topics");
-            assertThat(topics.get(0).get("upstream").asText()).isEqualTo("owner");
+            assertThat(topics.get(0).get("upstream").asString()).isEqualTo("owner");
             assertThat(topics.get(0).get("subscribers").asInt()).isEqualTo(2);
         } finally {
             first.dispose();
@@ -181,7 +187,7 @@ class PushUpstreamEndToEndTest {
         Disposable stream = subscribe("orders:7", frames);
         try {
             awaitTrue(() -> !frames.isEmpty());
-            assertThat(parse(frames.get(0).data()).get("orderId").asText()).isEqualTo("7");
+            assertThat(parse(frames.get(0).data()).get("orderId").asString()).isEqualTo("7");
             assertThat(open("7")).isEqualTo(1);
             assertThat(open("42")).isZero();
         } finally {
@@ -222,13 +228,13 @@ class PushUpstreamEndToEndTest {
             "GIVEN the namespace declared by the option WHEN the GraphQL schema is read SHOULD type the subscription field's payload with the stream's message")
     void given_declaredNamespace_when_schemaRead_should_typePayload() {
         JsonNode namespaces = get("/actuator/gateway-push/namespaces").get("namespaces");
-        assertThat(namespaces).extracting(n -> n.get("name").asText()).contains("orders");
+        assertThat(namespaces).extracting(n -> n.get("name").asString()).contains("orders");
         JsonNode envelope = graphql("{ __type(name: \"OrdersEventsEnvelope\") { fields { name type { name } } } }")
                 .at("/data/__type/fields");
         JsonNode payload = null;
-        for (JsonNode f : envelope) if ("payload".equals(f.get("name").asText())) payload = f;
+        for (JsonNode f : envelope) if ("payload".equals(f.get("name").asString())) payload = f;
         assertThat(payload).isNotNull();
-        assertThat(payload.at("/type/name").asText()).isEqualTo("OrderEvent");
+        assertThat(payload.at("/type/name").asString()).isEqualTo("OrderEvent");
     }
 
     // ---- helpers ----
@@ -273,7 +279,7 @@ class PushUpstreamEndToEndTest {
     private static JsonNode parse(String json) {
         try {
             return JSON.readTree(json);
-        } catch (IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(json, e);
         }
     }

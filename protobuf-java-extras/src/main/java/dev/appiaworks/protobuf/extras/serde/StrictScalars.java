@@ -1,19 +1,18 @@
 package dev.appiaworks.protobuf.extras.serde;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.EnumValueDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
 import dev.appiaworks.protobuf.extras.api.ApiStatus;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
 
 /**
  * Reads JSON values into proto fields under the strict input rules: a value that does not fit its
@@ -56,7 +55,7 @@ public final class StrictScalars {
      * The value the parser is on, as the field's proto value; null for an unknown enum value or a
      * well-known type that reads as unset. The parser is left on the value's last token.
      */
-    public static Object read(JsonParser p, FieldDescriptor fd) throws IOException {
+    public static Object read(JsonParser p, FieldDescriptor fd) {
         JsonToken t = p.currentToken();
         switch (fd.getType()) {
             case INT32, SINT32, SFIXED32 -> {
@@ -82,10 +81,10 @@ public final class StrictScalars {
                 if (t == JsonToken.VALUE_FALSE) return Boolean.FALSE;
             }
             case STRING -> {
-                if (t == JsonToken.VALUE_STRING) return p.getText();
+                if (t == JsonToken.VALUE_STRING) return p.getString();
             }
             case ENUM -> {
-                if (t == JsonToken.VALUE_STRING) return fd.getEnumType().findValueByName(p.getText());
+                if (t == JsonToken.VALUE_STRING) return fd.getEnumType().findValueByName(p.getString());
             }
             default -> {}
         }

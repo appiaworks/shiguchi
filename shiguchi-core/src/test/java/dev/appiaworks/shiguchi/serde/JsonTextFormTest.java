@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.serde;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
@@ -15,6 +13,7 @@ import com.google.protobuf.StructProto;
 import com.google.protobuf.util.JsonFormat;
 import dev.appiaworks.protobuf.extras.serde.AbstractDynamicSerializer;
 import dev.appiaworks.protobuf.extras.serde.Codegen;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import dev.appiaworks.protobuf.extras.serde.JsonNumberFormat;
 import dev.appiaworks.protobuf.extras.serde.JsonPrintOptions;
 import dev.appiaworks.protobuf.extras.serde.ProtoMapConverter;
@@ -27,6 +26,8 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.json.JsonFactory;
 
 /**
  * The gateway's one JSON text form. Every path that prints a message must produce the fixture
@@ -38,7 +39,7 @@ import org.junit.jupiter.api.Test;
 class JsonTextFormTest {
 
     private static final String FIXTURE_PATH = "/serde/json-text-form.json";
-    private static final JsonFactory JSON_FACTORY = new JsonFactory();
+    private static final JsonFactory JSON_FACTORY = JsonFactories.create();
 
     private static final String ECMASCRIPT_FIXTURE_PATH = "/serde/json-text-form-ecmascript.json";
     private static final JsonPrintOptions ECMASCRIPT =

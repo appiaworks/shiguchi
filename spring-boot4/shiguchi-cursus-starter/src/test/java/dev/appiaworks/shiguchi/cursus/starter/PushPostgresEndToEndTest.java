@@ -33,6 +33,9 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The POSTGRES engine on the Boot 4 gateway: two gateway instances over one embedded Postgres,
@@ -284,40 +287,42 @@ class PushPostgresEndToEndTest {
     void given_eventOnB_when_archiveUsedFromBothInstances_should_shareOneArchive() {
         String id = publishedId(secondClient, "orders:shared", "{\"n\":1}");
 
-        com.fasterxml.jackson.databind.JsonNode found = adminGet(client, "/messages?topic=orders:shared");
-        assertThat(found.get("messages")).extracting(m -> m.get("id").asText()).containsExactly(id);
-        assertThat(found.get("messages").get(0).get("data").asText()).isEqualTo("{\"n\":1}");
+        tools.jackson.databind.JsonNode found = adminGet(client, "/messages?topic=orders:shared");
+        assertThat(found.get("messages"))
+                .extracting(m -> m.get("id").asString())
+                .containsExactly(id);
+        assertThat(found.get("messages").get(0).get("data").asString()).isEqualTo("{\"n\":1}");
 
         try (Subscriber sub = subscribe(client, metrics, "orders:shared")) {
             awaitListener();
-            com.fasterxml.jackson.databind.JsonNode sent = adminPost(
+            tools.jackson.databind.JsonNode sent = adminPost(
                     secondClient,
                     "/messages/" + id + "/republish",
                     "{\"topic\":\"orders:shared\",\"reason\":\"from B\"}");
-            String copy = sent.get("id").asText();
+            String copy = sent.get("id").asString();
             List<ServerSentEvent<String>> events = sub.awaitEvents(1);
             assertThat(events.get(0).id()).isEqualTo(copy);
             assertThat(events.get(0).data()).isEqualTo("{\"n\":1}");
-            com.fasterxml.jackson.databind.JsonNode attrs = adminGet(
-                            client, "/messages/" + copy + "?topic=orders:shared")
+            tools.jackson.databind.JsonNode attrs = adminGet(client, "/messages/" + copy + "?topic=orders:shared")
                     .get("attributes");
-            assertThat(attrs.get("origin_id").asText()).isEqualTo(id);
-            assertThat(attrs.get("republished_by").asText()).isEqualTo("ops");
+            assertThat(attrs.get("origin_id").asString()).isEqualTo(id);
+            assertThat(attrs.get("republished_by").asString()).isEqualTo("ops");
         }
 
         assertThat(adminStatus(client, "DELETE", "/messages/" + id + "?topic=orders:shared"))
                 .isEqualTo(200);
-        com.fasterxml.jackson.databind.JsonNode viaB =
-                adminGet(secondClient, "/messages/" + id + "?topic=orders:shared");
+        tools.jackson.databind.JsonNode viaB = adminGet(secondClient, "/messages/" + id + "?topic=orders:shared");
         assertThat(viaB.get("tombstoned").asBoolean()).isTrue();
-        assertThat(viaB.get("tombstonedBy").asText()).isEqualTo("ops");
-        assertThat(viaB.get("data").asText()).isEqualTo("null");
+        assertThat(viaB.get("tombstonedBy").asString()).isEqualTo("ops");
+        assertThat(viaB.get("data").asString()).isEqualTo("null");
     }
 
-    private static final com.fasterxml.jackson.databind.ObjectMapper ADMIN_JSON =
-            new com.fasterxml.jackson.databind.ObjectMapper();
+    private static final tools.jackson.databind.ObjectMapper ADMIN_JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
-    private static com.fasterxml.jackson.databind.JsonNode adminGet(WebClient via, String path) {
+    private static tools.jackson.databind.JsonNode adminGet(WebClient via, String path) {
         return adminJson(via.get()
                 .uri("/actuator/gateway-push" + path)
                 .retrieve()
@@ -325,7 +330,7 @@ class PushPostgresEndToEndTest {
                 .block(Duration.ofSeconds(30)));
     }
 
-    private static com.fasterxml.jackson.databind.JsonNode adminPost(WebClient via, String path, String json) {
+    private static tools.jackson.databind.JsonNode adminPost(WebClient via, String path, String json) {
         return adminJson(via.post()
                 .uri("/actuator/gateway-push" + path)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -344,10 +349,10 @@ class PushPostgresEndToEndTest {
                 .block(Duration.ofSeconds(30));
     }
 
-    private static com.fasterxml.jackson.databind.JsonNode adminJson(String json) {
+    private static tools.jackson.databind.JsonNode adminJson(String json) {
         try {
             return ADMIN_JSON.readTree(json);
-        } catch (java.io.IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(json, e);
         }
     }

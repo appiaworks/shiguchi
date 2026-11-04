@@ -2,9 +2,6 @@ package dev.appiaworks.protobuf.extras.protoc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Int64Value;
 import com.google.protobuf.Message;
@@ -38,6 +35,9 @@ import java.util.List;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.json.JsonFactory;
 
 /**
  * The {@code writeJson} the plugin inserts, as the generated classes in this module's build
@@ -46,7 +46,8 @@ import org.junit.jupiter.api.Test;
  */
 class GeneratedJsonWriterTest {
 
-    private static final JsonFactory JSON = new JsonFactory();
+    private static final JsonFactory JSON =
+            JsonFactory.builderWithJackson2Defaults().build();
 
     private static final Kinds KINDS = Kinds.newBuilder()
             .setADouble(-1.5)

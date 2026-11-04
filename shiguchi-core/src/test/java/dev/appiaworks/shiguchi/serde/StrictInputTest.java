@@ -3,14 +3,13 @@ package dev.appiaworks.shiguchi.serde;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.type.PostalAddress;
 import dev.appiaworks.protobuf.extras.ProtoScalarCodec;
 import dev.appiaworks.protobuf.extras.serde.AbstractDynamicSerializer;
 import dev.appiaworks.protobuf.extras.serde.Codegen;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import dev.appiaworks.protobuf.extras.serde.ProtoJsonMapping;
 import dev.appiaworks.protobuf.extras.serde.ProtoMapConverter;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
@@ -24,6 +23,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.json.JsonFactory;
 
 /**
  * {@code shiguchi.json.strict-input}: off, the gateway coerces a value that does not fit its
@@ -39,7 +40,7 @@ class StrictInputTest {
                 "needs the serializer code generator: Java 25+ with protobuf-java-extras-classfile");
     }
 
-    private static final JsonFactory JSON = new JsonFactory();
+    private static final JsonFactory JSON = JsonFactories.create();
     private static final Descriptor ADDRESS = PostalAddress.getDescriptor();
 
     @AfterEach

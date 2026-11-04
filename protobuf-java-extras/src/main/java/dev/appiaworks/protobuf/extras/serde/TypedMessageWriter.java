@@ -1,6 +1,5 @@
 package dev.appiaworks.protobuf.extras.serde;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.EnumValueDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
@@ -8,10 +7,10 @@ import com.google.protobuf.Message;
 import com.google.protobuf.ProtocolMessageEnum;
 import dev.appiaworks.protobuf.extras.ProtoTypes;
 import dev.appiaworks.protobuf.extras.api.ApiStatus;
-import java.io.IOException;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import tools.jackson.core.JsonGenerator;
 
 /**
  * Writes one generated message class as JSON through its typed getters: the Tier 1 writer.
@@ -31,7 +30,7 @@ public abstract class TypedMessageWriter {
     private final Map<String, TypedMessageWriter> nested = new HashMap<>();
 
     /** Writes the message as one JSON object. */
-    public abstract void write(Message message, JsonGenerator gen) throws IOException;
+    public abstract void write(Message message, JsonGenerator gen);
 
     /** Wires the writer of a message type this writer's fields reach, by the type's full name. */
     public final void setNested(String typeFullName, TypedMessageWriter writer) {
@@ -53,7 +52,7 @@ public abstract class TypedMessageWriter {
     // ── Helpers the generated code calls ─────────────────────────────────────────────
 
     /** The enum value's name, or its number when the schema does not know it, as JsonFormat prints it. */
-    protected static void writeEnum(JsonGenerator gen, FieldDescriptor fd, int number) throws IOException {
+    protected static void writeEnum(JsonGenerator gen, FieldDescriptor fd, int number) {
         EnumValueDescriptor value = fd.getEnumType().findValueByNumber(number);
         if (value != null) {
             gen.writeString(value.getName());
@@ -63,7 +62,7 @@ public abstract class TypedMessageWriter {
     }
 
     /** A message field without a wired writer: through its dynamic form and the reflective writer. */
-    protected static void writeReflectively(JsonGenerator gen, Message message) throws IOException {
+    protected static void writeReflectively(JsonGenerator gen, Message message) {
         ProtoMapConverter.writeMessageJson(gen, ProtoTypes.dynamic(message, message.getDescriptorForType()));
     }
 
@@ -73,21 +72,19 @@ public abstract class TypedMessageWriter {
      * constants; message values go to {@code valueWriter} when one is wired.
      */
     protected static void writeMap(
-            JsonGenerator gen, FieldDescriptor mapField, Map<?, ?> entries, TypedMessageWriter valueWriter)
-            throws IOException {
+            JsonGenerator gen, FieldDescriptor mapField, Map<?, ?> entries, TypedMessageWriter valueWriter) {
         FieldDescriptor keyFd = mapField.getMessageType().findFieldByNumber(1);
         FieldDescriptor valueFd = mapField.getMessageType().findFieldByNumber(2);
         gen.writeStartObject();
         for (Map.Entry<?, ?> entry : entries.entrySet()) {
-            gen.writeFieldName(ProtoMapConverter.mapKeyToString(keyFd, entry.getKey()));
+            gen.writeName(ProtoMapConverter.mapKeyToString(keyFd, entry.getKey()));
             writeMapValue(gen, valueFd, entry.getValue(), valueWriter);
         }
         gen.writeEndObject();
     }
 
     private static void writeMapValue(
-            JsonGenerator gen, FieldDescriptor valueFd, Object value, TypedMessageWriter valueWriter)
-            throws IOException {
+            JsonGenerator gen, FieldDescriptor valueFd, Object value, TypedMessageWriter valueWriter) {
         switch (valueFd.getType()) {
             case STRING -> gen.writeString((String) value);
             case BYTES -> gen.writeString(Base64.getEncoder().encodeToString(((ByteString) value).toByteArray()));

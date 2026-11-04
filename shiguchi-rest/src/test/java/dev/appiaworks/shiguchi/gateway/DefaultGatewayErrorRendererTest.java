@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.gateway;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Any;
 import com.google.rpc.BadRequest;
 import io.grpc.Status;
@@ -13,6 +11,9 @@ import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * BDD-style tests for DefaultGatewayErrorRenderer: the gRPC code name as {@code code}, the
@@ -21,7 +22,7 @@ import org.springframework.http.HttpStatus;
  */
 class DefaultGatewayErrorRendererTest {
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder().build();
 
     private final DefaultGatewayErrorRenderer renderer = new DefaultGatewayErrorRenderer();
 
@@ -37,8 +38,8 @@ class DefaultGatewayErrorRendererTest {
 
         JsonNode body = parse(renderer.render(HttpStatus.BAD_REQUEST, status, null));
 
-        assertThat(body.get("code").asText()).isEqualTo("INVALID_ARGUMENT");
-        assertThat(body.get("message").asText()).isEqualTo("Field \"email\" is required\nsee C:\\docs");
+        assertThat(body.get("code").asString()).isEqualTo("INVALID_ARGUMENT");
+        assertThat(body.get("message").asString()).isEqualTo("Field \"email\" is required\nsee C:\\docs");
         assertThat(body.has("details")).isFalse();
     }
 
@@ -47,8 +48,8 @@ class DefaultGatewayErrorRendererTest {
     void given_nullDescription_when_render_should_produceEmptyMessage() throws Exception {
         JsonNode body = parse(renderer.render(HttpStatus.NOT_FOUND, Status.NOT_FOUND, null));
 
-        assertThat(body.get("code").asText()).isEqualTo("NOT_FOUND");
-        assertThat(body.get("message").asText()).isEmpty();
+        assertThat(body.get("code").asString()).isEqualTo("NOT_FOUND");
+        assertThat(body.get("message").asString()).isEmpty();
     }
 
     @Test
@@ -96,13 +97,13 @@ class DefaultGatewayErrorRendererTest {
 
         JsonNode body = parse(renderer.render(HttpStatus.BAD_REQUEST, ex.getStatus(), details, null));
 
-        assertThat(body.get("code").asText()).isEqualTo("INVALID_ARGUMENT");
-        assertThat(body.get("message").asText()).isEqualTo("validation failed");
+        assertThat(body.get("code").asString()).isEqualTo("INVALID_ARGUMENT");
+        assertThat(body.get("message").asString()).isEqualTo("validation failed");
         assertThat(body.get("details")).hasSize(1);
         JsonNode detail = body.get("details").get(0);
-        assertThat(detail.get("@type").asText()).isEqualTo("type.googleapis.com/google.rpc.BadRequest");
-        assertThat(detail.get("fieldViolations").get(0).get("field").asText()).isEqualTo("book.title");
-        assertThat(detail.get("fieldViolations").get(0).get("description").asText())
+        assertThat(detail.get("@type").asString()).isEqualTo("type.googleapis.com/google.rpc.BadRequest");
+        assertThat(detail.get("fieldViolations").get(0).get("field").asString()).isEqualTo("book.title");
+        assertThat(detail.get("fieldViolations").get(0).get("description").asString())
                 .isEqualTo("must not be blank");
     }
 

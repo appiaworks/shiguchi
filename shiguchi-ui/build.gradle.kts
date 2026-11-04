@@ -53,7 +53,7 @@ dependencies {
     api(project(":shiguchi-rest"))
     api(libs.reactor.core)
     api(libs.spring.boot.starter.security)
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.22.4")
+    implementation("tools.jackson.core:jackson-databind")
     // Each web stack is compileOnly: the WebFlux adapter and the servlet adapter ship in the same jar,
     // and the starter for the stack in use supplies the real thing at runtime.
     compileOnly("org.springframework:spring-webflux")

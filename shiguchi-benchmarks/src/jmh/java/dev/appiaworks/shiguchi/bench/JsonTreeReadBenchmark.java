@@ -1,9 +1,7 @@
 package dev.appiaworks.shiguchi.bench;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.protobuf.extras.ProtoJson;
+import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import dev.appiaworks.protobuf.extras.serde.JsonTrees;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -17,6 +15,10 @@ import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.json.JsonFactory;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Reading a JSON value into maps and lists: {@link JsonTrees}, which the compiled request parser
@@ -31,8 +33,8 @@ import org.openjdk.jmh.annotations.Warmup;
 @Fork(1)
 public class JsonTreeReadBenchmark {
 
-    private static final JsonFactory JSON = new JsonFactory();
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final JsonFactory JSON = JsonFactories.create();
+    private static final ObjectMapper MAPPER = JsonMapper.builder().build();
 
     private String json;
 

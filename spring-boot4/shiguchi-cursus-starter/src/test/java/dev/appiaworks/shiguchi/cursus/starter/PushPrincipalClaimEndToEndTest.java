@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.cursus.PushMetrics;
 import java.net.URI;
 import java.time.Duration;
@@ -36,6 +34,11 @@ import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClien
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The principal claim on the Boot 4 gateway over a real port: with Spring Boot's
@@ -91,7 +94,10 @@ class PushPrincipalClaimEndToEndTest {
         }
     }
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final ParameterizedTypeReference<ServerSentEvent<String>> SSE =
             new ParameterizedTypeReference<>() {};
 
@@ -145,10 +151,10 @@ class PushPrincipalClaimEndToEndTest {
                     .isTrue();
 
             socket.send("{\"type\":\"sub\",\"topics\":[\"user:alice\"]}");
-            assertThat(socket.await("subscribed").path("topic").asText()).isEqualTo("user:alice");
+            assertThat(socket.await("subscribed").path("topic").asString()).isEqualTo("user:alice");
 
             socket.send("{\"type\":\"sub\",\"topics\":[\"user:f81d4fae\"]}");
-            assertThat(socket.await("error").path("code").asText()).isEqualTo("forbidden");
+            assertThat(socket.await("error").path("code").asString()).isEqualTo("forbidden");
         }
     }
 
@@ -161,7 +167,7 @@ class PushPrincipalClaimEndToEndTest {
 
         try (Socket socket = new Socket(wsUri)) {
             socket.send("{\"type\":\"connect\",\"token\":\"" + NO_USERNAME_TOKEN + "\"}");
-            assertThat(socket.await("error").path("code").asText()).isEqualTo("unauthenticated");
+            assertThat(socket.await("error").path("code").asString()).isEqualTo("unauthenticated");
         }
     }
 
@@ -242,11 +248,11 @@ class PushPrincipalClaimEndToEndTest {
 
         JsonNode await(String type, int nth) {
             awaitTrue(() -> frames.stream()
-                            .filter(f -> type.equals(f.path("type").asText()))
+                            .filter(f -> type.equals(f.path("type").asString()))
                             .count()
                     >= nth);
             return frames.stream()
-                    .filter(f -> type.equals(f.path("type").asText()))
+                    .filter(f -> type.equals(f.path("type").asString()))
                     .skip(nth - 1)
                     .findFirst()
                     .orElseThrow();
@@ -262,7 +268,7 @@ class PushPrincipalClaimEndToEndTest {
     private static JsonNode parse(String json) {
         try {
             return JSON.readTree(json);
-        } catch (java.io.IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(json, e);
         }
     }

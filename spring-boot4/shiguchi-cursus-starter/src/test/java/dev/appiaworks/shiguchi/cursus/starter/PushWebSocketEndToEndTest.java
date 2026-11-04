@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.cursus.PushMetrics;
 import java.net.URI;
 import java.time.Duration;
@@ -26,6 +24,11 @@ import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClien
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The WebSocket transport on the Boot 4 gateway over a real port: {@code push.v1.json} frames.
@@ -58,7 +61,10 @@ class PushWebSocketEndToEndTest {
     @EnableAutoConfiguration
     static class TestApp {}
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     @Autowired
     private Environment environment;
@@ -83,19 +89,19 @@ class PushWebSocketEndToEndTest {
         try (Socket ws = connect()) {
             ws.send("{\"type\":\"sub\",\"topics\":[\"ticker:btc\"]}");
             JsonNode subscribed = ws.await("subscribed");
-            assertThat(subscribed.get("topic").asText()).isEqualTo("ticker:btc");
-            assertThat(subscribed.get("qos").asText()).isEqualTo("AT_MOST_ONCE");
+            assertThat(subscribed.get("topic").asString()).isEqualTo("ticker:btc");
+            assertThat(subscribed.get("qos").asString()).isEqualTo("AT_MOST_ONCE");
             for (int i = 1; i <= 3; i++) publish("ticker:btc", "{\"price\":" + i + "}");
             List<JsonNode> events = ws.awaitEvents(3);
             assertThat(events)
                     .extracting(e -> e.get("data").get("price").asInt())
                     .containsExactly(1, 2, 3);
-            assertThat(events).extracting(e -> e.get("topic").asText()).containsOnly("ticker:btc");
+            assertThat(events).extracting(e -> e.get("topic").asString()).containsOnly("ticker:btc");
             assertThat(events)
-                    .extracting(e -> e.get("id").asText())
+                    .extracting(e -> e.get("id").asString())
                     .doesNotContainNull()
                     .isSorted();
-            assertThat(ws.first("connected").get("connectionId").asText()).isNotBlank();
+            assertThat(ws.first("connected").get("connectionId").asString()).isNotBlank();
         }
     }
 
@@ -108,13 +114,13 @@ class PushWebSocketEndToEndTest {
             ws.await("subscribed");
             ws.await("subscribed", 2);
             ws.send("{\"type\":\"unsub\",\"topics\":[\"ticker:btc\"]}");
-            assertThat(ws.await("unsubscribed").get("topic").asText()).isEqualTo("ticker:btc");
+            assertThat(ws.await("unsubscribed").get("topic").asString()).isEqualTo("ticker:btc");
             publish("ticker:btc", "\"b\"");
             publish("ticker:eth", "\"e\"");
             List<JsonNode> events = ws.awaitEvents(1);
             sleep(300);
             assertThat(ws.events()).hasSize(1);
-            assertThat(events.get(0).get("topic").asText()).isEqualTo("ticker:eth");
+            assertThat(events.get(0).get("topic").asString()).isEqualTo("ticker:eth");
         }
     }
 
@@ -128,8 +134,8 @@ class PushWebSocketEndToEndTest {
         try (Socket ws = connect()) {
             ws.send("{\"type\":\"sub\",\"topics\":[\"orders:9\"],\"after\":\"" + first + "\"}");
             JsonNode subscribed = ws.await("subscribed");
-            assertThat(subscribed.get("position").asText()).isEqualTo(first);
-            assertThat(subscribed.get("qos").asText()).isEqualTo("AT_LEAST_ONCE");
+            assertThat(subscribed.get("position").asString()).isEqualTo(first);
+            assertThat(subscribed.get("qos").asString()).isEqualTo("AT_LEAST_ONCE");
             List<JsonNode> replayed = ws.awaitEvents(2);
             assertThat(replayed).extracting(e -> e.get("data").get("n").asInt()).containsExactly(2, 3);
             publish("orders:9", "{\"n\":4}");
@@ -147,9 +153,10 @@ class PushWebSocketEndToEndTest {
             a.await("subscribed");
             b.send("{\"type\":\"pub\",\"topic\":\"chat:room1\",\"data\":{\"text\":\"hi\"}}");
             JsonNode published = b.await("published");
-            assertThat(published.get("topic").asText()).isEqualTo("chat:room1");
-            assertThat(published.get("id").asText()).isNotBlank();
-            assertThat(a.awaitEvents(1).get(0).get("data").get("text").asText()).isEqualTo("hi");
+            assertThat(published.get("topic").asString()).isEqualTo("chat:room1");
+            assertThat(published.get("id").asString()).isNotBlank();
+            assertThat(a.awaitEvents(1).get(0).get("data").get("text").asString())
+                    .isEqualTo("hi");
         }
     }
 
@@ -158,15 +165,15 @@ class PushWebSocketEndToEndTest {
     void given_badFrames_when_sent_should_answerErrorFrames() {
         try (Socket ws = connect()) {
             ws.send("not json");
-            assertThat(ws.await("error").get("code").asText()).isEqualTo("bad_request");
+            assertThat(ws.await("error").get("code").asString()).isEqualTo("bad_request");
             ws.send("{\"type\":\"sub\",\"topics\":[\"nope:x\"]}");
-            assertThat(ws.await("error", 2).get("code").asText()).isEqualTo("unknown_namespace");
+            assertThat(ws.await("error", 2).get("code").asString()).isEqualTo("unknown_namespace");
             ws.send("{\"type\":\"sub\",\"topics\":[\"inbox:alice\"]}");
-            assertThat(ws.await("error", 3).get("code").asText()).isEqualTo("unauthenticated");
+            assertThat(ws.await("error", 3).get("code").asString()).isEqualTo("unauthenticated");
             ws.send("{\"type\":\"pub\",\"topic\":\"ticker:btc\",\"data\":1}");
-            assertThat(ws.await("error", 4).get("code").asText()).isEqualTo("forbidden");
+            assertThat(ws.await("error", 4).get("code").asString()).isEqualTo("forbidden");
             ws.send("{\"type\":\"connect\",\"token\":\"x.y.z\"}");
-            assertThat(ws.await("error", 5).get("code").asText()).isEqualTo("unauthenticated");
+            assertThat(ws.await("error", 5).get("code").asString()).isEqualTo("unauthenticated");
             ws.send("{\"type\":\"ping\"}");
             ws.await("pong");
             ws.send("{\"type\":\"ack\",\"ids\":[\"1\"]}");
@@ -213,9 +220,9 @@ class PushWebSocketEndToEndTest {
                 })
                 .block(Duration.ofSeconds(30));
         JsonNode last = frames.get(frames.size() - 1);
-        assertThat(last.get("type").asText()).isEqualTo("close");
+        assertThat(last.get("type").asString()).isEqualTo("close");
         assertThat(last.get("code").asInt()).isEqualTo(1012);
-        assertThat(last.get("reason").asText()).isEqualTo("rebalance");
+        assertThat(last.get("reason").asString()).isEqualTo("rebalance");
         CloseStatus closed = status.asMono().block(Duration.ofSeconds(30));
         assertThat(closed.getCode()).isEqualTo(1012);
         awaitTrue(() -> metrics.connections("ws") == 0);
@@ -248,7 +255,7 @@ class PushWebSocketEndToEndTest {
     private static JsonNode parse(String text) {
         try {
             return JSON.readTree(text);
-        } catch (java.io.IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(text, e);
         }
     }
@@ -300,7 +307,7 @@ class PushWebSocketEndToEndTest {
 
         JsonNode first(String type) {
             return frames.stream()
-                    .filter(f -> type.equals(f.path("type").asText()))
+                    .filter(f -> type.equals(f.path("type").asString()))
                     .findFirst()
                     .orElseThrow();
         }
@@ -312,11 +319,11 @@ class PushWebSocketEndToEndTest {
         /** The {@code nth} frame of {@code type}, waiting for it. */
         JsonNode await(String type, int nth) {
             awaitTrue(() -> frames.stream()
-                            .filter(f -> type.equals(f.path("type").asText()))
+                            .filter(f -> type.equals(f.path("type").asString()))
                             .count()
                     >= nth);
             return frames.stream()
-                    .filter(f -> type.equals(f.path("type").asText()))
+                    .filter(f -> type.equals(f.path("type").asString()))
                     .skip(nth - 1)
                     .findFirst()
                     .orElseThrow();
@@ -324,7 +331,7 @@ class PushWebSocketEndToEndTest {
 
         List<JsonNode> events() {
             return frames.stream()
-                    .filter(f -> "event".equals(f.path("type").asText()))
+                    .filter(f -> "event".equals(f.path("type").asString()))
                     .toList();
         }
 

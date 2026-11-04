@@ -1,11 +1,10 @@
 package dev.appiaworks.protobuf.extras.serde;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
 import com.google.protobuf.DynamicMessage;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.JsonParser;
 
 /**
  * Base class for the Tier 2 generated serializers.
@@ -30,12 +29,12 @@ public abstract class AbstractDynamicSerializer {
      * Reads the JSON value the parser is on into plain Java, for generated subclasses (WKT and
      * repeated-WKT reads in deserialize()). Streaming parser only: no jackson-databind.
      */
-    protected static Object readTree(JsonParser p) throws IOException {
+    protected static Object readTree(JsonParser p) {
         return JsonTrees.read(p);
     }
 
     /** {@link #readTree} for a nested message or map field, which must be a JSON object. */
-    protected static Map<String, Object> readObjectTree(JsonParser p) throws IOException {
+    protected static Map<String, Object> readObjectTree(JsonParser p) {
         return JsonTrees.readObject(p);
     }
 
@@ -57,9 +56,9 @@ public abstract class AbstractDynamicSerializer {
         return nestedSerializers.get(fieldFullName);
     }
 
-    public abstract void serialize(DynamicMessage message, JsonGenerator generator) throws IOException;
+    public abstract void serialize(DynamicMessage message, JsonGenerator generator);
 
-    public abstract DynamicMessage deserialize(JsonParser parser, DynamicMessage.Builder builder) throws IOException;
+    public abstract DynamicMessage deserialize(JsonParser parser, DynamicMessage.Builder builder);
 
     /** Converts a DynamicMessage to a Map without going through JSON. Used by the GraphQL dispatch path. */
     @SuppressWarnings("rawtypes")

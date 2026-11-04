@@ -2,8 +2,6 @@ package dev.appiaworks.shiguchi.cursus.starter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.appiaworks.shiguchi.cursus.PushMetrics;
 import java.net.URI;
 import java.time.Duration;
@@ -36,6 +34,11 @@ import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClien
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Consumer-group ordering on the Boot 4 gateway over a real port, on the in-memory store:
@@ -101,7 +104,10 @@ class PushOrderingEndToEndTest {
         }
     }
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
     private static final ParameterizedTypeReference<ServerSentEvent<String>> SSE =
             new ParameterizedTypeReference<>() {};
     private static final String ADMIN = "/actuator/gateway-push";
@@ -223,7 +229,7 @@ class PushOrderingEndToEndTest {
 
             awaitTrue(() -> m.events().stream().filter(e1::equals).count() >= 2);
             assertThat(get(ADMIN + "/audit", null).get("audit"))
-                    .extracting(a -> a.get("action").asText())
+                    .extracting(a -> a.get("action").asString())
                     .contains("seek_group");
         }
         awaitTrue(() -> metrics.connections("ws") == 0);
@@ -238,7 +244,7 @@ class PushOrderingEndToEndTest {
                         "{\"topic\":\"" + topic + "\",\"key\":\"" + key + "\",\"data\":" + dataJson + "}",
                         null))
                 .get("id")
-                .asText();
+                .asString();
     }
 
     private static void sleep(Duration d) {
@@ -259,7 +265,7 @@ class PushOrderingEndToEndTest {
     private String publish(String topic, String dataJson) {
         return body(exchange("POST", "/push/publish", "{\"topic\":\"" + topic + "\",\"data\":" + dataJson + "}", null))
                 .get("id")
-                .asText();
+                .asString();
     }
 
     private Disposable subscribe(String topicAndParams, List<ServerSentEvent<String>> frames) {
@@ -333,16 +339,16 @@ class PushOrderingEndToEndTest {
         /** The ids of the event frames received so far, in order. */
         List<String> events() {
             return frames.stream()
-                    .filter(f -> "event".equals(f.path("type").asText()))
-                    .map(f -> f.path("id").asText())
+                    .filter(f -> "event".equals(f.path("type").asString()))
+                    .map(f -> f.path("id").asString())
                     .toList();
         }
 
         JsonNode await(String type) {
             awaitTrue(() ->
-                    frames.stream().anyMatch(f -> type.equals(f.path("type").asText())));
+                    frames.stream().anyMatch(f -> type.equals(f.path("type").asString())));
             return frames.stream()
-                    .filter(f -> type.equals(f.path("type").asText()))
+                    .filter(f -> type.equals(f.path("type").asString()))
                     .findFirst()
                     .orElseThrow();
         }
@@ -362,7 +368,7 @@ class PushOrderingEndToEndTest {
     private static JsonNode parse(String json) {
         try {
             return JSON.readTree(json);
-        } catch (java.io.IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new AssertionError(json, e);
         }
     }

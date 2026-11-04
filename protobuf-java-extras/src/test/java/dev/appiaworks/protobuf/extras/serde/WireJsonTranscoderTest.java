@@ -2,7 +2,6 @@ package dev.appiaworks.protobuf.extras.serde;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
@@ -15,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * BDD tests for the Tier 0 bail-out contract: wire encodings that need merge semantics
@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
  */
 class WireJsonTranscoderTest {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
     private static Descriptor msg;
     private static Descriptor superset;
@@ -138,7 +138,7 @@ class WireJsonTranscoderTest {
         assertThat(json).isNotNull();
         var tree = MAPPER.readTree(json);
         assertThat(tree.get("i").asInt()).isEqualTo(42);
-        assertThat(tree.get("s").asText()).isEqualTo("keep");
+        assertThat(tree.get("s").asString()).isEqualTo("keep");
         assertThat(tree.has("extra")).isFalse();
     }
 

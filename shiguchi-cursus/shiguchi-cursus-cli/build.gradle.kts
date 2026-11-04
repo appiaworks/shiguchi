@@ -13,6 +13,8 @@ dependencies {
     annotationProcessor(libs.picocli.codegen)
 
     implementation(project(":shiguchi-proto"))
+    // Jackson 3 streaming factory with the Jackson 2 read limits (JsonFactories); no Spring.
+    implementation(project(":protobuf-java-extras"))
     implementation(libs.protobuf.java)
     implementation(libs.protobuf.java.util)
     implementation(libs.proto.common.protos)
@@ -21,8 +23,8 @@ dependencies {
     // The channel builder is used directly (TLS, insecure trust).
     implementation(libs.grpc.netty.shaded)
 
-    implementation("com.fasterxml.jackson.core:jackson-databind")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml")
+    implementation("tools.jackson.core:jackson-databind")
+    implementation("tools.jackson.dataformat:jackson-dataformat-yaml")
 
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.grpc.inprocess)

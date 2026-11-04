@@ -19,6 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The shared modules (`shiguchi-core`, `-rest`, `-graphql`, ...) now import the Spring Boot 4
   BOM, so their published POMs manage Boot 4 versions.
 - All samples run on Spring Boot 4.
+- **Breaking:** Jackson 3 (`tools.jackson`) replaces Jackson 2 everywhere, including the
+  `protobuf-java-extras` API. `ProtoJson.write`, `JsonWritable.writeJson`,
+  `JsonReadable.mergeJson` and the other serde methods that took a Jackson generator or parser now
+  take `tools.jackson.core.JsonGenerator` / `JsonParser`, and no longer declare `IOException`.
+  Jackson 3's exceptions are unchecked.
+  To move:
+  - Regenerate code made by `protoc-gen-java-extras` with this version's plugin. Classes generated
+    by an older plugin no longer compile.
+  - Pass a Jackson 3 `ObjectMapper` to `OpenApiBatchLoader`.
+  JSON output is unchanged: the gateway keeps Jackson 2's property order and read limits.
+  The OpenAPI merge still goes through swagger-core's Jackson 2 mapper, so Jackson 2 stays on the
+  classpath through springdoc.
 
 ## [0.18.0] - 2026-11-03
 

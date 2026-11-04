@@ -22,7 +22,7 @@ dependencies {
     implementation(libs.reactor.core)
     // Was arriving transitively through the starter, which is why it was never declared.
     implementation(libs.slf4j.api)
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.22.4")
+    implementation("tools.jackson.core:jackson-databind")
     // The compiled serde tiers (Tier 1 typed writers, Tier 2 serializers): generated with the
     // ClassFile API, so only on Java 25+. On an older JVM the jar is never loaded; REST responses
     // take Tier 0 and the GraphQL and request paths the reflective converter, same output.

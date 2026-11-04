@@ -1,9 +1,8 @@
 package dev.appiaworks.protobuf.extras;
 
-import com.fasterxml.jackson.core.JsonParser;
 import com.google.protobuf.Message;
 import dev.appiaworks.protobuf.extras.api.ApiStatus;
-import java.io.IOException;
+import tools.jackson.core.JsonParser;
 
 /**
  * A generated {@code Builder} that reads its message from proto JSON: what
@@ -30,5 +29,5 @@ public interface JsonReadable {
      * @throws ProtoJsonException when the parser is not on an object, or a value does not fit its
      *     field (the host's own exception type outside a {@code ProtoJson} call)
      */
-    Message.Builder mergeJson(JsonParser parser) throws IOException;
+    Message.Builder mergeJson(JsonParser parser);
 }

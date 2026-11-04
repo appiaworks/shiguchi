@@ -1,12 +1,12 @@
 package dev.appiaworks.shiguchi.cursus;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.nio.charset.StandardCharsets;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * {@code POST <path>/ack} with {@code {"topic": "inbox:alice", "id": "…", "session"?: "…"}}, or
@@ -32,18 +32,18 @@ public final class PushAckHandler {
                     JsonNode json;
                     try {
                         json = body.length == 0 ? null : PushResponses.JSON.readTree(body);
-                    } catch (java.io.IOException e) {
+                    } catch (tools.jackson.core.JacksonException e) {
                         return Mono.error(PushException.badRequest("body is not JSON: " + e.getMessage()));
                     }
                     if (!(json instanceof ObjectNode obj) || !obj.hasNonNull("topic") || !obj.hasNonNull("id")) {
                         return Mono.error(PushException.badRequest("a JSON object with topic and id is required"));
                     }
-                    String topic = obj.get("topic").asText();
-                    String id = obj.get("id").asText();
+                    String topic = obj.get("topic").asString();
+                    String id = obj.get("id").asString();
                     String session =
-                            obj.hasNonNull("session") ? obj.get("session").asText() : null;
-                    String group = obj.hasNonNull("group") ? obj.get("group").asText() : null;
-                    String member = obj.hasNonNull("member") ? obj.get("member").asText() : null;
+                            obj.hasNonNull("session") ? obj.get("session").asString() : null;
+                    String group = obj.hasNonNull("group") ? obj.get("group").asString() : null;
+                    String member = obj.hasNonNull("member") ? obj.get("member").asString() : null;
                     return PushSubscribeHandler.principal(request)
                             .flatMap(auth -> group != null && !group.isBlank()
                                     ? ack(sessions.groups(), auth.orElse(null), group, member, topic, id)
@@ -70,7 +70,7 @@ public final class PushAckHandler {
     private static String quote(String s) {
         try {
             return PushResponses.JSON.writeValueAsString(s);
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new IllegalStateException(e);
         }
     }
