@@ -39,8 +39,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 /**
  * The slice's proof with the JDBC store on the Boot 4 gateway: two gateway instances sharing one
  * embedded PostgreSQL, 25 simultaneous calls to each with the same expired session. One extra
- * refresh anywhere would make the issuer revoke the family. Mirrors
- * {@code spring-boot3/shiguchi-bff-starter}.
+ * refresh anywhere would make the issuer revoke the family.
  */
 @DisplayName("BFF token refresh, two instances over PostgreSQL, end to end (Boot 4)")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)

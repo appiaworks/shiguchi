@@ -29,8 +29,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
- * The push surface on the Boot 4 gateway over a real port (mirrors {@code PushEndToEndTest} in
- * spring-boot3/shiguchi-cursus-starter; the push module is byte-identical between the lines): Server-Sent Events subscriptions fed by
+ * The push surface on the Boot 4 gateway over a real port: Server-Sent Events subscriptions fed by
  * HTTP publishes, several topics on one connection, resume from {@code Last-Event-ID} on an
  * {@code AT_LEAST_ONCE} namespace, the refusals (unknown namespace, bad topic, bad JSON, too
  * large, unauthenticated publisher), the client form of publishing, and the connection lifetime

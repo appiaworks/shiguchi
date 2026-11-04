@@ -50,7 +50,7 @@ import reactor.core.publisher.Sinks;
  * does ({@code Origin} and {@code Sec-Fetch-*} headers, the cookie jar honouring {@code Path}), see
  * a cross-site POST and a cross-site WebSocket refused, receive a push event over the cookie
  * socket, ride out a token refresh, and log out. There is no real browser in CI; this sends what
- * one sends. Mirrors {@code spring-boot3/shiguchi-bff-starter}.
+ * one sends.
  */
 @DisplayName("BFF browser journey end to end (Boot 4)")
 class BffBrowserJourneyEndToEndTest {

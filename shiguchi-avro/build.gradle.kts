@@ -1,5 +1,5 @@
 dependencies {
-    implementation(platform(libs.spring.boot.bom))
+    implementation(platform(libs.spring.boot4.bom))
     api(project(":shiguchi-core"))
     api(project(":shiguchi-rest"))
     // The only Avro dependency the gateway takes: schema parsing, generic records, binary codec.

@@ -18,7 +18,7 @@ It is a single multi-module Gradle build. Highlights:
 - `protoc-gen-java-extras` / `protoc-gen-java-extras-gradle-plugin` — protoc plugin adding Java-typed accessors to generated classes, and the Gradle plugin that wires it. Nothing in the gateway depends on them.
 - `shiguchi-rest` / `-graphql` / `-openapi` / `-grpc-proxy` / `-validation` — surfaces.
 - `shiguchi-ui` (+ `shiguchi-ui-frontend`) — embedded web console.
-- `spring-boot3/*`, `spring-boot4/*` — auto-config + starters per Boot line.
+- `spring-boot4/*` — auto-config + starters for Spring Boot 4.
 - `samples/*` — runnable example apps.
 - `shiguchi-benchmarks` — JMH performance suite.
 

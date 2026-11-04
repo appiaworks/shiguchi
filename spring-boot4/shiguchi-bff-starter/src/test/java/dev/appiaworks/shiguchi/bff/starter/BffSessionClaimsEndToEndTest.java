@@ -36,7 +36,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
  * Session claims on {@code /bff/session} and the signed-in user's own session list
  * ({@code GET /bff/sessions}, {@code DELETE /bff/sessions/{handle}}) on the Boot 4 gateway over a
  * real port against the stub OIDC issuer, with two browsers (cookie jars) signed in as the same
- * user and a second user. Mirrors {@code spring-boot3/shiguchi-bff-starter}.
+ * user and a second user.
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,

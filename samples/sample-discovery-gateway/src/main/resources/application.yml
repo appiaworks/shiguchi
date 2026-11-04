@@ -44,3 +44,11 @@ logging:
   level:
     # Logs every resolution change: "Resolved 'catalog-service' via discovery: 3 instance(s) [...]"
     dev.appiaworks.shiguchi.routing.DiscoveryNameResolverProvider: INFO
+
+spring:
+  cloud:
+    # The 2025.1 train's verifier only knows Boot 4.0.x and refuses to start on 4.1. The pairing
+    # works (the gateway's own tests run Boot 4.1 with Spring Cloud Gateway 5.0); drop this once
+    # a train lists 4.1.
+    compatibility-verifier:
+      enabled: false

@@ -38,7 +38,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 /**
- * Consumer-group ordering on the Boot 4 gateway over a real port, on the in-memory store (mirrors {@code PushOrderingEndToEndTest} in spring-boot3/shiguchi-cursus-starter; the push module is byte-identical between the lines):
+ * Consumer-group ordering on the Boot 4 gateway over a real port, on the in-memory store:
  * a {@code STRICT} group has one active member and hands over when it leaves; a {@code KEY} group
  * never splits a key across members and keeps ids of one key in order; an admin seek moves a
  * group back so it redelivers.

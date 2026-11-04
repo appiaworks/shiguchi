@@ -18,9 +18,6 @@ import org.springframework.context.annotation.Configuration;
  * {@link OpenTelemetry} bean is present in the context, honoring the
  * {@code @ConditionalOnBean} class-level guard.
  *
- * <p>Boot 3 / Boot 4 note: Spring Boot 4 test context runners maintain API parity with Boot 3;
- * no divergences detected. Tests are identical between module twins.
- *
  * <p>Verified behaviour:
  * <ul>
  *   <li>GrpcTracingConfiguration is not instantiated when OpenTelemetry bean is absent;</li>

@@ -45,17 +45,14 @@ import org.springframework.cloud.gateway.route.RouteDefinitionWriter;
  * minimal implementations so the full production bean graph genuinely refreshes end to end,
  * exactly as it does in a host application with Actuator and Spring Cloud Gateway on the classpath.
  *
- * <p><b>Boot 3 / Boot 4 divergence:</b> Spring Security's reactive auto-configuration was both
- * repackaged and renamed between Boot 3 and Boot 4. Boot 3:
- * {@code org.springframework.boot.autoconfigure.security.reactive.ReactiveSecurityAutoConfiguration}
- * and {@code ...ReactiveUserDetailsServiceAutoConfiguration}. Boot 4 (imported here):
+ * <p><b>Boot 4 security auto-configuration:</b> Spring Security's reactive auto-configuration
+ * lives at different names in Boot 4 (imported here):
  * {@link ReactiveWebSecurityAutoConfiguration} at {@code
- * org.springframework.boot.security.autoconfigure.web.reactive} (renamed from
- * {@code ReactiveSecurityAutoConfiguration}) and {@link ReactiveUserDetailsServiceAutoConfiguration}
- * moved to {@code org.springframework.boot.security.autoconfigure} (no {@code .reactive}
- * subpackage). {@link ShiguchiAutoConfiguration}'s own {@code @AutoConfiguration(beforeName =
- * ...)} already lists every one of these spellings for exactly this reason. Everything else about
- * this test is identical to its Boot 3 twin.
+ * org.springframework.boot.security.autoconfigure.web.reactive} and
+ * {@link ReactiveUserDetailsServiceAutoConfiguration} at {@code
+ * org.springframework.boot.security.autoconfigure} (no {@code .reactive} subpackage).
+ * {@link ShiguchiAutoConfiguration}'s own {@code @AutoConfiguration(beforeName = ...)} lists
+ * every one of these spellings.
  *
  * <p>Verified behaviour:
  * <ul>

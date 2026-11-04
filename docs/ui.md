@@ -138,11 +138,11 @@ The console comes in two starters; pick the one that matches the application's w
 
 | Starter | Web stack | Brings |
 | --- | --- | --- |
-| `shiguchi-ui-spring-boot{3,4}-starter` | Reactive (WebFlux) | `spring-boot-starter-webflux` |
-| `shiguchi-ui-webmvc-spring-boot{3,4}-starter` | Servlet (Spring MVC) | `spring-boot-starter-web` |
+| `shiguchi-ui-spring-boot4-starter` | Reactive (WebFlux) | `spring-boot-starter-webflux` |
+| `shiguchi-ui-webmvc-spring-boot4-starter` | Servlet (Spring MVC) | `spring-boot-starter-web` |
 
 ```kotlin
-implementation("io.github.appiaworks:shiguchi-ui-webmvc-spring-boot3-starter:<version>")
+implementation("io.github.appiaworks:shiguchi-ui-webmvc-spring-boot4-starter:<version>")
 ```
 
 The WebMVC starter embeds the console in an existing Spring MVC application, next to its own

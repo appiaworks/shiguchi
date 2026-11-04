@@ -1,7 +1,7 @@
 # sample-grpc-ui-standalone
 
 Just the embedded gRPC web console (`docs/ui.md`), nothing else — no REST routes, no GraphQL, no
-gRPC proxy. Depends only on `shiguchi-ui-spring-boot3-starter`. Useful as a developer-facing
+gRPC proxy. Depends only on `shiguchi-ui-spring-boot4-starter`. Useful as a developer-facing
 try-it tool that sits next to a service without standing up a full gateway.
 
 There is no backend bundled with this sample. Point `shiguchi.services[0]` at any gRPC

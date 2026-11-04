@@ -37,9 +37,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 /**
- * Persistent sessions on the Boot 4 gateway over a real port, on the in-memory store (mirrors
- * {@code PushSessionsEndToEndTest} in spring-boot3/shiguchi-cursus-starter; the push module is
- * byte-identical between the lines): a
+ * Persistent sessions on the Boot 4 gateway over a real port, on the in-memory store: a
  * principal's session on {@code inbox} (SSE, acked over {@code POST /push/ack}) resumes from its
  * cursor without a {@code Last-Event-ID} and receives what was published while it was away; a
  * client-named session on {@code alerts} over WebSocket acks with a frame and, past

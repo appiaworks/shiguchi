@@ -106,7 +106,7 @@ class ResponseHeaderForwarderTest {
 
         assertThat(out.getFirst("x-version")).isEqualTo("7");
         assertThat(out.getFirst("x-cost")).isEqualTo("3");
-        assertThat(out.containsKey("x-secret")).isFalse();
+        assertThat(out.containsHeader("x-secret")).isFalse();
     }
 
     @Test

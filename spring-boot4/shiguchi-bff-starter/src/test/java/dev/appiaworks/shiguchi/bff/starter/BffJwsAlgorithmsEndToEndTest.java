@@ -37,8 +37,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 
 /**
  * Sign-in and an upstream call relayed with the session's token on the Boot 4 gateway against a stub issuer
- * that signs with ES256, the provider configured with {@code jws-algorithms=ES256}. Mirrors {@code
- * spring-boot3/shiguchi-bff-starter}.
+ * that signs with ES256, the provider configured with {@code jws-algorithms=ES256}.
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,

@@ -1,5 +1,5 @@
 dependencies {
-    implementation(platform(libs.spring.boot.bom))
+    implementation(platform(libs.spring.boot4.bom))
     api(project(":shiguchi-proto"))
     // The JSON serde and type converters, usable without the gateway.
     api(project(":protobuf-java-extras"))

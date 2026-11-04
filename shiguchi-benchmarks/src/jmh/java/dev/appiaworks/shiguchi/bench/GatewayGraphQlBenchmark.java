@@ -51,7 +51,7 @@ import reactor.netty.DisposableServer;
 import reactor.netty.http.server.HttpServer;
 
 /**
- * The GraphQL surface over HTTP, next to the REST route for the same data: a Boot 3 gateway
+ * The GraphQL surface over HTTP, next to the REST route for the same data: a gateway
  * with DGS on, a reflection-served {@code bench.Shop} backend whose orders point at customers
  * through a DataLoader ({@code customer_id} resolves {@code Customer}; {@code GetCustomers} is
  * its batch loader), or, with {@code backend=http}, a {@code REST_DOWNSTREAM} service in front of

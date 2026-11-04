@@ -16,11 +16,6 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
  * and downstream server-layer ({@code shiguchi.validation.server-enabled}) — and the shared
  * {@link ProtoValidator} bean gated by {@link OnValidationEnabledCondition}, which is satisfied
  * when either option is on.
- *
- * <p>Mirrors {@code ShiguchiValidationAutoConfigurationTest} in
- * spring-boot3/shiguchi-validation-autoconfigure. {@link ShiguchiValidationAutoConfiguration} and
- * {@link OnValidationEnabledCondition} are byte-identical between the two Boot lines, so no Boot
- * API divergence applies here.
  */
 @DisplayName("ShiguchiValidationAutoConfiguration (Boot 4)")
 class ShiguchiValidationAutoConfigurationTest {

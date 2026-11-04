@@ -28,7 +28,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 /**
  * An open route (the transcoded routes are not gated) on the Boot 4 gateway: a signed-in user whose
  * token cannot be refreshed because the issuer is down must get 503, never an anonymous call to
- * the backend. Mirrors {@code spring-boot3/shiguchi-bff-starter}.
+ * the backend.
  */
 @DisplayName("BFF token refresh on an open route end to end (Boot 4)")
 class BffRefreshOpenRouteEndToEndTest {

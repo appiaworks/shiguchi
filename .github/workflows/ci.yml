@@ -210,9 +210,10 @@ jobs:
           # the ones it knows how to probe), and it appears before shiguchi in the document —
           # so a "first status field" check would read UNKNOWN and fail a healthy gateway.
           # What matters is that a backend's schema loaded, which is what this indicator says.
+          # jq, not grep: Boot 4 writes the indicator's details before its status.
           HEALTH=$(curl -fsS localhost:8080/actuator/health)
           echo "$HEALTH"
-          echo "$HEALTH" | grep -q '"shiguchi":{"status":"UP"' \
+          echo "$HEALTH" | jq -e '.components.shiguchi.status == "UP"' > /dev/null \
             || { echo "shiguchi indicator is not UP"; cat /tmp/sample.log; exit 1; }
 
           # A REST call transcoded to gRPC and back. servedBy is stamped by the backend that

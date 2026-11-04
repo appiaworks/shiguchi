@@ -54,7 +54,7 @@ import reactor.core.publisher.Sinks;
  * graphql-transport-ws. Each runs as the cookie's user, outlives the 2-second access token, and
  * ends when its session ends: at once on logout here, within the check interval when the store
  * loses the session. A new operation on a socket whose session ended is refused. A bearer stream
- * is not bound. Mirrors {@code spring-boot3/shiguchi-bff-starter}.
+ * is not bound.
  */
 @DisplayName("BFF session-bound gRPC-Web and GraphQL streams end to end (Boot 4)")
 class BffStreamBindingEndToEndTest {

@@ -32,9 +32,7 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 
 /**
- * The {@code gateway-push} actuator endpoint on the Boot 4 gateway over a real port (mirrors
- * {@code PushAdminEndToEndTest} in spring-boot3/shiguchi-cursus-starter; the push module is
- * byte-identical between the lines): the overview
+ * The {@code gateway-push} actuator endpoint on the Boot 4 gateway over a real port: the overview
  * and the lists read anonymously; the writes need a JWT (the chain) and, here, the configured
  * admin role; an operator's disconnect ends the subscriber's stream with a {@code close} frame;
  * a test publish reaches a subscriber. The console's config advertises the endpoint.

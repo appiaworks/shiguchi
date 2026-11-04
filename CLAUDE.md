@@ -7,7 +7,7 @@ artifacts, packages `dev.appiaworks.shiguchi.*`, property root `shiguchi.*`.
 
 ## Build & Test
 
-- `./gradlew build` — compile + test everything. Single module: `./gradlew :shiguchi-core:test` (Boot modules live in nested folders but are flat Gradle projects named after the artifact: `spring-boot3/shiguchi-autoconfigure` is `:shiguchi-spring-boot3-autoconfigure:test`; `./gradlew projects` lists them all).
+- `./gradlew build` — compile + test everything. Single module: `./gradlew :shiguchi-core:test` (Boot modules live in nested folders but are flat Gradle projects named after the artifact: `spring-boot4/shiguchi-autoconfigure` is `:shiguchi-spring-boot4-autoconfigure:test`; `./gradlew projects` lists them all).
 - After changing a module, run that module's tests before declaring done.
 - Built and tested on JDK 25 (CI and locally); published as Java 21 bytecode (`options.release = 21`), so consumers still need only Java 21. The one exception is `protobuf-java-extras-classfile` (`release = 25`, Class-File API): found through `ServiceLoader`, loaded only on Java 25+, inert below, and the generated serde tiers switch off without it. The `fallback-jdk21` CI job runs the serde tests on a Java 21 launcher to keep the fallback paths honest. Gradle 9.8.0 (wrapper), versions in `gradle/libs.versions.toml`.
 - Build cache is on (`gradle.properties`), local only; on CI `gradle/actions/setup-gradle` restores the Gradle User Home from the GitHub Actions cache (written by the nightly run on main). `org.gradle.parallel` is on: a full CI build measured 12m27s vs 16m09s serial on 4 CPUs (#239). Keep WebTestClient response timeouts generous (30 s) in end-to-end tests. With the 5 s default they time out when modules build concurrently.
@@ -21,11 +21,9 @@ artifacts, packages `dev.appiaworks.shiguchi.*`, property root `shiguchi.*`.
 - Published POMs: `./gradlew checkPublishedPoms` (part of `check`) fails on what Maven Central would reject: missing metadata, or a version-less dependency with no imported BOM or managed version. It doesn't open the BOM, so a BOM that doesn't manage the dependency still passes. The rules live in `buildSrc`; test them with `./gradlew -p buildSrc test`, which `./gradlew build` does not run.
 - Formatting: Spotless (palantir-java-format), ratcheted from `origin/main` — only files changed vs main are checked. `./gradlew spotlessApply` to fix; `spotlessCheck` runs as part of `build`.
 
-## Boot 3 / Boot 4 duality
+## Spring Boot line
 
-`spring-boot3/*` and `spring-boot4/*` are parallel module lines. Any change to one must be mirrored in the other's counterpart module unless a Boot API difference makes it impossible — then note the divergence in the PR.
-
-Boot 3 is best effort: Boot 3.5 and Spring 6.2 left OSS support on 2026-06-30, and the line is deprecated: 0.18.x is the last release line with it, `release/0.18.x` takes best-effort security fixes until May 2027, and main drops it after 0.18.0. It stays on the newest public 3.x versions. `sample-full`, the source of the OCI image, is on the latest Boot 4; the other samples are Boot 3 consumers.
+Main ships Spring Boot 4 only (`spring-boot4/*`). 0.18.x was the last release line with the Boot 3 starters. Fixes for it go to `release/0.18.x` (best effort, security only, until May 2027) and are cherry-picked by hand, since main has no Boot 3 modules. All samples are Boot 4 consumers; `sample-full` is the source of the OCI image.
 
 ## Branching & Releases
 

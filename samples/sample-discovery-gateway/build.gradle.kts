@@ -1,5 +1,5 @@
 plugins {
-    id("org.springframework.boot") version "3.5.16"
+    id("org.springframework.boot") version "4.1.2"
     id("io.spring.dependency-management") version "1.1.7"
     java
 }
@@ -10,17 +10,17 @@ group = "dev.appiaworks.shiguchi.sample"
 val gatewayVersion = providers.gradleProperty("gatewayVersion").get()
 
 dependencyManagement {
-    // The Boot 3.5 train. spring-cloud-commons is all this sample needs (the DiscoveryClient
+    // The Boot 4 train (2025.1, matching Spring Cloud Gateway 5.0). spring-cloud-commons is all this sample needs (the DiscoveryClient
     // interface); a real deployment adds the Eureka/Consul/Kubernetes client from the same BOM,
     // which is why it is a BOM and not a pinned dependency.
-    imports { mavenBom("org.springframework.cloud:spring-cloud-dependencies:2025.0.3") }
+    imports { mavenBom("org.springframework.cloud:spring-cloud-dependencies:2025.1.1") }
 }
 
 dependencies {
-    implementation("io.github.appiaworks:shiguchi-spring-boot3-autoconfigure:$gatewayVersion")
+    implementation("io.github.appiaworks:shiguchi-spring-boot4-autoconfigure:$gatewayVersion")
     implementation("io.github.appiaworks:shiguchi-core:$gatewayVersion")
     implementation("io.github.appiaworks:shiguchi-rest:$gatewayVersion")
-    implementation("io.github.appiaworks:shiguchi-openapi-spring-boot3-starter:$gatewayVersion")
+    implementation("io.github.appiaworks:shiguchi-openapi-spring-boot4-starter:$gatewayVersion")
 
     // The DiscoveryClient interface the gateway's discovery:/// name resolver asks for. Swap for
     // spring-cloud-starter-netflix-eureka-client / -consul-discovery / -kubernetes-client to talk
@@ -37,6 +37,7 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webflux")
+    testImplementation("org.springframework.boot:spring-boot-starter-webflux-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

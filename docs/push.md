@@ -21,10 +21,10 @@ It is in-app messaging, not mobile push (APNs/FCM), and not a message broker.
 
 ## Turning it on
 
-Add the push starter next to the gateway starter, Boot 3 or Boot 4:
+Add the push starter next to the gateway starter:
 
 ```kotlin
-implementation("io.github.appiaworks:shiguchi-cursus-spring-boot3-starter")   // or -boot4-
+implementation("io.github.appiaworks:shiguchi-cursus-spring-boot4-starter")
 ```
 
 ```yaml

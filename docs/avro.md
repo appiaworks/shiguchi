@@ -1,6 +1,6 @@
 # Avro
 
-Two directions, one starter (`shiguchi-avro-spring-boot3-starter` / `-boot4-`), both off without it:
+Two directions, one starter (`shiguchi-avro-spring-boot4-starter`), both off without it:
 
 - [Avro backends](#avro-backends): the gateway talks Avro **to** a `REST_DOWNSTREAM` service.
 - [Avro callers](#avro-on-the-gateways-rest-surface): a REST caller talks Avro **to the gateway**
@@ -16,7 +16,7 @@ and GraphQL they would see for a JSON backend.
 Add the starter and set the service's preference:
 
 ```kotlin
-implementation("io.github.appiaworks:shiguchi-avro-spring-boot3-starter:<version>")   // or -boot4-
+implementation("io.github.appiaworks:shiguchi-avro-spring-boot4-starter:<version>")
 ```
 
 ```yaml

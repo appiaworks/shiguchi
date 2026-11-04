@@ -207,7 +207,7 @@ them. For RFC 9457, build Spring's `org.springframework.http.ProblemDetail` rath
 
 ```java
 @Bean
-GatewayErrorRenderer problemJsonRenderer(ObjectMapper mapper) {
+GatewayErrorRenderer problemJsonRenderer(JsonMapper mapper) {
     return new GatewayErrorRenderer() {
         @Override
         public byte[] render(HttpStatus http, Status grpc, ServerWebExchange exchange) {
@@ -226,11 +226,7 @@ GatewayErrorRenderer problemJsonRenderer(ObjectMapper mapper) {
                     bad.getFieldViolationsList().stream()
                             .map(v -> Map.of("field", v.getField(), "message", v.getDescription()))
                             .toList()));
-            try {
-                return mapper.writeValueAsBytes(problem);
-            } catch (JsonProcessingException e) {
-                throw new UncheckedIOException(e);
-            }
+            return mapper.writeValueAsBytes(problem);
         }
 
         @Override
@@ -241,22 +237,11 @@ GatewayErrorRenderer problemJsonRenderer(ObjectMapper mapper) {
 }
 ```
 
-Inject the mapper Spring Boot auto-configures rather than creating one: Boot registers
-Spring's `ProblemDetailJacksonMixin` on it, which writes `setProperty` entries (`requestId`,
-`errors`) as top-level members as RFC 9457 requires. A plain `new ObjectMapper()` lacks the
-mixin and nests them under `"properties"`.
-
-The sample is for Spring Boot 3 (Jackson 2). On Spring Boot 4 the auto-configured mapper is
-Jackson 3's `tools.jackson.databind.json.JsonMapper`, which also carries the mixin. Inject
-that instead, and drop the `try`/`catch`: Jackson 3 throws the unchecked `JacksonException`.
-
-```java
-@Bean
-GatewayErrorRenderer problemJsonRenderer(JsonMapper mapper) {
-    // ... same as above, ending with:
-    //     return mapper.writeValueAsBytes(problem);
-}
-```
+Inject the mapper Spring Boot auto-configures rather than creating one: it is Jackson 3's
+`tools.jackson.databind.json.JsonMapper`, and Boot registers Spring's `ProblemDetailJacksonMixin`
+on it, which writes `setProperty` entries (`requestId`, `errors`) as top-level members as
+RFC 9457 requires. A mapper you create yourself lacks the mixin and nests them under
+`"properties"`. Jackson 3 throws the unchecked `JacksonException`, so no `try`/`catch` is needed.
 
 No standard protobuf message models RFC 9457. The proto-native equivalent is
 `google.rpc.Status` with a `google.rpc.ErrorInfo` detail, which the default body already

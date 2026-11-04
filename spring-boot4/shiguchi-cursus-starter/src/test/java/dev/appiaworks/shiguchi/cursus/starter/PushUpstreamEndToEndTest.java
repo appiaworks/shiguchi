@@ -58,9 +58,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.Disposable;
 
 /**
- * A topic backed by an upstream server stream on the Boot 4 gateway (mirrors
- * {@code PushUpstreamEndToEndTest} in spring-boot3/shiguchi-cursus-starter; the push module is
- * byte-identical between the lines): {@code ev.Orders/Watch}
+ * A topic backed by an upstream server stream on the Boot 4 gateway: {@code ev.Orders/Watch}
  * carries {@code (shiguchi.api.topic) = {pattern: "orders:{order_id}"}}; no namespace is
  * configured by hand. Two SSE subscribers of {@code orders:42} share one upstream stream (the
  * backend counts one call with {@code order_id = 42}) and both receive its typed events; a

@@ -1,6 +1,6 @@
 // Shared config for all sample apps. Pin a Java 21 toolchain so the samples build
 // reproducibly on any local JDK (Gradle locates/provisions 21) and match the gateway
-// libraries' target — Spring Boot 3.4.x tooling cannot read newer bytecode.
+// libraries' target — Spring Boot tooling cannot read newer bytecode.
 subprojects {
     // Jar names and image tags follow the Shiguchi version the sample builds against.
     version = providers.gradleProperty("gatewayVersion").get()

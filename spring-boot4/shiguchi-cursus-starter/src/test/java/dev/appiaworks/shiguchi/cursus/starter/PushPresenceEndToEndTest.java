@@ -32,8 +32,7 @@ import reactor.core.publisher.Mono;
 import redis.embedded.RedisServer;
 
 /**
- * Who is connected, across instances (Boot 4; mirrors {@code PushPresenceEndToEndTest} in
- * spring-boot3/shiguchi-cursus-starter): two gateway instances over one embedded Redis, each with an
+ * Who is connected, across instances (Boot 4): two gateway instances over one embedded Redis, each with an
  * instance id of its own. A subscriber on instance B shows up in instance A's connections view with
  * its instance and device, and in A's answers to {@code HasSubscribers} and {@code GetSubscribers}
  * on a {@code presence: true} namespace; when it goes away the count drops.

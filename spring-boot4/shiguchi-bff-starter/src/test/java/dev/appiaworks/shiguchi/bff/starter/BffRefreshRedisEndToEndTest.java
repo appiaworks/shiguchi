@@ -38,8 +38,7 @@ import redis.embedded.RedisServer;
 /**
  * The slice's proof on the Boot 4 gateway: two gateway instances sharing one embedded Redis, 25
  * simultaneous calls to each with the same expired session. The issuer rotates refresh tokens and
- * revokes the family on any reuse, so one extra refresh anywhere would sign the user out. Mirrors
- * {@code spring-boot3/shiguchi-bff-starter}.
+ * revokes the family on any reuse, so one extra refresh anywhere would sign the user out.
  */
 @DisplayName("BFF token refresh, two instances over Redis, end to end (Boot 4)")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)

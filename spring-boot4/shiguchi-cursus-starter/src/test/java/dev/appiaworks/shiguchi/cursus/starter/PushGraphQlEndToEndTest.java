@@ -51,9 +51,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 /**
- * The push namespaces as GraphQL subscription fields on the Boot 4 gateway (mirrors
- * {@code PushGraphQlEndToEndTest} in spring-boot3/shiguchi-cursus-starter; the push and GraphQL
- * modules are byte-identical between the lines), over a real
+ * The push namespaces as GraphQL subscription fields on the Boot 4 gateway, over a real
  * graphql-transport-ws connection: a typed namespace ({@code payload-type}) delivers its payload
  * as the generated object type with field selection, an untyped one as {@code JSON}; {@code after}
  * resumes from the history; a namespace that needs a principal refuses an anonymous subscriber

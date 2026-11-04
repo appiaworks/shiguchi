@@ -38,7 +38,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
  * The optional anti-CSRF header ({@code shiguchi.bff.csrf-header.name}) on the Boot 4 gateway over
  * a real port: every cookie-authenticated unsafe request, on REST, gRPC-Web and GraphQL, needs the
  * header with the configured value on top of the {@code Origin} rule; reads, WebSocket handshakes and
- * bearer callers do not. Mirrors {@code spring-boot3/shiguchi-bff-starter}.
+ * bearer callers do not.
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,

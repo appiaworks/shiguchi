@@ -48,8 +48,7 @@ import reactor.core.publisher.Sinks;
  * {@code gateway-bff-sessions} endpoint, and an idle session ends by itself. In each case the
  * session is gone from the store and the push WebSocket bound to it is closed with 4440. Sessions are
  * written straight to the store (as in the push test), tokens are signed by the stub issuer, which stands
- * for the issuer's sender: the issuer it was built against had none, so a real end-to-end is still owed. Mirrors
- * {@code spring-boot3/shiguchi-bff-starter}.
+ * for the issuer's sender: the issuer it was built against had none, so a real end-to-end is still owed.
  */
 @DisplayName("BFF session lifecycle end to end (Boot 4)")
 class BffLifecycleEndToEndTest {

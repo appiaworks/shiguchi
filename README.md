@@ -52,7 +52,7 @@ and `/grpc-ui` all work against your existing service.
 codegen step wired into every build) or hand-written Spring controllers that wrap each RPC
 and drift from the proto. This is a Spring Boot dependency instead: descriptor-driven at
 runtime, on the reactive stack, with the transcoding hot path optimised down to
-microseconds ([benchmarks](#performance)). Runs on Spring Boot 3 and Boot 4.
+microseconds ([benchmarks](#performance)). Runs on Spring Boot 4.
 
 > [!WARNING]
 > **The gateway does not authenticate callers by default.** Out of the box it permits all
@@ -339,8 +339,8 @@ How a request flows through the serde tiers is documented in
 
 ### Packaging
 
-- **Spring Boot 3 and Boot 4 starter lines** built from the same core, each shipping the
-  matching third-party runtime ([compatibility matrix](#compatibility)).
+- **Spring Boot 4 starters** shipping the matching third-party runtime
+  ([compatibility matrix](#compatibility)).
 - **A BOM** (`shiguchi-bom`) so consumers pin one version.
 - **Helm chart** and an OCI sample image published on release. → [Deploy](#deploy)
 
@@ -363,7 +363,7 @@ Core modules (`io.github.appiaworks:*`):
   `protos` classifier zip for non-JVM toolchains; both are optional, since the conventions match
   on field names and the annotations can be replaced by YAML.
 - `shiguchi-ui` + `shiguchi-ui-frontend` — the embedded React console.
-- `spring-boot3/*` and `spring-boot4/*` — auto-configuration + starters for both Spring Boot lines.
+- `spring-boot4/*` — auto-configuration + Spring Boot starters.
 
 ---
 
@@ -407,14 +407,11 @@ The starter brings the Boot-4-matched runtime line (Spring Cloud Gateway 5.0.x, 
 DGS 12.x). With the GraphQL starter, also set `json-path.version` to `3.0.0`
 ([details](docs/troubleshooting.md#noclassdeffounderror-comjaywayjsonpathspijsonjackson3jsonprovider)).
 
-On Spring Boot 3, use the same modules with `spring-boot3` artifact ids, for example
-`shiguchi-spring-boot3-starter`. That line is deprecated: 0.18.x is the last release line that
-ships it ([Compatibility](#compatibility)).
-
-The `shiguchi.*` configuration is identical on both lines.
+On Spring Boot 3, stay on 0.18.x, the last release line with the `spring-boot3` starters
+([Compatibility](#compatibility)).
 
 To embed only the gRPC console in a servlet (Spring MVC) application, use
-`shiguchi-ui-webmvc-spring-boot{3,4}-starter` instead of the WebFlux UI starter
+`shiguchi-ui-webmvc-spring-boot4-starter` instead of the WebFlux UI starter
 ([docs/ui.md](docs/ui.md#servlet-spring-mvc-applications)).
 
 ### 2. Point it at your gRPC services
@@ -523,7 +520,7 @@ spring:
   gates browser-facing surfaces while machine-facing REST stays open (or the reverse),
   and `shiguchi.cors.*` enables CORS on exactly the browser surfaces.
 - **Bring your own** — define a `SecurityWebFilterChain` bean and it fully replaces the
-  default (works in both Spring Boot 3 and 4).
+  default.
 
 Per-route scopes from your proto annotations are enforced automatically. Setting up the JWT
 decoder, mapping claims to scopes, TLS to backends and bringing your own chain are in
@@ -650,21 +647,16 @@ Metrics, tracing, and logging work out of the box — full reference in
 
 ## Compatibility
 
-Each starter line ships the matching third-party runtime —
-mixing lines is the only unsupported combination:
+The starters ship the matching third-party runtime:
 
-| Starter line | Spring Boot | Spring Cloud Gateway | springdoc | DGS | Java |
+| Starters | Spring Boot | Spring Cloud Gateway | springdoc | DGS | Java |
 | --- | --- | --- | --- | --- | --- |
-| `*-spring-boot3-starter` | 3.5.x | 4.3.x | 2.10.x | 10.6.x | 21+ (generated serde tiers on 25+) |
 | `*-spring-boot4-starter` | 4.1.x | 5.0.x | 3.2.x | 12.x | 21+ (generated serde tiers on 25+) |
 
-**Use the Boot 4 line for anything new.** The published OCI image runs on it. Spring Boot 3.5 and
-Spring Framework 6.2 left open source support on 2026-06-30, so the Boot 3 line is best effort: it
-stays on the newest public 3.5.x, but a vulnerability with no public fix stays unfixed there.
-
-**The Boot 3 line is deprecated.** 0.18.x is the last release line that ships the
-`*-spring-boot3-*` artifacts, and they log a warning at startup. The next minor release removes
-them. `release/0.18.x` takes security fixes on a best-effort basis until May 2027. To move, swap
+**Spring Boot 3 is no longer supported.** 0.18.x is the last release line with the
+`*-spring-boot3-*` starters (Boot 3.5, Spring Cloud Gateway 4.3, springdoc 2.10, DGS 10.6).
+Spring Boot 3.5 and Spring Framework 6.2 left open source support on 2026-06-30;
+`release/0.18.x` takes security fixes on a best-effort basis until May 2027. To move, swap
 `spring-boot3` for `spring-boot4` in the artifact ids and upgrade the application to Boot 4: the
 `shiguchi.*` configuration is the same.
 

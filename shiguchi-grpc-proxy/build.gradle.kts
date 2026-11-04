@@ -1,5 +1,5 @@
 dependencies {
-    implementation(platform(libs.spring.boot.bom))
+    implementation(platform(libs.spring.boot4.bom))
     api(project(":shiguchi-core"))
     api(libs.grpc.netty)
 

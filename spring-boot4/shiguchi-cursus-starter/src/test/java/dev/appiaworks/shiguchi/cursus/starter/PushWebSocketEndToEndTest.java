@@ -28,9 +28,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 /**
- * The WebSocket transport on the Boot 4 gateway over a real port (mirrors
- * {@code PushWebSocketEndToEndTest} in spring-boot3/shiguchi-cursus-starter; the push module is
- * byte-identical between the lines): {@code push.v1.json} frames.
+ * The WebSocket transport on the Boot 4 gateway over a real port: {@code push.v1.json} frames.
  * Subscribe, receive events published over HTTP, several topics on one socket, unsubscribe,
  * resume with {@code after}, publish from the client, the error frames, a browser origin refused
  * at the handshake, and the lifetime ending the socket with a {@code close} frame and 1012.

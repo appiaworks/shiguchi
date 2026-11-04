@@ -36,8 +36,7 @@ import reactor.core.publisher.Mono;
 import redis.embedded.RedisServer;
 
 /**
- * The REDIS engine on the Boot 4 gateway (mirrors {@code PushRedisEndToEndTest} in
- * spring-boot3/shiguchi-cursus-starter; the push module is byte-identical between the lines): two gateway instances over one embedded Redis. An event
+ * The REDIS engine on the Boot 4 gateway: two gateway instances over one embedded Redis. An event
  * published through one instance reaches a subscriber on the other; history written by one is
  * replayed by the other on {@code Last-Event-ID}; and an instance that shuts down ends its
  * streams with {@code event: close} / {@code shutdown}.
