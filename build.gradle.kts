@@ -414,20 +414,7 @@ configure(subprojects.filter { it.name in apiCheckedModules }) {
     // Deliberate breaks, announced in CHANGELOG.md, accepted against one baseline only: an entry
     // stops applying as soon as apiBaseline moves past it, so nothing stays excluded for good.
     // Keyed baseline -> project -> classes. See docs/api-compatibility.md.
-    val acceptedBreaks: Map<String, Map<String, List<String>>> = mapOf(
-        // 0.19.0: Jackson 3 (tools.jackson) replaces Jackson 2 in the serde API.
-        "0.18.0" to mapOf(
-            "protobuf-java-extras" to listOf(
-                "dev.appiaworks.protobuf.extras.GeneratedJson",
-                "dev.appiaworks.protobuf.extras.JsonReadable",
-                "dev.appiaworks.protobuf.extras.JsonWritable",
-                "dev.appiaworks.protobuf.extras.ProtoJson",
-                "dev.appiaworks.protobuf.extras.serde.JsonTrees",
-                "dev.appiaworks.protobuf.extras.serde.StrictScalars",
-                "dev.appiaworks.protobuf.extras.serde.TypedMessageWriter",
-            ),
-        ),
-    )
+    val acceptedBreaks: Map<String, Map<String, List<String>>> = emptyMap()
 
     // japicmp reads the marker off the class file, which is why ApiStatus is @Retention(CLASS).
     val checkStableApi = registerCheck("checkStableApi", "@ApiStatus types") {
