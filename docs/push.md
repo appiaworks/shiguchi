@@ -1065,6 +1065,15 @@ fails with a plain message when `REDIS` is set without it.
 - `broker` and `store` are chosen separately; `broker: REDIS, store: MEMORY` is legal but gives
   each instance its own history, which is rarely what you want.
 
+> **RESP2 needs Lettuce 7.7.0 or later.** Lettuce 7.1.0–7.6.x (Spring Boot 4.1.2 manages 7.5.2)
+> merges the entries of a multi-entry stream read into one malformed message when the connection
+> speaks RESP2 ([redis/lettuce#3800](https://github.com/redis/lettuce/issues/3800)). That is Redis
+> older than 6, or a proxy or client setting that forces RESP2. A consumer-group claim then returns
+> one event instead of several, and the rest are redelivered only after their ack deadline. On
+> Redis 6+, where Lettuce negotiates RESP3, nothing changes. Otherwise raise Lettuce: on Maven, or
+> Gradle with the dependency-management plugin, set `lettuce.version=7.7.0.RELEASE`, or declare
+> `io.lettuce:lettuce-core:7.7.0.RELEASE` or later.
+
 The Postgres engine does the same with a database most teams already run:
 
 ```yaml

@@ -32,6 +32,10 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-data-redis-reactive")
     // A real Redis for the REDIS engine tests: Pub/Sub and Streams cannot be faked meaningfully.
     testImplementation("com.github.codemonstur:embedded-redis:1.4.4")
+    // Boot 4.1.2 manages Lettuce 7.5.2, whose RESP2 stream parser merges the entries of an XREAD/XREADGROUP
+    // COUNT > 1 reply into one message (redis/lettuce#3800, fixed in 7.7.0). embedded-redis runs Redis 5
+    // on Windows, which has no HELLO, so Lettuce speaks RESP2 there. Drop this once Boot manages 7.7.0+.
+    testImplementation("io.lettuce:lettuce-core:7.9.0.RELEASE")
     testImplementation("org.springframework.boot:spring-boot-starter-data-r2dbc")
     testImplementation("org.postgresql:r2dbc-postgresql")
     // The JDBC engine tests: H2 in its native mode, and pgjdbc against the embedded Postgres below.
