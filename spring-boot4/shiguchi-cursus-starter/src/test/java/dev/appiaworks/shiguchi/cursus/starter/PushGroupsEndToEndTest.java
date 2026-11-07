@@ -61,7 +61,9 @@ import tools.jackson.databind.json.JsonMapper;
             "shiguchi.cursus.namespaces.jobs.history-size=100",
             "shiguchi.cursus.namespaces.jobs.session-expiry=1h",
             "shiguchi.cursus.namespaces.jobs.session-key=GROUP",
-            "shiguchi.cursus.namespaces.jobs.ack-deadline=700ms",
+            // Long enough that a busy CI runner acks before redelivery, which the split test would see as a
+            // duplicate; the redelivery test waits two deadlines, well inside its 30 s wait.
+            "shiguchi.cursus.namespaces.jobs.ack-deadline=3s",
             "shiguchi.cursus.namespaces.jobs.max-deliveries=2",
             "shiguchi.cursus.namespaces.jobs.max-inflight=2",
             "shiguchi.cursus.namespaces.jobs.publish-auth=NONE",
