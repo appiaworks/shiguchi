@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** the proto options moved from package `shiguchi.api` to `shiguchi`, with shorter
+  names, and a new umbrella file `shiguchi/annotations.proto` imports all of them at once
+  (`import "shiguchi/annotations.proto";`). The individual files moved one directory up and stay
+  importable on their own. Generated Java classes moved from `dev.appiaworks.shiguchi.proto.api`
+  to `dev.appiaworks.shiguchi.proto`; the outer classes (`GraphQlProto`, `MethodProto`,
+  `MergeProto`, `TopicProto`) keep their names. The message `GraphQlFieldRule` is now `FieldRule`,
+  and its never-implemented `resolver` field (8) is removed and reserved.
+
+  | Before | After |
+  | --- | --- |
+  | `import "shiguchi/api/graphql.proto";` | `import "shiguchi/graphql.proto";` or the umbrella |
+  | `(shiguchi.api.graphql)` | `(shiguchi.graphql)` |
+  | `(shiguchi.api.graphql_field)` | `(shiguchi.field)` |
+  | `(shiguchi.api.method)` | `(shiguchi.method)` |
+  | `(shiguchi.api.merge)` | `(shiguchi.merge)` |
+  | `(shiguchi.api.topic)` | `(shiguchi.topic)` |
+
+  The extension numbers (50100–50103, 50200) are unchanged, so upstreams compiled against the
+  `shiguchi.api.*` options keep working in `DYNAMIC` and `PB_FILE` mode without a rebuild: the
+  gateway decodes options by number. `STATIC`-mode consumers and anyone who imports the generated
+  classes regenerate their stubs against the 0.20.0 `protos` zip and update the imports.
+
 ### Fixed
 
 - Cursus `REDIS` store over RESP2: Lettuce 7.1.0–7.6.x (Spring Boot 4.1.2 manages 7.5.2) merges

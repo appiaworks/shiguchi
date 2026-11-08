@@ -131,8 +131,8 @@ registration files are merged by `mergeSpringMeta` in `build.gradle.kts`.
 ### GraphQL over HTTP (µs/request, JDK 25, Windows 11 loopback, 2026-10-07)
 
 `GatewayGraphQlBenchmark`: the same gateway with the GraphQL surface on, DYNAMIC discovery
-against a reflection-served `bench.Shop` whose protos carry `(shiguchi.api.graphql)` and
-`(shiguchi.api.graphql_field)` options: `Shop.Get` → `order`, `Shop.List` → `orders`, `Shop.GetCustomers` the
+against a reflection-served `bench.Shop` whose protos carry `(shiguchi.graphql)` and
+`(shiguchi.field)` options: `Shop.Get` → `order`, `Shop.List` → `orders`, `Shop.GetCustomers` the
 `loader_for: "Customer"` batch method behind `ShopOrder.customer_id`. Each order carries 3 items.
 The `rest_*` legs are the auto-mapped route for the same call on the same gateway, so the GraphQL
 excess is read against a REST number taken with DGS on the classpath. Allocation is the

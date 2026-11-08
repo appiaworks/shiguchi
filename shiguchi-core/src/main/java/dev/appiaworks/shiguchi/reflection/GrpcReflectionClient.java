@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
  *  1. listServices()          -> fully-qualified service names
  *  2. resolveService(name)    -> FileDescriptorSet for that service (with transitive deps)
  *  3. DynamicRouteLoader parses descriptors, extracts google.api.http +
- *     shiguchi.api.graphql options, and registers RouteDefinitions.
+ *     shiguchi.graphql options, and registers RouteDefinitions.
  *
  * The recursive dep-fetching pattern is adopted from
  * github.com/grpc-ecosystem/polyglot: a single bidirectional streaming RPC

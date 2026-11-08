@@ -14,8 +14,8 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.DynamicMessage;
 import dev.appiaworks.shiguchi.cursus.PushMetrics;
-import dev.appiaworks.shiguchi.proto.api.TopicProto;
-import dev.appiaworks.shiguchi.proto.api.UpstreamTopic;
+import dev.appiaworks.shiguchi.proto.TopicProto;
+import dev.appiaworks.shiguchi.proto.UpstreamTopic;
 import dev.appiaworks.shiguchi.serde.DynamicMessageMarshaller;
 import io.grpc.MethodDescriptor.MethodType;
 import io.grpc.Server;
@@ -62,7 +62,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * A topic backed by an upstream server stream on the Boot 4 gateway: {@code ev.Orders/Watch}
- * carries {@code (shiguchi.api.topic) = {pattern: "orders:{order_id}"}}; no namespace is
+ * carries {@code (shiguchi.topic) = {pattern: "orders:{order_id}"}}; no namespace is
  * configured by hand. Two SSE subscribers of {@code orders:42} share one upstream stream (the
  * backend counts one call with {@code order_id = 42}) and both receive its typed events; a
  * second topic opens a second stream; when the subscribers leave, the stream is cancelled after
@@ -300,7 +300,7 @@ class PushUpstreamEndToEndTest {
                     .setName("ev/orders.proto")
                     .setSyntax("proto3")
                     .setPackage("ev")
-                    .addDependency("shiguchi/api/topic.proto")
+                    .addDependency("shiguchi/topic.proto")
                     .addMessageType(DescriptorProto.newBuilder()
                             .setName("WatchRequest")
                             .addField(field("order_id", 1, FieldDescriptorProto.Type.TYPE_STRING)))

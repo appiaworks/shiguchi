@@ -5,8 +5,8 @@ and dispatches queries/mutations/subscriptions to gRPC backends via the zero-JSO
 
 Highlights:
 
-- **Schema generation** — `GraphQlSchemaBuilder` walks service descriptors; `(shiguchi.api.graphql)`
-  method options and `(shiguchi.api.graphql_field)` field options (plus YAML `fieldOverrides`) control
+- **Schema generation** — `GraphQlSchemaBuilder` walks service descriptors; `(shiguchi.graphql)`
+  method options and `(shiguchi.field)` field options (plus YAML `fieldOverrides`) control
   operation type, naming, federation keys, plucks, and more
   (reference: [docs/graphql-annotations.md](../docs/graphql-annotations.md)).
 - **Relay** — paged responses (`page_info` + a repeated items field) automatically become

@@ -12,7 +12,7 @@ import java.util.Map;
  *
  * <p>Documentation already exists in almost every proto — above the service, above the RPC, above
  * each field — and it was being thrown away: the gateway's OpenAPI document and GraphQL schema
- * carried only whatever someone had separately retyped into a {@code (shiguchi.api.graphql)}
+ * carried only whatever someone had separately retyped into a {@code (shiguchi.graphql)}
  * annotation. Reading it means an API that was documented once is documented on every surface.
  *
  * <p>Only available when the descriptor carries source info, which is the {@code PB_FILE} case:

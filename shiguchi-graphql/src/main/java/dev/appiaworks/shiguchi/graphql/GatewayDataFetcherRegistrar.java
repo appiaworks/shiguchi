@@ -5,8 +5,8 @@ import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.netflix.graphql.dgs.DgsCodeRegistry;
 import com.netflix.graphql.dgs.DgsComponent;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
-import dev.appiaworks.shiguchi.proto.api.GraphQlFieldRule;
-import dev.appiaworks.shiguchi.proto.api.GraphQlProto;
+import dev.appiaworks.shiguchi.proto.FieldRule;
+import dev.appiaworks.shiguchi.proto.GraphQlProto;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
 import dev.appiaworks.shiguchi.routing.ServiceEndpointContext;
@@ -92,7 +92,7 @@ public class GatewayDataFetcherRegistrar {
             for (var fd : ctx.getFileDescriptors().values()) {
                 for (Descriptor msgType : fd.getMessageTypes()) {
                     for (FieldDescriptor field : msgType.getFields()) {
-                        GraphQlFieldRule fieldOpt = field.getOptions().getExtension(GraphQlProto.graphqlField);
+                        FieldRule fieldOpt = field.getOptions().getExtension(GraphQlProto.field);
                         if (fieldOpt == null || fieldOpt.getResolvesTypeList().isEmpty()) continue;
 
                         List<String> resolvesTypes = fieldOpt.getResolvesTypeList();

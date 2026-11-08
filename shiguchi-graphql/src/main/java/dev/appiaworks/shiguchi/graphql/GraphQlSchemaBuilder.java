@@ -10,8 +10,8 @@ import dev.appiaworks.protobuf.extras.serde.ProtoJsonMapping;
 import dev.appiaworks.shiguchi.config.FieldOverrideConfig;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
-import dev.appiaworks.shiguchi.proto.api.GraphQlFieldRule;
-import dev.appiaworks.shiguchi.proto.api.GraphQlProto;
+import dev.appiaworks.shiguchi.proto.FieldRule;
+import dev.appiaworks.shiguchi.proto.GraphQlProto;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
 import dev.appiaworks.shiguchi.routing.ServiceEndpointContext;
@@ -36,10 +36,10 @@ import org.springframework.stereotype.Component;
  *
  * Generates full typed SDL by walking proto Descriptors from each registered
  * ServiceEndpointContext. Handles:
- *  - shiguchi.api.graphql_field annotations: required(!), id(ID scalar), name(alias), omit, description,
+ *  - shiguchi.field annotations: required(!), id(ID scalar), name(alias), omit, description,
  *    deprecation_reason(@deprecated) — read from proto FieldOptions extensions
  *  - YAML fieldOverrides: same semantics, override proto annotations without editing protos
- *  - shiguchi.api.graphql annotations: description (docstring), deprecation_reason, response pluck
+ *  - shiguchi.graphql annotations: description (docstring), deprecation_reason, response pluck
  *    (changes declared return type), request plucks (flattens specific fields as top-level args)
  *  - RESOLVER type: adds field to a named parent type instead of root Query/Mutation
  *  - Relay Connection/Edge types for paged responses (via RelayConnectionTransformer)
@@ -225,7 +225,7 @@ public class GraphQlSchemaBuilder {
             if (paginationInjector.hasSorting(inputDesc)) anySorting = true;
             String args = buildArgs(route, inputDesc, typeDefs, emitted, yamlOverrides, federationKeys);
 
-            // --- GraphQlFieldRule declaration ---
+            // --- FieldRule declaration ---
             String fieldDecl = buildFieldDecl(route, args, returnType);
             appendRootField(
                     route.getGraphQlOperationType(),
@@ -334,7 +334,7 @@ public class GraphQlSchemaBuilder {
     }
 
     // -------------------------------------------------------------------------
-    // GraphQlFieldRule declaration assembly
+    // FieldRule declaration assembly
     // -------------------------------------------------------------------------
 
     private static String buildFieldDecl(RouteDefinition route, String args, String returnType) {
@@ -464,7 +464,7 @@ public class GraphQlSchemaBuilder {
         String batchKeyFieldName = null;
         if (federationKeys != null) {
             for (FieldDescriptor f : descriptor.getFields()) {
-                GraphQlFieldRule fAnn = f.getOptions().getExtension(GraphQlProto.graphqlField);
+                FieldRule fAnn = f.getOptions().getExtension(GraphQlProto.field);
                 if (fAnn != null && fAnn.getBatchKey()) {
                     batchKeyFieldName = f.getJsonName();
                     break;
@@ -503,7 +503,7 @@ public class GraphQlSchemaBuilder {
             sb.append("\n");
 
             // Emit companion resolver field(s) for resolves_type annotations
-            GraphQlFieldRule ann = field.getOptions().getExtension(GraphQlProto.graphqlField);
+            FieldRule ann = field.getOptions().getExtension(GraphQlProto.field);
             if (ann != null && !ann.getResolvesTypeList().isEmpty()) {
                 List<String> resolvesTypes = ann.getResolvesTypeList();
                 String jsonName = field.getJsonName(); // e.g. "typeId", "solarSystemId"
@@ -640,12 +640,12 @@ public class GraphQlSchemaBuilder {
     }
 
     // -------------------------------------------------------------------------
-    // GraphQlFieldRule hints (proto annotation + YAML override merge)
+    // FieldRule hints (proto annotation + YAML override merge)
     // -------------------------------------------------------------------------
 
     /**
      * Resolves the effective GraphQL field hints for a proto field by merging:
-     *  1. {@code (shiguchi.api.graphql_field)} proto extension (if present)
+     *  1. {@code (shiguchi.field)} proto extension (if present)
      *  2. YAML {@code fieldOverrides} entry keyed by "TypeName.fieldName" (takes precedence)
      */
     private static FieldHints resolveFieldHints(FieldDescriptor field, Map<String, FieldOverrideConfig> yamlOverrides) {
@@ -654,7 +654,7 @@ public class GraphQlSchemaBuilder {
         boolean protoRequired = false, protoId = false, protoOmit = false;
         String protoName = null, protoDefault = null, protoDesc = null, protoDepr = null;
 
-        GraphQlFieldRule ann = field.getOptions().getExtension(GraphQlProto.graphqlField);
+        FieldRule ann = field.getOptions().getExtension(GraphQlProto.field);
         if (ann != null) {
             protoRequired = ann.getRequired();
             protoId = ann.getId();

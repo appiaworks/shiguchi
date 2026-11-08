@@ -12,8 +12,8 @@ import com.google.protobuf.DescriptorProtos.MethodDescriptorProto;
 import com.google.protobuf.DescriptorProtos.ServiceDescriptorProto;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
-import dev.appiaworks.shiguchi.proto.api.GraphQlFieldRule;
-import dev.appiaworks.shiguchi.proto.api.GraphQlProto;
+import dev.appiaworks.shiguchi.proto.FieldRule;
+import dev.appiaworks.shiguchi.proto.GraphQlProto;
 import dev.appiaworks.shiguchi.rest.ReactiveGrpcDispatcher;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
@@ -85,9 +85,9 @@ class GrpcBatchDataLoaderRegistrarTest {
         // Build the entity message with an "id" field (optionally batch_key=true)
         FieldOptions.Builder entityIdOptions = FieldOptions.newBuilder();
         if (entityHasBatchKey) {
-            GraphQlFieldRule batchKeyAnnotation =
-                    GraphQlFieldRule.newBuilder().setBatchKey(true).build();
-            entityIdOptions.setExtension(GraphQlProto.graphqlField, batchKeyAnnotation);
+            FieldRule batchKeyAnnotation =
+                    FieldRule.newBuilder().setBatchKey(true).build();
+            entityIdOptions.setExtension(GraphQlProto.field, batchKeyAnnotation);
         }
 
         DescriptorProto.Builder entityMsg = DescriptorProto.newBuilder()
@@ -103,7 +103,7 @@ class GrpcBatchDataLoaderRegistrarTest {
         FileDescriptorProto.Builder fileProto = FileDescriptorProto.newBuilder()
                 .setName(fileName)
                 .setSyntax("proto3")
-                .addDependency("shiguchi/api/graphql.proto");
+                .addDependency("shiguchi/graphql.proto");
 
         // Add an "Empty" input message so method descriptors are valid
         fileProto.addMessageType(DescriptorProto.newBuilder().setName("Empty").build());

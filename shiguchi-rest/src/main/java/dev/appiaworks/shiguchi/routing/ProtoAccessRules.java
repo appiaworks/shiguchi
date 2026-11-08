@@ -1,16 +1,16 @@
 package dev.appiaworks.shiguchi.routing;
 
 import com.google.protobuf.Descriptors.MethodDescriptor;
-import dev.appiaworks.shiguchi.proto.api.AuthzRule;
-import dev.appiaworks.shiguchi.proto.api.MethodProto;
-import dev.appiaworks.shiguchi.proto.api.MethodRule;
+import dev.appiaworks.shiguchi.proto.AuthzRule;
+import dev.appiaworks.shiguchi.proto.MethodProto;
+import dev.appiaworks.shiguchi.proto.MethodRule;
 import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Copies a method's {@code (shiguchi.api.method)} settings (auth_scopes, cache_ttl_seconds, authz) onto its route.
+ * Copies a method's {@code (shiguchi.method)} settings (auth_scopes, cache_ttl_seconds, authz) onto its route.
  *
  * <p>The rules gate every surface the method is reachable on, so they are read on their own:
  * whether or not GraphQL is on for the service, and whether or not the method has a GraphQL binding.
@@ -31,7 +31,7 @@ public final class ProtoAccessRules {
     }
 
     /**
-     * Resolves {@code (shiguchi.api.method).authz} into transport-neutral rules. Rules missing a
+     * Resolves {@code (shiguchi.method).authz} into transport-neutral rules. Rules missing a
      * required part are dropped with a WARN rather than failing the whole route: a malformed rule
      * must not take a service offline, and a dropped rule is visible in the log.
      */

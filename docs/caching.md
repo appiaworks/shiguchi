@@ -16,7 +16,7 @@ never cached or compressed by the gateway.
 ## HTTP caching headers
 
 A method becomes cacheable through a rule on its service, or through the `cache_ttl_seconds`
-field of its `(shiguchi.api.method)` proto option. A rule wins over the proto option:
+field of its `(shiguchi.method)` proto option. A rule wins over the proto option:
 
 ```yaml
 shiguchi:

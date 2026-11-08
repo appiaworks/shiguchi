@@ -32,8 +32,8 @@ How a proto contract becomes the HTTP surfaces.
 
 - [http-annotations.md](http-annotations.md): `google.api.http`: verbs, path templates, `body`,
   `additional_bindings`, binary bodies, unknown query parameters.
-- [graphql-annotations.md](graphql-annotations.md): the `shiguchi.api` proto options:
-  `(shiguchi.api.graphql)`, `(shiguchi.api.graphql_field)` and `(shiguchi.api.method)`.
+- [graphql-annotations.md](graphql-annotations.md): the `shiguchi.*` proto options:
+  `(shiguchi.graphql)`, `(shiguchi.field)` and `(shiguchi.method)`.
 - [transcoding.md](transcoding.md): how schemas are discovered at runtime, the request flow, the
   serde tiers and the JSON mapping rules.
 - [json-types.md](json-types.md): dates, times, decimals, money, durations and numbers on every

@@ -154,7 +154,7 @@ public class GrpcRouteRegistry {
                                 "Duplicate GraphQL field '{}' declared by both '{}' and '{}' ({}/{}); keeping '{}' "
                                         + "and ignoring the other. Emitting both would put two fields of the same "
                                         + "name in the schema, which fails to parse — rename one via the "
-                                        + "(shiguchi.api.graphql).name annotation.",
+                                        + "(shiguchi.graphql).name annotation.",
                                 name,
                                 incumbent,
                                 serviceName,

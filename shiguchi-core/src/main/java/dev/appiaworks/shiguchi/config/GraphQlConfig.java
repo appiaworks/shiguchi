@@ -6,7 +6,7 @@ import lombok.NoArgsConstructor;
 /**
  * The generated GraphQL surface: whether it is served, and the limits and conversion behaviour
  * that apply to it. The schema itself comes from the same descriptors the REST routes do, shaped
- * by the {@code (shiguchi.api.graphql)} proto options.
+ * by the {@code (shiguchi.graphql)} proto options.
  */
 @Data
 @NoArgsConstructor

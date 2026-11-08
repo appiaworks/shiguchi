@@ -112,7 +112,7 @@ curl -s localhost:8080/v3/api-docs | jq -r '.paths."/v1/products/{sku}".get.desc
 Fetches one product by SKU.
 ```
 
-An explicit `(shiguchi.api.graphql).description` still wins where one is set — see
+An explicit `(shiguchi.graphql).description` still wins where one is set — see
 [docs/graphql-annotations.md](../../docs/graphql-annotations.md). This is the only mode where it
 works: server reflection does not send source info, and compiled Java stubs do not retain it, so
 `DYNAMIC` and `STATIC` have nothing to read. Gradle's protobuf plugin takes it as

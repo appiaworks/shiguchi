@@ -13,7 +13,7 @@ import reactor.core.publisher.Mono;
 
 /**
  * Default {@link GatewayAuthorizer}: enforces the {@code auth_scopes} declared on a
- * {@code (shiguchi.api.method)} option.
+ * {@code (shiguchi.method)} option.
  *
  * <p>When a route declares one or more required scopes, this authorizer verifies that the
  * authenticated principal holds every listed scope. Spring Security represents JWT scopes as

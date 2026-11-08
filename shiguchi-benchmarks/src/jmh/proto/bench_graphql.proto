@@ -6,13 +6,13 @@ syntax = "proto3";
 
 package bench;
 
-import "shiguchi/api/graphql.proto";
+import "shiguchi/graphql.proto";
 
 option java_package = "dev.appiaworks.shiguchi.bench.proto";
 option java_multiple_files = true;
 
 message Customer {
-  string id = 1 [(shiguchi.api.graphql_field) = { id: true, batch_key: true }];
+  string id = 1 [(shiguchi.field) = { id: true, batch_key: true }];
   string name = 2;
   string email = 3;
   string tier = 4;
@@ -25,11 +25,11 @@ message ShopItem {
 }
 
 message ShopOrder {
-  string id = 1 [(shiguchi.api.graphql_field) = { id: true }];
+  string id = 1 [(shiguchi.field) = { id: true }];
   string name = 2;
   bool active = 3;
   double score = 4;
-  string customer_id = 5 [(shiguchi.api.graphql_field) = { id: true, resolves_type: "Customer" }];
+  string customer_id = 5 [(shiguchi.field) = { id: true, resolves_type: "Customer" }];
   repeated ShopItem items = 6;
 }
 
@@ -55,13 +55,13 @@ message Customers {
 
 service Shop {
   rpc Get(GetShopOrderRequest) returns (ShopOrder) {
-    option (shiguchi.api.graphql) = { name: "order" type: QUERY };
+    option (shiguchi.graphql) = { name: "order" type: QUERY };
   }
   rpc List(ListShopOrdersRequest) returns (ShopOrders) {
-    option (shiguchi.api.graphql) = { name: "orders" type: QUERY };
+    option (shiguchi.graphql) = { name: "orders" type: QUERY };
   }
   rpc GetCustomers(GetCustomersRequest) returns (Customers) {
-    option (shiguchi.api.graphql) = {
+    option (shiguchi.graphql) = {
       name: "customers"
       type: QUERY
       loader_for: "Customer"

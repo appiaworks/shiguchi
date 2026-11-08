@@ -75,7 +75,7 @@ public class MergeSpecResolver {
     }
 
     /**
-     * Reads {@code (shiguchi.api.merge)} off the route's own method descriptor.
+     * Reads {@code (shiguchi.merge)} off the route's own method descriptor.
      *
      * <p>Lowest precedence of the three, because it is the least dynamic: a merge baked into the
      * .proto travels with the API definition, which is what you want for a fixed topology and not
@@ -94,13 +94,13 @@ public class MergeSpecResolver {
         if (md == null) {
             return Optional.empty();
         }
-        var annotation = md.getOptions().getExtension(dev.appiaworks.shiguchi.proto.api.MergeProto.merge);
+        var annotation = md.getOptions().getExtension(dev.appiaworks.shiguchi.proto.MergeProto.merge);
         if (annotation == null || annotation.getSourcesCount() == 0) {
             return Optional.empty();
         }
 
         List<MergeSource> sources = new ArrayList<>(annotation.getSourcesCount());
-        for (dev.appiaworks.shiguchi.proto.api.MergeSource declared : annotation.getSourcesList()) {
+        for (dev.appiaworks.shiguchi.proto.MergeSource declared : annotation.getSourcesList()) {
             sources.add(new MergeSource(
                     declared.getEndpoint(),
                     declared.getFullServiceName(),

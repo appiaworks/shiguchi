@@ -8,7 +8,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The {@code pattern} of a {@code (shiguchi.api.topic)} option: {@code namespace:template},
+ * The {@code pattern} of a {@code (shiguchi.topic)} option: {@code namespace:template},
  * the template naming request fields in braces ({@code orders:{order_id}},
  * {@code tenant:{tenant_id}/{stream}}). Matches a topic and yields the variables' values; a
  * variable matches one path segment (no {@code /}); a source's variable may be dotted ({@code header.tenant}).

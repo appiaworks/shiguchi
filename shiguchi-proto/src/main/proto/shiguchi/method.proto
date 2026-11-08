@@ -1,16 +1,16 @@
 syntax = "proto3";
-package shiguchi.api;
+package shiguchi;
 
 import "google/protobuf/descriptor.proto";
 
-option java_package = "dev.appiaworks.shiguchi.proto.api";
+option java_package = "dev.appiaworks.shiguchi.proto";
 option java_multiple_files = true;
 option java_outer_classname = "MethodProto";
 
 // Method option: settings that apply to a gRPC method on every surface it is exposed on
 // (REST, GraphQL, gRPC-Web, ...).
 // Usage:
-//   option (shiguchi.api.method) = {
+//   option (shiguchi.method) = {
 //     auth_scopes: "orders.read"
 //     cache_ttl_seconds: 30
 //     authz: [{ object_type: "order", relation: "viewer", id_field: "order_id" }]
@@ -37,7 +37,7 @@ message MethodRule {
 // `object_type:<value of id_field>`.
 //
 // Example -- caller must be a viewer of the requested order:
-//   option (shiguchi.api.method) = {
+//   option (shiguchi.method) = {
 //     authz: [{ object_type: "order", relation: "viewer", id_field: "order_id" }]
 //   };
 message AuthzRule {

@@ -3,7 +3,7 @@ package dev.appiaworks.shiguchi.routing;
 import java.util.Objects;
 
 /**
- * One object-level authorization requirement declared by {@code (shiguchi.api.method).authz}: the
+ * One object-level authorization requirement declared by {@code (shiguchi.method).authz}: the
  * caller must hold {@link #relation()} on the object {@code objectType:<value of idField>}.
  *
  * <p>This is the resolved, transport-neutral form of the proto {@code AuthzRule} message, carried

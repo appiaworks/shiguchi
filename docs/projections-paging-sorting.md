@@ -153,7 +153,7 @@ renaming the message breaks neither.
 
 ### Getting the protos
 
-`pagination.proto` and the `shiguchi/api` protos both live in `shiguchi-proto`, and both ship two ways.
+`pagination.proto` and the `shiguchi/*.proto` option files both live in `shiguchi-proto`, and both ship two ways.
 
 **From the jar (JVM builds).** The protos are packaged inside `shiguchi-proto`. Gradle's
 protobuf plugin extracts `.proto` files out of `compile`-scoped dependencies onto the include
@@ -170,7 +170,7 @@ dependencies {
 import "shiguchi/pagination.proto";
 ```
 
-It arrives transitively too: the samples in this repository import `shiguchi/api/*.proto` without naming
+It arrives transitively too: the samples in this repository import `shiguchi/*.proto` without naming
 `shiguchi-proto` at all, because a gateway starter already depends on it. Check what your
 build extracted under `build/extracted-include-protos/main/` if an import will not resolve.
 
@@ -748,4 +748,4 @@ Content-Type: application/json
 
 - [configuration.md](configuration.md) — every `shiguchi.*` property.
 - [transcoding.md](transcoding.md) — the serde tiers, and why `page_info` responses skip Tier 0.
-- [graphql-annotations.md](graphql-annotations.md) — `(shiguchi.api.graphql)` / `(shiguchi.api.graphql_field)` options.
+- [graphql-annotations.md](graphql-annotations.md) — `(shiguchi.graphql)` / `(shiguchi.field)` options.

@@ -5,7 +5,7 @@ Per-object authorization at the gateway, backed by [OpenFGA](https://openfga.dev
 ## What problem this solves
 
 The gateway ships with a scope check driven by the `auth_scopes` field of the
-`(shiguchi.api.method)` proto option. It answers:
+`(shiguchi.method)` proto option. It answers:
 
 > may this caller call `GetOrder`?
 
@@ -38,8 +38,8 @@ proto annotation, so the policy travels with the service definition:
 
 ```protobuf
 rpc GetOrder(GetOrderRequest) returns (Order) {
-  option (shiguchi.api.graphql) = { name: "order", type: QUERY };
-  option (shiguchi.api.method) = {
+  option (shiguchi.graphql) = { name: "order", type: QUERY };
+  option (shiguchi.method) = {
     auth_scopes: ["orders:read"]   // may you call this method
     authz: [{                      // may you act on THIS order
       object_type: "order"
@@ -85,7 +85,7 @@ fails to bind. For the same reason these keys bind cleanly from YAML but not fro
 `-D`/`@TestPropertySource` properties.
 
 A production deployment would more likely drive this from the
-`(shiguchi.api.method)` option so the policy travels with the service definition. The
+`(shiguchi.method)` option so the policy travels with the service definition. The
 trade-off is identical either way: something has to state which request input carries the
 object id.
 

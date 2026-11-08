@@ -19,7 +19,7 @@ val protosZip by tasks.registering(Zip::class) {
     archiveClassifier.set("protos")
     from("src/main/proto")
     // The archive must reproduce the import paths verbatim: `import
-    // "shiguchi/api/graphql.proto"` only resolves if the file sits at that path under
+    // "shiguchi/graphql.proto"` only resolves if the file sits at that path under
     // whatever directory the consumer unzips into and puts on -I.
     includeEmptyDirs = false
 }

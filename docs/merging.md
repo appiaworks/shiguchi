@@ -167,7 +167,7 @@ the API definition, which suits a fixed topology and not one that varies by depl
 ```protobuf
 rpc listOrders(ListOrdersRequest) returns (stream Order) {
   option (google.api.http) = { get: "/v1/orders" };
-  option (shiguchi.api.merge) = {
+  option (shiguchi.merge) = {
     tie_break_field: "id"
     sources: [
       { endpoint: "orders-eu", full_service_name: "orders.OrderService", method_name: "listOrders", presorted: true },

@@ -1,26 +1,25 @@
 # Proto annotations
 
 The gateway reads its settings from custom options on your methods and fields, in the same style
-as `google.api.http`. They all live in the `shiguchi.api` package, one file per concern:
+as `google.api.http`. They all live in the `shiguchi` package, one file per concern:
 
 | File | Option | Applies to |
 | --- | --- | --- |
-| `shiguchi/api/graphql.proto` | `(shiguchi.api.graphql)` on a method, `(shiguchi.api.graphql_field)` on a field | The generated GraphQL schema |
-| `shiguchi/api/method.proto` | `(shiguchi.api.method)` on a method | Every surface: REST, GraphQL, gRPC-Web |
-| `shiguchi/api/merge.proto` | `(shiguchi.api.merge)` on a method | A route served by merging backends, see [merging.md](merging.md) |
-| `shiguchi/api/topic.proto` | `(shiguchi.api.topic)` on a method | A push topic fed by a server stream, see [push.md](push.md) |
+| `shiguchi/graphql.proto` | `(shiguchi.graphql)` on a method, `(shiguchi.field)` on a field | The generated GraphQL schema |
+| `shiguchi/method.proto` | `(shiguchi.method)` on a method | Every surface: REST, GraphQL, gRPC-Web |
+| `shiguchi/merge.proto` | `(shiguchi.merge)` on a method | A route served by merging backends, see [merging.md](merging.md) |
+| `shiguchi/topic.proto` | `(shiguchi.topic)` on a method | A push topic fed by a server stream, see [push.md](push.md) |
 
-Import only the files you use:
+Import `shiguchi/annotations.proto` to get all four at once, or only the files you use:
 
 ```proto
-import "shiguchi/api/graphql.proto";
-import "shiguchi/api/method.proto";
+import "shiguchi/annotations.proto";
 
 rpc GetOrder(GetOrderRequest) returns (Order) {
   option (google.api.http) = { get: "/v1/orders/{id}" };
-  option (shiguchi.api.graphql) = { name: "order", type: QUERY };
-  option (shiguchi.api.method) = {
-    auth_scopes: "orders.read"
+  option (shiguchi.graphql) = { name: "order", type: QUERY };
+  option (shiguchi.method) = {
+    auth_scopes: ["orders:read"]
     cache_ttl_seconds: 30
     authz: [{ object_type: "order", relation: "viewer", id_field: "id" }]
   };
@@ -28,7 +27,7 @@ rpc GetOrder(GetOrderRequest) returns (Order) {
 ```
 
 This page covers `graphql.proto` and `method.proto`. A method needs only the options it uses:
-GraphQL binding works without `(shiguchi.api.method)`, and the method settings work without a
+GraphQL binding works without `(shiguchi.method)`, and the method settings work without a
 GraphQL option.
 
 Everything here can also be set without touching protos via the YAML `field-overrides` map (see
@@ -49,7 +48,7 @@ dependencies {
 ```
 
 Usually you already have it: every gateway starter depends on `shiguchi-proto`, which is why
-the samples in this repository import `shiguchi/api/*.proto` without naming it. If an import will not
+the samples in this repository import `shiguchi/*.proto` without naming it. If an import will not
 resolve, look at what your build extracted under `build/extracted-include-protos/main/`.
 
 Maven's `protobuf-maven-plugin` does not extract protos from dependencies. Unpack them with
@@ -69,23 +68,24 @@ protoc -I . -I gateway-protos --go_out=. bookstore/v1/books.proto
 The archive reproduces the import paths verbatim, so the directory you unzip into goes on `-I`
 unchanged.
 
-**By copying.** The `shiguchi/api` files depend only on `google/protobuf/descriptor.proto`, so
-vendoring them works. Unlike the paging messages, though, keep the `shiguchi.api` package and the
-extension field numbers exactly as they are: these are **extensions of `descriptor.proto`**, and the gateway
-finds them by fully-qualified name in the descriptor. A renamed package means annotations the
-gateway silently does not see — a schema that builds and simply omits your fields.
+**By copying.** The `shiguchi/*.proto` option files depend only on `google/protobuf/descriptor.proto`, so
+vendoring them works. Unlike the paging messages, though, keep the extension field numbers
+(50100–50103, 50200) exactly as they are: these are **extensions of `descriptor.proto`**, and the
+gateway finds them by number in the descriptor. A changed number means annotations the gateway
+silently does not see — a schema that builds and simply omits your fields. Keep the `shiguchi`
+package too, so the generated code and the documentation match.
 
 > A non-JVM backend can still be annotated. The options only have to survive into the descriptor
 > the gateway reads, so `protoc --include_imports --descriptor_set_out=...` over a Go or Rust
 > service's protos carries them fine — see [`PB_FILE` mode](configuration.md).
 
-## Method option `(shiguchi.api.graphql)`
+## Method option `(shiguchi.graphql)`
 
 Binds a gRPC method to a GraphQL field:
 
 ```protobuf
 rpc ListBooks(ListBooksRequest) returns (ListBooksResponse) {
-  option (shiguchi.api.graphql) = {
+  option (shiguchi.graphql) = {
     name: "listBooks"
     type: QUERY
     description: "All books, paged"
@@ -97,7 +97,6 @@ rpc ListBooks(ListBooksRequest) returns (ListBooksResponse) {
 | --- | --- |
 | `name` | GraphQL field name — required to expose the method in GraphQL |
 | `type` | `QUERY` · `MUTATION` · `SUBSCRIPTION` (server-streaming, one item per event; needs `spring.graphql.websocket.path` set, e.g. `/graphql/ws`, and is then served as graphql-transport-ws) · `RESOLVER` (adds a field to an existing type) |
-
 | `parent_type` | For `RESOLVER`: the GraphQL type that gains the field |
 | `description` / `deprecation_reason` | Doc-string / `@deprecated`. In `PB_FILE` mode the comment above the `rpc` is used when this is unset — see [Descriptions from proto comments](#descriptions-from-proto-comments) |
 | `arg_fields` | Request fields (snake_case) lifted to individual top-level GraphQL arguments |
@@ -107,10 +106,10 @@ rpc ListBooks(ListBooksRequest) returns (ListBooksResponse) {
 
 Push namespaces get subscription fields of their own without an annotation; see [push.md](push.md#graphql-subscriptions).
 
-## Field option `(shiguchi.api.graphql_field)`
+## Field option `(shiguchi.field)`
 
 ```protobuf
-string author_id = 3 [(shiguchi.api.graphql_field) = { id: true, resolves_type: "Author" }];
+string author_id = 2 [(shiguchi.field) = { id: true, resolves_type: "Author" }];
 ```
 
 | Field | Meaning |
@@ -138,7 +137,7 @@ rpc GetProduct(GetProductRequest) returns (Product) {
 ```
 
 becomes the GraphQL doc-string and the OpenAPI operation's `description` (its first line also
-becomes the `summary`) with no annotation involved. An explicit `(shiguchi.api.graphql).description`
+becomes the `summary`) with no annotation involved. An explicit `(shiguchi.graphql).description`
 wins where one is set — the comment is a fallback, not an override.
 
 Two requirements, both on the descriptor rather than the gateway:
@@ -158,13 +157,13 @@ runnable end-to-end example.
 
 ```protobuf
 message Book {
-  string id        = 1 [(shiguchi.api.graphql_field) = { id: true, batch_key: true }];
-  string author_id = 2 [(shiguchi.api.graphql_field) = { id: true, resolves_type: "Author" }];
+  string id        = 1 [(shiguchi.field) = { id: true, batch_key: true }];
+  string author_id = 2 [(shiguchi.field) = { id: true, resolves_type: "Author" }];
   string title     = 3;
 }
 
 rpc GetAuthorsByIds(GetAuthorsByIdsRequest) returns (GetAuthorsByIdsResponse) {
-  option (shiguchi.api.graphql) = {
+  option (shiguchi.graphql) = {
     name: "authorsByIds"
     type: QUERY
     loader_for: "Author"
@@ -188,17 +187,23 @@ Queries selecting `books { author { name } }` batch all author ids into one
 `GetAuthorsByIds` call per request (DGS DataLoader), and the selection set is pushed down
 as a `read_mask` when the request message has one.
 
+All three pieces are needed for `resolves_type` to resolve:
 
-## Method option `(shiguchi.api.method)`
+- a method with `loader_for` naming the target type,
+- a `batch_key` field on the target type's message (the loader keys its results by it; without one it falls back to a field named `id`),
+- no existing field on the referencing message with the derived resolver name (`author_id` → `author`).
+
+
+## Method option `(shiguchi.method)`
 
 Settings that apply to the method on every surface it is exposed on (REST, GraphQL, gRPC-Web).
 They are read whether or not the method has a GraphQL binding, and whether or not GraphQL is on.
 
 ```protobuf
-import "shiguchi/api/method.proto";
+import "shiguchi/method.proto";
 
 rpc GetOrder(GetOrderRequest) returns (Order) {
-  option (shiguchi.api.method) = {
+  option (shiguchi.method) = {
     auth_scopes: ["orders:read"]
     cache_ttl_seconds: 30
   };
@@ -218,8 +223,8 @@ rpc GetOrder(GetOrderRequest) returns (Order) {
 
 ```protobuf
 rpc GetOrder(GetOrderRequest) returns (Order) {
-  option (shiguchi.api.graphql) = { name: "order", type: QUERY };
-  option (shiguchi.api.method) = {
+  option (shiguchi.graphql) = { name: "order", type: QUERY };
+  option (shiguchi.method) = {
     auth_scopes: ["orders:read"]          // may you call this method at all
     authz: [{                             // may you act on THIS order
       object_type: "order"

@@ -3,7 +3,7 @@ package dev.appiaworks.shiguchi.graphql;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.MethodDescriptor;
-import dev.appiaworks.shiguchi.proto.api.GraphQlProto;
+import dev.appiaworks.shiguchi.proto.GraphQlProto;
 import dev.appiaworks.shiguchi.rest.ReactiveGrpcDispatcher;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
@@ -144,7 +144,7 @@ public class GrpcBatchDataLoaderRegistrar {
 
     private Optional<String> findBatchKeyField(Descriptor entityType) {
         for (FieldDescriptor field : entityType.getFields()) {
-            var gqlField = field.getOptions().getExtension(GraphQlProto.graphqlField);
+            var gqlField = field.getOptions().getExtension(GraphQlProto.field);
             if (gqlField != null && gqlField.getBatchKey()) {
                 return Optional.of(snakeToCamel(field.getName()));
             }
