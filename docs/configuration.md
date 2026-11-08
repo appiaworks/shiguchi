@@ -91,6 +91,7 @@ spring:
 | `shiguchi.graphql.enabled` | `true` | GraphQL schema generation + `/graphql` endpoint |
 | `shiguchi.graphql.federation.enabled` | `false` | Apollo Federation subgraph protocol (`@key`, `_service`, `_entities`) |
 | `shiguchi.graphql.selection-projection` | `true` | Convert only selected composite subtrees of responses |
+| `shiguchi.graphql.compat-options` | `[]` | Option families from other gateways read as aliases of `(shiguchi.graphql)` / `(shiguchi.field)`. Only value: `graphql-1079`, the `graphql.*` options (extension 1079). Off, a proto carrying them logs a hint and is bound by convention. See [graphql-annotations.md](graphql-annotations.md#protos-written-for-other-gateways) |
 | `shiguchi.graphql.limits.max-depth` | `0` (unlimited) | Reject queries whose selection is deeper than this (`{ a { b { c } } }` is 3) before any backend is called |
 | `shiguchi.graphql.limits.max-complexity` | `0` (unlimited) | Reject queries with more fields than this in their selection (graphql-java's default one-point-per-field count) |
 | `shiguchi.graphql.document-cache.enabled` / `max-entries` / `expire-after-access` | `false` / `2000` / `1h` | Keep parsed and validated query documents by query text, so a repeated query skips parsing and validation; emptied on every schema reload. See [caching.md](caching.md#graphql-document-cache-and-persisted-queries) |

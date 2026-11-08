@@ -67,6 +67,13 @@ public class RouteDefinition {
      */
     private final List<String> graphQlRequestPlucks;
 
+    /**
+     * Which proto option family produced the GraphQL binding: {@code "shiguchi"} for
+     * {@code (shiguchi.graphql)}, {@code "graphql-1079"} for the {@code graphql.*} options read
+     * as aliases, null when the binding came from the naming convention (or there is none).
+     */
+    private final String graphQlOptionSource;
+
     /** OAuth2/JWT scope names the gateway enforces before dispatching. Empty list = no check. */
     private final List<String> authScopes;
 
@@ -149,6 +156,7 @@ public class RouteDefinition {
         this.graphQlParentType = b.graphQlParentType;
         this.graphQlResponsePluck = b.graphQlResponsePluck;
         this.graphQlRequestPlucks = b.graphQlRequestPlucks != null ? List.copyOf(b.graphQlRequestPlucks) : List.of();
+        this.graphQlOptionSource = b.graphQlName != null ? b.graphQlOptionSource : null;
         this.authScopes = b.authScopes != null ? List.copyOf(b.authScopes) : List.of();
         this.upstreamTimeout = b.upstreamTimeout;
         this.authzRules = b.authzRules != null ? List.copyOf(b.authzRules) : List.of();
@@ -255,6 +263,11 @@ public class RouteDefinition {
         return graphQlRequestPlucks;
     }
 
+    /** The option family behind the GraphQL binding; see the field. Null for convention-based bindings. */
+    public String getGraphQlOptionSource() {
+        return graphQlOptionSource;
+    }
+
     public List<String> getAuthScopes() {
         return authScopes;
     }
@@ -355,6 +368,7 @@ public class RouteDefinition {
         private String graphQlParentType;
         private String graphQlResponsePluck;
         private List<String> graphQlRequestPlucks;
+        private String graphQlOptionSource;
         private List<String> authScopes;
         private java.time.Duration upstreamTimeout;
         private List<AuthzRuleDefinition> authzRules;
@@ -403,6 +417,7 @@ public class RouteDefinition {
         public Builder withoutGraphQl() {
             this.graphQlName = null;
             this.graphQlOperationType = null;
+            this.graphQlOptionSource = null;
             return this;
         }
 
@@ -443,6 +458,12 @@ public class RouteDefinition {
 
         public Builder requestPlucks(List<String> plucks) {
             this.graphQlRequestPlucks = plucks;
+            return this;
+        }
+
+        /** Records which proto option family the GraphQL binding was read from; see {@link #getGraphQlOptionSource()}. */
+        public Builder graphQlOptionSource(String source) {
+            this.graphQlOptionSource = source;
             return this;
         }
 

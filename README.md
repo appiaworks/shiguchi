@@ -227,6 +227,8 @@ How a request flows through the serde tiers is documented in
 - **Apollo Federation** — `@key` entity resolution with batched entity loaders.
 - **Schema shaping** via `(shiguchi.graphql)` / `(shiguchi.field)` proto options or equivalent
   YAML `field-overrides` — renaming, required/ID marking, plucks, omissions, deprecations.
+  Protos written for other gateways with the `graphql.*` options (extension 1079) are read as
+  aliases when you opt in (`shiguchi.graphql.compat-options: [graphql-1079]`).
   → [docs/graphql-annotations.md](docs/graphql-annotations.md)
 
 ### Cursus: push (experimental)

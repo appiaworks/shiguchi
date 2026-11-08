@@ -2,6 +2,7 @@ package dev.appiaworks.shiguchi.routing;
 
 import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
+import dev.appiaworks.shiguchi.reflection.GraphQlOptionReader;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -172,6 +173,10 @@ public class GatewayRoutesReport {
             described.put("graphql", route.getGraphQlName());
             if (route.getGraphQlOperationType() != null) {
                 described.put("graphqlType", route.getGraphQlOperationType().name());
+            }
+            // Only for the alias: a "shiguchi" on every annotated row is noise.
+            if (GraphQlOptionReader.GRAPHQL_1079.equals(route.getGraphQlOptionSource())) {
+                described.put("graphqlOptions", route.getGraphQlOptionSource());
             }
         }
         if (route.isMerge()) described.put("merge", true);

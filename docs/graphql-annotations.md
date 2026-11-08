@@ -194,6 +194,48 @@ All three pieces are needed for `resolves_type` to resolve:
 - no existing field on the referencing message with the derived resolver name (`author_id` → `author`).
 
 
+## Protos written for other gateways
+
+Some gRPC-to-GraphQL gateways annotate protos with their own option family, the `graphql.*`
+options: proto package `graphql`, extension number 1079 on method, field and service options.
+Shiguchi can read those as aliases of `(shiguchi.graphql)` and `(shiguchi.field)`, so one proto
+serves both gateways. The reader is off by default; a proto carrying the options logs one INFO
+hint per file and the methods keep their convention-based binding. Switch it on with:
+
+```yaml
+shiguchi:
+  graphql:
+    compat-options: [graphql-1079]
+```
+
+Nothing is vendored: the gateway decodes the options by number against the `graphql` package's
+own descriptors, which travel with the proto (`DYNAMIC`, `PB_FILE`) or sit on the classpath
+(`STATIC`). A proto that uses extension number 1079 for something else, without importing the
+`graphql` package, is left alone.
+
+What maps:
+
+| `graphql.*` option (1079) | Shiguchi option |
+| --- | --- |
+| `schema.type` (`QUERY`, `MUTATION`, `SUBSCRIPTION`, matched by name) | `(shiguchi.graphql).type` |
+| `schema.name` | `(shiguchi.graphql).name` |
+| `schema.request.plucks` | `(shiguchi.graphql).arg_fields` |
+| `schema.response.pluck` | `(shiguchi.graphql).pluck` |
+| `field.required` | `(shiguchi.field).required` |
+| `field.name` | `(shiguchi.field).name` |
+| `field.default` | `(shiguchi.field).default` |
+| `field.omit` | `(shiguchi.field).omit` |
+| `field.description` | `(shiguchi.field).description` |
+
+When a method or field carries both families, the Shiguchi option wins and the alias is not
+read. Everything else in the family is ignored with one WARN per file, method or field: a
+`schema.type` of `RESOLVER` and `field.resolver` (nested resolvers are declared with
+`parent_type`, `loader_for` and `resolves_type` instead), `schema.request.name`,
+`schema.response.required`, the `service` option (hosts come from `shiguchi.services`), and the
+federation fields some variants add. A route bound through the alias shows
+`graphqlOptions: graphql-1079` in the routes report, so you can tell which protos still depend
+on it.
+
 ## Method option `(shiguchi.method)`
 
 Settings that apply to the method on every surface it is exposed on (REST, GraphQL, gRPC-Web).

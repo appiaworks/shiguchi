@@ -12,6 +12,7 @@ import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
 import dev.appiaworks.shiguchi.proto.FieldRule;
 import dev.appiaworks.shiguchi.proto.GraphQlProto;
+import dev.appiaworks.shiguchi.reflection.GraphQlOptionReader;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
 import dev.appiaworks.shiguchi.routing.ServiceEndpointContext;
@@ -63,6 +64,7 @@ public class GraphQlSchemaBuilder {
     private final RelayConnectionTransformer relayTransformer;
     private final GraphQlPaginationArgInjector paginationInjector;
     private final GatewayProperties gatewayProperties;
+    private final GraphQlOptionReader fieldOptions;
     private volatile String generatedSdl;
     /** typeName → batch_key JSON field name; populated on each SDL build. */
     private volatile Map<String, String> lastFederationKeys = new LinkedHashMap<>();
@@ -78,6 +80,10 @@ public class GraphQlSchemaBuilder {
         this.relayTransformer = relayTransformer;
         this.paginationInjector = paginationInjector;
         this.gatewayProperties = gatewayProperties;
+        this.fieldOptions = GraphQlOptionReader.of(
+                gatewayProperties != null && gatewayProperties.getGraphql() != null
+                        ? gatewayProperties.getGraphql().getCompatOptions()
+                        : null);
     }
 
     /** Beans that add fields of their own (the push module's subscription fields); optional. */
@@ -645,16 +651,17 @@ public class GraphQlSchemaBuilder {
 
     /**
      * Resolves the effective GraphQL field hints for a proto field by merging:
-     *  1. {@code (shiguchi.field)} proto extension (if present)
+     *  1. {@code (shiguchi.field)} proto extension (if present), or its {@code graphql.field} (1079)
+     *     alias when {@code shiguchi.graphql.compat-options} enables it
      *  2. YAML {@code fieldOverrides} entry keyed by "TypeName.fieldName" (takes precedence)
      */
-    private static FieldHints resolveFieldHints(FieldDescriptor field, Map<String, FieldOverrideConfig> yamlOverrides) {
+    private FieldHints resolveFieldHints(FieldDescriptor field, Map<String, FieldOverrideConfig> yamlOverrides) {
 
         // Proto annotation
         boolean protoRequired = false, protoId = false, protoOmit = false;
         String protoName = null, protoDefault = null, protoDesc = null, protoDepr = null;
 
-        FieldRule ann = field.getOptions().getExtension(GraphQlProto.field);
+        FieldRule ann = fieldOptions.fieldRule(field);
         if (ann != null) {
             protoRequired = ann.getRequired();
             protoId = ann.getId();
