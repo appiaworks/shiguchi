@@ -274,8 +274,10 @@ How a request flows through the serde tiers is documented in
   eviction on writes to the same path and on schema reload, `Cache-Status` on every answer, and a
   `gateway-cache` actuator endpoint. Identical concurrent requests share one backend call.
 - **Gateway-side gzip** of REST bodies, with a tag per encoding and the compressed form kept in
-  the cache; and a **GraphQL document cache plus automatic persisted queries** that skip parsing
-  and validation and are emptied when the schema reloads. → [docs/caching.md](docs/caching.md)
+  the cache; a **GraphQL document cache plus automatic persisted queries** that skip parsing
+  and validation; and a **GraphQL response cache** that answers a repeated query from memory
+  for its methods' `cache_ttl_seconds`, per caller, evicted by mutations on the same services.
+  All three are emptied when the schema reloads. → [docs/caching.md](docs/caching.md)
 
 ### Security & hardening
 

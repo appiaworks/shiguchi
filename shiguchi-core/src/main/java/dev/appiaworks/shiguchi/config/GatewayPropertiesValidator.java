@@ -346,6 +346,17 @@ public class GatewayPropertiesValidator implements Validator {
                     graphql.getDocumentCache().getExpireAfterAccess());
         }
         if (graphql != null
+                && graphql.getResponseCache() != null
+                && graphql.getResponseCache().isEnabled()) {
+            if (graphql.getResponseCache().getMaxEntries() < 1) {
+                reject(errors, "graphql.responseCache.maxEntries", "must be at least 1");
+            }
+            java.time.Duration swr = graphql.getResponseCache().getStaleWhileRevalidate();
+            if (swr != null && swr.isNegative()) {
+                reject(errors, "graphql.responseCache.staleWhileRevalidate", "must not be negative");
+            }
+        }
+        if (graphql != null
                 && graphql.getPersistedQueries() != null
                 && graphql.getPersistedQueries().isEnabled()) {
             if (graphql.getPersistedQueries().getMaxEntries() < 1) {

@@ -18,7 +18,9 @@ option java_outer_classname = "MethodProto";
 message MethodRule {
   // OAuth2/JWT scope names enforced before dispatch (empty = no check).
   repeated string auth_scopes = 1;
-  // Adds Cache-Control: max-age=N to REST responses (REST path only).
+  // Adds Cache-Control: max-age=N to REST responses, and is the TTL of the GraphQL response
+  // cache (shiguchi.graphql.response-cache) for queries whose root fields all resolve to a
+  // method with one.
   int32 cache_ttl_seconds = 2;
 
   // Object-level authorization rules enforced before dispatch (empty = no object check).

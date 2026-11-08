@@ -256,7 +256,7 @@ rpc GetOrder(GetOrderRequest) returns (Order) {
 | --- | --- |
 | `auth_scopes` | JWT scopes enforced before dispatch — *may this caller call this method?* |
 | `authz` | Object-level rules — *may this caller act on **this object**?* See below |
-| `cache_ttl_seconds` | `Cache-Control: max-age` on the REST route, plus a strong `ETag` over the response bytes — a caller sending `If-None-Match` gets a 304 with no body when nothing changed. A `services[].cache` rule for the method overrides it; see [caching.md](caching.md) |
+| `cache_ttl_seconds` | `Cache-Control: max-age` on the REST route, plus a strong `ETag` over the response bytes — a caller sending `If-None-Match` gets a 304 with no body when nothing changed. A `services[].cache` rule for the method overrides it. With `shiguchi.graphql.response-cache` on, it is also the TTL of the GraphQL response cache for queries whose root fields all resolve to a method carrying one; see [caching.md](caching.md) |
 
 ### `authz` — object-level authorization
 

@@ -14,6 +14,8 @@ dependencies {
     compileOnly(libs.dgs.micrometer)
     implementation(libs.spring.boot.starter.webflux)
     implementation("tools.jackson.core:jackson-databind")
+    // Hit/miss counters of the response cache.
+    implementation("io.micrometer:micrometer-core")
     // The push module's GraphQL subscription fields live here, behind @ConditionalOnClass: present
     // only when an application has both starters, so neither module depends on the other at runtime.
     compileOnly(project(":shiguchi-cursus"))
