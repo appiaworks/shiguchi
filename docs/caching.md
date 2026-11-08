@@ -1,6 +1,6 @@
 # Caching
 
-The gateway can save work at four points, each opt-in and independent:
+The gateway can save work at five points, each opt-in and independent:
 
 | Layer | Saves | Configured by |
 | --- | --- | --- |
@@ -9,6 +9,7 @@ The gateway can save work at four points, each opt-in and independent:
 | [Resource etags](#resource-etags-aip-154) | the response body, and lost updates | `rest.resource-etags` |
 | [Compression](#compression) | bandwidth | `rest.compression` |
 | [GraphQL document cache and persisted queries](#graphql-document-cache-and-persisted-queries) | parsing and validation, request size | `graphql.document-cache`, `graphql.persisted-queries` |
+| [GraphQL response cache](#graphql-response-cache) | the engine run and every backend call of a repeated query | `graphql.response-cache`, with the proto's `cache_ttl_seconds` |
 
 Everything here applies to unary REST routes. Streams, downloads, merged pages and gRPC-Web are
 never cached or compressed by the gateway.
@@ -219,3 +220,47 @@ it ran against: kept across a reload, a query using a field a backend just dropp
 validation and fail in a data fetcher. That is the difference from DGS's own
 `dgs.graphql.preparsedDocumentProvider` and `dgs.graphql.apq`, which do not know when the gateway's
 schema changes. Leave those off when using these.
+
+## GraphQL response cache
+
+```yaml
+shiguchi:
+  graphql:
+    response-cache:
+      enabled: true
+      max-entries: 2000            # whole responses kept; least recently used go first
+      stale-while-revalidate: 0s   # serve an expired entry this long while one refresh runs
+      vary-by-principal: true      # one entry per caller
+```
+
+With it on, a query is answered from memory while its entry is fresh, without running the engine
+or calling a backend. A query is cacheable when every one of its root fields resolves to a method
+with `cache_ttl_seconds` in its `(shiguchi.method)` option; the entry lives for the smallest of
+those TTLs. One root field without a TTL, an introspection field included, keeps the whole query
+out. `services[].cache` rules are REST only and play no part here.
+
+**The key** is the document text, the operation name, the variables in canonical form (the order
+of their fields does not matter) and, by default, the caller: the authenticated principal's name,
+or `anonymous`. `vary-by-principal: false` shares entries between callers, for schemas whose
+answers are the same for everyone. A root field whose method declares `auth_scopes` is keyed per
+caller whatever the setting. A response is stored only when it has data and no errors; one with
+errors is returned and forgotten.
+
+**Invalidation.** A mutation always runs, then evicts every entry built from the gRPC services
+behind its root fields. A mutation whose root selection the cache cannot read (a fragment spread
+at the root) empties the cache. A schema reload empties it too. Each gateway replica has its own
+cache; nothing is shared between instances. Subscriptions and requests over WebSocket are never
+cached.
+
+**Stale-while-revalidate** serves an expired entry for that long past its TTL while one background
+refresh runs under the caller's security context. The first caller to find the entry expired
+triggers the refresh; the others keep getting the stale copy until the new one lands.
+
+**Observability.** Every answered query carries `Cache-Status` (RFC 9211): `shiguchi; hit`,
+`shiguchi; hit; detail=stale`, `shiguchi; fwd=miss; stored` or `shiguchi; fwd=miss`. A hit also
+carries `Age`. The counter `shiguchi.graphql.response.cache` is tagged `result` = `hit`, `stale`
+or `miss`.
+
+Unlike the DataLoader cache (`data-loader.cache.<Type>`), which keeps single entities by id across
+requests, this keeps the whole response of a query. The two compose: a miss here still benefits
+from warm loaders.

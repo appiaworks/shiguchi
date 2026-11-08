@@ -20,6 +20,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vendored; the options are decoded by number against the descriptors the proto brings along.
   New experimental type `dev.appiaworks.shiguchi.reflection.GraphQlOptionReader`;
   `RouteDefinition.getGraphQlOptionSource()`.
+- GraphQL response cache (`shiguchi.graphql.response-cache.enabled`, off by default): a query
+  whose root fields all resolve to a method with `(shiguchi.method).cache_ttl_seconds` is answered
+  from memory for the smallest of those TTLs, without running the engine or any backend call.
+  Keyed by document, operation, variables and, with `vary-by-principal` (default `true`) or
+  `auth_scopes` on a root method, the caller. A response with errors is never stored. A mutation
+  runs, then evicts every entry built from the services behind its root fields; a schema reload
+  empties the cache. `stale-while-revalidate` (default `0s`) serves an expired entry while one
+  background refresh runs; `max-entries` (default `2000`) bounds it. Every answered query carries
+  `Cache-Status` (RFC 9211) and, on a hit, `Age`; counter `shiguchi.graphql.response.cache` tagged
+  `result` = `hit`, `stale` or `miss`. New experimental type
+  `dev.appiaworks.shiguchi.graphql.GraphQlResponseCacheConfiguration`.
 
 ### Changed
 

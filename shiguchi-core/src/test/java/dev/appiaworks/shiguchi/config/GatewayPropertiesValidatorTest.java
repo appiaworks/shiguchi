@@ -642,6 +642,44 @@ class GatewayPropertiesValidatorTest {
     }
 
     @Test
+    @DisplayName("GIVEN graphql.response-cache enabled with maxEntries 0 WHEN validated SHOULD reject it")
+    void given_responseCacheWithZeroMaxEntries_when_validated_should_reject() {
+        var props = new GatewayProperties();
+        props.getGraphql().getResponseCache().setEnabled(true);
+        props.getGraphql().getResponseCache().setMaxEntries(0);
+
+        assertThat(GatewayPropertiesValidator.problems(props))
+                .singleElement()
+                .asString()
+                .startsWith("shiguchi.graphql.response-cache.max-entries: ")
+                .contains("at least 1");
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN graphql.response-cache enabled with a negative stale-while-revalidate WHEN validated SHOULD reject it")
+    void given_responseCacheWithNegativeStaleWhileRevalidate_when_validated_should_reject() {
+        var props = new GatewayProperties();
+        props.getGraphql().getResponseCache().setEnabled(true);
+        props.getGraphql().getResponseCache().setStaleWhileRevalidate(java.time.Duration.ofSeconds(-1));
+
+        assertThat(GatewayPropertiesValidator.problems(props))
+                .singleElement()
+                .asString()
+                .startsWith("shiguchi.graphql.response-cache.stale-while-revalidate: ")
+                .contains("negative");
+    }
+
+    @Test
+    @DisplayName("GIVEN graphql.response-cache disabled with maxEntries 0 WHEN validated SHOULD report no problem")
+    void given_responseCacheDisabledWithZeroMaxEntries_when_validated_should_reportNothing() {
+        var props = new GatewayProperties();
+        props.getGraphql().getResponseCache().setMaxEntries(0);
+
+        assertThat(GatewayPropertiesValidator.problems(props)).isEmpty();
+    }
+
+    @Test
     @DisplayName("GIVEN outlier detection with its defaults WHEN validated SHOULD report no problem")
     void given_outlierDetectionDefaults_when_validated_should_reportNothing() {
         var svc = grpc("orders", "orders", 9090);

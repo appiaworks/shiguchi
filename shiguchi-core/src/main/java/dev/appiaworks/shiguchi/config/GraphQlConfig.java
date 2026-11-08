@@ -41,6 +41,14 @@ public class GraphQlConfig {
      */
     private PersistedQueriesConfig persistedQueries = new PersistedQueriesConfig();
 
+    /**
+     * Keep whole query responses for the TTL of the methods behind them ({@code cache_ttl_seconds}
+     * on every root field's method), keyed by document, variables and, by default, the caller.
+     * Mutations bypass it and evict the entries of the services they touch. Off by default; see
+     * {@link ResponseCacheConfig}.
+     */
+    private ResponseCacheConfig responseCache = new ResponseCacheConfig();
+
     /** DataLoader batch size and opt-in cross-request entity caching; see {@link DataLoaderConfig}. */
     private DataLoaderConfig dataLoader = new DataLoaderConfig();
 
@@ -63,6 +71,28 @@ public class GraphQlConfig {
 
         /** How long an unused document is kept. */
         private java.time.Duration expireAfterAccess = java.time.Duration.ofHours(1);
+    }
+
+    @Data
+    @NoArgsConstructor
+    public static class ResponseCacheConfig {
+        private boolean enabled = false;
+
+        /** Responses kept; the least recently used go first. */
+        private long maxEntries = 2000;
+
+        /**
+         * How long past its TTL an entry is still served while one background refresh runs. Zero:
+         * an expired entry is a miss and the caller waits for the backend.
+         */
+        private java.time.Duration staleWhileRevalidate = java.time.Duration.ZERO;
+
+        /**
+         * Put the caller's principal in the key, so two signed-in callers never share an entry.
+         * Off, an entry is shared by everybody unless a root field's method carries
+         * {@code auth_scopes}, whose entries are always per caller.
+         */
+        private boolean varyByPrincipal = true;
     }
 
     @Data
