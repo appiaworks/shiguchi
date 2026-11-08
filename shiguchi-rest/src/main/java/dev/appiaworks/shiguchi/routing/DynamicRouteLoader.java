@@ -12,8 +12,8 @@ import dev.appiaworks.shiguchi.config.GatewayMode;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
 import dev.appiaworks.shiguchi.gateway.ScgRouteRegistrar;
-import dev.appiaworks.shiguchi.proto.GraphQlProto;
 import dev.appiaworks.shiguchi.proto.GraphQlRule;
+import dev.appiaworks.shiguchi.reflection.GraphQlOptionReader;
 import dev.appiaworks.shiguchi.reflection.GrpcReflectionClient;
 import dev.appiaworks.shiguchi.serde.DynamicProtoSerde;
 import dev.appiaworks.shiguchi.serde.DynamicSerializerFactory;
@@ -59,6 +59,7 @@ public class DynamicRouteLoader implements ServiceLoader {
     private final DynamicSerializerFactory tier2;
     private final GrpcChannelFactory channelFactory;
     private final dev.appiaworks.shiguchi.rest.MergeSpecResolver mergeSpecResolver;
+    private final GraphQlOptionReader graphQlOptions;
 
     /** Services that failed @PostConstruct loading (e.g. self-connection before server is ready). */
     private final List<ServiceDefinition> pendingRetry = new ArrayList<>();
@@ -115,6 +116,8 @@ public class DynamicRouteLoader implements ServiceLoader {
         this.tier2 = tier2;
         this.channelFactory = channelFactory;
         this.mergeSpecResolver = mergeSpecResolver;
+        this.graphQlOptions = GraphQlOptionReader.of(
+                properties.getGraphql() != null ? properties.getGraphql().getCompatOptions() : null);
     }
 
     @PostConstruct
@@ -420,10 +423,11 @@ public class DynamicRouteLoader implements ServiceLoader {
      * builder with name, type, pluck, description, and other schema hints.
      * Falls back to convention-based naming when the annotation is absent or has no name.
      */
-    private static void applyGraphQlBinding(
+    private void applyGraphQlBinding(
             RouteDefinition.Builder builder, ServiceDescriptor sd, MethodDescriptor md, String protoComment) {
 
-        GraphQlRule annotation = md.getOptions().getExtension(GraphQlProto.graphql);
+        var found = graphQlOptions.methodRule(md).orElse(null);
+        GraphQlRule annotation = found != null ? found.rule() : null;
 
         // The comment above the rpc, for every method — a proto with no (shiguchi.graphql) at all is
         // the common case, and it still has documentation worth carrying. An annotation that sets
@@ -438,7 +442,7 @@ public class DynamicRouteLoader implements ServiceLoader {
                 case RESOLVER -> RouteDefinition.GraphQlOperationType.RESOLVER;
                 default -> RouteDefinition.GraphQlOperationType.QUERY;
             };
-            builder.graphQl(annotation.getName(), opType);
+            builder.graphQl(annotation.getName(), opType).graphQlOptionSource(found.source());
 
             if (!annotation.getDescription().isEmpty()) builder.description(annotation.getDescription());
             if (!annotation.getDeprecationReason().isEmpty())

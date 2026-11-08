@@ -12,8 +12,8 @@ import dev.appiaworks.shiguchi.config.GatewayMode;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
 import dev.appiaworks.shiguchi.gateway.ScgRouteRegistrar;
-import dev.appiaworks.shiguchi.proto.GraphQlProto;
 import dev.appiaworks.shiguchi.proto.GraphQlRule;
+import dev.appiaworks.shiguchi.reflection.GraphQlOptionReader;
 import dev.appiaworks.shiguchi.serde.DynamicProtoSerde;
 import dev.appiaworks.shiguchi.serde.DynamicSerializerFactory;
 import dev.appiaworks.shiguchi.serde.StaticSerdeDetector;
@@ -64,6 +64,7 @@ public class StaticRouteLoader implements ServiceLoader {
     private final dev.appiaworks.shiguchi.rest.MergeSpecResolver mergeSpecResolver;
     private final ClasspathServiceScanner classpathScanner;
     private final SpringBeanServiceDiscovery springBeanDiscovery;
+    private final GraphQlOptionReader graphQlOptions;
 
     /** Where load outcomes are recorded; a private instance until Spring injects the shared one. */
     private volatile ServiceLoadStatus loadStatus = new ServiceLoadStatus();
@@ -94,6 +95,8 @@ public class StaticRouteLoader implements ServiceLoader {
         this.mergeSpecResolver = mergeSpecResolver;
         this.classpathScanner = classpathScanner;
         this.springBeanDiscovery = springBeanDiscovery;
+        this.graphQlOptions = GraphQlOptionReader.of(
+                properties.getGraphql() != null ? properties.getGraphql().getCompatOptions() : null);
     }
 
     @PostConstruct
@@ -325,10 +328,10 @@ public class StaticRouteLoader implements ServiceLoader {
      * Reads the {@code (shiguchi.graphql)} annotation and populates the builder.
      * Falls back to convention-based naming when the annotation is absent or has no name.
      */
-    private static void applyGraphQlBinding(
-            RouteDefinition.Builder builder, ServiceDescriptor sd, MethodDescriptor md) {
+    private void applyGraphQlBinding(RouteDefinition.Builder builder, ServiceDescriptor sd, MethodDescriptor md) {
 
-        GraphQlRule annotation = md.getOptions().getExtension(GraphQlProto.graphql);
+        var found = graphQlOptions.methodRule(md).orElse(null);
+        GraphQlRule annotation = found != null ? found.rule() : null;
 
         if (annotation != null && !annotation.getName().isEmpty()) {
             RouteDefinition.GraphQlOperationType opType = switch (annotation.getType()) {
@@ -337,7 +340,7 @@ public class StaticRouteLoader implements ServiceLoader {
                 case RESOLVER -> RouteDefinition.GraphQlOperationType.RESOLVER;
                 default -> RouteDefinition.GraphQlOperationType.QUERY;
             };
-            builder.graphQl(annotation.getName(), opType);
+            builder.graphQl(annotation.getName(), opType).graphQlOptionSource(found.source());
 
             if (!annotation.getDescription().isEmpty()) builder.description(annotation.getDescription());
             if (!annotation.getDeprecationReason().isEmpty())

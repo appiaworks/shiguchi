@@ -1,5 +1,7 @@
 package dev.appiaworks.shiguchi.config;
 
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -41,6 +43,15 @@ public class GraphQlConfig {
 
     /** DataLoader batch size and opt-in cross-request entity caching; see {@link DataLoaderConfig}. */
     private DataLoaderConfig dataLoader = new DataLoaderConfig();
+
+    /**
+     * Proto option families from other gateways to read as aliases of the Shiguchi ones. Empty by
+     * default: a proto carrying one of them logs a hint and is bound by convention. The only value
+     * so far is {@code graphql-1079}, the {@code graphql.*} options (extension number 1079 on
+     * method and field options), which map onto {@code (shiguchi.graphql)} and {@code (shiguchi.field)}.
+     * The Shiguchi option wins when both are present.
+     */
+    private List<String> compatOptions = new ArrayList<>();
 
     @Data
     @NoArgsConstructor

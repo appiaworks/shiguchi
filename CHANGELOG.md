@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `shiguchi.graphql.compat-options: [graphql-1079]` reads the `graphql.*` proto options
+  (package `graphql`, extension number 1079, used by protos written for other GraphQL gateways)
+  as aliases of `(shiguchi.graphql)` and `(shiguchi.field)`: `schema.type` (by name), `name`,
+  `request.plucks` → `arg_fields`, `response.pluck` → `pluck`; `field.required`, `name`,
+  `default`, `omit`, `description`. Off by default: a proto carrying them logs one INFO hint per
+  file. On, the Shiguchi option wins when both are present, and fields with no counterpart
+  (`RESOLVER`, `field.resolver`, the `service` option) are ignored with one WARN each. Routes
+  bound through the alias carry `graphqlOptions: graphql-1079` in the routes report. Nothing is
+  vendored; the options are decoded by number against the descriptors the proto brings along.
+  New experimental type `dev.appiaworks.shiguchi.reflection.GraphQlOptionReader`;
+  `RouteDefinition.getGraphQlOptionSource()`.
+
 ### Changed
 
 - **Breaking:** the proto options moved from package `shiguchi.api` to `shiguchi`, with shorter
