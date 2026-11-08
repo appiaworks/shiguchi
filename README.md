@@ -198,7 +198,7 @@ How a request flows through the serde tiers is documented in
   `services[].channels` spreads calls over several connections; `services[].outlier-detection`
   ejects the one instance failing far more than its peers.
   → [docs/resilience.md](docs/resilience.md)
-- **HTTP caching** — per-method `services[].cache` rules (or the proto's `(shiguchi.api.method).cache_ttl_seconds`)
+- **HTTP caching** — per-method `services[].cache` rules (or the proto's `(shiguchi.method).cache_ttl_seconds`)
   send `Cache-Control` that is `private` whenever the caller is identified, `Vary`, and a strong
   `ETag` with 304 on `If-None-Match`. With `rest.resource-etags` a resource's AIP-154 `etag` field
   is the `ETag`, and `If-Match` makes updates conditional: a stale tag is a 412.
@@ -225,7 +225,7 @@ How a request flows through the serde tiers is documented in
   request *and* a conversion projection on the response, so the backend computes less and
   the gateway converts less.
 - **Apollo Federation** — `@key` entity resolution with batched entity loaders.
-- **Schema shaping** via `(shiguchi.api.graphql)` / `(shiguchi.api.graphql_field)` proto options or equivalent
+- **Schema shaping** via `(shiguchi.graphql)` / `(shiguchi.field)` proto options or equivalent
   YAML `field-overrides` — renaming, required/ID marking, plucks, omissions, deprecations.
   → [docs/graphql-annotations.md](docs/graphql-annotations.md)
 
@@ -238,7 +238,7 @@ How a request flows through the serde tiers is documented in
   `AT_LEAST_ONCE` per namespace with history and `Last-Event-ID` resume, connection lifetime with
   jitter, per-namespace authorization (principal match, roles, JWT claim patterns, or your
   `GatewayAuthorizer`). Every namespace is also a GraphQL subscription field when the GraphQL
-  surface is on; a server-streaming RPC with `(shiguchi.api.topic)` feeds its topics,
+  surface is on; a server-streaming RPC with `(shiguchi.topic)` feeds its topics,
   one shared upstream stream per topic across instances; Kafka topics and backend streams as
   sources with a dead-letter queue; hooks that tell a backend when a topic gains or loses its
   subscribers; persistent sessions that resume from the subscriber's acknowledged cursor, and consumer groups
@@ -358,7 +358,7 @@ Core modules (`io.github.appiaworks:*`):
   `mergeJson` pair that prints and parses them as proto JSON through their own getters and
   setters, on any Java. Also independent of the gateway.
 - `shiguchi-rest` / `-graphql` / `-openapi` / `-grpc-proxy` / `-validation` — the surfaces.
-- `shiguchi-proto` — the `.proto` files you can import: the `shiguchi/api/*.proto` options (GraphQL schema, method settings, merge, push topic)
+- `shiguchi-proto` — the `.proto` files you can import: the `shiguchi/*.proto` options (GraphQL schema, method settings, merge, push topic)
   and `pagination.proto` (the paging/sorting message shapes). Shipped inside the jar and as a
   `protos` classifier zip for non-JVM toolchains; both are optional, since the conventions match
   on field names and the annotations can be replaced by YAML.
@@ -432,7 +432,7 @@ shiguchi:
 
 ### 3. Annotate your protos (optional but recommended)
 
-Standard `google.api.http` bindings drive the REST routes; `(shiguchi.api.graphql)` refines the
+Standard `google.api.http` bindings drive the REST routes; `(shiguchi.graphql)` refines the
 GraphQL side (without it, methods still map by convention):
 
 ```protobuf
@@ -442,11 +442,11 @@ service LibraryService {
   }
   rpc ListBooks(ListBooksRequest) returns (ListBooksResponse) {
     option (google.api.http) = { get: "/v1/books" };
-    option (shiguchi.api.graphql) = { name: "books", type: QUERY };
+    option (shiguchi.graphql) = { name: "books", type: QUERY };
   }
   rpc CreateBook(CreateBookRequest) returns (Book) {
     option (google.api.http) = { post: "/v1/books", body: "book" };
-    option (shiguchi.api.graphql) = { name: "createBook", type: MUTATION };
+    option (shiguchi.graphql) = { name: "createBook", type: MUTATION };
   }
 }
 ```

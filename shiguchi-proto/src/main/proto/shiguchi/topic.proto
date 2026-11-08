@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-// Declarative push topics on server-streaming RPCs. A method carrying (shiguchi.api.topic)
+// Declarative push topics on server-streaming RPCs. A method carrying (shiguchi.topic)
 // becomes the source of a push topic: the gateway opens the stream when the first subscriber of a
 // matching topic arrives on any transport (SSE, WebSocket, gRPC, GraphQL), publishes every
 // message it answers into the topic as a typed event, shares that one stream among every
@@ -10,7 +10,7 @@ syntax = "proto3";
 //
 //   service OrderService {
 //     rpc WatchOrder(WatchOrderRequest) returns (stream OrderEvent) {
-//       option (shiguchi.api.topic) = { pattern: "orders:{order_id}" };
+//       option (shiguchi.topic) = { pattern: "orders:{order_id}" };
 //     }
 //   }
 //
@@ -20,11 +20,11 @@ syntax = "proto3";
 // its payload-type is the method's response message, so the topic's GraphQL field is typed.
 //
 // See docs/push.md, "Upstream-backed topics".
-package shiguchi.api;
+package shiguchi;
 
 import "google/protobuf/descriptor.proto";
 
-option java_package = "dev.appiaworks.shiguchi.proto.api";
+option java_package = "dev.appiaworks.shiguchi.proto";
 option java_multiple_files = true;
 option java_outer_classname = "TopicProto";
 

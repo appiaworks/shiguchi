@@ -13,7 +13,7 @@ package dev.appiaworks.shiguchi.sample.openfga;
  * object id, so the resulting FGA object is {@code objectType + ":" + value}.
  *
  * <p>A production deployment would more likely drive this from new fields on the
- * {@code (shiguchi.api.method)} proto option, so the policy travels with the service definition
+ * {@code (shiguchi.method)} proto option, so the policy travels with the service definition
  * rather than living in the gateway's config. The trade-off is the same either way: something
  * must state which request input carries the object id.
  *

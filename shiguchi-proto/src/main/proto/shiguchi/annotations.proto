@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+// Umbrella import for every Shiguchi proto option. One line brings in the method, field, merge
+// and topic options:
+//
+//   import "shiguchi/annotations.proto";
+//
+//   service OrderService {
+//     rpc GetOrder(GetOrderRequest) returns (Order) {
+//       option (shiguchi.graphql) = { name: "order", type: QUERY };
+//       option (shiguchi.method) = { auth_scopes: ["orders:read"] };
+//     }
+//   }
+//
+// The individual files (shiguchi/graphql.proto, shiguchi/method.proto, shiguchi/merge.proto,
+// shiguchi/topic.proto) stay importable on their own.
+package shiguchi;
+
+import public "shiguchi/graphql.proto";
+import public "shiguchi/merge.proto";
+import public "shiguchi/method.proto";
+import public "shiguchi/topic.proto";
+
+option java_package = "dev.appiaworks.shiguchi.proto";
+option java_multiple_files = true;
+option java_outer_classname = "ShiguchiAnnotations";

@@ -13,8 +13,8 @@ import com.google.protobuf.DescriptorProtos.ServiceDescriptorProto;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.DynamicMessage;
-import dev.appiaworks.shiguchi.proto.api.TopicProto;
-import dev.appiaworks.shiguchi.proto.api.UpstreamTopic;
+import dev.appiaworks.shiguchi.proto.TopicProto;
+import dev.appiaworks.shiguchi.proto.UpstreamTopic;
 import dev.appiaworks.shiguchi.serde.DynamicMessageMarshaller;
 import io.grpc.MethodDescriptor.MethodType;
 import io.grpc.Server;
@@ -195,7 +195,7 @@ class PushUpstreamEventIdEndToEndTest {
                     .setName("ev/ticks.proto")
                     .setSyntax("proto3")
                     .setPackage("ev")
-                    .addDependency("shiguchi/api/topic.proto")
+                    .addDependency("shiguchi/topic.proto")
                     .addMessageType(DescriptorProto.newBuilder()
                             .setName("WatchRequest")
                             .addField(field("name", 1, FieldDescriptorProto.Type.TYPE_STRING)))

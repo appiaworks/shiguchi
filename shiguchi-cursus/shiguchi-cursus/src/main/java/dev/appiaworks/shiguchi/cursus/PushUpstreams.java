@@ -8,8 +8,8 @@ import com.google.protobuf.Descriptors.ServiceDescriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.util.JsonFormat;
 import dev.appiaworks.protobuf.extras.api.ApiStatus;
-import dev.appiaworks.shiguchi.proto.api.TopicProto;
-import dev.appiaworks.shiguchi.proto.api.UpstreamTopic;
+import dev.appiaworks.shiguchi.proto.TopicProto;
+import dev.appiaworks.shiguchi.proto.UpstreamTopic;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import dev.appiaworks.shiguchi.routing.SchemaReloadListener;
 import dev.appiaworks.shiguchi.routing.ServiceEndpointContext;
@@ -35,7 +35,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 /**
- * Topics backed by an upstream server stream, declared with {@code (shiguchi.api.topic)}
+ * Topics backed by an upstream server stream, declared with {@code (shiguchi.topic)}
  * on a method of a served service (see {@code topic.proto}). For a topic such a method's
  * pattern matches, the first local subscriber on any transport attaches the topic here: this
  * instance takes the topic's lease in the store and, as its owner, opens the upstream stream with
@@ -165,7 +165,7 @@ public final class PushUpstreams implements SchemaReloadListener, DisposableBean
         }
     }
 
-    /** Scans the descriptors for {@code (shiguchi.api.topic)} and declares the namespaces it needs. */
+    /** Scans the descriptors for {@code (shiguchi.topic)} and declares the namespaces it needs. */
     public void refresh() {
         List<Upstream> found = new ArrayList<>();
         Set<String> patterns = new HashSet<>();
@@ -198,27 +198,27 @@ public final class PushUpstreams implements SchemaReloadListener, DisposableBean
             Set<String> patterns) {
         String where = service.getFullName() + "/" + method.getName();
         if (!method.isServerStreaming() || method.isClientStreaming()) {
-            throw new IllegalStateException("(shiguchi.api.topic) on " + where
+            throw new IllegalStateException("(shiguchi.topic) on " + where
                     + ": the method must be server-streaming (a unary or client-streaming method cannot feed a topic)");
         }
         TopicTemplate template;
         try {
             template = TopicTemplate.parse(option.getPattern());
         } catch (IllegalArgumentException e) {
-            throw new IllegalStateException("(shiguchi.api.topic) on " + where + ": " + e.getMessage());
+            throw new IllegalStateException("(shiguchi.topic) on " + where + ": " + e.getMessage());
         }
         if (!patterns.add(template.toString())) {
             throw new IllegalStateException(
-                    "(shiguchi.api.topic) on " + where + ": pattern '" + template + "' is declared twice");
+                    "(shiguchi.topic) on " + where + ": pattern '" + template + "' is declared twice");
         }
         for (String variable : template.variables()) {
             FieldDescriptor field = method.getInputType().findFieldByName(variable);
             if (field == null) {
-                throw new IllegalStateException("(shiguchi.api.topic) on " + where + ": {" + variable
+                throw new IllegalStateException("(shiguchi.topic) on " + where + ": {" + variable
                         + "} is not a field of " + method.getInputType().getFullName());
             }
             if (field.isRepeated() || !isScalar(field)) {
-                throw new IllegalStateException("(shiguchi.api.topic) on " + where + ": {" + variable
+                throw new IllegalStateException("(shiguchi.topic) on " + where + ": {" + variable
                         + "} must be a singular string, number, bool or enum field");
             }
         }
@@ -253,7 +253,7 @@ public final class PushUpstreams implements SchemaReloadListener, DisposableBean
             }
             if (problem != null) {
                 throw new IllegalStateException(
-                        "(shiguchi.api.topic) on " + where + ": event_id_field '" + path + "': " + problem);
+                        "(shiguchi.topic) on " + where + ": event_id_field '" + path + "': " + problem);
             }
             chain.add(field);
             if (i < names.length - 1) at = field.getMessageType();
@@ -314,10 +314,7 @@ public final class PushUpstreams implements SchemaReloadListener, DisposableBean
         if (ns == null) {
             ns = new PushProperties.Namespace();
             properties.getNamespaces().put(name, ns);
-            log.info(
-                    "Push: namespace '{}' declared by (shiguchi.api.topic) on {} with default settings",
-                    name,
-                    u.method());
+            log.info("Push: namespace '{}' declared by (shiguchi.topic) on {} with default settings", name, u.method());
         }
         String type = u.output().getFullName();
         if (ns.getPayloadType() == null || ns.getPayloadType().isBlank()) {

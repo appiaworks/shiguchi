@@ -123,7 +123,7 @@ public class ServiceDefinition {
 
     /**
      * HTTP caching rules for this service's REST routes, first match wins. A rule overrides the
-     * method's {@code (shiguchi.api.method).cache_ttl_seconds} proto option; a method no rule matches
+     * method's {@code (shiguchi.method).cache_ttl_seconds} proto option; a method no rule matches
      * keeps that option's TTL with the default policy.
      */
     private List<CacheRule> cache = new ArrayList<>();

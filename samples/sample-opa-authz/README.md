@@ -90,8 +90,8 @@ OPA listens on `:8181`. `data.json` seeds the grants:
 
 ```protobuf
 rpc GetOrder(GetOrderRequest) returns (Order) {
-  option (shiguchi.api.graphql) = { name: "order", type: QUERY };
-  option (shiguchi.api.method) = {
+  option (shiguchi.graphql) = { name: "order", type: QUERY };
+  option (shiguchi.method) = {
     auth_scopes: ["orders:read"]
     authz: [{ object_type: "order", relation: "viewer", id_field: "order_id" }]
   };

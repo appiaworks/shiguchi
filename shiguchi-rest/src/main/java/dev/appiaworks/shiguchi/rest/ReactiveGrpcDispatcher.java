@@ -770,7 +770,7 @@ public class ReactiveGrpcDispatcher {
     /**
      * The same server-streaming dispatch for a method named directly rather than through a route:
      * what the push module's upstream-backed topics use, since a method carrying only
-     * {@code (shiguchi.api.topic)} has no route of its own.
+     * {@code (shiguchi.topic)} has no route of its own.
      */
     public Flux<DynamicMessage> dispatchStreamingRequest(
             ServiceEndpointContext ctx,

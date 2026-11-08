@@ -6,8 +6,8 @@ import com.google.api.AnnotationsProto;
 import com.google.api.HttpRule;
 import com.google.protobuf.Descriptors.MethodDescriptor;
 import com.google.protobuf.Descriptors.ServiceDescriptor;
-import dev.appiaworks.shiguchi.proto.api.TopicProto;
-import dev.appiaworks.shiguchi.proto.api.UpstreamTopic;
+import dev.appiaworks.shiguchi.proto.TopicProto;
+import dev.appiaworks.shiguchi.proto.UpstreamTopic;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

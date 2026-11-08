@@ -110,7 +110,7 @@ proto messages:
 ![Swagger UI](images/swagger-ui.png)
 
 **GraphQL / GraphiQL** (`/graphiql`, from `shiguchi-graphql-*-starter`) — methods become
-queries/mutations (from `(shiguchi.api.graphql)` annotations, or convention-named like
+queries/mutations (from `(shiguchi.graphql)` annotations, or convention-named like
 `libraryListBooks` when unannotated):
 
 ![GraphiQL](images/graphiql.png)

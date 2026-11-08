@@ -25,9 +25,9 @@ import dev.appiaworks.shiguchi.gateway.ScgRouteRegistrar;
 import dev.appiaworks.shiguchi.grpc.GrpcDescriptorCache;
 import dev.appiaworks.shiguchi.merge.MergeSource;
 import dev.appiaworks.shiguchi.merge.MergeSpec;
-import dev.appiaworks.shiguchi.proto.api.AuthzRule;
-import dev.appiaworks.shiguchi.proto.api.MethodProto;
-import dev.appiaworks.shiguchi.proto.api.MethodRule;
+import dev.appiaworks.shiguchi.proto.AuthzRule;
+import dev.appiaworks.shiguchi.proto.MethodProto;
+import dev.appiaworks.shiguchi.proto.MethodRule;
 import dev.appiaworks.shiguchi.rest.MergeSpecResolver;
 import dev.appiaworks.shiguchi.serde.DynamicProtoSerde;
 import dev.appiaworks.shiguchi.serde.DynamicSerializerFactory;
@@ -840,7 +840,7 @@ class DynamicRouteLoaderTest {
     }
 
     // -------------------------------------------------------------------------
-    // (shiguchi.api.method) access rules on the REST surface
+    // (shiguchi.method) access rules on the REST surface
     // -------------------------------------------------------------------------
 
     /** Writes a descriptor set with one GET-bound method carrying {@code schema}; returns its path. */
@@ -918,7 +918,7 @@ class DynamicRouteLoaderTest {
     }
 
     @Test
-    @DisplayName("GIVEN a (shiguchi.api.method) annotation with auth_scopes and no GraphQL option "
+    @DisplayName("GIVEN a (shiguchi.method) annotation with auth_scopes and no GraphQL option "
             + "WHEN buildContext SHOULD put the scopes on the route")
     void GIVEN_authScopesWithoutFieldName_WHEN_buildContext_SHOULD_keepScopesOnRoute(@TempDir Path tempDir)
             throws Exception {

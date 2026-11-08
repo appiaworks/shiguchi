@@ -375,11 +375,11 @@ written to the connection, so the delivery log does not record it.
 A server-streaming RPC of a served service can be the source of a topic, declared on the method:
 
 ```proto
-import "shiguchi/api/topic.proto";
+import "shiguchi/topic.proto";
 
 service OrderService {
   rpc WatchOrder(WatchOrderRequest) returns (stream OrderEvent) {
-    option (shiguchi.api.topic) = { pattern: "orders:{order_id}" };
+    option (shiguchi.topic) = { pattern: "orders:{order_id}" };
   }
 }
 ```
@@ -426,7 +426,7 @@ backend sees one stream per topic, not one per client:
   the `gateway-push` overview lists them (`engine.upstreams`) and the topics view marks a topic
   `owner` or `waiting`.
 
-The descriptor must carry the option: with `PB_FILE` include `shiguchi/api/topic.proto`
+The descriptor must carry the option: with `PB_FILE` include `shiguchi/topic.proto`
 in the descriptor set (`protoc --include_imports`); with reflection it travels with the file.
 The option's `mode` has one value, `SHARED_UPSTREAM`.
 
@@ -462,7 +462,7 @@ shiguchi:
 - **GRPC_STREAM** opens a served service's server-streaming method through the gateway and
   publishes every response message as a typed event; `topic-template` draws on the message's
   singular scalar fields, `key-field` names the one that becomes the event key. Where
-  `(shiguchi.api.topic)` opens a stream per topic on demand, a source is one firehose
+  `(shiguchi.topic)` opens a stream per topic on demand, a source is one firehose
   for all its topics, open while the gateway runs.
 - **One consumer, across instances.** A source is `shared` by default: one gateway instance
   consumes it (a lease in the store, `source:<name>`, paced by the `upstream.*` knobs), the

@@ -12,8 +12,8 @@ import dev.appiaworks.shiguchi.config.GatewayMode;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
 import dev.appiaworks.shiguchi.gateway.ScgRouteRegistrar;
-import dev.appiaworks.shiguchi.proto.api.GraphQlProto;
-import dev.appiaworks.shiguchi.proto.api.GraphQlRule;
+import dev.appiaworks.shiguchi.proto.GraphQlProto;
+import dev.appiaworks.shiguchi.proto.GraphQlRule;
 import dev.appiaworks.shiguchi.serde.DynamicProtoSerde;
 import dev.appiaworks.shiguchi.serde.DynamicSerializerFactory;
 import dev.appiaworks.shiguchi.serde.StaticSerdeDetector;
@@ -322,7 +322,7 @@ public class StaticRouteLoader implements ServiceLoader {
     }
 
     /**
-     * Reads the {@code (shiguchi.api.graphql)} annotation and populates the builder.
+     * Reads the {@code (shiguchi.graphql)} annotation and populates the builder.
      * Falls back to convention-based naming when the annotation is absent or has no name.
      */
     private static void applyGraphQlBinding(

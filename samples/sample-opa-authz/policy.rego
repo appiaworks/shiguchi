@@ -38,7 +38,7 @@ held_scopes[scope] if {
 }
 
 # ---------------------------------------------------------------------------
-# Object-level rules, from the (shiguchi.api.method).authz proto annotation
+# Object-level rules, from the (shiguchi.method).authz proto annotation
 #
 # Each entry carries object_type, relation, id_field, and the gateway's resolved `id`
 # (null when the request did not supply that field).

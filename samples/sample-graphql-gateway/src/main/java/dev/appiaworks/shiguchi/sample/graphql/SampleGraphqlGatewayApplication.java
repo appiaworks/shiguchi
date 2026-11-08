@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * Demonstrates the GraphQL gateway feature: gRPC services exposed as a GraphQL API.
  *
- * Methods annotated with @GqlSchema (or the (shiguchi.api.graphql) option) become GraphQL
+ * Methods annotated with @GqlSchema (or the (shiguchi.graphql) option) become GraphQL
  * queries/mutations. Fields annotated with @GqlField control the GraphQL schema shape.
  *
  * Try: http://localhost:8080/graphiql

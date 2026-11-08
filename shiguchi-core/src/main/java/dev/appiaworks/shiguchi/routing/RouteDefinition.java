@@ -31,7 +31,7 @@ public class RouteDefinition {
 
     private final String httpResponseBody;
 
-    /** GraphQL operation name from shiguchi.api.graphql annotation. Null if not annotated. */
+    /** GraphQL operation name from shiguchi.graphql annotation. Null if not annotated. */
     private final String graphQlName;
 
     private final GraphQlOperationType graphQlOperationType;
@@ -39,7 +39,7 @@ public class RouteDefinition {
     /** Channel target (host:port) resolved from GatewayProperties. */
     private final String channelTarget;
 
-    // ---- enrichment from shiguchi.api.graphql annotation ----
+    // ---- enrichment from shiguchi.graphql annotation ----
 
     /** Doc-string emitted as a GraphQL description (""" ... """). Null if not set. */
     private final String graphQlDescription;
@@ -77,7 +77,7 @@ public class RouteDefinition {
     private final java.time.Duration upstreamTimeout;
 
     /**
-     * Object-level authorization rules from {@code (shiguchi.api.method).authz}. Empty = no object
+     * Object-level authorization rules from {@code (shiguchi.method).authz}. Empty = no object
      * check. Carried for a {@code GatewayAuthorizer} to consume; the gateway does not evaluate
      * them itself, so they are inert when no authorizer reads them.
      */

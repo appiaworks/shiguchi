@@ -2,16 +2,16 @@ package dev.appiaworks.shiguchi.reflection;
 
 import com.google.api.AnnotationsProto;
 import com.google.protobuf.ExtensionRegistry;
-import dev.appiaworks.shiguchi.proto.api.GraphQlProto;
-import dev.appiaworks.shiguchi.proto.api.MergeProto;
-import dev.appiaworks.shiguchi.proto.api.MethodProto;
-import dev.appiaworks.shiguchi.proto.api.TopicProto;
+import dev.appiaworks.shiguchi.proto.GraphQlProto;
+import dev.appiaworks.shiguchi.proto.MergeProto;
+import dev.appiaworks.shiguchi.proto.MethodProto;
+import dev.appiaworks.shiguchi.proto.TopicProto;
 
 /**
  * Shared {@link ExtensionRegistry} for parsing proto descriptors received over the wire
  * (gRPC server reflection) or read from {@code .pb} files.
  *
- * <p>Without a registry, {@code google.api.http}, {@code (shiguchi.api.*)} method and field options
+ * <p>Without a registry, {@code google.api.http}, {@code (shiguchi.*)} method and field options
  * arrive as unknown fields, {@code getExtension()} silently returns the default instance,
  * and every REST/GraphQL binding derived from annotations is dropped.
  */

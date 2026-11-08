@@ -9,7 +9,7 @@ Three questions, three places to answer them:
 | Question | Answered by | Where |
 | --- | --- | --- |
 | Is this caller who they say they are? | Spring Security, as an OAuth2 JWT resource server | `shiguchi.security.*` + `spring.security.oauth2.resourceserver.jwt.*` |
-| May this caller call this method, or act on this object? | the gateway's `GatewayAuthorizer` | `auth_scopes` / `authz` in `(shiguchi.api.method)`, or your own bean |
+| May this caller call this method, or act on this object? | the gateway's `GatewayAuthorizer` | `auth_scopes` / `authz` in `(shiguchi.method)`, or your own bean |
 | What does the backend learn about the caller? | `GrpcMetadataPopulator` + the per-service `tls` block | `services[].tls`, `client.forward-headers` |
 
 ## Modes and surfaces
@@ -154,12 +154,12 @@ Declare them on the method, and they apply to every surface the method is expose
 ```protobuf
 rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse) {
   option (google.api.http) = { get: "/v1/orders" };
-  option (shiguchi.api.graphql) = { name: "orders", type: QUERY };
-  option (shiguchi.api.method) = { auth_scopes: ["orders:read"] };
+  option (shiguchi.graphql) = { name: "orders", type: QUERY };
+  option (shiguchi.method) = { auth_scopes: ["orders:read"] };
 }
 ```
 
-That includes a service with GraphQL turned off, and a method with no `(shiguchi.api.graphql)`
+That includes a service with GraphQL turned off, and a method with no `(shiguchi.graphql)`
 option at all: the scopes still gate its REST routes and its gRPC-Web calls.
 
 The default authorizer requires the caller to hold every listed scope. A route with no

@@ -14,8 +14,8 @@ import com.google.protobuf.DescriptorProtos.FieldOptions;
 import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
-import dev.appiaworks.shiguchi.proto.api.GraphQlFieldRule;
-import dev.appiaworks.shiguchi.proto.api.GraphQlProto;
+import dev.appiaworks.shiguchi.proto.FieldRule;
+import dev.appiaworks.shiguchi.proto.GraphQlProto;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import dev.appiaworks.shiguchi.routing.ServiceEndpointContext;
 import graphql.schema.DataFetcher;
@@ -154,10 +154,10 @@ class GatewayDataFetcherRegistrarTest {
     void given_fieldWithSingleResolvesType_when_registered_should_useProtoFieldNameDerivedResolverName()
             throws Exception {
         // Arrange — "type_id" → strip "_id" → "type_" → camelCase → "type"
-        GraphQlFieldRule fieldAnnotation =
-                GraphQlFieldRule.newBuilder().addResolvesType("Book").build();
+        FieldRule fieldAnnotation =
+                FieldRule.newBuilder().addResolvesType("Book").build();
         FieldOptions fieldOptions = FieldOptions.newBuilder()
-                .setExtension(GraphQlProto.graphqlField, fieldAnnotation)
+                .setExtension(GraphQlProto.field, fieldAnnotation)
                 .build();
 
         FileDescriptor fileDescriptor =
@@ -187,10 +187,10 @@ class GatewayDataFetcherRegistrarTest {
             "Given field 'location' (no _id suffix) with single resolves_type, register() should use the field name unchanged as the resolver name")
     void given_fieldWithoutIdSuffix_when_registered_should_useFieldNameAsResolverName() throws Exception {
         // Arrange — no "_id" suffix: snakeToCamel("location") stays "location"
-        GraphQlFieldRule fieldAnnotation =
-                GraphQlFieldRule.newBuilder().addResolvesType("Publisher").build();
+        FieldRule fieldAnnotation =
+                FieldRule.newBuilder().addResolvesType("Publisher").build();
         FieldOptions fieldOptions = FieldOptions.newBuilder()
-                .setExtension(GraphQlProto.graphqlField, fieldAnnotation)
+                .setExtension(GraphQlProto.field, fieldAnnotation)
                 .build();
 
         FileDescriptor fileDescriptor =
@@ -227,12 +227,12 @@ class GatewayDataFetcherRegistrarTest {
         // Arrange — "Alpha" and "Beta" share zero characters → prefix = "".
         // Stripped values are the full type names; resolver names are fully lowercased first-char:
         // "Alpha" → "alpha", "Beta" → "beta".
-        GraphQlFieldRule fieldAnnotation = GraphQlFieldRule.newBuilder()
+        FieldRule fieldAnnotation = FieldRule.newBuilder()
                 .addResolvesType("Alpha")
                 .addResolvesType("Beta")
                 .build();
         FieldOptions fieldOptions = FieldOptions.newBuilder()
-                .setExtension(GraphQlProto.graphqlField, fieldAnnotation)
+                .setExtension(GraphQlProto.field, fieldAnnotation)
                 .build();
 
         FileDescriptor fileDescriptor =
@@ -270,12 +270,12 @@ class GatewayDataFetcherRegistrarTest {
         // Scan i=1..2: 'v','e' → no inner uppercase → wordBoundary=-1 → prefix = "Eve".
         // Stripped: "EveChar".substring(3) = "Char" → "char"
         //           "EveRef".substring(3) = "Ref" → "ref"
-        GraphQlFieldRule fieldAnnotation = GraphQlFieldRule.newBuilder()
+        FieldRule fieldAnnotation = FieldRule.newBuilder()
                 .addResolvesType("EveChar")
                 .addResolvesType("EveRef")
                 .build();
         FieldOptions fieldOptions = FieldOptions.newBuilder()
-                .setExtension(GraphQlProto.graphqlField, fieldAnnotation)
+                .setExtension(GraphQlProto.field, fieldAnnotation)
                 .build();
 
         FileDescriptor fileDescriptor =
@@ -322,7 +322,7 @@ class GatewayDataFetcherRegistrarTest {
 
     /**
      * Programmatically builds a FileDescriptor containing one message with one field.
-     * Registers {@code graphql.proto} as a dependency so the (shiguchi.api.graphql_field) extension
+     * Registers {@code graphql.proto} as a dependency so the (shiguchi.field) extension
      * at field number 50101 is properly resolved when the registrar reads field options.
      */
     private static FileDescriptor buildSingleFieldDescriptor(
@@ -332,7 +332,7 @@ class GatewayDataFetcherRegistrarTest {
         FileDescriptorProto fileProto = FileDescriptorProto.newBuilder()
                 .setName(fileName)
                 .setSyntax("proto3")
-                .addDependency("shiguchi/api/graphql.proto")
+                .addDependency("shiguchi/graphql.proto")
                 .addMessageType(DescriptorProto.newBuilder()
                         .setName(messageName)
                         .addField(FieldDescriptorProto.newBuilder()

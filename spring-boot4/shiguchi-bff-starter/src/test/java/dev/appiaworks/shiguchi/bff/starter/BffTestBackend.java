@@ -14,10 +14,10 @@ import com.google.protobuf.DescriptorProtos.ServiceDescriptorProto;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.DynamicMessage;
-import dev.appiaworks.shiguchi.proto.api.GraphQlProto;
-import dev.appiaworks.shiguchi.proto.api.GraphQlRule;
-import dev.appiaworks.shiguchi.proto.api.MethodProto;
-import dev.appiaworks.shiguchi.proto.api.MethodRule;
+import dev.appiaworks.shiguchi.proto.GraphQlProto;
+import dev.appiaworks.shiguchi.proto.GraphQlRule;
+import dev.appiaworks.shiguchi.proto.MethodProto;
+import dev.appiaworks.shiguchi.proto.MethodRule;
 import dev.appiaworks.shiguchi.serde.DynamicMessageMarshaller;
 import io.grpc.Context;
 import io.grpc.Contexts;
@@ -189,7 +189,7 @@ final class BffTestBackend {
 
     private static FileDescriptor buildFile() {
         try {
-            // The scope gate is read from the (shiguchi.api.method) annotation.
+            // The scope gate is read from the (shiguchi.method) annotation.
             GraphQlRule secret = GraphQlRule.newBuilder().setName("secret").build();
             MethodRule secretAccess =
                     MethodRule.newBuilder().addAuthScopes("secret.read").build();

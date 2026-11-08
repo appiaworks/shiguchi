@@ -198,7 +198,7 @@ public class GatewayOpenApiBuilder {
                 .addTagsItem(shortServiceTag(route.getFullServiceName()))
                 .parameters(parameters);
 
-        // Whatever documents this method: the (shiguchi.api.graphql) description when the proto set one,
+        // Whatever documents this method: the (shiguchi.graphql) description when the proto set one,
         // otherwise the comment above the rpc (PB_FILE mode, where protoc kept the source info).
         // The first line becomes the summary, which is what a Swagger UI list shows.
         String described = route.getGraphQlDescription();

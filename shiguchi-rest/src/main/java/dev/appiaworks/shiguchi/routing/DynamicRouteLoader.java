@@ -12,8 +12,8 @@ import dev.appiaworks.shiguchi.config.GatewayMode;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
 import dev.appiaworks.shiguchi.gateway.ScgRouteRegistrar;
-import dev.appiaworks.shiguchi.proto.api.GraphQlProto;
-import dev.appiaworks.shiguchi.proto.api.GraphQlRule;
+import dev.appiaworks.shiguchi.proto.GraphQlProto;
+import dev.appiaworks.shiguchi.proto.GraphQlRule;
 import dev.appiaworks.shiguchi.reflection.GrpcReflectionClient;
 import dev.appiaworks.shiguchi.serde.DynamicProtoSerde;
 import dev.appiaworks.shiguchi.serde.DynamicSerializerFactory;
@@ -41,7 +41,7 @@ import org.springframework.stereotype.Component;
  *  1. Open a ManagedChannel to host:port.
  *  2. Use GrpcReflectionClient to list services and resolve FileDescriptorSets.
  *  3. Build a ServiceEndpointContext with descriptors, type registry, method index.
- *  4. Parse google.api.http + shiguchi.api.graphql annotations → RouteDefinitions.
+ *  4. Parse google.api.http + shiguchi.graphql annotations → RouteDefinitions.
  *  5. Run StaticSerdeDetector (Tier 1) and DynamicSerializerFactory (Tier 2) pre-compilation.
  *  6. Write raw FileDescriptorSet bytes to a temp .pb file.
  *  7. Register the context in GrpcRouteRegistry.
@@ -416,7 +416,7 @@ public class DynamicRouteLoader implements ServiceLoader {
     }
 
     /**
-     * Reads the {@code (shiguchi.api.graphql)} annotation from the method descriptor and populates the
+     * Reads the {@code (shiguchi.graphql)} annotation from the method descriptor and populates the
      * builder with name, type, pluck, description, and other schema hints.
      * Falls back to convention-based naming when the annotation is absent or has no name.
      */
@@ -425,7 +425,7 @@ public class DynamicRouteLoader implements ServiceLoader {
 
         GraphQlRule annotation = md.getOptions().getExtension(GraphQlProto.graphql);
 
-        // The comment above the rpc, for every method — a proto with no (shiguchi.api.graphql) at all is
+        // The comment above the rpc, for every method — a proto with no (shiguchi.graphql) at all is
         // the common case, and it still has documentation worth carrying. An annotation that sets
         // a description overwrites this below, because someone wrote that for this surface
         // specifically.

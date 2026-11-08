@@ -16,9 +16,9 @@ import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Struct;
 import com.google.protobuf.Value;
 import com.google.protobuf.util.JsonFormat;
-import dev.appiaworks.shiguchi.proto.api.GraphQlProto;
-import dev.appiaworks.shiguchi.proto.api.GraphQlRule;
-import dev.appiaworks.shiguchi.proto.api.GraphQlRule.Op;
+import dev.appiaworks.shiguchi.proto.GraphQlProto;
+import dev.appiaworks.shiguchi.proto.GraphQlRule;
+import dev.appiaworks.shiguchi.proto.GraphQlRule.Op;
 import dev.appiaworks.shiguchi.serde.DynamicMessageMarshaller;
 import io.grpc.MethodDescriptor.MethodType;
 import io.grpc.Server;
@@ -55,7 +55,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 /**
- * A server-streaming RPC annotated {@code (shiguchi.api.graphql) = {type: SUBSCRIPTION}} served over a
+ * A server-streaming RPC annotated {@code (shiguchi.graphql) = {type: SUBSCRIPTION}} served over a
  * real graphql-transport-ws connection on the Boot 4 gateway (DGS on spring-graphql, {@code
  * spring.graphql.websocket.path}): every backend item arrives as a {@code next} frame in order
  * followed by {@code complete}, and a subscriber that closes the socket stalls and then cancels
@@ -244,7 +244,7 @@ class GraphQlSubscriptionWebSocketEndToEndTest {
                     .setName("ev/events.proto")
                     .setSyntax("proto3")
                     .setPackage("ev")
-                    .addDependency("shiguchi/api/graphql.proto")
+                    .addDependency("shiguchi/graphql.proto")
                     .addMessageType(DescriptorProto.newBuilder()
                             .setName("Item")
                             .addField(field("id", 1, FieldDescriptorProto.Type.TYPE_STRING))

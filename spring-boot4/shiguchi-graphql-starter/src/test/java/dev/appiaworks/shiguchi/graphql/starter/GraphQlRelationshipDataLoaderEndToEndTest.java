@@ -17,10 +17,10 @@ import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Struct;
 import com.google.protobuf.Value;
 import com.google.protobuf.util.JsonFormat;
-import dev.appiaworks.shiguchi.proto.api.GraphQlFieldRule;
-import dev.appiaworks.shiguchi.proto.api.GraphQlProto;
-import dev.appiaworks.shiguchi.proto.api.GraphQlRule;
-import dev.appiaworks.shiguchi.proto.api.GraphQlRule.Op;
+import dev.appiaworks.shiguchi.proto.FieldRule;
+import dev.appiaworks.shiguchi.proto.GraphQlProto;
+import dev.appiaworks.shiguchi.proto.GraphQlRule;
+import dev.appiaworks.shiguchi.proto.GraphQlRule.Op;
 import dev.appiaworks.shiguchi.serde.DynamicMessageMarshaller;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor.MethodType;
@@ -212,16 +212,13 @@ class GraphQlRelationshipDataLoaderEndToEndTest {
         try {
             FieldOptions idKey = FieldOptions.newBuilder()
                     .setExtension(
-                            GraphQlProto.graphqlField,
-                            GraphQlFieldRule.newBuilder()
-                                    .setId(true)
-                                    .setBatchKey(true)
-                                    .build())
+                            GraphQlProto.field,
+                            FieldRule.newBuilder().setId(true).setBatchKey(true).build())
                     .build();
             FieldOptions resolvesCustomer = FieldOptions.newBuilder()
                     .setExtension(
-                            GraphQlProto.graphqlField,
-                            GraphQlFieldRule.newBuilder()
+                            GraphQlProto.field,
+                            FieldRule.newBuilder()
                                     .setId(true)
                                     .addResolvesType("Customer")
                                     .build())
@@ -230,7 +227,7 @@ class GraphQlRelationshipDataLoaderEndToEndTest {
                     .setName("rel/shop.proto")
                     .setSyntax("proto3")
                     .setPackage("rel")
-                    .addDependency("shiguchi/api/graphql.proto")
+                    .addDependency("shiguchi/graphql.proto")
                     .addMessageType(DescriptorProto.newBuilder()
                             .setName("Customer")
                             .addField(field("id", 1, FieldDescriptorProto.Type.TYPE_STRING, null)

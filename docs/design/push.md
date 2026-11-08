@@ -16,7 +16,7 @@ tombstone, audit, the delivery log (`delivery-log` per namespace, counts always,
 leased archiver: the Postgres archive is the store's own row), the `gateway-push` endpoint and the console's Push
 tab with the Messages and Audit views, the GraphQL subscription fields (section 10; the resume id
 travels in the envelope, not in graphql-transport-ws extensions), the declarative
-`(shiguchi.api.topic)` of section 9.4 (`topic.proto`: `pattern` and `mode:
+`(shiguchi.topic)` of section 9.4 (`topic.proto`: `pattern` and `mode:
 SHARED_UPSTREAM`; one owner per topic through a store lease rather than Redis `SET NX` /
 Postgres advisory locks specifically; `event_id_field` is built for the ids of the `MEMORY` and `REDIS` stores, the Postgres store records it as the `upstream.id` attribute because its ids are one table-wide sequence, and the `id:` line of plain streaming SSE routes is still open), the sources of 5.2
 (`KAFKA` with a consumer of the gateway's own rather than Spring Kafka, `GRPC_STREAM`, the
@@ -470,7 +470,7 @@ client does not receive it, so consumers stop writing their own echo suppression
 ```proto
 service OrderService {
   rpc WatchOrder(WatchOrderRequest) returns (stream OrderEvent) {
-    option (shiguchi.api.topic) = {
+    option (shiguchi.topic) = {
       pattern: "orders:{order_id}"      // request field → topic
       mode: SHARED_UPSTREAM             // one gRPC stream per topic, N subscribers
       event_id_field: "sequence"        // optional, otherwise the engine assigns

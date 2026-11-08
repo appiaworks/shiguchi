@@ -70,7 +70,7 @@ public class GatewayDefaults {
 
     /**
      * Request authorization policy. The default enforces the {@code auth_scopes} declared on the
-     * {@code (shiguchi.api.method)} option — a coarse, route-level check. Replace with your own
+     * {@code (shiguchi.method)} option — a coarse, route-level check. Replace with your own
      * {@link GatewayAuthorizer} bean to add per-object authorization (OpenFGA, OPA, Cedar, ...);
      * delegate to {@link ScopeGatewayAuthorizer} from it to keep the scope gate as well.
      */

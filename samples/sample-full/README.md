@@ -68,7 +68,7 @@ shiguchi:
     enabled: true            # /v3/api-docs + /swagger-ui.html
 
   graphql:
-    enabled: true            # /graphql + /graphiql, schema from (shiguchi.api.graphql)/(shiguchi.api.graphql_field)
+    enabled: true            # /graphql + /graphiql, schema from (shiguchi.graphql)/(shiguchi.field)
 
   avro:
     enabled: true            # Avro in/out on the REST surface (accept/content-type: avro/binary)

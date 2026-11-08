@@ -1,9 +1,9 @@
 syntax = "proto3";
-package shiguchi.api;
+package shiguchi;
 
 import "google/protobuf/descriptor.proto";
 
-option java_package = "dev.appiaworks.shiguchi.proto.api";
+option java_package = "dev.appiaworks.shiguchi.proto";
 option java_multiple_files = true;
 option java_outer_classname = "MergeProto";
 
@@ -42,7 +42,7 @@ message MergeSource {
 // override this; see docs/merging.md.
 //
 // Example:
-//   option (shiguchi.api.merge) = {
+//   option (shiguchi.merge) = {
 //     tie_break_field: "id"
 //     sources: [
 //       { endpoint: "orders-eu", full_service_name: "orders.OrderService", method_name: "list", presorted: true },

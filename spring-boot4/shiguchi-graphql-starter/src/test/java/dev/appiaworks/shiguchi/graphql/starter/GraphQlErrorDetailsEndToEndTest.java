@@ -18,9 +18,9 @@ import com.google.protobuf.Struct;
 import com.google.protobuf.Value;
 import com.google.protobuf.util.JsonFormat;
 import com.google.rpc.BadRequest;
-import dev.appiaworks.shiguchi.proto.api.GraphQlProto;
-import dev.appiaworks.shiguchi.proto.api.GraphQlRule;
-import dev.appiaworks.shiguchi.proto.api.GraphQlRule.Op;
+import dev.appiaworks.shiguchi.proto.GraphQlProto;
+import dev.appiaworks.shiguchi.proto.GraphQlRule;
+import dev.appiaworks.shiguchi.proto.GraphQlRule.Op;
 import dev.appiaworks.shiguchi.serde.DynamicMessageMarshaller;
 import io.grpc.MethodDescriptor.MethodType;
 import io.grpc.Server;
@@ -186,7 +186,7 @@ class GraphQlErrorDetailsEndToEndTest {
                     .setName("errs/store.proto")
                     .setSyntax("proto3")
                     .setPackage("errs")
-                    .addDependency("shiguchi/api/graphql.proto")
+                    .addDependency("shiguchi/graphql.proto")
                     .addMessageType(DescriptorProto.newBuilder()
                             .setName("Item")
                             .addField(field("id", 1, FieldDescriptorProto.Type.TYPE_STRING))

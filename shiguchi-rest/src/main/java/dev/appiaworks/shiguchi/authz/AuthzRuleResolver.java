@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Resolves the {@code (shiguchi.api.method).authz} rules on a route against the arguments a caller
+ * Resolves the {@code (shiguchi.method).authz} rules on a route against the arguments a caller
  * actually sent, producing the concrete {@code (relation, object)} pairs a policy engine is asked
  * about.
  *

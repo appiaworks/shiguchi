@@ -7,7 +7,7 @@ published `io.github.appiaworks:*` artifacts — on a fresh machine run
 | Sample | What it shows | Run |
 | --- | --- | --- |
 | `sample-rest-gateway` | Minimal REST/JSON gateway in front of one gRPC service: `google.api.http` annotations → HTTP routes, Swagger UI | `./gradlew -p samples sample-rest-gateway:bootRun` |
-| `sample-graphql-gateway` | GraphQL schema generated from protos, `(shiguchi.api.graphql)` annotations, Apollo Federation subgraph | `./gradlew -p samples sample-graphql-gateway:bootRun` |
+| `sample-graphql-gateway` | GraphQL schema generated from protos, `(shiguchi.graphql)` annotations, Apollo Federation subgraph | `./gradlew -p samples sample-graphql-gateway:bootRun` |
 | `sample-grpc-proxy` | Pass-through gRPC proxy on `:9191` with merged reflection across backends | `./gradlew -p samples sample-grpc-proxy:bootRun` |
 | `sample-grpc-ui-standalone` | Just the embedded gRPC web console (`/grpc-ui`), no other surfaces | `./gradlew -p samples sample-grpc-ui-standalone:bootRun` |
 | `sample-grpc-ui-servlet` | The gRPC web console embedded in a Spring MVC (servlet) application | `./gradlew -p samples sample-grpc-ui-servlet:bootRun` |

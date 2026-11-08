@@ -37,7 +37,7 @@ service Library {
 ```
 
 A method without the annotation gets **no REST route**. It is still exposed on GraphQL (by
-convention or through `(shiguchi.api.graphql)`), on the gRPC proxy, and in the console — only the REST
+convention or through `(shiguchi.graphql)`), on the gRPC proxy, and in the console — only the REST
 and OpenAPI surfaces need the HTTP binding. Hide a method from every surface with
 `services[].exclude-methods`.
 
@@ -233,7 +233,7 @@ backend named it. Only list what callers should see —
 | `custom { kind, path }` | yes | Any other verb (`HEAD`, `OPTIONS`, ...); `kind` is used as the HTTP method. |
 | `body` | yes | Field name, `*`, or unset (= whole message). Honoured on the JSON and Avro request paths and reflected in the OpenAPI document: the request body schema is that field's type and the remaining fields become query parameters. |
 | `additional_bindings` | yes | One extra REST route per entry, on the same RPC. Extra routes carry the primary's `auth_scopes`, cache TTL and loader hints, but no GraphQL field of their own and never a merge. One level only, as the option itself requires. |
-| `response_body` | yes | Unary routes send the named top-level field instead of the whole message, to JSON and Avro callers alike — see [Shaping the response](#shaping-the-response-response_body). Server-streaming and merge routes ignore it and send whole messages. The OpenAPI document describes the same thing: the named field's schema as the `200` JSON response where it applies, the whole message elsewhere. Use `(shiguchi.api.graphql).pluck` for the GraphQL-side equivalent. |
+| `response_body` | yes | Unary routes send the named top-level field instead of the whole message, to JSON and Avro callers alike — see [Shaping the response](#shaping-the-response-response_body). Server-streaming and merge routes ignore it and send whole messages. The OpenAPI document describes the same thing: the named field's schema as the `200` JSON response where it applies, the whole message elsewhere. Use `(shiguchi.graphql).pluck` for the GraphQL-side equivalent. |
 | Path variables `{name}` | yes | Segment-wide. Dotted names nest (`{book.id}`). The OpenAPI document lists them as path parameters with the dotted name. Values are percent-decoded. |
 | `{name=segments/*}` value patterns | yes | The variable binds every segment its pattern covers (`shelves/s1/books/b2`). The OpenAPI document writes it as `{name}`. |
 | Wildcards `*`, `**`, `{*name}` | yes | `*` is one segment; `**` and `{*name}` match the rest of the path and must come last. |

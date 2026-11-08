@@ -78,7 +78,7 @@ dependencies {
     jmhImplementation(libs.grpc.services)
     jmhImplementation(libs.grpc.netty)
     // GatewayGraphQlBenchmark: the same gateway with the GraphQL surface on (DGS over spring-graphql),
-    // against a backend whose protos carry (shiguchi.api.graphql) / (shiguchi.api.graphql_field) options.
+    // against a backend whose protos carry (shiguchi.graphql) / (shiguchi.field) options.
     jmhImplementation(project(":shiguchi-graphql-spring-boot4-starter"))
     // graphql.proto on src/jmh/proto's include path (the protobuf plugin extracts it from the jar).
     jmhImplementation(project(":shiguchi-proto"))

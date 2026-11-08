@@ -12,9 +12,9 @@ import com.google.protobuf.DescriptorProtos.MethodOptions;
 import com.google.protobuf.DescriptorProtos.ServiceDescriptorProto;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.Descriptors.MethodDescriptor;
-import dev.appiaworks.shiguchi.proto.api.AuthzRule;
-import dev.appiaworks.shiguchi.proto.api.MethodProto;
-import dev.appiaworks.shiguchi.proto.api.MethodRule;
+import dev.appiaworks.shiguchi.proto.AuthzRule;
+import dev.appiaworks.shiguchi.proto.MethodProto;
+import dev.appiaworks.shiguchi.proto.MethodRule;
 import io.grpc.MethodDescriptor.MethodType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
  * BDD-style unit tests for {@link ProtoAccessRules}.
  *
  * <p>Method descriptors are built programmatically from {@code DescriptorProtos} so that the
- * {@code (shiguchi.api.method)} option is read exactly as it would be from a compiled proto file.
+ * {@code (shiguchi.method)} option is read exactly as it would be from a compiled proto file.
  */
 @DisplayName("ProtoAccessRules")
 class ProtoAccessRulesTest {
@@ -35,7 +35,7 @@ class ProtoAccessRulesTest {
     // Descriptor building helpers
     // -------------------------------------------------------------------------
 
-    /** Returns a method descriptor carrying the given {@code (shiguchi.api.method)} option, or none when null. */
+    /** Returns a method descriptor carrying the given {@code (shiguchi.method)} option, or none when null. */
     private static MethodDescriptor methodWithSchema(MethodRule schema) throws Exception {
         MethodDescriptorProto.Builder method = MethodDescriptorProto.newBuilder()
                 .setName(METHOD_NAME)
@@ -79,7 +79,7 @@ class ProtoAccessRulesTest {
 
     @Test
     @DisplayName(
-            "GIVEN a method with no (shiguchi.api.method) option WHEN apply is called SHOULD leave the route with no auth scopes and no authz rules")
+            "GIVEN a method with no (shiguchi.method) option WHEN apply is called SHOULD leave the route with no auth scopes and no authz rules")
     void GIVEN_methodWithNoOptions_WHEN_apply_SHOULD_leaveRouteWithoutAccessRules() throws Exception {
         // Arrange
         MethodDescriptor md = methodWithSchema(null);

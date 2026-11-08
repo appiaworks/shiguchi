@@ -7,7 +7,7 @@ import reactor.core.publisher.Mono;
  * Strategy for authorizing a request before the gateway dispatches it to a gRPC backend.
  *
  * <p>The gateway ships one implementation, {@link ScopeGatewayAuthorizer}, which enforces the
- * {@code auth_scopes} declared in the {@code (shiguchi.api.method)} option. It is registered as
+ * {@code auth_scopes} declared in the {@code (shiguchi.method)} option. It is registered as
  * the default and preserves the gateway's historical behaviour.
  *
  * <p>Supplying your own {@code GatewayAuthorizer} bean replaces it entirely â€” this is the

@@ -1,17 +1,17 @@
 syntax = "proto3";
-package shiguchi.api;
+package shiguchi;
 
 import "google/protobuf/descriptor.proto";
 
-option java_package = "dev.appiaworks.shiguchi.proto.api";
+option java_package = "dev.appiaworks.shiguchi.proto";
 option java_multiple_files = true;
 option java_outer_classname = "GraphQlProto";
 
 // Method option: bind a gRPC method to a GraphQL field.
-// Usage: option (shiguchi.api.graphql) = { name: "listBooks", type: QUERY };
+// Usage: option (shiguchi.graphql) = { name: "listBooks", type: QUERY };
 //
 // Settings that apply to every surface (scopes, caching, object-level authorization) live in
-// (shiguchi.api.method), see method.proto.
+// (shiguchi.method), see method.proto.
 message GraphQlRule {
   // GraphQL operation type for a gRPC method binding.
   enum Op {
@@ -53,8 +53,11 @@ message GraphQlRule {
 }
 
 // Field option: customize how a proto field is exposed in GraphQL.
-// Usage: string author_id = 3 [(shiguchi.api.graphql_field) = { resolves_type: "Author" }];
-message GraphQlFieldRule {
+// Named `field` rather than `graphql_field` because most of it (required, name, omit,
+// description, deprecation_reason, default) is not GraphQL-specific; other surfaces may
+// honor these settings later.
+// Usage: string author_id = 3 [(shiguchi.field) = { resolves_type: "Author" }];
+message FieldRule {
   // Emit field as non-nullable (Type!) in GraphQL schema.
   bool required = 1;
   // Use GraphQL ID scalar instead of the inferred type.
@@ -69,8 +72,9 @@ message GraphQlFieldRule {
   string description = 6;
   // Emits @deprecated(reason: "...") when non-empty.
   string deprecation_reason = 7;
-  // Reserved for future resolver chaining.
-  string resolver = 8;
+  // Field 8 was `resolver`, never implemented and removed in 0.20.0.
+  reserved 8;
+  reserved "resolver";
 
   // Declares this field is a reference to one or more GraphQL types by ID.
   // Each value is a GraphQL type name the ID resolves to.
@@ -78,14 +82,14 @@ message GraphQlFieldRule {
   // For a single type the resolver GraphQL field name is derived from the proto field name
   // (strip trailing _id, camelCase). For multiple types the name is additionally derived
   // from the type name (e.g. Author→author, AuthorRef→authorRef).
-  // Example (single):   string author_id = 3 [(shiguchi.api.graphql_field) = { resolves_type: "Author" }];
-  // Example (multi):    string author_id = 2 [(shiguchi.api.graphql_field) = { resolves_type: "Author", resolves_type: "AuthorRef" }];
+  // Example (single):   string author_id = 3 [(shiguchi.field) = { resolves_type: "Author" }];
+  // Example (multi):    string author_id = 2 [(shiguchi.field) = { resolves_type: "Author", resolves_type: "AuthorRef" }];
   repeated string resolves_type = 9;
 
   // Marks this field as the primary identifier used for DataLoader batch keying.
   // Distinct from `id` (which controls GraphQL scalar type): batch_key controls
   // which field the gateway uses to index results when resolving batch gRPC calls.
-  // Example: int64 id = 1 [(shiguchi.api.graphql_field) = { id: true, batch_key: true }];
+  // Example: int64 id = 1 [(shiguchi.field) = { id: true, batch_key: true }];
   bool batch_key = 10;
 }
 
@@ -94,7 +98,7 @@ extend google.protobuf.MethodOptions {
   GraphQlRule graphql = 50100;
 }
 
-// Field option: customize GraphQL schema exposure of a proto field.
+// Field option: customize schema exposure of a proto field.
 extend google.protobuf.FieldOptions {
-  GraphQlFieldRule graphql_field = 50101;
+  FieldRule field = 50101;
 }

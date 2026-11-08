@@ -12,8 +12,8 @@ import com.google.protobuf.Descriptors.FileDescriptor;
 import dev.appiaworks.protobuf.extras.ScalarSchema;
 import dev.appiaworks.protobuf.extras.serde.ProtoJsonMapping;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
-import dev.appiaworks.shiguchi.proto.api.GraphQlFieldRule;
-import dev.appiaworks.shiguchi.proto.api.GraphQlProto;
+import dev.appiaworks.shiguchi.proto.FieldRule;
+import dev.appiaworks.shiguchi.proto.GraphQlProto;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -101,10 +101,10 @@ class GraphQlSchemaBuilderTest {
     void given_singleResolvesType_when_emittingObjectType_should_includeCompanionFieldDerivedFromJsonName()
             throws Exception {
         // Arrange — proto field name "type_id" → jsonName "typeId" → strip "Id" → "type"
-        GraphQlFieldRule fieldAnnotation =
-                GraphQlFieldRule.newBuilder().addResolvesType("Book").build();
+        FieldRule fieldAnnotation =
+                FieldRule.newBuilder().addResolvesType("Book").build();
         FieldOptions fieldOptions = FieldOptions.newBuilder()
-                .setExtension(GraphQlProto.graphqlField, fieldAnnotation)
+                .setExtension(GraphQlProto.field, fieldAnnotation)
                 .build();
 
         FileDescriptor fileDescriptor =
@@ -130,10 +130,10 @@ class GraphQlSchemaBuilderTest {
             "Given a type with field 'location' (no Id suffix) annotated with single resolves_type, emitObjectType should emit the companion field using the field's JSON name unchanged")
     void given_singleResolvesTypeOnNonIdField_when_emittingObjectType_should_useJsonNameDirectly() throws Exception {
         // Arrange — proto field name "location" → jsonName "location" → no "Id" suffix to strip
-        GraphQlFieldRule fieldAnnotation =
-                GraphQlFieldRule.newBuilder().addResolvesType("Location").build();
+        FieldRule fieldAnnotation =
+                FieldRule.newBuilder().addResolvesType("Location").build();
         FieldOptions fieldOptions = FieldOptions.newBuilder()
-                .setExtension(GraphQlProto.graphqlField, fieldAnnotation)
+                .setExtension(GraphQlProto.field, fieldAnnotation)
                 .build();
 
         FileDescriptor fileDescriptor =
@@ -166,12 +166,12 @@ class GraphQlSchemaBuilderTest {
                     throws Exception {
         // Arrange — "Alpha" and "Beta" share zero chars → prefix = "".
         // Companion fields: "Alpha" → "alpha", "Beta" → "beta".
-        GraphQlFieldRule fieldAnnotation = GraphQlFieldRule.newBuilder()
+        FieldRule fieldAnnotation = FieldRule.newBuilder()
                 .addResolvesType("Alpha")
                 .addResolvesType("Beta")
                 .build();
         FieldOptions fieldOptions = FieldOptions.newBuilder()
-                .setExtension(GraphQlProto.graphqlField, fieldAnnotation)
+                .setExtension(GraphQlProto.field, fieldAnnotation)
                 .build();
 
         FileDescriptor fileDescriptor =
@@ -199,12 +199,12 @@ class GraphQlSchemaBuilderTest {
         // "EveChar" and "EveRef" share 3 chars ("Eve"); 'C' != 'R' at index 3.
         // Scan i=1..2: 'v','e' → no inner uppercase → wordBoundary=-1 → prefix = "Eve".
         // Stripped: "EveChar"[3] = "Char" → "char", "EveRef"[3] = "Ref" → "ref".
-        GraphQlFieldRule fieldAnnotation = GraphQlFieldRule.newBuilder()
+        FieldRule fieldAnnotation = FieldRule.newBuilder()
                 .addResolvesType("EveChar")
                 .addResolvesType("EveRef")
                 .build();
         FieldOptions fieldOptions = FieldOptions.newBuilder()
-                .setExtension(GraphQlProto.graphqlField, fieldAnnotation)
+                .setExtension(GraphQlProto.field, fieldAnnotation)
                 .build();
 
         FileDescriptor fileDescriptor =
@@ -540,7 +540,7 @@ class GraphQlSchemaBuilderTest {
 
     /**
      * Builds a single-message FileDescriptor containing one field with the given FieldOptions.
-     * Uses graphql.proto as a dependency for the (shiguchi.api.graphql_field) extension at field number 50101.
+     * Uses graphql.proto as a dependency for the (shiguchi.field) extension at field number 50101.
      */
     private static FileDescriptor buildFileDescriptor(
             String fileName, String messageName, String fieldName, Type fieldType, FieldOptions fieldOptions)
@@ -549,7 +549,7 @@ class GraphQlSchemaBuilderTest {
         FileDescriptorProto fileProto = FileDescriptorProto.newBuilder()
                 .setName(fileName)
                 .setSyntax("proto3")
-                .addDependency("shiguchi/api/graphql.proto")
+                .addDependency("shiguchi/graphql.proto")
                 .addMessageType(DescriptorProto.newBuilder()
                         .setName(messageName)
                         .addField(FieldDescriptorProto.newBuilder()
@@ -579,7 +579,7 @@ class GraphQlSchemaBuilderTest {
         FileDescriptorProto fileProto = FileDescriptorProto.newBuilder()
                 .setName(fileName)
                 .setSyntax("proto3")
-                .addDependency("shiguchi/api/graphql.proto")
+                .addDependency("shiguchi/graphql.proto")
                 .addDependency(googleTypeDescriptor.getFile().getName())
                 .addMessageType(DescriptorProto.newBuilder()
                         .setName(messageName)

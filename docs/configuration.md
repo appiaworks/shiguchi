@@ -153,7 +153,7 @@ spring:
 | `shiguchi.cursus.ws.enabled` / `allowed-origins` | `true` / `[]` | The WebSocket endpoint and the browser origins allowed besides the gateway's own |
 | `shiguchi.cursus.admin.role` | `` | Role the writes of the `gateway-push` actuator endpoint need (disconnect, test publish, republish, tombstone) and the NDJSON export at `<cursus.path>/export`; empty: any authenticated caller |
 | `shiguchi.cursus.admin.payload-visibility` / `republish.*` | `METADATA` / `10000` / `500` / `[]` | What the archive's message views show (`NONE`, `METADATA`, `FULL`); bulk republish `max-batch`, `rate-per-second`, `namespaces` |
-| `shiguchi.cursus.upstream.*` | `10s` / `15s` / `1s` / `30s` / `` | Topics backed by an upstream stream (`(shiguchi.api.topic)`) and the sources' leases: `idle-linger`, `lease-ttl`, `retry-backoff`, `max-retry-backoff`, `instance-id` (deprecated: use `cursus.instance-id`) |
+| `shiguchi.cursus.upstream.*` | `10s` / `15s` / `1s` / `30s` / `` | Topics backed by an upstream stream (`(shiguchi.topic)`) and the sources' leases: `idle-linger`, `lease-ttl`, `retry-backoff`, `max-retry-backoff`, `instance-id` (deprecated: use `cursus.instance-id`) |
 | `shiguchi.cursus.sources[i].*` | — | External records as events: `type` `KAFKA` (`kafka.bootstrap-servers`, `topics`, `start`, `properties`; `payload-type`, `payload-format`) or `GRPC_STREAM` (`grpc.service`, `method`, `request`; `key-field`), `topic-template`, `attributes`, `shared` |
 | `shiguchi.cursus.hooks.grpc-service` / `idle-linger` / `timeout` | `` / `10s` / `5s` | A served service implementing `shiguchi.cursus.v1.PushHooks`; the idle debounce; the call timeout |
 | `shiguchi.cursus.hooks.fail-closed` | `false` | A decision hook (`OnConnect`, `OnSubscribe`, `OnClientMessage`) that times out or fails: `false` allows the client, `true` rejects it |
@@ -345,7 +345,7 @@ bean; define your own bean of that name and the gateway's backs off — call
 | `avro.subject-strategy` | `RECORD_NAME` | `REST_DOWNSTREAM` + Avro: registry subject per component, the Avro record's full name or the OpenAPI `COMPONENT_NAME` |
 | `avro.subjects` | `{}` | `REST_DOWNSTREAM` + Avro: component name → registry subject, overriding the strategy |
 | `avro.registry-timeout` | `10s` | `REST_DOWNSTREAM` + Avro: timeout per registry call at load time |
-| `field-overrides."Type.field_name".*` | `{}` | YAML-side GraphQL schema hints — same knobs as the `(shiguchi.api.graphql_field)` proto option (`required`, `id`, `name`, `omit`, `description`, `deprecation-reason`, `default-value`); YAML wins over proto. `resolver` is accepted but reserved for future resolver chaining and has no effect |
+| `field-overrides."Type.field_name".*` | `{}` | YAML-side GraphQL schema hints — same knobs as the `(shiguchi.field)` proto option (`required`, `id`, `name`, `omit`, `description`, `deprecation-reason`, `default-value`); YAML wins over proto. `resolver` is accepted but reserved for future resolver chaining and has no effect |
 | `shiguchi.avro.enabled` | `true` | Avro on the REST surface and to backends; only meaningful with `shiguchi-avro-*-starter`. See [avro.md](avro.md) |
 | `shiguchi.avro.framing` | `SINGLE_OBJECT` | How Avro responses to callers are written: `BINARY` (raw datum), `SINGLE_OBJECT` (`C3 01` + schema fingerprint + datum) or `CONFLUENT` (`00` + 4-byte registry id + datum; needs `schema-registry-url`) |
 | `shiguchi.avro.schema-registry-url` | — | Confluent-compatible registry the derived request/response schemas are registered with (subject = proto message full name) after every route load; never called per request |
@@ -458,7 +458,7 @@ and the build gate enforcing it, are in [api-compatibility.md](api-compatibility
 ### Per-object authorization
 
 The default `GatewayAuthorizer` answers a coarse question: *may this caller call this method?*
-It checks the `auth_scopes` declared in the `(shiguchi.api.method)` option against the caller's
+It checks the `auth_scopes` declared in the `(shiguchi.method)` option against the caller's
 JWT scopes. It cannot express *may this caller read **order 42**?* — that needs the request
 inputs, which is what the SPI hands you.
 

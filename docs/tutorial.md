@@ -146,12 +146,12 @@ starts with `create`, `update`, `delete` or `upsert` (case-insensitively) become
 and everything else a **query**. So `GetBook` and `ListBooks` are queries without you saying so,
 but `ArchiveBook` would also be a query, which is probably not what you meant.
 
-Say what you actually want with `(shiguchi.api.graphql)`:
+Say what you actually want with `(shiguchi.graphql)`:
 
 ```protobuf
 rpc ListBooks(ListBooksRequest) returns (ListBooksResponse) {
   option (google.api.http) = { get: "/v1/books" };
-  option (shiguchi.api.graphql) = { name: "books", type: QUERY };
+  option (shiguchi.graphql) = { name: "books", type: QUERY };
 }
 ```
 

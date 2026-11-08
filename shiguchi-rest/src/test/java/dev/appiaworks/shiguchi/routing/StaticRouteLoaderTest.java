@@ -21,9 +21,9 @@ import dev.appiaworks.shiguchi.config.GatewayMode;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
 import dev.appiaworks.shiguchi.grpc.GrpcDescriptorCache;
-import dev.appiaworks.shiguchi.proto.api.AuthzRule;
-import dev.appiaworks.shiguchi.proto.api.MethodProto;
-import dev.appiaworks.shiguchi.proto.api.MethodRule;
+import dev.appiaworks.shiguchi.proto.AuthzRule;
+import dev.appiaworks.shiguchi.proto.MethodProto;
+import dev.appiaworks.shiguchi.proto.MethodRule;
 import dev.appiaworks.shiguchi.rest.MergeSpecResolver;
 import dev.appiaworks.shiguchi.serde.DynamicProtoSerde;
 import dev.appiaworks.shiguchi.serde.DynamicSerializerFactory;
@@ -307,7 +307,7 @@ class StaticRouteLoaderTest {
 
     @Test
     @DisplayName(
-            "GIVEN a method with no explicit shiguchi.api.graphql annotation WHEN buildContext SHOULD fall back to the servicePrefix+MethodName GraphQL field naming convention")
+            "GIVEN a method with no explicit shiguchi.graphql annotation WHEN buildContext SHOULD fall back to the servicePrefix+MethodName GraphQL field naming convention")
     void given_methodWithoutGqlSchemaAnnotation_when_buildContext_should_useConventionBasedGraphQlName()
             throws Exception {
         // Arrange
@@ -576,10 +576,10 @@ class StaticRouteLoaderTest {
     }
 
     // -------------------------------------------------------------------------
-    // (shiguchi.api.method) access rules on the REST surface
+    // (shiguchi.method) access rules on the REST surface
     // -------------------------------------------------------------------------
 
-    /** One service, one GET-bound method carrying the given {@code (shiguchi.api.method)} annotation. */
+    /** One service, one GET-bound method carrying the given {@code (shiguchi.method)} annotation. */
     private static FileDescriptor buildAnnotatedServiceDescriptor(
             String fileName, String serviceName, String methodName, MethodRule schema) throws Exception {
         FileDescriptorProto.Builder fileProto = FileDescriptorProto.newBuilder()
@@ -647,7 +647,7 @@ class StaticRouteLoaderTest {
     }
 
     @Test
-    @DisplayName("GIVEN a (shiguchi.api.method) annotation with auth_scopes and no GraphQL option "
+    @DisplayName("GIVEN a (shiguchi.method) annotation with auth_scopes and no GraphQL option "
             + "WHEN buildContext SHOULD put the scopes on the route")
     void GIVEN_authScopesWithoutFieldName_WHEN_buildContext_SHOULD_keepScopesOnRoute() throws Exception {
         // Arrange

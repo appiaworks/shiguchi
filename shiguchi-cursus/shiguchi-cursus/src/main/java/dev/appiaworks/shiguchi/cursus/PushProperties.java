@@ -486,7 +486,7 @@ public class PushProperties {
 
     /**
      * Topics backed by an upstream server stream: a method carrying
-     * {@code (shiguchi.api.topic)}. The first subscriber of a topic on any transport
+     * {@code (shiguchi.topic)}. The first subscriber of a topic on any transport
      * opens the stream, one gateway instance owns it (a lease in the store), every instance's
      * subscribers get its events through the engine, the last subscriber leaving closes it after
      * {@code idle-linger}.
