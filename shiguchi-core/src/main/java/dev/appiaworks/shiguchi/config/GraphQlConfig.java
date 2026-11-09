@@ -36,6 +36,12 @@ public class GraphQlConfig {
      */
     private Introspection introspection = Introspection.ENABLED;
 
+    /**
+     * {@code @defer}: a client that sends {@code Accept: multipart/mixed} gets the deferred parts of
+     * its query as later parts of a multipart stream. Off by default.
+     */
+    private IncrementalConfig incremental = new IncrementalConfig();
+
     /** Batched requests (a JSON array of operations in one POST); off by default. */
     private BatchConfig batch = new BatchConfig();
 
@@ -94,6 +100,18 @@ public class GraphQlConfig {
     public static class BatchConfig {
         /** Most operations in one array. {@code 0} = batching off, an array body is refused. */
         private int maxOperations = 0;
+    }
+
+    /**
+     * Incremental delivery ({@code @defer}) over {@code multipart/mixed}. On, the schema declares the
+     * {@code @defer} directive; a client that does not accept {@code multipart/mixed} still gets the
+     * complete JSON result. Not applied to responses served from the response cache, to batches or
+     * to WebSocket operations. {@code @stream} is not supported by the engine yet.
+     */
+    @Data
+    @NoArgsConstructor
+    public static class IncrementalConfig {
+        private boolean enabled = false;
     }
 
     @Data

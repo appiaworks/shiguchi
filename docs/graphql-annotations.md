@@ -196,6 +196,17 @@ response is an array of results in the same order, with the largest `Retry-After
 operations. An array that is empty or longer than N is refused with 400. Each operation has
 its own DataLoader registry: loaders batch within an operation, not across the array.
 
+### `@defer`
+
+`shiguchi.graphql.incremental.enabled: true` (default off) declares the `@defer` directive and lets a client
+read a query in pieces: it sends `Accept: multipart/mixed;deferSpec=20220824` (Apollo Client and urql do) and
+`{ item(id: "7") { id ... @defer(label: "more") { name } } }` answers `multipart/mixed` with the initial
+payload (`{data, hasNext: true}`) first and each deferred payload (`{incremental: [{path, label, data}],
+hasNext}`) after it. A client that does not accept `multipart/mixed` gets the complete JSON result, with
+`@defer` ignored. The operation is priced and limited as a whole before anything runs. The response cache,
+batches and WebSocket operations never answer incrementally. `@stream` is not available: the engine
+(graphql-java 25) does not implement it.
+
 ## Descriptions from proto comments
 
 Most protos are already documented — a comment above the service, above each `rpc`, above each

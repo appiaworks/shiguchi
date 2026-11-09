@@ -45,7 +45,10 @@ class GraphQlResponseCacheInterceptor implements WebGraphQlInterceptor {
 
     @Override
     public Mono<WebGraphQlResponse> intercept(WebGraphQlRequest request, Chain chain) {
-        if (request instanceof WebSocketGraphQlRequest || !StringUtils.hasText(request.getDocument())) {
+        if (request instanceof WebSocketGraphQlRequest
+                || !StringUtils.hasText(request.getDocument())
+                // a multipart answer may be incremental, which is neither stored nor replayed
+                || GraphQlIncrementalWebFilter.acceptsMultipart(request.getHeaders())) {
             return chain.next(request);
         }
         Plan plan = cache.plan(request.getDocument(), request.getOperationName());
