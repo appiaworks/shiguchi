@@ -208,7 +208,7 @@ the cost budget again, as the caller who started it, and skips the response cach
 (`RATE_LIMITED`) keeps the stream open; a result without data (validation error) or `unauthenticated` ends it.
 Past `max-per-principal` the new query is answered with a `LIVE_LIMIT` error. On any other transport `@live` is
 ignored and the query runs once. Invalidation is in-process: with several gateway instances a mutation re-runs
-the live queries on the instance that served it, and `refresh-interval` repairs the rest. Design:
+the live queries on the instance that served it, and `refresh-interval` repairs the rest. A method can keep itself out of live queries with `option (shiguchi.graphql) = { ...; live: false }`: a query that selects it runs once, like an ordinary query. Design:
 [design/graphql-live.md](design/graphql-live.md).
 
 ### `@defer`

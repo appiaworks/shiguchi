@@ -61,6 +61,14 @@ message GraphQlRule {
   // Raw SDL directives appended verbatim to the GraphQL field, e.g. '@tag(name: "internal")'.
   // The gateway does not validate directive names or arguments; the composition layer does.
   repeated string directives = 12;
+
+  // Live queries (`query ... @live`): set to false to keep this method out of them. A query that
+  // selects such a field runs once, like an ordinary query. Unset: the method may be live.
+  optional bool live = 13;
+
+  // Cursus topic patterns (same syntax as the push topics) whose events change this method's
+  // result. An event on one of them re-runs the live queries that select the field.
+  repeated string invalidated_by = 14;
 }
 
 // Field option: customize how a proto field is exposed in GraphQL.

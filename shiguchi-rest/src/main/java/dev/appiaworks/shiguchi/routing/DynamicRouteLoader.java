@@ -450,6 +450,8 @@ public class DynamicRouteLoader implements ServiceLoader {
             if (!annotation.getParentType().isEmpty()) builder.parentType(annotation.getParentType());
             if (annotation.getCost() > 0) builder.graphQlCost(annotation.getCost());
             if (annotation.getDirectivesCount() > 0) builder.graphQlDirectives(annotation.getDirectivesList());
+            if (annotation.hasLive()) builder.graphQlLive(annotation.getLive());
+            if (annotation.getInvalidatedByCount() > 0) builder.graphQlInvalidatedBy(annotation.getInvalidatedByList());
 
             // Resolve response pluck to JSON (camelCase) field name for accurate response extraction
             if (!annotation.getPluck().isEmpty()) {

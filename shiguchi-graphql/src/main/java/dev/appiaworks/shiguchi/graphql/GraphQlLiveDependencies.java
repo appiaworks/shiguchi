@@ -29,7 +29,9 @@ final class GraphQlLiveDependencies {
     /** The service name that stands for every service. */
     static final String ALL = "*";
 
-    /** What a document's operation is. {@code throttleMs} is the {@code @live} hint, or -1. */
+    /**
+     * What a document's operation is. {@code live} is false when a root field opted out
+     * ({@code live: false}). {@code throttleMs} is the {@code @live} hint, or -1. */
     record Shape(OperationDefinition.Operation type, boolean live, long throttleMs, Set<String> services) {}
 
     private record Raw(
@@ -55,6 +57,7 @@ final class GraphQlLiveDependencies {
         }
         if (raw == null) return null;
         Set<String> services = new LinkedHashSet<>();
+        boolean allowed = true;
         if (raw.opaque() || raw.fields().isEmpty()) services.add(ALL);
         for (String field : raw.fields()) {
             List<RouteDefinition> routes = registry.findByGraphQlName(field);
@@ -62,9 +65,12 @@ final class GraphQlLiveDependencies {
                 services.add(ALL);
                 continue;
             }
-            for (RouteDefinition route : routes) services.add(route.getFullServiceName());
+            for (RouteDefinition route : routes) {
+                services.add(route.getFullServiceName());
+                if (!route.isGraphQlLive()) allowed = false;
+            }
         }
-        return new Shape(raw.type(), raw.live(), raw.throttleMs(), Set.copyOf(services));
+        return new Shape(raw.type(), raw.live() && allowed, raw.throttleMs(), Set.copyOf(services));
     }
 
     /** Whether a signal for the {@code signalled} services touches an operation depending on {@code deps}. */

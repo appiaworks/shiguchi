@@ -80,6 +80,12 @@ public class RouteDefinition {
     /** Raw SDL directives appended to the GraphQL field ({@code (shiguchi.graphql).directives}). */
     private final List<String> graphQlDirectives;
 
+    /** False when the GraphQL field opted out of live queries ({@code (shiguchi.graphql).live: false}). */
+    private final boolean graphQlLive;
+
+    /** Cursus topic patterns that invalidate live queries on this field. */
+    private final List<String> graphQlInvalidatedBy;
+
     /** OAuth2/JWT scope names the gateway enforces before dispatching. Empty list = no check. */
     private final List<String> authScopes;
 
@@ -166,6 +172,10 @@ public class RouteDefinition {
         this.graphQlCost = b.graphQlName != null ? b.graphQlCost : 0;
         this.graphQlDirectives =
                 b.graphQlName != null && b.graphQlDirectives != null ? List.copyOf(b.graphQlDirectives) : List.of();
+        this.graphQlLive = b.graphQlName == null || b.graphQlLive;
+        this.graphQlInvalidatedBy = b.graphQlName != null && b.graphQlInvalidatedBy != null
+                ? List.copyOf(b.graphQlInvalidatedBy)
+                : List.of();
         this.authScopes = b.authScopes != null ? List.copyOf(b.authScopes) : List.of();
         this.upstreamTimeout = b.upstreamTimeout;
         this.authzRules = b.authzRules != null ? List.copyOf(b.authzRules) : List.of();
@@ -287,6 +297,16 @@ public class RouteDefinition {
         return graphQlDirectives;
     }
 
+    /** Whether live queries may select the GraphQL field; false after {@code live: false}. */
+    public boolean isGraphQlLive() {
+        return graphQlLive;
+    }
+
+    /** Cursus topic patterns that invalidate live queries on the field; empty when none. */
+    public List<String> getGraphQlInvalidatedBy() {
+        return graphQlInvalidatedBy;
+    }
+
     public List<String> getAuthScopes() {
         return authScopes;
     }
@@ -390,6 +410,8 @@ public class RouteDefinition {
         private String graphQlOptionSource;
         private int graphQlCost;
         private List<String> graphQlDirectives;
+        private boolean graphQlLive = true;
+        private List<String> graphQlInvalidatedBy;
         private List<String> authScopes;
         private java.time.Duration upstreamTimeout;
         private List<AuthzRuleDefinition> authzRules;
@@ -441,6 +463,8 @@ public class RouteDefinition {
             this.graphQlOptionSource = null;
             this.graphQlCost = 0;
             this.graphQlDirectives = null;
+            this.graphQlLive = true;
+            this.graphQlInvalidatedBy = null;
             return this;
         }
 
@@ -493,6 +517,18 @@ public class RouteDefinition {
         /** Raw SDL directives appended to the GraphQL field. */
         public Builder graphQlDirectives(List<String> directives) {
             this.graphQlDirectives = directives;
+            return this;
+        }
+
+        /** Whether live queries may select the GraphQL field. */
+        public Builder graphQlLive(boolean live) {
+            this.graphQlLive = live;
+            return this;
+        }
+
+        /** Cursus topic patterns that invalidate live queries on the field. */
+        public Builder graphQlInvalidatedBy(List<String> topics) {
+            this.graphQlInvalidatedBy = topics;
             return this;
         }
 

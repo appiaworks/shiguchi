@@ -212,7 +212,10 @@ class GraphQlLiveQueryEndToEndTest {
             mutate("b");
 
             waitFor(() -> events.stream().anyMatch(e -> e.contains("\"name\":\"b\"")));
-            assertThat(events.stream().filter(e -> e.contains("\"name\":\"b\"")).findFirst().orElseThrow())
+            assertThat(events.stream()
+                            .filter(e -> e.contains("\"name\":\"b\""))
+                            .findFirst()
+                            .orElseThrow())
                     .contains("\"seq\":2");
         } finally {
             stream.dispose();
