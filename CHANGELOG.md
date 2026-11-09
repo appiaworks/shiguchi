@@ -86,6 +86,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `io.lettuce:lettuce-core:7.7.0.RELEASE` or later). The cursus tests now run on Lettuce 7.9.0,
   since embedded-redis runs Redis 5 on Windows.
 
+### Documentation
+
+- GraphQL side-by-side against Protocol-Lattice `grpc_graphql_gateway` in `docs/comparison.md` (`shiguchi-benchmarks/comparison/lattice/`): with its cache off the two are within 8%.
+
 ## [0.19.0] - 2026-11-04
 
 ### Removed

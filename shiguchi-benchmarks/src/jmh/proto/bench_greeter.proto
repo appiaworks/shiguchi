@@ -1,0 +1,38 @@
+// The GraphQL "greeter" of the Protocol-Lattice comparison (comparison/lattice/run.sh). The
+// messages are wire-identical to Protocol-Lattice's proto/greeter.proto (same package, service,
+// field numbers), so the one backend below serves both gateways; this file carries Shiguchi's
+// options, theirs carries graphql.schema. Only SayHello is served.
+syntax = "proto3";
+
+package greeter;
+
+import "shiguchi/graphql.proto";
+
+option java_package = "dev.appiaworks.shiguchi.bench.greeter";
+option java_multiple_files = true;
+
+message HelloRequest {
+  string name = 1;
+}
+
+message User {
+  string id = 1;
+  string display_name = 2;
+  bool trusted = 3;
+}
+
+message GreetMeta {
+  string correlation_id = 1;
+  User from = 2;
+}
+
+message HelloReply {
+  string message = 1;
+  GreetMeta meta = 2;
+}
+
+service Greeter {
+  rpc SayHello(HelloRequest) returns (HelloReply) {
+    option (shiguchi.graphql) = { type: QUERY name: "hello" };
+  }
+}

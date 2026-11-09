@@ -73,6 +73,19 @@ support ([grpc-web.md](grpc-web.md)) speaks the same wire protocol on the same p
 written against an Envoy sidecar works unchanged against the gateway. The set of callable methods
 is the loaded services, minus whatever their method filters exclude.
 
+## Protocol-Lattice grpc_graphql_gateway (Rust)
+
+A single Rust binary that turns a gRPC descriptor set into a GraphQL endpoint: `graphql.*`
+proto options (the family originated by `ysugimoto/grpc-graphql-gateway`), a response cache,
+cost analysis, `@defer`, live queries, federation, WASM plugins. It is GraphQL only: no REST
+transcoding, no OpenAPI document, no Spring integration, no push channel and no browser
+sign-in. Its own `graphql.schema` options are not Shiguchi's; `shiguchi.graphql.compat-options:
+[graphql-1079]` reads them as aliases, so one proto can serve both gateways.
+
+**Choose it when** the gateway is GraphQL only, you run a Rust or container-first stack, and
+you want one small binary. **Choose this when** REST, OpenAPI, the console, Cursus or the BFF
+come with GraphQL, or you are already a JVM shop. On throughput, see the GraphQL table below.
+
 ## Spring Cloud Gateway on its own
 
 SCG is an excellent HTTP gateway — routing, filters, rate limiting, circuit breakers — and this
@@ -128,6 +141,32 @@ Reactor's operator plumbing, Micrometer — is most of the per-request cost
 `shiguchi.security.open-rest-bypasses-chain` and the observation switches take some of it
 back; the GraphQL and OpenAPI surfaces, when on, are the rest of what the Go gateway and Envoy
 do not have to carry.
+
+### GraphQL
+
+The same method for GraphQL: Protocol-Lattice `grpc_graphql_gateway` v1.2.5 (commit
+`c37cdd9c`, 2026-10-12, Rust 1.99.1, release build, `HighPerfConfig::ultra_fast()`, its own
+example's cache settings for the cached row) against this gateway, in front of one
+`greeter.Greeter/SayHello` backend (the benchmark module's JVM backend, so the upstream cost
+is identical). `POST /graphql` with `{ hello(name:"world") { message } }`, the same answer from
+every row, `oha` at 32 connections, 10 s warm-up, then 30 s, median of three runs, same
+machine as above (2026-11-09). `shiguchi-benchmarks/comparison/lattice/run.sh` runs it.
+
+| | req/s | p50 | p99 | gateway CPU, RSS |
+| --- | --- | --- | --- | --- |
+| 1. Protocol-Lattice, cache off | 17 600 | 1.76 ms | 3.19 ms | 540 %, 0.5 GB |
+| 2. Protocol-Lattice, response cache on | 138 600 | 0.19 ms | 0.78 ms | 420 %, 0.5 GB |
+| 3. Shiguchi GraphQL | 16 300 | 1.77 ms | 4.59 ms | 750 %, 0.9 GB |
+| 4. Shiguchi GraphQL, document cache on | 17 000 | 1.70 ms | 4.42 ms | 720 %, 0.9 GB |
+| 5. Shiguchi REST, `bench.Orders/Get` (for reference) | 17 500 | 1.71 ms | 4.03 ms | 640 %, 0.9 GB |
+
+What it says: with the cache off the two gateways are within 8% of each other (row 3 against
+row 1), so the advertised six-figure number is the cache answering without calling the backend,
+not the gateway. This gateway's GraphQL path costs about the same as its REST path; it uses
+more CPU and about twice the memory for the same throughput (512 MB heap plus JVM overhead).
+This gateway's own response cache ([caching.md](caching.md)) answers without calling the
+backend too; it is not measured here. CPU is the `podman stats` sample after the second run and the gateway shares the VM with the backend and
+the load generator, so read ratios, not absolutes.
 
 ## Browser sign-in (session cookie)
 
