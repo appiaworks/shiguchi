@@ -194,6 +194,31 @@ class GraphQlLiveQueryEndToEndTest {
         }
     }
 
+    @Test
+    @DisplayName("GIVEN a live query over SSE WHEN a mutation changes its data SHOULD stream a second event")
+    void given_liveQueryOverSse_when_mutationChangesData_should_streamSecondEvent() throws Exception {
+        List<String> events = new CopyOnWriteArrayList<>();
+        Disposable stream = http.post()
+                .uri("/graphql")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.TEXT_EVENT_STREAM)
+                .bodyValue(Map.of("query", "query Live @live { item(id: \"7\") { name } }"))
+                .retrieve()
+                .bodyToFlux(String.class)
+                .subscribe(events::add, error -> events.add("error:" + error));
+        try {
+            waitFor(() -> events.stream().anyMatch(e -> e.contains("\"name\":\"a\"")));
+
+            mutate("b");
+
+            waitFor(() -> events.stream().anyMatch(e -> e.contains("\"name\":\"b\"")));
+            assertThat(events.stream().filter(e -> e.contains("\"name\":\"b\"")).findFirst().orElseThrow())
+                    .contains("\"seq\":2");
+        } finally {
+            stream.dispose();
+        }
+    }
+
     private void mutate(String name) {
         http.post()
                 .uri("/graphql")
