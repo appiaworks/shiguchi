@@ -328,6 +328,9 @@ public class GraphQlSchemaBuilder {
             sb.append("directive @extends on OBJECT | INTERFACE\n");
             sb.append("directive @shareable repeatable on FIELD_DEFINITION | OBJECT\n");
         }
+        if (gatewayProperties.getGraphql().getIncremental().isEnabled()) {
+            sb.append("directive @defer(if: Boolean! = true, label: String) on FRAGMENT_SPREAD | INLINE_FRAGMENT\n");
+        }
         sb.append("\n");
         if (anyConnection) sb.append(relayTransformer.relayPageInfoSdl()).append("\n");
         if (anySorting) sb.append(paginationInjector.sharedTypeDefs()).append("\n");

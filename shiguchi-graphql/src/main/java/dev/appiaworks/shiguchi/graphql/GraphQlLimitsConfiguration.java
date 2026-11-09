@@ -36,6 +36,8 @@ import tools.jackson.databind.json.JsonMapper;
  *       options.
  *   <li>{@code introspection}: {@link GraphQlIntrospectionInterceptor}.
  *   <li>{@code batch.max-operations}: {@link GraphQlBatchWebFilter}.
+ *   <li>{@code incremental.enabled}: {@link GraphQlIncrementalWebFilter} and
+ *       {@link GraphQlIncrementalInterceptor}.
  * </ul>
  */
 @Configuration
@@ -142,5 +144,21 @@ public class GraphQlLimitsConfiguration {
         log.info("GraphQL batched requests: up to {} operations per POST to {}", max, path);
         return new GraphQlBatchWebFilter(
                 handler, mapper.getIfAvailable(() -> JsonMapper.builder().build()), path, max);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "shiguchi.graphql.incremental", name = "enabled", havingValue = "true")
+    GraphQlIncrementalInterceptor gatewayGraphQlIncrementalInterceptor() {
+        return new GraphQlIncrementalInterceptor();
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "shiguchi.graphql.incremental", name = "enabled", havingValue = "true")
+    GraphQlIncrementalWebFilter gatewayGraphQlIncrementalWebFilter(
+            WebGraphQlHandler handler, ObjectProvider<ObjectMapper> mapper, Environment environment) {
+        String path = environment.getProperty("spring.graphql.http.path", "/graphql");
+        log.info("GraphQL @defer: multipart/mixed answers for POST {}", path);
+        return new GraphQlIncrementalWebFilter(
+                handler, mapper.getIfAvailable(() -> JsonMapper.builder().build()), path);
     }
 }
