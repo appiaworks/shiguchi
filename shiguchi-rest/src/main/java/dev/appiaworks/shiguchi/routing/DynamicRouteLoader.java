@@ -448,6 +448,7 @@ public class DynamicRouteLoader implements ServiceLoader {
             if (!annotation.getDeprecationReason().isEmpty())
                 builder.deprecationReason(annotation.getDeprecationReason());
             if (!annotation.getParentType().isEmpty()) builder.parentType(annotation.getParentType());
+            if (annotation.getCost() > 0) builder.graphQlCost(annotation.getCost());
 
             // Resolve response pluck to JSON (camelCase) field name for accurate response extraction
             if (!annotation.getPluck().isEmpty()) {

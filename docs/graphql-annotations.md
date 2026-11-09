@@ -103,6 +103,7 @@ rpc ListBooks(ListBooksRequest) returns (ListBooksResponse) {
 | `pluck` | Response field returned directly instead of the wrapper message |
 | `loader_for` | Declares the method as a DataLoader for the named type (batched resolution) |
 | `loader_ids_field` / `loader_result_field` | Request ids field / response items field for the loader |
+| `cost` | Weight of this field when the operation's cost is computed (default 1); see [Query cost](#query-cost) |
 
 Push namespaces get subscription fields of their own without an annotation; see [push.md](push.md#graphql-subscriptions).
 
@@ -122,6 +123,50 @@ string author_id = 2 [(shiguchi.field) = { id: true, resolves_type: "Author" }];
 | `description` / `deprecation_reason` | Doc-string / `@deprecated` |
 | `resolves_type` | This id field resolves to the named type(s): the gateway wires a DataLoader-backed nested resolver (field name derived by stripping `_id`) |
 | `batch_key` | Marks the identity field used for DataLoader batch keying and federation `@key` |
+| `cost` | Weight of this field when the operation's cost is computed (default 1); see [Query cost](#query-cost) |
+
+## Query cost
+
+`shiguchi.graphql.limits.max-complexity`, the per-caller budget and `report-cost` all use one number: the
+cost of the operation. A field costs its `cost` (1 when unset); a list field costs that many
+times its `first` argument, else the enclosing field's `first`, else
+`shiguchi.graphql.limits.default-list-size` (10); the cost of the fields selected under a field
+is added. Put the weight where the work is:
+
+```protobuf
+rpc SearchBooks(SearchRequest) returns (SearchResponse) {
+  option (shiguchi.graphql) = { name: "searchBooks" type: QUERY cost: 20 };
+}
+message Book { Author author = 3 [(shiguchi.field) = { cost: 5 }]; }
+```
+
+```yaml
+shiguchi.graphql.limits:
+  max-complexity: 200      # one operation
+  budget.per-minute: 1000  # per caller: principal, else client IP (shiguchi.rate-limit.key)
+  report-cost: true        # extensions.cost in every response
+```
+
+An operation over `max-complexity` is not run and answers `maximum query complexity exceeded 250 > 200`.
+An operation the caller's budget cannot cover is not run either: the error has classification
+`RATE_LIMITED` and `extensions.retryAfter`, the response a `Retry-After` header, and the HTTP
+status stays 200 as GraphQL over HTTP expects. The budget is a bucket that refills at
+`per-minute` points per minute; it lives in memory, or in Redis (shared by every gateway
+instance) when `shiguchi.rate-limit.backend` is `REDIS`.
+
+## Introspection and batched requests
+
+`shiguchi.graphql.introspection` is `ENABLED` (default), `AUTHENTICATED` or `DISABLED`, decided per
+request. An operation that selects `__schema` or `__type` while refused is answered with a
+GraphQL error and is not run. Prefer `AUTHENTICATED` on a gateway that is reachable by
+untrusted clients.
+
+`shiguchi.graphql.batch.max-operations: N` (default 0, off) accepts a POST whose body is a JSON array of up to
+N operations. They run in order, each through the whole interceptor chain, so every operation
+is checked against the limits on its own and spends its own cost from the caller's budget. The
+response is an array of results in the same order, with the largest `Retry-After` of the
+operations. An array that is empty or longer than N is refused with 400. Each operation has
+its own DataLoader registry: loaders batch within an operation, not across the array.
 
 ## Descriptions from proto comments
 

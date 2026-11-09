@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- GraphQL query cost. The `cost` proto option on `(shiguchi.graphql)` and `(shiguchi.field)`
+  weights a field (default 1); a list field costs its weight times its `first` argument, else
+  `shiguchi.graphql.limits.default-list-size` (10). `limits.max-complexity` now compares
+  against this cost instead of a plain field count, `limits.budget.per-minute` gives each caller
+  (principal, else client IP) a bucket of cost points per minute, in memory or in Redis, and
+  answers an exhausted one with a `RATE_LIMITED` error, `extensions.retryAfter` and a
+  `Retry-After` header (HTTP 200); `limits.report-cost` returns the cost in `extensions.cost`.
+- `shiguchi.graphql.introspection: ENABLED | AUTHENTICATED | DISABLED`, decided per request.
+  A refused operation that selects `__schema` or `__type` is answered with an error and not run.
+  `AUTHENTICATED` is recommended for gateways reachable by untrusted clients.
+- `shiguchi.graphql.batch.max-operations`: a POST whose body is a JSON array runs each element
+  as its own operation (limits, introspection and budget apply per element) and answers an
+  array of results in order. Off by default.
 - `shiguchi.graphql.compat-options: [graphql-1079]` reads the `graphql.*` proto options
   (package `graphql`, extension number 1079, used by protos written for other GraphQL gateways)
   as aliases of `(shiguchi.graphql)` and `(shiguchi.field)`: `schema.type` (by name), `name`,

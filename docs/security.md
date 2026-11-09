@@ -445,8 +445,8 @@ acceptable, and prefer the HTTP surfaces for untrusted callers.
 - Routes that must not be anonymous declare `auth_scopes`; routes that act on a specific
   object declare `authz` and a policy answers it.
 - Health probes work — try one without a token.
-- Rate limiting is on ([rate-limiting.md](rate-limiting.md)), GraphQL depth and complexity are
-  bounded, and `management.endpoints.web.exposure.include` is short.
+- Rate limiting is on ([rate-limiting.md](rate-limiting.md)), GraphQL depth and cost are
+  bounded (and `shiguchi.graphql.introspection` is `AUTHENTICATED`), and `management.endpoints.web.exposure.include` is short.
 
 → [`sample-secured-gateway`](../samples/sample-secured-gateway) — JWT in, mTLS out, each half
 shown failing · [SECURITY.md](../SECURITY.md) — the posture, the surface model, reporting a

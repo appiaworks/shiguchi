@@ -221,6 +221,9 @@ class GatewayPropertiesValidatorTest {
         props.getRest().setMaxRequestBody(org.springframework.util.unit.DataSize.ofBytes(0));
         props.getGraphql().getLimits().setMaxDepth(-1);
         props.getGraphql().getLimits().setMaxComplexity(-2);
+        props.getGraphql().getLimits().setDefaultListSize(0);
+        props.getGraphql().getLimits().getBudget().setPerMinute(-3);
+        props.getGraphql().getBatch().setMaxOperations(-1);
         props.getGrpcWeb().setPathPrefix("grpc-web");
 
         assertThat(GatewayPropertiesValidator.problems(props))
@@ -237,6 +240,9 @@ class GatewayPropertiesValidatorTest {
                         "shiguchi.rest.max-request-body",
                         "shiguchi.graphql.limits.max-depth",
                         "shiguchi.graphql.limits.max-complexity",
+                        "shiguchi.graphql.limits.default-list-size",
+                        "shiguchi.graphql.limits.budget.per-minute",
+                        "shiguchi.graphql.batch.max-operations",
                         "shiguchi.grpc-web.path-prefix");
     }
 
