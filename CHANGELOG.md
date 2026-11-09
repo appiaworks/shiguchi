@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `shiguchi.graphql.live.*`: `query ... @live` over WebSocket or SSE re-runs whenever a mutation through the
+  gateway touches a service behind its root fields; throttled, de-duplicated and limited per principal. In-process
+  invalidation only for now.
 - `shiguchi.graphql.incremental.enabled`: `@defer` answered as `multipart/mixed` (draft 2022-08-24) to clients
   that send `Accept: multipart/mixed`; anyone else gets the complete JSON. `@stream` is not supported.
 - `docs/performance.md`: ranked tuning guide for REST and GraphQL with the benchmark numbers behind each setting.

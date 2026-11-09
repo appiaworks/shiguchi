@@ -196,6 +196,21 @@ response is an array of results in the same order, with the largest `Retry-After
 operations. An array that is empty or longer than N is refused with 400. Each operation has
 its own DataLoader registry: loaders batch within an operation, not across the array.
 
+### `@live`
+
+`shiguchi.graphql.live.enabled: true` (default off) declares `directive @live(throttleMs: Int) on QUERY`.
+`query Orders @live(throttleMs: 2000) { orders { id total } }` sent over `graphql-transport-ws` (or a POST
+with `Accept: text/event-stream`) runs once, then again whenever a mutation through this gateway succeeds on a
+gRPC service behind one of its root fields, sending each new full result as a `next` frame with
+`extensions.live.seq` (1, 2, ...). Two runs are at least `max(min-interval, throttleMs)` apart, signals in
+between collapse into one run, and a result equal to the one before is not sent. Every run passes the limits and
+the cost budget again, as the caller who started it, and skips the response cache. A refused budget
+(`RATE_LIMITED`) keeps the stream open; a result without data (validation error) or `unauthenticated` ends it.
+Past `max-per-principal` the new query is answered with a `LIVE_LIMIT` error. On any other transport `@live` is
+ignored and the query runs once. Invalidation is in-process: with several gateway instances a mutation re-runs
+the live queries on the instance that served it, and `refresh-interval` repairs the rest. Design:
+[design/graphql-live.md](design/graphql-live.md).
+
 ### `@defer`
 
 `shiguchi.graphql.incremental.enabled: true` (default off) declares the `@defer` directive and lets a client

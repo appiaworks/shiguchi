@@ -100,6 +100,11 @@ spring:
 | `shiguchi.graphql.introspection` | `ENABLED` | `ENABLED` · `AUTHENTICATED` · `DISABLED`: who may select `__schema` / `__type`; a refused operation is answered with an error and not run |
 | `shiguchi.graphql.batch.max-operations` | `0` (off) | Accept a JSON array of up to this many operations in one POST, answered with an array of results |
 | `shiguchi.graphql.incremental.enabled` | `false` | Declare `@defer` and answer a client that sends `Accept: multipart/mixed` with the deferred parts as later parts of the stream (draft 2022-08-24) |
+| `shiguchi.graphql.live.enabled` | `false` | Declare `@live` and re-run a live query over WebSocket or SSE whenever a mutation through this gateway touches a service behind it |
+| `shiguchi.graphql.live.min-interval` | `1s` | Least time between two runs of one live query (a larger `throttleMs` hint is kept) |
+| `shiguchi.graphql.live.max-per-principal` | `20` | Live queries one principal may run at once; the next is refused with `LIVE_LIMIT` |
+| `shiguchi.graphql.live.max-total` | `10000` | Live queries one instance runs at once |
+| `shiguchi.graphql.live.refresh-interval` | `5m` | A live query with no news is run again after this long; `0` = never |
 | `shiguchi.graphql.document-cache.enabled` / `max-entries` / `expire-after-access` | `false` / `2000` / `1h` | Keep parsed and validated query documents by query text, so a repeated query skips parsing and validation; emptied on every schema reload. See [caching.md](caching.md#graphql-document-cache-and-persisted-queries) |
 | `shiguchi.graphql.persisted-queries.enabled` / `max-entries` / `expire-after-access` | `false` / `1000` / `1h` | Apollo automatic persisted queries: clients send the query's SHA-256 in `extensions.persistedQuery`, the text only once; emptied on schema reload. Leave `dgs.graphql.apq.enabled` off with it |
 | `shiguchi.graphql.response-cache.enabled` / `max-entries` / `stale-while-revalidate` / `vary-by-principal` | `false` / `2000` / `0s` / `true` | Answer a repeated query from memory for the smallest `cache_ttl_seconds` of the methods behind its root fields, keyed by document, operation, variables and (by default) caller. A mutation evicts the entries of its services, a schema reload empties the cache. `Cache-Status` and `Age` on every answered query. See [caching.md](caching.md#graphql-response-cache) |
