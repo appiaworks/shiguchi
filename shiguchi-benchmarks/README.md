@@ -636,6 +636,13 @@ The numbers and what they mean are in [docs/comparison.md](../docs/comparison.md
 `ComparisonBackend` and `ComparisonGateway` in `src/jmh/java` are the two JVM sides, run from
 the JMH jar; `comparison/envoy.yaml` and `comparison/grpc-gateway-go/` are the other two.
 
+`comparison/lattice/run.sh` is the GraphQL version against Protocol-Lattice's Rust
+`grpc_graphql_gateway`: build the Rust side once inside WSL with `comparison/lattice/build.sh
+<checkout at the pinned commit>`, then run it (five rows, three repeats each, median reported;
+`DURATION`, `CONCURRENCY` and `REPEATS` shape it). Both gateways serve
+`greeter.Greeter/SayHello` from `ComparisonBackend`; `src/jmh/proto/bench_greeter.proto` is
+wire-identical to their `proto/greeter.proto`. Table and reading: [docs/comparison.md](../docs/comparison.md#graphql).
+
 ## What the tiers are
 
 - **Tier 0** — `WireJsonTranscoder`: protobuf wire bytes → JSON tokens directly, per-descriptor

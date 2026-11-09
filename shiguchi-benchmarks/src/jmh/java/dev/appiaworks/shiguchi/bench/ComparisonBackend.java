@@ -3,6 +3,10 @@ package dev.appiaworks.shiguchi.bench;
 import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FileDescriptorSet;
 import com.google.protobuf.Descriptors.FileDescriptor;
+import dev.appiaworks.shiguchi.bench.greeter.GreetMeta;
+import dev.appiaworks.shiguchi.bench.greeter.HelloReply;
+import dev.appiaworks.shiguchi.bench.greeter.HelloRequest;
+import dev.appiaworks.shiguchi.bench.greeter.User;
 import dev.appiaworks.shiguchi.bench.proto.GetOrderRequest;
 import dev.appiaworks.shiguchi.bench.proto.OrderResponse;
 import io.grpc.MethodDescriptor;
@@ -75,9 +79,37 @@ public final class ComparisonBackend {
                     obs.onCompleted();
                 }))
                 .build();
+        // greeter.Greeter/SayHello for the GraphQL comparison (comparison/lattice/run.sh)
+        FileDescriptor greeterFile = HelloReply.getDescriptor().getFile();
+        HelloReply hello = HelloReply.newBuilder()
+                .setMessage("Hello, world!")
+                .setMeta(GreetMeta.newBuilder()
+                        .setCorrelationId("bench")
+                        .setFrom(User.newBuilder()
+                                .setId("u1")
+                                .setDisplayName("Bench")
+                                .setTrusted(true)))
+                .build();
+        MethodDescriptor<HelloRequest, HelloReply> sayHello = MethodDescriptor.<HelloRequest, HelloReply>newBuilder()
+                .setType(MethodType.UNARY)
+                .setFullMethodName("greeter.Greeter/SayHello")
+                .setRequestMarshaller(ProtoUtils.marshaller(HelloRequest.getDefaultInstance()))
+                .setResponseMarshaller(ProtoUtils.marshaller(HelloReply.getDefaultInstance()))
+                .build();
+        ServiceDescriptor greeterDescriptor = ServiceDescriptor.newBuilder("greeter.Greeter")
+                .setSchemaDescriptor(new Schema(greeterFile, greeterFile.findServiceByName("Greeter")))
+                .addMethod(sayHello)
+                .build();
+        ServerServiceDefinition greeter = ServerServiceDefinition.builder(greeterDescriptor)
+                .addMethod(sayHello, ServerCalls.asyncUnaryCall((req, obs) -> {
+                    obs.onNext(hello);
+                    obs.onCompleted();
+                }))
+                .build();
         int port = Integer.parseInt(System.getenv().getOrDefault("PORT", "9090"));
         Server server = ServerBuilder.forPort(port)
                 .addService(service)
+                .addService(greeter)
                 .addService(ProtoReflectionServiceV1.newInstance())
                 .build()
                 .start();
