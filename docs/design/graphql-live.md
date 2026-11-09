@@ -1,6 +1,6 @@
 # GraphQL live queries (`@live`) — design
 
-Status: proposal, 2026-11-08. Nothing here is built. It follows the response cache (E1) and the
+Status: decisions taken 2026-11-08 (section 10); proposal otherwise. Nothing here is built. It follows the response cache (E1) and the
 push module (`shiguchi-cursus`), and is meant to be approved before any code.
 
 ## 1. What and why
@@ -56,7 +56,7 @@ query Orders @live(throttleMs: 2000) { orders(status: OPEN) { id total } }
 
 An operation has a **dependency set**: the gRPC services behind its root fields, worked out once
 when the stream starts with the same `Plan` logic as the cache. A re-execution is triggered when any
-service in that set is **invalidated**. Three sources, all of which end up as the same event.
+service in that set is **invalidated**. Two sources, plus the time floor, all ending up as the same event.
 
 **(a) Mutations through this gateway.** After a mutation succeeds, the gateway publishes an
 invalidation for each service behind the mutation's root fields. This is independent of the
@@ -71,9 +71,8 @@ whatever already feeds Cursus: `PushSource` (Kafka, gRPC stream), `(shiguchi.top
 topics, or an explicit publish. The field number is the next free one in `GraphQlRule` at the time
 of the change; it is additive, so the API gate is not involved.
 
-**(c) Time.** A method may carry `live_ttl_seconds` (the existing `cache_ttl_seconds` option is
-read as a fallback): a live query that depends on it is re-executed at that period even without a
-signal. This covers upstreams that change without telling us. No option, no timer.
+**(c) Time.** Only the global floor of section 6 (`refresh-interval`). There is no per-method timer: an
+upstream that changes without telling us is covered by that floor, or by an `invalidated_by` topic.
 
 **The event.** One Cursus topic per gRPC service: `shiguchi.graphql.invalidate.<service>`, payload
 empty, attribute `origin` = the instance id. Every instance subscribes (through the broker, not
@@ -128,7 +127,7 @@ Fan-out: a signal for service S wakes every stream whose dependency set includes
 whose throttle window is open schedule one execution at its end. Executions run on the normal
 request scheduler, with at most `max-concurrent-reexecutions` (default 32, per instance) at once; the
 rest wait in order. Metrics: `shiguchi.graphql.live.streams` (gauge), `.executions`, `.skipped`
-(identical result), `.signals` (counters, tagged by `source` = mutation, upstream, ttl, refresh).
+(identical result), `.signals` (counters, tagged by `source` = mutation, upstream, refresh).
 
 ## 7. Result shape and diffing
 
@@ -145,7 +144,7 @@ optimization once real traffic shows the payload size matters.
 - **Federation:** out of scope; a subgraph does not serve `@live`.
 - **Alias (A1):** Lattice `live_query` (1080) maps to "this method may appear in a live query".
   Without the option, the gateway permits `@live` on any query. A method can opt out with
-  `live: false` (new, in the same additive field set). Decision needed, see section 10.
+  `live: false` (new, in the same additive field set); decided in section 10.
 
 ## 9. Tests and docs
 
@@ -168,19 +167,16 @@ Docs: `docs/graphql-annotations.md` (client contract, the options), `docs/push.m
 the invalidation topics), `docs/configuration.md`, README, CHANGELOG; the architecture note in
 `docs/performance.md` (cost of a live stream).
 
-## 10. Open questions for review
+## 10. Decisions
 
-1. **Dependency granularity.** Per service is coarse: a mutation on `Orders.Update` re-runs every
-   live query that touches the Orders service. Per method would need method-level `invalidated_by`
-   on every read and write. Proposal: per service now, an optional `live_group` string on a method
-   later if profiling shows noisy re-runs.
-2. **Opt-in per method vs open by default.** Proposal: any query is live-able while
-   `live.enabled`, with `live: false` to exclude expensive ones. The alternative (opt-in) is
-   safer but makes the alias map from Lattice lossy.
-3. **Trailing vs leading throttle.** Proposal: trailing, so the last change always arrives. Leading
-   edge gives lower latency for the first change after quiet.
-4. **Cursus coupling.** Proposal: the in-process sink is the default and Cursus an upgrade, so
-   `live` works without the push module. The cost is two code paths.
-5. **Timer source (c).** Is `live_ttl_seconds` worth a new option, or is `refresh-interval` enough?
-6. **Where the mutation observer sits** when the response cache is also on: one interceptor that
-   does both, or two that share `Plan`. Proposal: two, to keep the cache usable without `live`.
+Settled on 2026-11-08:
+
+1. **Dependencies are per service.** A mutation re-runs every live query that touches the service.
+   A finer `live_group` on a method can come later if profiling shows noisy re-runs.
+2. **Any query may be live** while `live.enabled`; a method excludes itself with `live: false`.
+3. **Throttling is trailing-edge:** signals inside the window collapse into one re-run at its end.
+4. **The in-process sink is the default and Cursus an upgrade,** so `live` works without the push
+   module on one instance. Two code paths.
+5. **No per-method timer.** `refresh-interval` is the only time-based re-run.
+6. **Two interceptors** (live observer and response cache) sharing `Plan`, so the cache works
+   without `live`.
