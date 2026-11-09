@@ -104,6 +104,8 @@ rpc ListBooks(ListBooksRequest) returns (ListBooksResponse) {
 | `loader_for` | Declares the method as a DataLoader for the named type (batched resolution) |
 | `loader_ids_field` / `loader_result_field` | Request ids field / response items field for the loader |
 | `cost` | Weight of this field when the operation's cost is computed (default 1); see [Query cost](#query-cost) |
+| `shareable`, `external`, `requires`, `provides` | Federation directives on the field, see [Federation](#federation) |
+| `directives` | Raw SDL directives appended to the field, see [Federation](#federation) |
 
 Push namespaces get subscription fields of their own without an annotation; see [push.md](push.md#graphql-subscriptions).
 
@@ -124,6 +126,32 @@ string author_id = 2 [(shiguchi.field) = { id: true, resolves_type: "Author" }];
 | `resolves_type` | This id field resolves to the named type(s): the gateway wires a DataLoader-backed nested resolver (field name derived by stripping `_id`) |
 | `batch_key` | Marks the identity field used for DataLoader batch keying and federation `@key` |
 | `cost` | Weight of this field when the operation's cost is computed (default 1); see [Query cost](#query-cost) |
+
+## Federation
+
+With `shiguchi.graphql.federation.enabled: true` the gateway publishes `_service { sdl }` and resolves `_entities`. A type's key is the field marked `batch_key`, or the key sets of the message option `(shiguchi.type)`:
+
+```protobuf
+message Book {
+  option (shiguchi.type) = { keys: "id" keys: "isbn" description: "A book" };
+  int64 id = 1 [(shiguchi.field) = { id: true }];
+  string isbn = 2;
+  string shelf = 3 [(shiguchi.field) = { shareable: true }];
+  float price = 4 [(shiguchi.field) = { external: true }];
+  float price_with_tax = 5 [(shiguchi.field) = { requires: "price" }];
+}
+```
+
+| `(shiguchi.type)` | Meaning |
+| --- | --- |
+| `keys` | One `@key(fields: "...")` per entry (`"id"`, `"orgId id"`); proto or JSON field names. Replaces the `batch_key` fallback. `_entities` resolves by the first single-field key; composite keys are published in the SDL only |
+| `unresolvable` | Emit `@key(resolvable: false)`: other subgraphs reference the type, this gateway does not resolve it |
+| `directives` | Raw SDL directives appended to the type |
+| `description` | Doc-string of the GraphQL type |
+
+`shareable`, `external`, `requires` and `provides` (field option) emit the directive of the same name and are ignored, with one WARN, while federation is off. `requires` and `provides` must parse as a selection set; a bad one fails the schema build and names the field.
+
+`directives` (on `(shiguchi.graphql)`, `(shiguchi.field)` and `(shiguchi.type)`) is an escape hatch: the text is appended verbatim, e.g. `directives: "@tag(name: \"internal\")"`. The gateway does not validate the directive names or arguments, and the schema is only valid if the directive is defined: the federation ones are (`@key`, `@shareable`, `@external`, `@requires`, `@provides`, `@extends`), anything else must be declared by a `GraphQlContributor`.
 
 ## Query cost
 

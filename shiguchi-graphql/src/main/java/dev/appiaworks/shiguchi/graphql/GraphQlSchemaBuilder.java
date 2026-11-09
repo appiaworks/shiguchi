@@ -12,6 +12,7 @@ import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
 import dev.appiaworks.shiguchi.proto.FieldRule;
 import dev.appiaworks.shiguchi.proto.GraphQlProto;
+import dev.appiaworks.shiguchi.proto.TypeRule;
 import dev.appiaworks.shiguchi.reflection.GraphQlOptionReader;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
@@ -70,6 +71,8 @@ public class GraphQlSchemaBuilder {
     private volatile Map<String, String> lastFederationKeys = new LinkedHashMap<>();
     /** "ParentType.fieldName" to cost weight, only for fields with a cost above zero; rebuilt with the SDL. */
     private volatile Map<String, Integer> fieldCosts = Map.of();
+
+    private final java.util.Set<String> warnedFederationFields = java.util.concurrent.ConcurrentHashMap.newKeySet();
     /** Scratch map filled while an SDL is generated; guarded by {@link #generateSdlWithKeys()}. */
     private final Map<String, Integer> collectingCosts = new LinkedHashMap<>();
 
@@ -323,6 +326,7 @@ public class GraphQlSchemaBuilder {
             sb.append("directive @requires(fields: _FieldSet!) on FIELD_DEFINITION\n");
             sb.append("directive @provides(fields: _FieldSet!) on FIELD_DEFINITION\n");
             sb.append("directive @extends on OBJECT | INTERFACE\n");
+            sb.append("directive @shareable repeatable on FIELD_DEFINITION | OBJECT\n");
         }
         sb.append("\n");
         if (anyConnection) sb.append(relayTransformer.relayPageInfoSdl()).append("\n");
@@ -377,8 +381,76 @@ public class GraphQlSchemaBuilder {
                     .append(route.getGraphQlDeprecationReason())
                     .append("\")");
         }
+        for (String directive : route.getGraphQlDirectives()) sb.append(' ').append(directive.strip());
         sb.append("\n");
         return sb.toString();
+    }
+
+    /**
+     * Federation directives ({@code shareable}, {@code external}, {@code requires}, {@code provides},
+     * only when federation is on) then the raw {@code directives}, appended to a field definition.
+     */
+    private void appendFieldDirectives(
+            StringBuilder sb, FieldRule rule, boolean federation, String typeName, String fieldName) {
+        if (federation) {
+            if (rule.getShareable()) sb.append(" @shareable");
+            if (rule.getExternal()) sb.append(" @external");
+            if (!rule.getRequires().isBlank()) {
+                sb.append(" @requires(fields: \"")
+                        .append(validSelectionSet(rule.getRequires(), typeName, fieldName, "requires"))
+                        .append("\")");
+            }
+            if (!rule.getProvides().isBlank()) {
+                sb.append(" @provides(fields: \"")
+                        .append(validSelectionSet(rule.getProvides(), typeName, fieldName, "provides"))
+                        .append("\")");
+            }
+        } else if (rule.getShareable()
+                || rule.getExternal()
+                || !rule.getRequires().isBlank()
+                || !rule.getProvides().isBlank()) {
+            if (warnedFederationFields.add(typeName + "." + fieldName)) {
+                log.warn(
+                        "{}.{} sets a federation option (shareable/external/requires/provides) but"
+                                + " shiguchi.graphql.federation.enabled is false; the option is ignored",
+                        typeName,
+                        fieldName);
+            }
+        }
+        for (String directive : rule.getDirectivesList()) sb.append(' ').append(directive.strip());
+    }
+
+    /** A {@code requires}/{@code provides} value must parse as a selection set. */
+    private static String validSelectionSet(String selection, String typeName, String fieldName, String option) {
+        String trimmed = selection.strip();
+        try {
+            graphql.parser.Parser.parse("{ " + trimmed + " }");
+        } catch (RuntimeException e) {
+            throw new IllegalArgumentException(
+                    "(shiguchi.field)." + option + " of " + typeName + "." + fieldName
+                            + " is not a valid selection set: '" + selection + "'",
+                    e);
+        }
+        return trimmed.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    /**
+     * Maps the proto or JSON field names of a {@code (shiguchi.type)} key to JSON names; tokens that are
+     * not field names (braces of a nested key) pass through.
+     */
+    private static String resolveKeyFields(Descriptor descriptor, String key) {
+        StringBuilder out = new StringBuilder();
+        for (String token : key.strip().split("\\s+")) {
+            if (out.length() > 0) out.append(' ');
+            FieldDescriptor match = descriptor.findFieldByName(token);
+            if (match == null) match = findFieldByJsonName(descriptor, token);
+            out.append(match != null ? match.getJsonName() : token);
+        }
+        return out.toString();
+    }
+
+    private static String escapeDescription(String text) {
+        return text.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
     }
 
     // -------------------------------------------------------------------------
@@ -484,24 +556,42 @@ public class GraphQlSchemaBuilder {
         if (depth > MAX_DEPTH || emitted.contains(typeName) || isWellKnown(descriptor)) return;
         emitted.add(typeName);
 
-        // Detect batch_key field for federation @key emission
-        String batchKeyFieldName = null;
+        TypeRule typeRule = fieldOptions.typeRule(descriptor);
+
+        // Federation keys: (shiguchi.type).keys, else the field marked batch_key.
+        List<String> keySets = new ArrayList<>();
         if (federationKeys != null) {
-            for (FieldDescriptor f : descriptor.getFields()) {
-                FieldRule fAnn = f.getOptions().getExtension(GraphQlProto.field);
-                if (fAnn != null && fAnn.getBatchKey()) {
-                    batchKeyFieldName = f.getJsonName();
-                    break;
+            for (String key : typeRule.getKeysList()) keySets.add(resolveKeyFields(descriptor, key));
+            if (keySets.isEmpty()) {
+                for (FieldDescriptor f : descriptor.getFields()) {
+                    if (fieldOptions.fieldRule(f).getBatchKey()) {
+                        keySets.add(f.getJsonName());
+                        break;
+                    }
                 }
             }
-            if (batchKeyFieldName != null) {
-                federationKeys.put(typeName, batchKeyFieldName);
+            // _entities resolves by the first single-field key; composite keys are published only.
+            if (!typeRule.getUnresolvable()) {
+                keySets.stream()
+                        .filter(k -> k.indexOf(' ') < 0 && k.indexOf('{') < 0)
+                        .findFirst()
+                        .or(() -> keySets.stream().findFirst())
+                        .ifPresent(k -> federationKeys.put(typeName, k));
             }
         }
 
         StringBuilder sb = new StringBuilder();
-        String keyDirective = (batchKeyFieldName != null) ? " @key(fields: \"" + batchKeyFieldName + "\")" : "";
-        sb.append("type ").append(typeName).append(keyDirective).append(" {\n");
+        if (!typeRule.getDescription().isBlank()) {
+            sb.append("\"").append(escapeDescription(typeRule.getDescription())).append("\"\n");
+        }
+        sb.append("type ").append(typeName);
+        for (String keySet : keySets) {
+            sb.append(" @key(fields: \"").append(keySet).append('"');
+            if (typeRule.getUnresolvable()) sb.append(", resolvable: false");
+            sb.append(')');
+        }
+        for (String directive : typeRule.getDirectivesList()) sb.append(' ').append(directive.strip());
+        sb.append(" {\n");
 
         for (FieldDescriptor field : descriptor.getFields()) {
             FieldHints hints = resolveFieldHints(field, yamlOverrides);
@@ -526,6 +616,7 @@ public class GraphQlSchemaBuilder {
                         .append(hints.deprecationReason())
                         .append("\")");
             }
+            appendFieldDirectives(sb, fieldOptions.fieldRule(field), federationKeys != null, typeName, fieldName);
             sb.append("\n");
 
             // Emit companion resolver field(s) for resolves_type annotations

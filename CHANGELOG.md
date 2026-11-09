@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Federation proto options. `(shiguchi.field)` gains `shareable`, `external`, `requires`, `provides`
+  (emitted while federation is on; `requires`/`provides` are checked as selection sets) and `directives`;
+  `(shiguchi.graphql)` gains `directives`; the new message option `(shiguchi.type)` (extension number
+  50104) sets `keys` (one `@key` each, replacing the `batch_key` fallback), `unresolvable`, `directives`
+  and `description`. `directives` appends raw SDL verbatim and is not validated by the gateway.
 - GraphQL query cost. The `cost` proto option on `(shiguchi.graphql)` and `(shiguchi.field)`
   weights a field (default 1); a list field costs its weight times its `first` argument, else
   `shiguchi.graphql.limits.default-list-size` (10). `limits.max-complexity` now compares

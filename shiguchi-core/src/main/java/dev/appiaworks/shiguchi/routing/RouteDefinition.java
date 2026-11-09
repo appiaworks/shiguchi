@@ -77,6 +77,9 @@ public class RouteDefinition {
     /** Cost weight of the GraphQL field ({@code (shiguchi.graphql).cost}); 0 = default of 1. */
     private final int graphQlCost;
 
+    /** Raw SDL directives appended to the GraphQL field ({@code (shiguchi.graphql).directives}). */
+    private final List<String> graphQlDirectives;
+
     /** OAuth2/JWT scope names the gateway enforces before dispatching. Empty list = no check. */
     private final List<String> authScopes;
 
@@ -161,6 +164,8 @@ public class RouteDefinition {
         this.graphQlRequestPlucks = b.graphQlRequestPlucks != null ? List.copyOf(b.graphQlRequestPlucks) : List.of();
         this.graphQlOptionSource = b.graphQlName != null ? b.graphQlOptionSource : null;
         this.graphQlCost = b.graphQlName != null ? b.graphQlCost : 0;
+        this.graphQlDirectives =
+                b.graphQlName != null && b.graphQlDirectives != null ? List.copyOf(b.graphQlDirectives) : List.of();
         this.authScopes = b.authScopes != null ? List.copyOf(b.authScopes) : List.of();
         this.upstreamTimeout = b.upstreamTimeout;
         this.authzRules = b.authzRules != null ? List.copyOf(b.authzRules) : List.of();
@@ -277,6 +282,11 @@ public class RouteDefinition {
         return graphQlCost;
     }
 
+    /** Raw SDL directives of the GraphQL field; empty when none. */
+    public List<String> getGraphQlDirectives() {
+        return graphQlDirectives;
+    }
+
     public List<String> getAuthScopes() {
         return authScopes;
     }
@@ -379,6 +389,7 @@ public class RouteDefinition {
         private List<String> graphQlRequestPlucks;
         private String graphQlOptionSource;
         private int graphQlCost;
+        private List<String> graphQlDirectives;
         private List<String> authScopes;
         private java.time.Duration upstreamTimeout;
         private List<AuthzRuleDefinition> authzRules;
@@ -429,6 +440,7 @@ public class RouteDefinition {
             this.graphQlOperationType = null;
             this.graphQlOptionSource = null;
             this.graphQlCost = 0;
+            this.graphQlDirectives = null;
             return this;
         }
 
@@ -475,6 +487,12 @@ public class RouteDefinition {
         /** Records which proto option family the GraphQL binding was read from; see {@link #getGraphQlOptionSource()}. */
         public Builder graphQlCost(int cost) {
             this.graphQlCost = Math.max(0, cost);
+            return this;
+        }
+
+        /** Raw SDL directives appended to the GraphQL field. */
+        public Builder graphQlDirectives(List<String> directives) {
+            this.graphQlDirectives = directives;
             return this;
         }
 

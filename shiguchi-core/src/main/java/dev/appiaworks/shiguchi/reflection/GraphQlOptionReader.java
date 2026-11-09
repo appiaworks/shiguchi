@@ -124,6 +124,14 @@ public final class GraphQlOptionReader {
                 .orElse(FieldRule.getDefaultInstance());
     }
 
+    /** The {@code (shiguchi.type)} rule of a message, or the default (empty) rule. */
+    public dev.appiaworks.shiguchi.proto.TypeRule typeRule(com.google.protobuf.Descriptors.Descriptor message) {
+        var options = message.getOptions();
+        return options.hasExtension(GraphQlProto.type)
+                ? options.getExtension(GraphQlProto.type)
+                : dev.appiaworks.shiguchi.proto.TypeRule.getDefaultInstance();
+    }
+
     // -------------------------------------------------------------------------
     // Locating the 1079 option
     // -------------------------------------------------------------------------
