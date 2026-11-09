@@ -86,6 +86,8 @@ Experimental: the shape may change in a minor release.
 - [observability.md](observability.md): Micrometer metrics, Prometheus and the
   [Grafana dashboard](grafana/shiguchi.json), OpenTelemetry tracing, call logging, health and
   readiness, the routes endpoint.
+- [performance.md](performance.md): what to change when latency or throughput matters, ranked,
+  with the measurement behind each setting.
 
 ## Libraries without the gateway
 
