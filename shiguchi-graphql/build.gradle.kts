@@ -19,6 +19,8 @@ dependencies {
     // The push module's GraphQL subscription fields live here, behind @ConditionalOnClass: present
     // only when an application has both starters, so neither module depends on the other at runtime.
     compileOnly(project(":shiguchi-cursus"))
+    // The REDIS backend of the per-caller cost budget; present only when the application has it.
+    compileOnly("org.springframework.boot:spring-boot-starter-data-redis-reactive")
 
 
     testImplementation(libs.spring.boot.starter.test)

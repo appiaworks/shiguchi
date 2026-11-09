@@ -50,6 +50,13 @@ message GraphQlRule {
   // Defaults to the first repeated message field in the response if not specified.
   // Example: loader_result_field: "types"
   string loader_result_field = 10;
+
+  // Cost of this field for shiguchi.graphql.limits.max-complexity and the per-caller budget:
+  // the points charged when a query selects it (the fields it selects underneath add their own).
+  // A list field is multiplied by its `first` argument, or by
+  // shiguchi.graphql.limits.default-list-size when the query sends none. 0 = default weight of 1.
+  // Example: cost: 5
+  uint32 cost = 11;
 }
 
 // Field option: customize how a proto field is exposed in GraphQL.
@@ -91,6 +98,12 @@ message FieldRule {
   // which field the gateway uses to index results when resolving batch gRPC calls.
   // Example: int64 id = 1 [(shiguchi.field) = { id: true, batch_key: true }];
   bool batch_key = 10;
+
+  // Cost of selecting this field, for shiguchi.graphql.limits.max-complexity and the per-caller
+  // budget. Same rules as GraphQlRule.cost: a repeated field is multiplied by the list size.
+  // 0 = default weight of 1.
+  // Example: bytes payload = 4 [(shiguchi.field) = { cost: 20 }];
+  uint32 cost = 11;
 }
 
 // Method option: bind a gRPC RPC to a GraphQL field.

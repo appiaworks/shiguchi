@@ -28,6 +28,18 @@ public class GraphQlConfig {
     private LimitsConfig limits = new LimitsConfig();
 
     /**
+     * Who may run introspection queries ({@code __schema}, {@code __type}): everyone (the
+     * default), authenticated callers only, or nobody. An operation that selects
+     * {@code __schema} or {@code __type} while refused is answered with a GraphQL error and is not
+     * run (graphql-java refuses the whole operation). Unlike
+     * {@code spring.graphql.schema.introspection.enabled}, this is decided per request.
+     */
+    private Introspection introspection = Introspection.ENABLED;
+
+    /** Batched requests (a JSON array of operations in one POST); off by default. */
+    private BatchConfig batch = new BatchConfig();
+
+    /**
      * Keep parsed and validated query documents, keyed by the query text, so a repeated query skips
      * parsing and validation. Cleared whenever the schema reloads, since a validation result is
      * only true of the schema it ran against. Off by default.
@@ -60,6 +72,29 @@ public class GraphQlConfig {
      * The Shiguchi option wins when both are present.
      */
     private List<String> compatOptions = new ArrayList<>();
+
+    /** Who may introspect the schema. */
+    public enum Introspection {
+        /** Anyone, the GraphQL default. */
+        ENABLED,
+        /** Only a request with an authenticated, non-anonymous principal. */
+        AUTHENTICATED,
+        /** Nobody. */
+        DISABLED
+    }
+
+    /**
+     * A POST to the GraphQL endpoint whose body is a JSON array runs each element as its own
+     * operation, in order, and answers with an array of results in the same order. Each operation
+     * is checked against the limits on its own and spends its own cost from the caller's budget,
+     * so the batch is charged the sum.
+     */
+    @Data
+    @NoArgsConstructor
+    public static class BatchConfig {
+        /** Most operations in one array. {@code 0} = batching off, an array body is refused. */
+        private int maxOperations = 0;
+    }
 
     @Data
     @NoArgsConstructor

@@ -374,6 +374,16 @@ public class GatewayPropertiesValidator implements Validator {
             if (graphql.getLimits().getMaxComplexity() < 0) {
                 reject(errors, "graphql.limits.maxComplexity", "must be zero (unlimited) or positive");
             }
+            if (graphql.getLimits().getDefaultListSize() < 1) {
+                reject(errors, "graphql.limits.defaultListSize", "must be at least 1");
+            }
+            if (graphql.getLimits().getBudget() != null
+                    && graphql.getLimits().getBudget().getPerMinute() < 0) {
+                reject(errors, "graphql.limits.budget.perMinute", "must be zero (no budget) or positive");
+            }
+        }
+        if (graphql != null && graphql.getBatch() != null && graphql.getBatch().getMaxOperations() < 0) {
+            reject(errors, "graphql.batch.maxOperations", "must be zero (off) or positive");
         }
     }
 

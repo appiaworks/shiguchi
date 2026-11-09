@@ -74,6 +74,9 @@ public class RouteDefinition {
      */
     private final String graphQlOptionSource;
 
+    /** Cost weight of the GraphQL field ({@code (shiguchi.graphql).cost}); 0 = default of 1. */
+    private final int graphQlCost;
+
     /** OAuth2/JWT scope names the gateway enforces before dispatching. Empty list = no check. */
     private final List<String> authScopes;
 
@@ -157,6 +160,7 @@ public class RouteDefinition {
         this.graphQlResponsePluck = b.graphQlResponsePluck;
         this.graphQlRequestPlucks = b.graphQlRequestPlucks != null ? List.copyOf(b.graphQlRequestPlucks) : List.of();
         this.graphQlOptionSource = b.graphQlName != null ? b.graphQlOptionSource : null;
+        this.graphQlCost = b.graphQlName != null ? b.graphQlCost : 0;
         this.authScopes = b.authScopes != null ? List.copyOf(b.authScopes) : List.of();
         this.upstreamTimeout = b.upstreamTimeout;
         this.authzRules = b.authzRules != null ? List.copyOf(b.authzRules) : List.of();
@@ -268,6 +272,11 @@ public class RouteDefinition {
         return graphQlOptionSource;
     }
 
+    /** The {@code cost} of the GraphQL field; 0 when unset (counts as 1). */
+    public int getGraphQlCost() {
+        return graphQlCost;
+    }
+
     public List<String> getAuthScopes() {
         return authScopes;
     }
@@ -369,6 +378,7 @@ public class RouteDefinition {
         private String graphQlResponsePluck;
         private List<String> graphQlRequestPlucks;
         private String graphQlOptionSource;
+        private int graphQlCost;
         private List<String> authScopes;
         private java.time.Duration upstreamTimeout;
         private List<AuthzRuleDefinition> authzRules;
@@ -418,6 +428,7 @@ public class RouteDefinition {
             this.graphQlName = null;
             this.graphQlOperationType = null;
             this.graphQlOptionSource = null;
+            this.graphQlCost = 0;
             return this;
         }
 
@@ -462,6 +473,11 @@ public class RouteDefinition {
         }
 
         /** Records which proto option family the GraphQL binding was read from; see {@link #getGraphQlOptionSource()}. */
+        public Builder graphQlCost(int cost) {
+            this.graphQlCost = Math.max(0, cost);
+            return this;
+        }
+
         public Builder graphQlOptionSource(String source) {
             this.graphQlOptionSource = source;
             return this;

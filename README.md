@@ -305,7 +305,7 @@ How a request flows through the serde tiers is documented in
   in memory or shared through Redis across gateway instances, 429 with `Retry-After` and
   `X-RateLimit-*` headers before any backend is called; per method on the pass-through proxy.
   → [docs/rate-limiting.md](docs/rate-limiting.md)
-- **Query and body bounds** — GraphQL depth and complexity limits
+- **Query and body bounds** — GraphQL depth and cost limits and per-caller cost budgets
   (`shiguchi.graphql.limits.*`) reject abusive queries before any backend is called, and
   transcoded REST routes refuse request bodies over `shiguchi.rest.max-request-body`
   (4 MB) with 413 before parsing them. `shiguchi.rest.max-response-body` caps what goes back the

@@ -346,6 +346,7 @@ public class StaticRouteLoader implements ServiceLoader {
             if (!annotation.getDeprecationReason().isEmpty())
                 builder.deprecationReason(annotation.getDeprecationReason());
             if (!annotation.getParentType().isEmpty()) builder.parentType(annotation.getParentType());
+            if (annotation.getCost() > 0) builder.graphQlCost(annotation.getCost());
 
             if (!annotation.getPluck().isEmpty()) {
                 String pluckFieldName = annotation.getPluck();

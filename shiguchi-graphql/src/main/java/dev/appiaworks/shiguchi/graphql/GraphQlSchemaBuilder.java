@@ -68,6 +68,10 @@ public class GraphQlSchemaBuilder {
     private volatile String generatedSdl;
     /** typeName → batch_key JSON field name; populated on each SDL build. */
     private volatile Map<String, String> lastFederationKeys = new LinkedHashMap<>();
+    /** "ParentType.fieldName" to cost weight, only for fields with a cost above zero; rebuilt with the SDL. */
+    private volatile Map<String, Integer> fieldCosts = Map.of();
+    /** Scratch map filled while an SDL is generated; guarded by {@link #generateSdlWithKeys()}. */
+    private final Map<String, Integer> collectingCosts = new LinkedHashMap<>();
 
     private volatile List<GraphQlContributor> contributors = List.of();
 
@@ -97,6 +101,7 @@ public class GraphQlSchemaBuilder {
         var result = generateSdlWithKeys();
         this.generatedSdl = result.sdl();
         this.lastFederationKeys = result.federationKeys();
+        this.fieldCosts = result.fieldCosts();
         log.info("Generated GraphQL SDL ({} chars)", generatedSdl.length());
         log.debug("GraphQL SDL:\n{}", generatedSdl);
     }
@@ -105,6 +110,7 @@ public class GraphQlSchemaBuilder {
         var result = generateSdlWithKeys();
         this.generatedSdl = result.sdl();
         this.lastFederationKeys = result.federationKeys();
+        this.fieldCosts = result.fieldCosts();
         log.info("Rebuilt GraphQL SDL ({} chars)", generatedSdl.length());
     }
 
@@ -117,12 +123,22 @@ public class GraphQlSchemaBuilder {
         return lastFederationKeys;
     }
 
-    private record SdlResult(String sdl, Map<String, String> federationKeys) {}
+    /**
+     * The cost weight of each field that declared one ({@code cost} on a method or a proto field),
+     * keyed {@code "ParentType.fieldName"}. Fields without an entry weigh 1.
+     */
+    public Map<String, Integer> getFieldCosts() {
+        return fieldCosts;
+    }
 
-    private SdlResult generateSdlWithKeys() {
+    private record SdlResult(String sdl, Map<String, String> federationKeys, Map<String, Integer> fieldCosts) {}
+
+    private synchronized SdlResult generateSdlWithKeys() {
         Map<String, String> federationKeys = isFederationEnabled() ? new LinkedHashMap<>() : null;
+        collectingCosts.clear();
         String sdl = generateSdl(federationKeys);
-        return new SdlResult(sdl, federationKeys != null ? Map.copyOf(federationKeys) : Map.of());
+        return new SdlResult(
+                sdl, federationKeys != null ? Map.copyOf(federationKeys) : Map.of(), Map.copyOf(collectingCosts));
     }
 
     // -------------------------------------------------------------------------
@@ -172,6 +188,7 @@ public class GraphQlSchemaBuilder {
                         subscriptions,
                         resolverFields,
                         route.getGraphQlParentType());
+                recordRootCost(route);
                 continue;
             }
 
@@ -241,6 +258,7 @@ public class GraphQlSchemaBuilder {
                     subscriptions,
                     resolverFields,
                     route.getGraphQlParentType());
+            recordRootCost(route);
         }
 
         // Append RESOLVER fields to their parent types (or create new type entries)
@@ -496,6 +514,8 @@ public class GraphQlSchemaBuilder {
             if (hints.required()) gqlType = gqlType + "!";
 
             String fieldName = hints.name() != null ? hints.name() : field.getJsonName();
+            int fieldCost = fieldOptions.fieldRule(field).getCost();
+            if (fieldCost > 0) collectingCosts.put(typeName + "." + fieldName, fieldCost);
 
             if (hints.description() != null) {
                 sb.append("  \"").append(hints.description()).append("\"\n");
@@ -738,6 +758,22 @@ public class GraphQlSchemaBuilder {
                 .findFirst()
                 .map(FieldDescriptor::getMessageType)
                 .orElse(null);
+    }
+
+    private void recordRootCost(RouteDefinition route) {
+        int cost = route.getGraphQlCost();
+        if (cost <= 0) return;
+        String parent = switch (route.getGraphQlOperationType()) {
+            case QUERY -> "Query";
+            case MUTATION -> "Mutation";
+            case SUBSCRIPTION -> "Subscription";
+            case RESOLVER ->
+                route.getGraphQlParentType() != null
+                                && !route.getGraphQlParentType().isBlank()
+                        ? route.getGraphQlParentType()
+                        : "Query";
+        };
+        collectingCosts.put(parent + "." + route.getGraphQlName(), cost);
     }
 
     private static void appendRootField(

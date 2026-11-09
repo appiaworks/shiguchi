@@ -93,8 +93,9 @@ never gain permissive CORS by accident.
 - **Bound GraphQL queries** — set `shiguchi.graphql.limits.max-depth` and
   `max-complexity` (both unlimited by default) on any gateway reachable by untrusted
   clients; a deeply nested or very wide query is otherwise a cheap way to make the gateway
-  and its backends work hard. `spring.graphql.schema.introspection.enabled: false` hides the
-  schema from anonymous callers.
+  and its backends work hard. Weight the expensive fields with the `cost` proto option and
+  give each caller a `budget.per-minute`. Set `shiguchi.graphql.introspection: AUTHENTICATED` to
+  hide the schema from anonymous callers.
 - **Bound request bodies** — transcoded REST routes refuse bodies over
   `shiguchi.rest.max-request-body` (4 MB) with 413 before parsing them; GraphQL bodies
   are capped by `spring.codec.max-in-memory-size` (256 KB).
