@@ -224,7 +224,7 @@ How a request flows through the serde tiers is documented in
 - **Projection pushdown** — the selection set becomes a `google.protobuf.FieldMask` on the
   request *and* a conversion projection on the response, so the backend computes less and
   the gateway converts less.
-- **Apollo Federation** — `@key` entity resolution with batched entity loaders.
+- **Apollo Federation** — `@key` entity resolution with batched entity loaders, `(shiguchi.type)` keys, and `shareable` / `external` / `requires` / `provides` / raw `directives` proto options.
 - **Schema shaping** via `(shiguchi.graphql)` / `(shiguchi.field)` proto options or equivalent
   YAML `field-overrides` — renaming, required/ID marking, plucks, omissions, deprecations.
   Protos written for other gateways with the `graphql.*` options (extension 1079) are read as

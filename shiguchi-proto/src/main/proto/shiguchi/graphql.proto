@@ -57,6 +57,10 @@ message GraphQlRule {
   // shiguchi.graphql.limits.default-list-size when the query sends none. 0 = default weight of 1.
   // Example: cost: 5
   uint32 cost = 11;
+
+  // Raw SDL directives appended verbatim to the GraphQL field, e.g. '@tag(name: "internal")'.
+  // The gateway does not validate directive names or arguments; the composition layer does.
+  repeated string directives = 12;
 }
 
 // Field option: customize how a proto field is exposed in GraphQL.
@@ -104,6 +108,33 @@ message FieldRule {
   // 0 = default weight of 1.
   // Example: bytes payload = 4 [(shiguchi.field) = { cost: 20 }];
   uint32 cost = 11;
+
+  // Federation: emit @shareable (the field may be resolved by more than one subgraph).
+  bool shareable = 12;
+  // Federation: emit @external (the field is owned by another subgraph).
+  bool external = 13;
+  // Federation: emit @requires(fields: "..."). A selection set, validated when the schema is built.
+  string requires = 14;
+  // Federation: emit @provides(fields: "..."). A selection set, validated when the schema is built.
+  string provides = 15;
+  // Raw SDL directives appended verbatim to the field, e.g. '@tag(name: "internal")'.
+  // Not validated by the gateway.
+  repeated string directives = 16;
+}
+
+// Message option: how a proto message is exposed as a GraphQL object type.
+// Usage: option (shiguchi.type) = { keys: "id" };
+message TypeRule {
+  // Federation @key field sets, one @key directive each ("id", "orgId id"). When empty, the field
+  // marked batch_key is the key. Entity resolution (_entities) uses the first single-field key;
+  // composite keys are published in the SDL only.
+  repeated string keys = 1;
+  // Emit @key(resolvable: false): other subgraphs may reference the type, this one cannot resolve it.
+  bool unresolvable = 2;
+  // Raw SDL directives appended verbatim to the type, e.g. '@tag(name: "internal")'.
+  repeated string directives = 3;
+  // Doc-string emitted as the GraphQL type description.
+  string description = 4;
 }
 
 // Method option: bind a gRPC RPC to a GraphQL field.
@@ -114,4 +145,9 @@ extend google.protobuf.MethodOptions {
 // Field option: customize schema exposure of a proto field.
 extend google.protobuf.FieldOptions {
   FieldRule field = 50101;
+}
+
+// Message option: customize how a proto message becomes a GraphQL type.
+extend google.protobuf.MessageOptions {
+  TypeRule type = 50104;
 }
