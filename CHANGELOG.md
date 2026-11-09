@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `docs/performance.md`: ranked tuning guide for REST and GraphQL with the benchmark numbers behind each setting.
 - Federation proto options. `(shiguchi.field)` gains `shareable`, `external`, `requires`, `provides`
   (emitted while federation is on; `requires`/`provides` are checked as selection sets) and `directives`;
   `(shiguchi.graphql)` gains `directives`; the new message option `(shiguchi.type)` (extension number
