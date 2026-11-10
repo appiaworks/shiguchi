@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.reactivestreams.Publisher;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.Ordered;
 import org.springframework.graphql.server.WebGraphQlInterceptor;
 import org.springframework.graphql.server.WebGraphQlRequest;
@@ -47,12 +48,23 @@ class GraphQlLiveInterceptor implements WebGraphQlInterceptor, Ordered {
     private final GraphQlLiveInvalidations invalidations;
     private final GraphQlLiveStreams streams;
     private final GraphQlConfig.LiveConfig config;
+    private final ObjectProvider<CookieSessionBindingInterceptor> binding;
 
     GraphQlLiveInterceptor(
             GraphQlLiveDependencies dependencies,
             GraphQlLiveInvalidations invalidations,
             GraphQlLiveStreams streams,
             GraphQlConfig.LiveConfig config) {
+        this(dependencies, invalidations, streams, config, null);
+    }
+
+    GraphQlLiveInterceptor(
+            GraphQlLiveDependencies dependencies,
+            GraphQlLiveInvalidations invalidations,
+            GraphQlLiveStreams streams,
+            GraphQlConfig.LiveConfig config,
+            ObjectProvider<CookieSessionBindingInterceptor> binding) {
+        this.binding = binding;
         this.dependencies = dependencies;
         this.invalidations = invalidations;
         this.streams = streams;
@@ -74,9 +86,9 @@ class GraphQlLiveInterceptor implements WebGraphQlInterceptor, Ordered {
         if (shape == null || !shape.live() || shape.type() != graphql.language.OperationDefinition.Operation.QUERY) {
             return chain.next(request);
         }
-        return principal().map(principal -> {
+        return principal().flatMap(principal -> {
             GraphQlLiveStreams.Lease lease = streams.acquire(principal);
-            if (lease == null) return refused(request);
+            if (lease == null) return Mono.just(refused(request));
             Duration throttle = throttle(shape.throttleMs());
             Flux<ExecutionResult> results = triggers(shape.services(), throttle)
                     .concatMap(
@@ -87,9 +99,12 @@ class GraphQlLiveInterceptor implements WebGraphQlInterceptor, Ordered {
                     .index((i, result) -> numbered(result, i + 1))
                     .takeUntil(GraphQlLiveInterceptor::endsStream)
                     .doFinally(signal -> lease.release());
-            return response(
+            WebGraphQlResponse live = response(
                     request,
                     ExecutionResultImpl.newExecutionResult().data(results).build());
+            // the stream ends with the credential it was opened with: BFF session end, token exp
+            CookieSessionBindingInterceptor bound = binding == null ? null : binding.getIfAvailable();
+            return bound == null ? Mono.just(live) : bound.intercept(request, r -> Mono.just(live));
         });
     }
 

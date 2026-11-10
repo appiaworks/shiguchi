@@ -72,7 +72,8 @@ public class GraphQlLiveConfiguration {
     GraphQlLiveInterceptor gatewayGraphQlLiveInterceptor(
             GatewayProperties properties,
             GraphQlLiveDependencies dependencies,
-            GraphQlLiveInvalidations invalidations) {
+            GraphQlLiveInvalidations invalidations,
+            org.springframework.beans.factory.ObjectProvider<CookieSessionBindingInterceptor> binding) {
         GraphQlConfig.LiveConfig live = properties.getGraphql().getLive();
         log.info(
                 "GraphQL live queries: at least {} between results, {} per principal, {} in all",
@@ -83,7 +84,8 @@ public class GraphQlLiveConfiguration {
                 dependencies,
                 invalidations,
                 new GraphQlLiveStreams(live.getMaxPerPrincipal(), live.getMaxTotal()),
-                live);
+                live,
+                binding);
     }
 
     @Bean
