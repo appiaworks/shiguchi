@@ -37,3 +37,9 @@ dependencies {
     testImplementation(libs.grpc.inprocess)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
+// ConfigurationReferenceDriftTest reads the hand-written reference; without declaring it, a docs-only
+// change would leave the test up to date and the drift unnoticed.
+tasks.test {
+    inputs.dir(rootProject.layout.projectDirectory.dir("docs/reference")).withPropertyName("configurationReference")
+    inputs.dir(rootProject.layout.projectDirectory.dir("docs/guides")).withPropertyName("guides")
+}
