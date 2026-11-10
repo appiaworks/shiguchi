@@ -78,5 +78,5 @@ Edits made in the Grafana UI are not written back to the file (the provider is r
 purpose). To change the dashboard, export it from Grafana's share menu as JSON and replace
 `docs/grafana/shiguchi.json`.
 
-→ [docs/observability.md](../../docs/observability.md) for what each metric means and the
+→ [docs/operations/observability.md](../../docs/operations/observability.md) for what each metric means and the
 PromQL behind the panels

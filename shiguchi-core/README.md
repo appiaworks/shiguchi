@@ -14,11 +14,11 @@ Key pieces:
 - `routing/` — `GrpcRouteRegistry`, `RouteDefinition`, `ServiceEndpointContext`, and
   `ConventionArgMapper` (maps the paging/sorting arguments every surface accepts onto the
   `page_request` / `sort_fields` convention fields —
-  see [docs/projections-paging-sorting.md](../docs/projections-paging-sorting.md)).
+  see [docs/guides/projections-paging-sorting.md](../docs/guides/projections-paging-sorting.md)).
 - `reflection/` — gRPC server-reflection client with transitive dependency resolution.
 - `config/GatewayProperties` — all `shiguchi.*` configuration
-  (see [docs/configuration.md](../docs/configuration.md)).
+  (see [docs/reference/configuration.md](../docs/reference/configuration.md)).
 
 Correctness contract: every serde tier must produce JSON tree-equal to
 `JsonFormat.printer().includingDefaultValueFields()` — enforced by `SerdeTierParityTest`.
-Architecture and tier details: [docs/transcoding.md](../docs/transcoding.md).
+Architecture and tier details: [docs/concepts/transcoding.md](../docs/concepts/transcoding.md).

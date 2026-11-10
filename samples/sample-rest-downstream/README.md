@@ -70,4 +70,4 @@ Open <http://localhost:8080/graphiql> to browse the generated `Item` type and th
 - Both `Item` and `Error` are namespaced to `inventory.Item` / `inventory.Error` in the merged
   spec, so a second backend defining its own `Error` cannot collide.
 
-Configuration reference: [docs/configuration.md](../../docs/configuration.md#rest_downstream-mode).
+Configuration reference: [docs/reference/configuration.md](../../docs/reference/configuration.md#rest_downstream-mode).

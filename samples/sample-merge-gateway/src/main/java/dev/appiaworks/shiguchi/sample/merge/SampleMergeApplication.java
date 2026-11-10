@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
  * gateway reads that source in full and sorts it in memory; {@code legacy} is not even gRPC — a
  * JSON array behind an OpenAPI document, registered as {@code REST_DOWNSTREAM} and read whole
  * like {@code orders-us}. One merged endpoint, three costs behind it. See README.md and
- * docs/merging.md.
+ * docs/guides/merging.md.
  */
 @SpringBootApplication
 public class SampleMergeApplication {

@@ -413,7 +413,7 @@ configure(subprojects.filter { it.name in apiCheckedModules }) {
 
     // Deliberate breaks, announced in CHANGELOG.md, accepted against one baseline only: an entry
     // stops applying as soon as apiBaseline moves past it, so nothing stays excluded for good.
-    // Keyed baseline -> project -> classes. See docs/api-compatibility.md.
+    // Keyed baseline -> project -> classes. See docs/operations/api-compatibility.md.
     val acceptedBreaks: Map<String, Map<String, List<String>>> = emptyMap()
 
     // japicmp reads the marker off the class file, which is why ApiStatus is @Retention(CLASS).

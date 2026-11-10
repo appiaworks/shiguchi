@@ -42,17 +42,17 @@ and `/grpc-ui` all work against your existing service.
 | REST/JSON gateway | per-method HTTP routes | `shiguchi-*-starter` |
 | GraphQL + Apollo Federation | `/graphql`, `/graphiql` | `shiguchi-graphql-*-starter` |
 | OpenAPI 3 + Swagger UI | `/v3/api-docs`, `/swagger-ui.html` | `shiguchi-openapi-*-starter` |
-| gRPC web console (try-it UI, [screenshots](docs/ui.md)) | `/grpc-ui` | `shiguchi-ui-*-starter` |
+| gRPC web console (try-it UI, [screenshots](docs/guides/ui.md)) | `/grpc-ui` | `shiguchi-ui-*-starter` |
 | Pass-through gRPC proxy | `:9090` (configurable) | `shiguchi-grpc-proxy` |
-| gRPC-Web for browser clients ([docs](docs/grpc-web.md)) | `POST /<package.Service>/<Method>` | `shiguchi-*-starter` (`grpc-web.enabled`) |
+| gRPC-Web for browser clients ([docs](docs/guides/grpc-web.md)) | `POST /<package.Service>/<Method>` | `shiguchi-*-starter` (`grpc-web.enabled`) |
 | protovalidate request validation | (interceptor) | `shiguchi-validation-*-starter` |
-| Avro, to REST backends and for REST callers ([docs](docs/avro.md)) | `avro/binary` on gRPC-backed routes, `/avro/schemas` | `shiguchi-avro-*-starter` |
+| Avro, to REST backends and for REST callers ([docs](docs/guides/avro.md)) | `avro/binary` on gRPC-backed routes, `/avro/schemas` | `shiguchi-avro-*-starter` |
 
 **Why it exists.** The usual alternatives are `protoc-gen-grpc-gateway` (a Go binary and a
 codegen step wired into every build) or hand-written Spring controllers that wrap each RPC
 and drift from the proto. This is a Spring Boot dependency instead: descriptor-driven at
 runtime, on the reactive stack, with the transcoding hot path optimised down to
-microseconds ([benchmarks](docs/performance.md)). Runs on Spring Boot 4.
+microseconds ([benchmarks](docs/concepts/performance.md)). Runs on Spring Boot 4.
 
 > [!WARNING]
 > **The gateway does not authenticate callers by default.** Out of the box it permits all
@@ -108,7 +108,7 @@ flowchart TB
 ```
 
 How a request flows through the serde tiers is documented in
-[docs/transcoding.md](docs/transcoding.md).
+[docs/concepts/transcoding.md](docs/concepts/transcoding.md).
 
 ---
 
@@ -131,24 +131,24 @@ curl -X POST localhost:8080/graphql -H 'Content-Type: application/json'   -d '{"
 ```
 
 Full steps (Maven, annotating protos, samples, building from source):
-[docs/quick-start.md](docs/quick-start.md). A guided walk-through:
-[docs/tutorial.md](docs/tutorial.md).
+[docs/getting-started/quick-start.md](docs/getting-started/quick-start.md). A guided walk-through:
+[docs/getting-started/tutorial.md](docs/getting-started/tutorial.md).
 
 ## Features
 
 Schema discovery without codegen, REST/JSON transcoding, GraphQL with Apollo Federation, OpenAPI
 and a web console, Cursus push messaging, security and rate limiting, resilience, caching,
 metrics and tracing, a Helm chart and an OCI image. Each is described, with its options, in
-[docs/features.md](docs/features.md) and the guides linked from [docs/README.md](docs/README.md).
+[docs/getting-started/features.md](docs/getting-started/features.md) and the guides linked from [docs/README.md](docs/README.md).
 
 ## Security, performance, operations
 
-- Secure by opt-in: [docs/security.md](docs/security.md), [SECURITY.md](SECURITY.md).
-- Serde tiers and numbers: [docs/performance.md](docs/performance.md),
+- Secure by opt-in: [docs/guides/security.md](docs/guides/security.md), [SECURITY.md](SECURITY.md).
+- Serde tiers and numbers: [docs/concepts/performance.md](docs/concepts/performance.md),
   [benchmarks](shiguchi-benchmarks/README.md).
-- Metrics, tracing, access log: [docs/observability.md](docs/observability.md).
-- Helm chart and image: [docs/deployment.md](docs/deployment.md).
-- Spring Boot 4 only (0.18.x is the last Boot 3 line): [docs/compatibility.md](docs/compatibility.md).
+- Metrics, tracing, access log: [docs/operations/observability.md](docs/operations/observability.md).
+- Helm chart and image: [docs/operations/deployment.md](docs/operations/deployment.md).
+- Spring Boot 4 only (0.18.x is the last Boot 3 line): [docs/operations/compatibility.md](docs/operations/compatibility.md).
 
 ---
 
@@ -156,9 +156,9 @@ metrics and tracing, a Helm chart and an OCI image. Each is described, with its 
 
 **Start here**
 
-- [docs/tutorial.md](docs/tutorial.md) — a gRPC backend to REST, GraphQL, OpenAPI and a console, one step at a time, with what each step actually did.
-- [docs/troubleshooting.md](docs/troubleshooting.md) — symptoms and the exact messages: 404s, backends that will not load, JSON that looks wrong, startup failures.
-- [docs/comparison.md](docs/comparison.md) — versus grpc-gateway (Go), proxy-based transcoders, plain SCG and hand-written controllers — including when to pick one of those.
+- [docs/getting-started/tutorial.md](docs/getting-started/tutorial.md) — a gRPC backend to REST, GraphQL, OpenAPI and a console, one step at a time, with what each step actually did.
+- [docs/operations/troubleshooting.md](docs/operations/troubleshooting.md) — symptoms and the exact messages: 404s, backends that will not load, JSON that looks wrong, startup failures.
+- [docs/concepts/comparison.md](docs/concepts/comparison.md) — versus grpc-gateway (Go), proxy-based transcoders, plain SCG and hand-written controllers — including when to pick one of those.
 
 **Everything else**
 

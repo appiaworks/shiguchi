@@ -9,7 +9,7 @@ group = "dev.appiaworks.shiguchi.sample"
 val gatewayVersion = providers.gradleProperty("gatewayVersion").get()
 
 // DGS 12.1 needs json-path 3 (Jackson3JsonProvider); the Boot 4.1 BOM holds it at 2.10, and with the
-// dependency-management plugin that wins, so GraphQL fails at startup (docs/troubleshooting.md).
+// dependency-management plugin that wins, so GraphQL fails at startup (docs/operations/troubleshooting.md).
 extra["json-path.version"] = "3.0.0"
 // The Boot 4.1 BOM holds OpenTelemetry at 1.62; 1.67 carries the fix for a moderate advisory.
 extra["opentelemetry.version"] = "1.67.0"

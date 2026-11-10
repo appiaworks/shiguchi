@@ -6,7 +6,7 @@ syntax = "proto3";
 // only to callers that present `x-push-peer-token`, the shared secret set with
 // shiguchi.cursus.peer.token on every instance. Not for applications.
 //
-// See docs/push.md, "Targeted delivery".
+// See docs/guides/push.md, "Targeted delivery".
 package shiguchi.cursus.v1;
 
 import "shiguchi/push.proto";

@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * Cross-backend merge: routes served by fanning out to several backends returning the same
- * message type, ordered by the caller's sort. See docs/merging.md.
+ * message type, ordered by the caller's sort. See docs/guides/merging.md.
  */
 @Data
 @NoArgsConstructor

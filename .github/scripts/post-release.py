@@ -41,7 +41,7 @@ ReleaseError = prepare.ReleaseError
 POM_URL = "https://repo1.maven.org/maven2/io/github/appiaworks/shiguchi-core/{v}/shiguchi-core-{v}.pom"
 POLL_SECONDS = 30
 
-API_DOC = "docs/api-compatibility.md"
+API_DOC = "docs/operations/api-compatibility.md"
 BASELINE = r'(providers\.gradleProperty\("apiBaseline"\)\.orElse\(")(\d+\.\d+\.\d+)(?=")'
 BASELINE_DOC = r"(\(Currently `)(\d+\.\d+\.\d+)(?=`)"
 

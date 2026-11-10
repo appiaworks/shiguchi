@@ -162,4 +162,4 @@ kube-proxy chose — so use the headless form.
 - An empty registry fails calls with `UNAVAILABLE` (HTTP 503) rather than hanging, and is logged
   at WARN.
 
-→ [docs/service-discovery.md](../../docs/service-discovery.md)
+→ [docs/guides/service-discovery.md](../../docs/guides/service-discovery.md)

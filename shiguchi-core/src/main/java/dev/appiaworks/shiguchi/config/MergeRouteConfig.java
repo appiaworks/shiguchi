@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
  * from several backends.
  *
  * <p>The equivalent of the {@code (merge)} proto option, for backends whose protos you do not
- * control. See {@code docs/merging.md} for how ordering, paging and failure policy interact.
+ * control. See {@code docs/guides/merging.md} for how ordering, paging and failure policy interact.
  */
 @Data
 @NoArgsConstructor

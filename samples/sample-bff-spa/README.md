@@ -84,7 +84,7 @@ Use a fresh browser profile (or clear `localhost` cookies), with DevTools open o
 
 ## Notes
 
-- **No Connect-ES.** [docs/grpc-web.md](../../docs/grpc-web.md) shows Connect-ES with generated
+- **No Connect-ES.** [docs/guides/grpc-web.md](../../docs/guides/grpc-web.md) shows Connect-ES with generated
   stubs. This sample's schema is built in code (no protoc), so there is nothing to generate from;
   the page frames one empty request and decodes one reply by hand with `fetch`. With real stubs
   use `createGrpcWebTransport({ baseUrl: location.origin })` and the browser cookie is sent the

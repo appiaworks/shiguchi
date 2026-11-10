@@ -101,10 +101,10 @@ shiguchi:
 
 ## See also
 
-- [docs/configuration.md](../../docs/configuration.md) — the full `shiguchi.*` reference this
+- [docs/reference/configuration.md](../../docs/reference/configuration.md) — the full `shiguchi.*` reference this
   sample's YAML draws from.
-- [docs/http-annotations.md](../../docs/http-annotations.md) and
-  [docs/graphql-annotations.md](../../docs/graphql-annotations.md) — how one proto method ends up
+- [docs/guides/http-annotations.md](../../docs/guides/http-annotations.md) and
+  [docs/guides/graphql-annotations.md](../../docs/guides/graphql-annotations.md) — how one proto method ends up
   on REST and GraphQL at the same time.
-- [docs/avro.md](../../docs/avro.md) — Avro on the REST surface, schema endpoint, framing modes.
-- [docs/ui.md](../../docs/ui.md) — the embedded console this sample can enable.
+- [docs/guides/avro.md](../../docs/guides/avro.md) — Avro on the REST surface, schema endpoint, framing modes.
+- [docs/guides/ui.md](../../docs/guides/ui.md) — the embedded console this sample can enable.

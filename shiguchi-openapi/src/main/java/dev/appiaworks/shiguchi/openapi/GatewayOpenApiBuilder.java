@@ -290,7 +290,7 @@ public class GatewayOpenApiBuilder {
      * discoverable in Swagger UI rather than folklore. Each is emitted only when the request
      * (or response) message actually carries the field that activates it.
      *
-     * @see <a href="../../../../../docs/projections-paging-sorting.md">projections, paging, sorting</a>
+     * @see <a href="../../../../../docs/guides/projections-paging-sorting.md">projections, paging, sorting</a>
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static void addConventionParameters(

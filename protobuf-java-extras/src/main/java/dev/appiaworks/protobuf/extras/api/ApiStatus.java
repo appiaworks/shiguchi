@@ -11,14 +11,14 @@ import java.lang.annotation.Target;
  *
  * <p>The gateway is mostly configuration, but a handful of types exist to be implemented or
  * called by applications — the extension points listed in
- * <a href="https://github.com/appiaworks/shiguchi/blob/main/docs/configuration.md">the
+ * <a href="https://github.com/appiaworks/shiguchi/blob/main/docs/reference/configuration.md">the
  * configuration reference</a>. This annotation says which of those carry a compatibility promise.
  * Everything not annotated is internal: it is public only because Java has no finer visibility
  * across packages, and it may change in any release.
  *
  * <p>The promise for {@link Status#STABLE} types is enforced, not merely stated: the build
  * compares every published module against the previous release and fails on a change that would
- * break a consumer. See {@code docs/api-compatibility.md}.
+ * break a consumer. See {@code docs/operations/api-compatibility.md}.
  *
  * <p>Retained at runtime so the compatibility gate can read it back off the published jars, and
  * so an application can inspect what it is depending on.

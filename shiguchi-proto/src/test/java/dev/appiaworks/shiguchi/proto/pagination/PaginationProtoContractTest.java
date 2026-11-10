@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
  * wrote, and never mention these types. So a rename here would not break any compile — it would
  * quietly ship types that no longer activate the behaviour they exist to activate.
  *
- * <p>The names asserted below are the contract documented in docs/projections-paging-sorting.md
+ * <p>The names asserted below are the contract documented in docs/guides/projections-paging-sorting.md
  * and implemented in {@code ConventionArgMapper} and {@code GrpcResponsePaginationExtractor}.
  * Changing one means changing all three deliberately.
  */

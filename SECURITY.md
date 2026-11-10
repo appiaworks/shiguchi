@@ -4,7 +4,7 @@
 
 > This page states the posture and the model. The configuration guide — setting up the JWT
 > decoder, mapping claims to scopes, TLS to backends, bringing your own chain, health probes
-> under `AUTHENTICATED` — is [docs/security.md](docs/security.md).
+> under `AUTHENTICATED` — is [docs/guides/security.md](docs/guides/security.md).
 
 Shiguchi boots **open at the transport layer by default**
 (`shiguchi.security.mode=PERMIT_ALL`) so its try-it-now surfaces work on first run.
@@ -116,7 +116,7 @@ never gain permissive CORS by accident.
   client IP) a token bucket on the REST and GraphQL surfaces and answers 429 before a backend
   is called; use `backend: REDIS` when more than one gateway instance is behind the load
   balancer. Trust `client-ip-header` (`X-Forwarded-For`) only when a proxy you control sets
-  it, otherwise a direct caller can choose its own bucket. → [docs/rate-limiting.md](docs/rate-limiting.md)
+  it, otherwise a direct caller can choose its own bucket. → [docs/guides/rate-limiting.md](docs/guides/rate-limiting.md)
 - **Restrict actuator exposure** — keep `management.endpoints.web.exposure.include` minimal.
 - **Never commit credentials.** Inject OAuth client secrets via environment variables /
   Kubernetes secrets (see `extraEnv` in `helm/values.yaml`).
