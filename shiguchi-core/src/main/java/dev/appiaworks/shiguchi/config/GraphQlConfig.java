@@ -42,6 +42,12 @@ public class GraphQlConfig {
      */
     private IncrementalConfig incremental = new IncrementalConfig();
 
+    /**
+     * Live queries: {@code query ... @live} runs again whenever the data behind it changes. Off by
+     * default.
+     */
+    private LiveConfig live = new LiveConfig();
+
     /** Batched requests (a JSON array of operations in one POST); off by default. */
     private BatchConfig batch = new BatchConfig();
 
@@ -112,6 +118,32 @@ public class GraphQlConfig {
     @NoArgsConstructor
     public static class IncrementalConfig {
         private boolean enabled = false;
+    }
+
+    /**
+     * {@code query ... @live}: the operation runs, then again whenever a mutation through this
+     * gateway touches a service behind its root fields, sending each new full result. WebSocket
+     * ({@code graphql-transport-ws}) and SSE only; invalidation reaches this instance only.
+     */
+    @Data
+    @NoArgsConstructor
+    public static class LiveConfig {
+        private boolean enabled = false;
+
+        /** Least time between two runs of one live query; a larger {@code throttleMs} hint is kept. */
+        private java.time.Duration minInterval = java.time.Duration.ofSeconds(1);
+
+        /** Live queries one principal may run at once; the next is refused with {@code LIVE_LIMIT}. */
+        private int maxPerPrincipal = 20;
+
+        /** Live queries this instance runs at once. */
+        private int maxTotal = 10000;
+
+        /** A live query with no news is run again after this long, so a missed signal is repaired. Zero: never. */
+        private java.time.Duration refreshInterval = java.time.Duration.ofMinutes(5);
+
+        /** Live re-executions this instance runs at once; the rest wait in order. */
+        private int maxConcurrentReexecutions = 32;
     }
 
     @Data

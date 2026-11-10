@@ -331,6 +331,9 @@ public class GraphQlSchemaBuilder {
         if (gatewayProperties.getGraphql().getIncremental().isEnabled()) {
             sb.append("directive @defer(if: Boolean! = true, label: String) on FRAGMENT_SPREAD | INLINE_FRAGMENT\n");
         }
+        if (gatewayProperties.getGraphql().getLive().isEnabled()) {
+            sb.append("directive @live(throttleMs: Int) on QUERY\n");
+        }
         sb.append("\n");
         if (anyConnection) sb.append(relayTransformer.relayPageInfoSdl()).append("\n");
         if (anySorting) sb.append(paginationInjector.sharedTypeDefs()).append("\n");

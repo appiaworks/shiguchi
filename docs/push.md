@@ -294,6 +294,12 @@ shiguchi:
   lifetime, the shutdown close, the `gateway-push` views (transport `graphql`) and the metrics.
   A refused subscription is a graphql-transport-ws `error` frame; an `AT_LEAST_ONCE` subscriber
   that stopped reading gets an error with `overflow` in its message and resumes with `after`.
+- **Live queries share the broker.** With `shiguchi.graphql.live.enabled`, a GraphQL `query ... @live`
+  is invalidated across instances through this module's broker: one topic, `shiguchi.graphql:live.invalidate`,
+  published without a namespace declaration, no history and no authorization (nothing client-visible rides on it),
+  so it needs an engine shared by the instances (`REDIS`, `POSTGRES` or `JDBC`; `MEMORY` is per instance). A method's
+  `(shiguchi.graphql).invalidated_by` can also name exact topics of this module, whose events re-run its live
+  queries. See [graphql-annotations.md](graphql-annotations.md#live).
 - **Out of scope for now.** Federation of these fields, and the declarative `(push.topic)` RPC
   option that would derive fields from upstream streams.
 

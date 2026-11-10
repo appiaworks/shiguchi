@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `shiguchi.graphql.live.*`: `query ... @live` over WebSocket or SSE re-runs whenever a mutation through the
+  gateway touches a service behind its root fields; throttled, de-duplicated and limited per principal; ends at the
+  session end or token expiry of its caller. With `shiguchi.cursus.enabled`, mutations re-run the live queries of
+  every instance through the Cursus broker (a shared engine is needed across instances), and a new
+  `invalidated_by` option on `(shiguchi.graphql)` names exact Cursus topics whose events re-run a method's live
+  queries. `live: false` keeps a method out of live queries. `max-concurrent-reexecutions` (32) bounds the re-runs
+  at once; meters `shiguchi.graphql.live.*`. Without the push module invalidation stays in-process.
 - `shiguchi.graphql.incremental.enabled`: `@defer` answered as `multipart/mixed` (draft 2022-08-24) to clients
   that send `Accept: multipart/mixed`; anyone else gets the complete JSON. `@stream` is not supported.
 - `docs/performance.md`: ranked tuning guide for REST and GraphQL with the benchmark numbers behind each setting.
