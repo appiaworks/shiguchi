@@ -38,10 +38,7 @@ class GraphQlLiveUpstreamFeed implements InitializingBean, DisposableBean {
     private volatile Disposable ticker;
 
     GraphQlLiveUpstreamFeed(
-            GrpcRouteRegistry registry,
-            PushBroker broker,
-            GraphQlLiveInvalidations invalidations,
-            Duration reconcile) {
+            GrpcRouteRegistry registry, PushBroker broker, GraphQlLiveInvalidations invalidations, Duration reconcile) {
         this.registry = registry;
         this.broker = broker;
         this.invalidations = invalidations;

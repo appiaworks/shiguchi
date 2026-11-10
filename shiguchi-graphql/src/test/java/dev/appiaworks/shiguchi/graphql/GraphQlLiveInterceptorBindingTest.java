@@ -6,9 +6,9 @@ import static org.mockito.Mockito.when;
 
 import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
-import dev.appiaworks.shiguchi.security.CookieSessionWatch;
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
 import dev.appiaworks.shiguchi.routing.RouteDefinition.GraphQlOperationType;
+import dev.appiaworks.shiguchi.security.CookieSessionWatch;
 import graphql.ExecutionResult;
 import graphql.ExecutionResultImpl;
 import io.grpc.MethodDescriptor;
@@ -42,14 +42,15 @@ class GraphQlLiveInterceptorBindingTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    @DisplayName("GIVEN a live query of a bearer caller WHEN the token reaches exp SHOULD end with a token expired error")
+    @DisplayName(
+            "GIVEN a live query of a bearer caller WHEN the token reaches exp SHOULD end with a token expired error")
     void given_bearerLiveQuery_when_tokenExpires_should_endStream() {
         GrpcRouteRegistry registry = mock(GrpcRouteRegistry.class);
         when(registry.findByGraphQlName("item"))
-                .thenReturn(List.of(RouteDefinition.builder(
-                                "pkg.Store", "Get", MethodDescriptor.MethodType.UNARY, "localhost:1")
-                        .graphQl("item", GraphQlOperationType.QUERY)
-                        .build()));
+                .thenReturn(List.of(
+                        RouteDefinition.builder("pkg.Store", "Get", MethodDescriptor.MethodType.UNARY, "localhost:1")
+                                .graphQl("item", GraphQlOperationType.QUERY)
+                                .build()));
         GatewayProperties properties = new GatewayProperties();
         var live = properties.getGraphql().getLive();
         ObjectProvider<CookieSessionWatch> watches = mock(ObjectProvider.class);

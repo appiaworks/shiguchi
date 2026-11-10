@@ -48,7 +48,8 @@ class GraphQlLiveGateTest {
     }
 
     @Test
-    @DisplayName("GIVEN a registry WHEN invalidations arrive SHOULD count signals by source and expose the stream gauge")
+    @DisplayName(
+            "GIVEN a registry WHEN invalidations arrive SHOULD count signals by source and expose the stream gauge")
     void given_registry_when_invalidationsArrive_should_countBySource() {
         SimpleMeterRegistry meters = new SimpleMeterRegistry();
         GraphQlLiveStreams streams = new GraphQlLiveStreams(5, 10);
@@ -60,11 +61,20 @@ class GraphQlLiveGateTest {
         invalidations.receive(Set.of("a.B"), "upstream");
         invalidations.receive(Set.of("a.B"));
 
-        assertThat(meters.get("shiguchi.graphql.live.signals").tag("source", "mutation").counter().count())
+        assertThat(meters.get("shiguchi.graphql.live.signals")
+                        .tag("source", "mutation")
+                        .counter()
+                        .count())
                 .isEqualTo(1);
-        assertThat(meters.get("shiguchi.graphql.live.signals").tag("source", "upstream").counter().count())
+        assertThat(meters.get("shiguchi.graphql.live.signals")
+                        .tag("source", "upstream")
+                        .counter()
+                        .count())
                 .isEqualTo(1);
-        assertThat(meters.get("shiguchi.graphql.live.signals").tag("source", "remote").counter().count())
+        assertThat(meters.get("shiguchi.graphql.live.signals")
+                        .tag("source", "remote")
+                        .counter()
+                        .count())
                 .isEqualTo(1);
         assertThat(meters.get("shiguchi.graphql.live.streams").gauge().value()).isEqualTo(1);
     }

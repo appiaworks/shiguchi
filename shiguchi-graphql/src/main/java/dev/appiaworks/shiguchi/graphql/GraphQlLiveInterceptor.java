@@ -155,7 +155,9 @@ class GraphQlLiveInterceptor implements WebGraphQlInterceptor, Ordered {
         Flux<Object> refresh = config.getRefreshInterval().isZero()
                         || config.getRefreshInterval().isNegative()
                 ? Flux.never()
-                : Flux.interval(config.getRefreshInterval()).doOnNext(i -> metrics.signal("refresh")).map(i -> (Object) i);
+                : Flux.interval(config.getRefreshInterval())
+                        .doOnNext(i -> metrics.signal("refresh"))
+                        .map(i -> (Object) i);
         return Flux.merge(Mono.just((Object) "start"), signals, refresh).onBackpressureLatest();
     }
 
