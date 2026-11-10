@@ -56,6 +56,13 @@ Run a sample locally:
 ./gradlew :samples:sample-full:bootRun
 ```
 
+## Documentation site
+
+`docs/` is also a MkDocs site (`mkdocs.yml`; the sidebar is its `nav`). Preview it with
+`pip install -r .github/docs-requirements.txt && mkdocs serve`. CI builds it in strict mode, so a
+broken link or anchor, or a page missing from `nav`, fails the `Docs site` check. Add a new page to
+`nav`. Links to files outside `docs/` (`../SECURITY.md`) are fine: the site points them at GitHub.
+
 ## Coding conventions
 
 - **Tests are required** for behavioral changes. Use JUnit 5 with **BDD-style** method

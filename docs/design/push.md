@@ -402,7 +402,7 @@ before `exp`, otherwise close 4401. **Decided (BFF G4):** a connection opened wi
 cookie needs no token and no `refresh`: it lives as long as the session and closes with 4440
 (`session ended`; SSE: a final `close` event, reason `session ended`) within `session-check-interval` of the session ending.
 A token in `connect` or `refresh` on such a connection closes it with 1008. See
-[push.md](push.md#cookie-connections) and [bff.md](bff.md).
+[push.md](../push.md#cookie-connections) and [bff.md](../bff.md).
 
 The origin check is mandatory (`ws.allowed-origins`, default same origin). CORS does not cover
 WebSocket; cross-site WebSocket hijacking is the classic hole.
