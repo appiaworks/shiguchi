@@ -226,7 +226,7 @@ public class MergeSpecResolver {
             log.info(
                     "Merge route {} ({}) has {} of {} sources declared unsorted; each is read in full and sorted in "
                             + "the gateway on every page. Teaching those backends to honour sort_fields lets them "
-                            + "stream instead. See docs/merging.md.",
+                            + "stream instead. See docs/guides/merging.md.",
                     where,
                     origin,
                     unsorted,

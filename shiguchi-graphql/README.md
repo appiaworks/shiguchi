@@ -8,12 +8,12 @@ Highlights:
 - **Schema generation** — `GraphQlSchemaBuilder` walks service descriptors; `(shiguchi.graphql)`
   method options and `(shiguchi.field)` field options (plus YAML `fieldOverrides`) control
   operation type, naming, federation keys, plucks, and more
-  (reference: [docs/graphql-annotations.md](../docs/graphql-annotations.md)).
+  (reference: [docs/guides/graphql-annotations.md](../docs/guides/graphql-annotations.md)).
 - **Relay** — paged responses (`page_info` + a repeated items field) automatically become
   Connection/Edge types with synthetic cursors. The `first` / `after` / `sort` arguments are
   mapped onto the `page_request` / `sort_fields` convention fields by the shared
   `ConventionArgMapper`, so REST and GraphQL send backends the same request shape
-  (reference: [docs/projections-paging-sorting.md](../docs/projections-paging-sorting.md)).
+  (reference: [docs/guides/projections-paging-sorting.md](../docs/guides/projections-paging-sorting.md)).
 - **Projection pushdown** — the selection set becomes both a `google.protobuf.FieldMask`
   on the request (backend computes less) and a conversion projection on the response
   (gateway converts less). Opt out: `shiguchi.graphql.selection-projection: false`.

@@ -79,12 +79,12 @@ shiguchi:
 ```
 
 Two backends declaring the *same* proto service would collide at the proxy (whichever answers
-reflection last wins that FQN); `docs/service-discovery.md` covers routing many instances of one
+reflection last wins that FQN); `docs/guides/service-discovery.md` covers routing many instances of one
 backend instead of two distinct ones.
 
 ## See also
 
-- [docs/configuration.md](../../docs/configuration.md) — `shiguchi.grpc.*` and per-service
+- [docs/reference/configuration.md](../../docs/reference/configuration.md) — `shiguchi.grpc.*` and per-service
   options (`exclude-methods` does **not** filter this proxy, per the table there).
-- [docs/service-discovery.md](../../docs/service-discovery.md) — load-balancing across instances
+- [docs/guides/service-discovery.md](../../docs/guides/service-discovery.md) — load-balancing across instances
   of a single backend, as an alternative to two fixed `host:port` entries.

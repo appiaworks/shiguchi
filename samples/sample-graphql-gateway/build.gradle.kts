@@ -6,7 +6,7 @@ plugins {
 
 group = "dev.appiaworks.shiguchi.sample"
 
-// DGS 12.1 needs json-path 3; the Boot 4.1 BOM holds it at 2.10 (docs/troubleshooting.md).
+// DGS 12.1 needs json-path 3; the Boot 4.1 BOM holds it at 2.10 (docs/operations/troubleshooting.md).
 extra["json-path.version"] = "3.0.0"
 
 val gatewayVersion = providers.gradleProperty("gatewayVersion").get()

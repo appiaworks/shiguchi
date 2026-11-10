@@ -36,7 +36,7 @@ Changing an extension point? `./gradlew build` also runs the API compatibility g
 compares every published module against the last release and fails on a change that would break
 an application implementing one of the `@ApiStatus(STABLE)` types. Grow an SPI with a `default`
 method rather than an abstract one; the reasoning and the escape hatches are in
-[docs/api-compatibility.md](docs/api-compatibility.md).
+[docs/operations/api-compatibility.md](docs/operations/api-compatibility.md).
 
 A change on the request path (serde, dispatch, merge, routing) should be benchmarked:
 run the JMH suite locally, or dispatch the *Benchmarks* workflow on the branch from the

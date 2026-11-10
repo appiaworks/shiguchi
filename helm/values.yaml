@@ -69,7 +69,7 @@ resources:
 
 # JVM flags, rendered into JAVA_TOOL_OPTIONS. The defaults are tuned for the resources above
 # (a sub-2-CPU, 512Mi pod) and for a reactive proxy's latency. Set a field to "" or null to
-# drop its flag and let the JVM decide. See docs/deployment.md#jvm-tuning.
+# drop its flag and let the JVM decide. See docs/operations/deployment.md#jvm-tuning.
 jvm:
   # Garbage collector, as -XX:+Use<gc>GC: G1 | Z | Parallel | Serial | Shenandoah.
   # Keep G1 unless the pod has >= 2 CPUs and >= 2Gi and p99 latency matters more than

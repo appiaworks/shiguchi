@@ -39,7 +39,7 @@ message MergeSource {
 //
 // Declared on one participant method, listing the others -- the route model is one method to one
 // binding, so a merge needs a primary to hang off. A MergeSourceProvider bean or YAML config both
-// override this; see docs/merging.md.
+// override this; see docs/guides/merging.md.
 //
 // Example:
 //   option (shiguchi.merge) = {

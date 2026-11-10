@@ -61,4 +61,4 @@ curl -s localhost:8080/inv/items/42 -H 'accept: avro/binary' | xxd | head -3   #
   `GenericDatumReader`; the JSON side is hand-rolled from the same record so both encodings
   carry the same values and the GraphQL result is identical either way.
 
-How it works: [docs/avro.md](../../docs/avro.md).
+How it works: [docs/guides/avro.md](../../docs/guides/avro.md).

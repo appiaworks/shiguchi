@@ -109,7 +109,7 @@ warning in the log; set it to `false` and everything is 429 until Redis is back.
 ## What to look at
 
 - **`application.yml`** — the whole feature. Every `shiguchi.rate-limit.*` key is
-  documented in [docs/rate-limiting.md](../../docs/rate-limiting.md).
+  documented in [docs/guides/rate-limiting.md](../../docs/guides/rate-limiting.md).
 - **`application-redis.yml`** — the delta for shared buckets: `backend: REDIS`, the key prefix
   and `fail-open`, plus the standard `spring.data.redis.*` connection settings.
 - **`CatalogServiceServer`** — the backend, served over real gRPC with reflection so the gateway

@@ -43,7 +43,7 @@ shiguchi:
             rpc: listOrders
             presorted: true
           # Ignores sort_fields: the gateway reads this source in full and sorts it in memory.
-          # Correct at this size, but it re-reads every page — see docs/merging.md for why there
+          # Correct at this size, but it re-reads every page — see docs/guides/merging.md for why there
           # is no bounded middle ground for an unsorted backend.
           - endpoint: orders-us
             service: sample.merge.OrderService

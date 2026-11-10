@@ -19,7 +19,7 @@ syntax = "proto3";
 // "42"}). The namespace is declared under shiguchi.cursus.namespaces when it is not already, and
 // its payload-type is the method's response message, so the topic's GraphQL field is typed.
 //
-// See docs/push.md, "Upstream-backed topics".
+// See docs/guides/push.md, "Upstream-backed topics".
 package shiguchi;
 
 import "google/protobuf/descriptor.proto";

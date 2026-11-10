@@ -151,7 +151,7 @@ public class MergeDispatcher {
 
             // An HTTP source cannot be told to sort or page in the merge's terms — its query
             // parameters are whatever its OpenAPI document declares — so it is always read whole
-            // and ordered here, whatever the spec claims. See docs/merging.md.
+            // and ordered here, whatever the spec claims. See docs/guides/merging.md.
             boolean presorted = source.presorted() && !sourceRoute.isPassthrough();
             Map<String, Object> args = MergeRequestPlanner.argsForSource(requestArgs, position, presorted, window);
             var ctx = registry.contextFor(sourceRoute);
@@ -249,7 +249,7 @@ public class MergeDispatcher {
      * <p>A count is exact here because every source is materialised and the merge is deterministic:
      * the same request rebuilds the same ordered list, so "skip the first N" lands precisely where
      * the previous page stopped. It is also why this path re-reads its sources per page — the cost
-     * documented in docs/merging.md.
+     * documented in docs/guides/merging.md.
      */
     private List<Message> skipServed(List<Message> merged, MergeCursor cursor) {
         int consumed = cursor.sources().stream()

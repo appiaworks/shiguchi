@@ -1,101 +1,101 @@
 # Shiguchi documentation
 
 Every guide in this folder, grouped by what you are trying to do. New to Shiguchi? Read the
-[tutorial](tutorial.md) first. Something not working? Search
-[troubleshooting](troubleshooting.md) for the message you see.
+[tutorial](getting-started/tutorial.md) first. Something not working? Search
+[troubleshooting](operations/troubleshooting.md) for the message you see.
 
 ## Where to start
 
 | If you want to... | Read |
 | --- | --- |
-| put REST, GraphQL and OpenAPI in front of a gRPC service | [tutorial](tutorial.md), then [configuration](configuration.md) |
-| decide whether Shiguchi fits | [comparison](comparison.md) |
-| fix a 404, a backend that does not load, or odd JSON | [troubleshooting](troubleshooting.md) |
-| run it in Kubernetes | [deployment](deployment.md), [observability](observability.md) |
-| lock it down | [security](security.md), then [bff](bff.md) for browser apps |
-| push events to clients | [push](push.md), [push-cli](push-cli.md) |
-| use the JSON serde or typed accessors without the gateway | [proto-serde-standalone](proto-serde-standalone.md), [protoc-java-extras](protoc-java-extras.md) |
+| put REST, GraphQL and OpenAPI in front of a gRPC service | [tutorial](getting-started/tutorial.md), then [configuration](reference/configuration.md) |
+| decide whether Shiguchi fits | [comparison](concepts/comparison.md) |
+| fix a 404, a backend that does not load, or odd JSON | [troubleshooting](operations/troubleshooting.md) |
+| run it in Kubernetes | [deployment](operations/deployment.md), [observability](operations/observability.md) |
+| lock it down | [security](guides/security.md), then [bff](guides/bff.md) for browser apps |
+| push events to clients | [push](guides/push.md), [push-cli](reference/push-cli.md) |
+| use the JSON serde or typed accessors without the gateway | [proto-serde-standalone](libraries/proto-serde-standalone.md), [protoc-java-extras](libraries/protoc-java-extras.md) |
 
 ## Getting started
 
-- [tutorial.md](tutorial.md): from a gRPC backend to REST, GraphQL, OpenAPI and a web console,
+- [tutorial.md](getting-started/tutorial.md): from a gRPC backend to REST, GraphQL, OpenAPI and a web console,
   one step at a time, with what each step did.
-- [configuration.md](configuration.md): every `shiguchi.*` property and the extension-point beans.
-- [comparison.md](comparison.md): Shiguchi next to grpc-gateway (Go), proxy-based transcoders,
+- [configuration.md](reference/configuration.md): every `shiguchi.*` property and the extension-point beans.
+- [comparison.md](concepts/comparison.md): Shiguchi next to grpc-gateway (Go), proxy-based transcoders,
   Spring Cloud Gateway on its own and hand-written controllers, including when to pick one of those.
-- [troubleshooting.md](troubleshooting.md): symptoms, their causes and how to confirm them, keyed
+- [troubleshooting.md](operations/troubleshooting.md): symptoms, their causes and how to confirm them, keyed
   on the exact messages the gateway logs or returns.
 
 ## Shaping the API
 
 How a proto contract becomes the HTTP surfaces.
 
-- [http-annotations.md](http-annotations.md): `google.api.http`: verbs, path templates, `body`,
+- [http-annotations.md](guides/http-annotations.md): `google.api.http`: verbs, path templates, `body`,
   `additional_bindings`, binary bodies, unknown query parameters.
-- [graphql-annotations.md](graphql-annotations.md): the `shiguchi.*` proto options:
+- [graphql-annotations.md](guides/graphql-annotations.md): the `shiguchi.*` proto options:
   `(shiguchi.graphql)`, `(shiguchi.field)` and `(shiguchi.method)`.
-- [transcoding.md](transcoding.md): how schemas are discovered at runtime, the request flow, the
+- [transcoding.md](concepts/transcoding.md): how schemas are discovered at runtime, the request flow, the
   serde tiers and the JSON mapping rules.
-- [json-types.md](json-types.md): dates, times, decimals, money, durations and numbers on every
+- [json-types.md](guides/json-types.md): dates, times, decimals, money, durations and numbers on every
   surface; string escaping and print options.
-- [projections-paging-sorting.md](projections-paging-sorting.md): the `read_mask`,
+- [projections-paging-sorting.md](guides/projections-paging-sorting.md): the `read_mask`,
   `page_request` and `sort_fields` conventions, with a Spring Data JPA backend.
-- [merging.md](merging.md): one sorted, paged endpoint served by several backends.
-- [error-handling.md](error-handling.md): the gRPC to HTTP status table and custom error bodies.
-- [validation.md](validation.md): protovalidate constraints checked at the gateway or in your
+- [merging.md](guides/merging.md): one sorted, paged endpoint served by several backends.
+- [error-handling.md](guides/error-handling.md): the gRPC to HTTP status table and custom error bodies.
+- [validation.md](guides/validation.md): protovalidate constraints checked at the gateway or in your
   gRPC server.
 
 ## Other client surfaces
 
-- [grpc-web.md](grpc-web.md): gRPC-Web and Connect clients in the browser without a separate proxy.
-- [avro.md](avro.md): Avro to `REST_DOWNSTREAM` backends and for REST callers.
-- [ui.md](ui.md): the embedded `/grpc-ui` console, with screenshots.
+- [grpc-web.md](guides/grpc-web.md): gRPC-Web and Connect clients in the browser without a separate proxy.
+- [avro.md](guides/avro.md): Avro to `REST_DOWNSTREAM` backends and for REST callers.
+- [ui.md](guides/ui.md): the embedded `/grpc-ui` console, with screenshots.
 
 ## Backends and traffic
 
-- [service-discovery.md](service-discovery.md): Eureka, Consul, Kubernetes or DNS; balancing
+- [service-discovery.md](guides/service-discovery.md): Eureka, Consul, Kubernetes or DNS; balancing
   across instances; rolling deploys and versions.
-- [resilience.md](resilience.md): retries, the retry budget, hedging, circuit breaking,
+- [resilience.md](guides/resilience.md): retries, the retry budget, hedging, circuit breaking,
   concurrency limits and channel pools.
-- [caching.md](caching.md): HTTP caching headers, the response cache, request coalescing, etags,
+- [caching.md](guides/caching.md): HTTP caching headers, the response cache, request coalescing, etags,
   compression, and the GraphQL document cache.
-- [rate-limiting.md](rate-limiting.md): per-caller token buckets on REST and GraphQL, in memory
+- [rate-limiting.md](guides/rate-limiting.md): per-caller token buckets on REST and GraphQL, in memory
   or in Redis.
 
 ## Security
 
-- [security.md](security.md): the JWT resource server, per-surface gating, scopes and claims,
+- [security.md](guides/security.md): the JWT resource server, per-surface gating, scopes and claims,
   what backends receive, TLS to backends, your own filter chain. The default posture is in
   [SECURITY.md](../SECURITY.md).
-- [bff.md](bff.md): browser sign-in with a session cookie (experimental): threat model, setup,
+- [bff.md](guides/bff.md): browser sign-in with a session cookie (experimental): threat model, setup,
   sessions, refresh, CSRF, logout and revocation.
 
 ## Push messaging (Cursus)
 
 Experimental: the shape may change in a minor release.
 
-- [push.md](push.md): server-to-client messaging over SSE, WebSocket, gRPC and GraphQL
+- [push.md](guides/push.md): server-to-client messaging over SSE, WebSocket, gRPC and GraphQL
   subscriptions; topics, namespaces, delivery guarantees, engines, authorization, administration.
-- [push-cli.md](push-cli.md): the `cursus` command line: install, profiles, every verb, exit codes.
+- [push-cli.md](reference/push-cli.md): the `cursus` command line: install, profiles, every verb, exit codes.
 - The npm client: [shiguchi-cursus-client-js](../shiguchi-cursus-client-js/README.md).
 
 ## Running in production
 
-- [deployment.md](deployment.md): the Helm chart, the `sample-full` image, your compiled stubs in
+- [deployment.md](operations/deployment.md): the Helm chart, the `sample-full` image, your compiled stubs in
   the image, JVM tuning and the AOT cache.
-- [observability.md](observability.md): Micrometer metrics, Prometheus and the
+- [observability.md](operations/observability.md): Micrometer metrics, Prometheus and the
   [Grafana dashboard](grafana/shiguchi.json), OpenTelemetry tracing, call logging, health and
   readiness, the routes endpoint.
-- [performance.md](performance.md): what to change when latency or throughput matters, ranked,
+- [performance.md](concepts/performance.md): what to change when latency or throughput matters, ranked,
   with the measurement behind each setting.
 
 ## Libraries without the gateway
 
-- [proto-serde-standalone.md](proto-serde-standalone.md): `protobuf-java-extras`: the same JSON
+- [proto-serde-standalone.md](libraries/proto-serde-standalone.md): `protobuf-java-extras`: the same JSON
   dialect and type converters from plain Java, without Spring or gRPC.
-- [protoc-java-extras.md](protoc-java-extras.md): the protoc plugin that adds Java-typed accessors
+- [protoc-java-extras.md](libraries/protoc-java-extras.md): the protoc plugin that adds Java-typed accessors
   (`getDepartsOnAsLocalDate()`) to generated classes.
-- [api-compatibility.md](api-compatibility.md): which types carry a compatibility promise and the
+- [api-compatibility.md](operations/api-compatibility.md): which types carry a compatibility promise and the
   build gate that enforces it.
 
 ## Design notes
@@ -108,7 +108,7 @@ read the guides above for current behaviour.
 
 ## About the project
 
-- [README](../README.md): what Shiguchi is. [Quick start](quick-start.md), [features](features.md) and [compatibility](compatibility.md) hold what it used to carry.
+- [README](../README.md): what Shiguchi is. [Quick start](getting-started/quick-start.md), [features](getting-started/features.md) and [compatibility](operations/compatibility.md) hold what it used to carry.
 - [CHANGELOG.md](../CHANGELOG.md): release history.
 - [CONTRIBUTING.md](../CONTRIBUTING.md): build, test and pull request guidelines.
 - [SECURITY.md](../SECURITY.md): the security model and how to report a vulnerability.
