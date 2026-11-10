@@ -15,7 +15,7 @@ Point `shiguchi.services` in `application.yml` at a gRPC server with reflection 
 Open http://localhost:8080/grpc-ui.
 
 Servlet mode serves the console only: what it leaves out compared with the WebFlux starter is
-listed in [docs/ui.md](../../docs/ui.md#servlet-spring-mvc-applications). Security is the
+listed in [docs/guides/ui.md](../../docs/guides/ui.md#servlet-spring-mvc-applications). Security is the
 host's: `SecurityConfig` opens everything for a local demo and keeps CSRF on, with the token
 in the `XSRF-TOKEN` cookie the console sends back as `X-XSRF-TOKEN`. Authenticate `/grpc-ui/**`
 before exposing it anywhere.

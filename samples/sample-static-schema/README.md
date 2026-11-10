@@ -113,7 +113,7 @@ Fetches one product by SKU.
 ```
 
 An explicit `(shiguchi.graphql).description` still wins where one is set — see
-[docs/graphql-annotations.md](../../docs/graphql-annotations.md). This is the only mode where it
+[docs/guides/graphql-annotations.md](../../docs/guides/graphql-annotations.md). This is the only mode where it
 works: server reflection does not send source info, and compiled Java stubs do not retain it, so
 `DYNAMIC` and `STATIC` have nothing to read. Gradle's protobuf plugin takes it as
 `descriptorSetOptions.includeSourceInfo = true` (this sample's `build.gradle.kts` sets it); the
@@ -148,5 +148,5 @@ Prefer `DYNAMIC` when you can — it is the one that does not couple the gateway
 the backend's. Reach for these when reflection is not on the table, or when you want routes
 registered independently of whether the backend is reachable.
 
-→ [docs/configuration.md](../../docs/configuration.md) ·
-[docs/troubleshooting.md](../../docs/troubleshooting.md)
+→ [docs/reference/configuration.md](../../docs/reference/configuration.md) ·
+[docs/operations/troubleshooting.md](../../docs/operations/troubleshooting.md)

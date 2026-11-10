@@ -116,7 +116,7 @@ exception translation, authorization) and the `contextWrite` each adds. Dropping
 saved-request filters measured inside the error bars and stayed for correctness (a transcoded
 `POST /logout` is no longer claimed by `LogoutWebFilter`). The observations stay on by default;
 skipping the chain for open REST routes is the opt-in
-`shiguchi.security.open-rest-bypasses-chain` ([security.md](../docs/security.md)).
+`shiguchi.security.open-rest-bypasses-chain` ([security.md](../docs/guides/security.md)).
 
 Read the profiles of one run against each other, never a number here against one taken an hour
 earlier — the same `default` profile measured 363, 396 and 423 µs in three runs on this laptop over a day,
@@ -392,7 +392,7 @@ The HTTP source adds roughly 240 µs whatever the width — one HTTP round trip,
 100 rows, and binding each row through the synthetic message — and the merge itself does not
 care where the rows came from. It is also the one source read whole on every page: an HTTP
 backend cannot be handed the merge's sort or window, so `presorted` is ignored for it (see
-[docs/merging.md](../docs/merging.md#http-sources)).
+[docs/guides/merging.md](../docs/guides/merging.md#http-sources)).
 
 ### Push (JDK 25, Windows 11 loopback, 2026-10-08)
 
@@ -623,7 +623,7 @@ already flat.
 
 ## Side by side with the other transcoders
 
-`comparison/compare.sh` puts this gateway and the two transcoders [docs/comparison.md](../docs/comparison.md)
+`comparison/compare.sh` puts this gateway and the two transcoders [docs/concepts/comparison.md](../docs/concepts/comparison.md)
 discusses in front of the same reflection-served `bench.Orders` backend, on one podman network, and runs
 `oha` against each (10 s warm-up, then `DURATION` at `CONCURRENCY`, 30 s × 32 by default):
 
@@ -632,7 +632,7 @@ discusses in front of the same reflection-served `bench.Orders` backend, on one 
 comparison/compare.sh            # needs podman; builds the Go image on first run
 ```
 
-The numbers and what they mean are in [docs/comparison.md](../docs/comparison.md#measured-side-by-side).
+The numbers and what they mean are in [docs/concepts/comparison.md](../docs/concepts/comparison.md#measured-side-by-side).
 `ComparisonBackend` and `ComparisonGateway` in `src/jmh/java` are the two JVM sides, run from
 the JMH jar; `comparison/envoy.yaml` and `comparison/grpc-gateway-go/` are the other two.
 
@@ -641,7 +641,7 @@ the JMH jar; `comparison/envoy.yaml` and `comparison/grpc-gateway-go/` are the o
 <checkout at the pinned commit>`, then run it (five rows, three repeats each, median reported;
 `DURATION`, `CONCURRENCY` and `REPEATS` shape it). Both gateways serve
 `greeter.Greeter/SayHello` from `ComparisonBackend`; `src/jmh/proto/bench_greeter.proto` is
-wire-identical to their `proto/greeter.proto`. Table and reading: [docs/comparison.md](../docs/comparison.md#graphql).
+wire-identical to their `proto/greeter.proto`. Table and reading: [docs/concepts/comparison.md](../docs/concepts/comparison.md#graphql).
 
 ## What the tiers are
 
@@ -653,7 +653,7 @@ wire-identical to their `proto/greeter.proto`. Table and reading: [docs/comparis
 - **Tier 3** — `JsonFormat` / reflective walkers, the always-correct baseline.
 
 `SerdeTierParityTest` in shiguchi-core is the contract that keeps every tier's JSON
-identical; see [docs/transcoding.md](../docs/transcoding.md) for the full picture.
+identical; see [docs/concepts/transcoding.md](../docs/concepts/transcoding.md) for the full picture.
 
 ---
 

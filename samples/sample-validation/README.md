@@ -89,7 +89,7 @@ through the gateway.
 `log-violations` logs which field paths failed and never the values — a rejected payload is often
 exactly the data you least want in a log.
 
-→ [docs/validation.md](../../docs/validation.md) ·
-[docs/configuration.md](../../docs/configuration.md) ·
-[docs/error-handling.md](../../docs/error-handling.md) ·
+→ [docs/guides/validation.md](../../docs/guides/validation.md) ·
+[docs/reference/configuration.md](../../docs/reference/configuration.md) ·
+[docs/guides/error-handling.md](../../docs/guides/error-handling.md) ·
 [protovalidate](https://github.com/bufbuild/protovalidate)

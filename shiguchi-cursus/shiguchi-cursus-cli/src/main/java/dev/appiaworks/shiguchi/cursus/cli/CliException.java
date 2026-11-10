@@ -3,7 +3,7 @@ package dev.appiaworks.shiguchi.cursus.cli;
 /** A failure with the exit code the process should end with. */
 public final class CliException extends RuntimeException {
 
-    /** Exit codes of the command line (see docs/push-cli.md). */
+    /** Exit codes of the command line (see docs/reference/push-cli.md). */
     public static final int TRANSPORT = 1;
 
     public static final int USAGE = 2;

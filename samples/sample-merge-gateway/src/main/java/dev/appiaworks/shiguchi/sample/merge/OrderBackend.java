@@ -51,7 +51,7 @@ public final class OrderBackend {
                     .build();
 
             // page_request / sort_fields are the gateway's shared conventions — see
-            // docs/projections-paging-sorting.md. A backend that declares them can be sent a sort
+            // docs/guides/projections-paging-sorting.md. A backend that declares them can be sent a sort
             // and a page; one that does not gets neither.
             DescriptorProto pageRequest = DescriptorProto.newBuilder()
                     .setName("PageRequest")

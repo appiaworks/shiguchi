@@ -15,7 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * The code docs/proto-serde-standalone.md shows, run as written. If this test changes, that page
+ * The code docs/libraries/proto-serde-standalone.md shows, run as written. If this test changes, that page
  * changes with it.
  *
  * <p>This module's test classpath has no Spring and no gRPC, so the test also proves the library

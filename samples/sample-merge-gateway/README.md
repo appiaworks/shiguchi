@@ -53,7 +53,7 @@ serves — one per merged page, with no sort or page parameters, because it has 
   would read one backend twice. The HTTP source names the synthetic service the gateway derives
   from the OpenAPI document (`rest.legacy.LegacyService`, rpc = `operationId`).
 - **`LegacyOrderHttpServer`** — the whole HTTP backend: an OpenAPI document and a JSON array.
-  Nothing in it knows about the gateway; `docs/merging.md#http-sources` explains what the gateway
+  Nothing in it knows about the gateway; `docs/guides/merging.md#http-sources` explains what the gateway
   does with the array.
 - **`OrderServiceServer.listOrders`** — the `sorted` branch is the entire difference. Honouring
   `sort_fields` (one `result.sort(...)`) is what lets the gateway stream a backend instead of
@@ -73,4 +73,4 @@ There is no bounded middle ground. `orders-us` is the "read it whole" case; maki
 `orders-eu` is a one-line change in `OrderServiceServer`, and worth trying to see the difference in
 what the gateway requests.
 
-Full reasoning: [docs/merging.md](../../docs/merging.md).
+Full reasoning: [docs/guides/merging.md](../../docs/guides/merging.md).

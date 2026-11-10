@@ -12,8 +12,8 @@ syntax = "proto3";
 // wire format of a message depends on its field numbers and types, never on where it was
 // declared. Copy when you would rather not take a dependency on the gateway from your API protos.
 //
-// See docs/projections-paging-sorting.md for what the gateway does with each field, and
-// docs/graphql-annotations.md for how to get this file onto your protoc include path.
+// See docs/guides/projections-paging-sorting.md for what the gateway does with each field, and
+// docs/guides/graphql-annotations.md for how to get this file onto your protoc include path.
 package shiguchi.pagination;
 
 option java_package = "dev.appiaworks.shiguchi.proto.pagination";

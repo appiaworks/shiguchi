@@ -113,7 +113,7 @@ create them with no `ProtoJson` and no message type.
 
 ## Further reading
 
-- [docs/proto-serde-standalone.md](../../docs/proto-serde-standalone.md): `ProtoJson`, codecs,
+- [docs/libraries/proto-serde-standalone.md](../../docs/libraries/proto-serde-standalone.md): `ProtoJson`, codecs,
   `ProtoTypes`, speed.
-- [docs/protoc-java-extras.md](../../docs/protoc-java-extras.md): the accessors, every type they
+- [docs/libraries/protoc-java-extras.md](../../docs/libraries/protoc-java-extras.md): the accessors, every type they
   cover, and the Gradle and Maven setup.

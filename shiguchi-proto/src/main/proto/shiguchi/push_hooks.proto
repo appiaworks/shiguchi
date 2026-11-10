@@ -23,7 +23,7 @@ syntax = "proto3";
 // Topic activity is per gateway instance: with a shared engine two instances each report their
 // own first and last subscriber. The `instance` field says which.
 //
-// See docs/push.md, "Hooks".
+// See docs/guides/push.md, "Hooks".
 package shiguchi.cursus.v1;
 
 import "google/protobuf/empty.proto";

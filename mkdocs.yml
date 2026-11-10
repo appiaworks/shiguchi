@@ -58,49 +58,80 @@ markdown_extensions:
 
 plugins:
   - search
+  - redirects:
+      redirect_maps:
+        api-compatibility.md: operations/api-compatibility.md
+        avro.md: guides/avro.md
+        bff.md: guides/bff.md
+        caching.md: guides/caching.md
+        comparison.md: concepts/comparison.md
+        configuration.md: reference/configuration.md
+        deployment.md: operations/deployment.md
+        error-handling.md: guides/error-handling.md
+        graphql-annotations.md: guides/graphql-annotations.md
+        grpc-web.md: guides/grpc-web.md
+        http-annotations.md: guides/http-annotations.md
+        json-types.md: guides/json-types.md
+        merging.md: guides/merging.md
+        observability.md: operations/observability.md
+        performance.md: concepts/performance.md
+        projections-paging-sorting.md: guides/projections-paging-sorting.md
+        proto-serde-standalone.md: libraries/proto-serde-standalone.md
+        protoc-java-extras.md: libraries/protoc-java-extras.md
+        push-cli.md: reference/push-cli.md
+        push.md: guides/push.md
+        rate-limiting.md: guides/rate-limiting.md
+        resilience.md: guides/resilience.md
+        security.md: guides/security.md
+        service-discovery.md: guides/service-discovery.md
+        transcoding.md: concepts/transcoding.md
+        troubleshooting.md: operations/troubleshooting.md
+        tutorial.md: getting-started/tutorial.md
+        ui.md: guides/ui.md
+        validation.md: guides/validation.md
 
 nav:
   - Home: README.md
   - Getting started:
-      - Quick start: quick-start.md
-      - Features: features.md
-      - Compatibility: compatibility.md
-      - Tutorial: tutorial.md
-      - Configuration: configuration.md
-      - Comparison: comparison.md
-      - Troubleshooting: troubleshooting.md
+      - Quick start: getting-started/quick-start.md
+      - Features: getting-started/features.md
+      - Compatibility: operations/compatibility.md
+      - Tutorial: getting-started/tutorial.md
+      - Configuration: reference/configuration.md
+      - Comparison: concepts/comparison.md
+      - Troubleshooting: operations/troubleshooting.md
   - Shaping the API:
-      - REST (google.api.http): http-annotations.md
-      - GraphQL and shiguchi options: graphql-annotations.md
-      - Transcoding: transcoding.md
-      - JSON types: json-types.md
-      - Projections, paging, sorting: projections-paging-sorting.md
-      - Merging backends: merging.md
-      - Error handling: error-handling.md
-      - Validation: validation.md
+      - REST (google.api.http): guides/http-annotations.md
+      - GraphQL and shiguchi options: guides/graphql-annotations.md
+      - Transcoding: concepts/transcoding.md
+      - JSON types: guides/json-types.md
+      - Projections, paging, sorting: guides/projections-paging-sorting.md
+      - Merging backends: guides/merging.md
+      - Error handling: guides/error-handling.md
+      - Validation: guides/validation.md
   - Other client surfaces:
-      - gRPC-Web: grpc-web.md
-      - Avro: avro.md
-      - Console: ui.md
+      - gRPC-Web: guides/grpc-web.md
+      - Avro: guides/avro.md
+      - Console: guides/ui.md
   - Backends and traffic:
-      - Service discovery: service-discovery.md
-      - Resilience: resilience.md
-      - Caching: caching.md
-      - Rate limiting: rate-limiting.md
+      - Service discovery: guides/service-discovery.md
+      - Resilience: guides/resilience.md
+      - Caching: guides/caching.md
+      - Rate limiting: guides/rate-limiting.md
   - Security:
-      - Security: security.md
-      - BFF: bff.md
+      - Security: guides/security.md
+      - BFF: guides/bff.md
   - Push messaging (Cursus):
-      - Cursus: push.md
-      - Command line: push-cli.md
+      - Cursus: guides/push.md
+      - Command line: reference/push-cli.md
   - Running in production:
-      - Deployment: deployment.md
-      - Observability: observability.md
-      - Performance: performance.md
+      - Deployment: operations/deployment.md
+      - Observability: operations/observability.md
+      - Performance: concepts/performance.md
   - Libraries without the gateway:
-      - protobuf-java-extras: proto-serde-standalone.md
-      - protoc-java-extras: protoc-java-extras.md
-      - API compatibility: api-compatibility.md
+      - protobuf-java-extras: libraries/proto-serde-standalone.md
+      - protoc-java-extras: libraries/protoc-java-extras.md
+      - API compatibility: operations/api-compatibility.md
   - Design notes:
       - Cursus: design/push.md
       - BFF: design/bff.md

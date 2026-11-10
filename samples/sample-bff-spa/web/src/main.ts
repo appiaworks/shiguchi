@@ -91,7 +91,7 @@ async function callRest(): Promise<void> {
 // A unary gRPC-Web call by hand: a request body is one frame (flag byte 0, 4-byte big-endian length,
 // message), a response is data frames and then a trailers frame (flag 0x80). WhoamiRequest has no
 // fields, so the message is empty. Connect-ES with generated code does the same for real services:
-// see docs/grpc-web.md. Here it would need protoc-gen-es for a one-field message.
+// see docs/guides/grpc-web.md. Here it would need protoc-gen-es for a one-field message.
 async function callGrpcWeb(): Promise<void> {
   const res = await fetch('/sample.bff.WhoAmI/Whoami', {
     method: 'POST',

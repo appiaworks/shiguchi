@@ -49,7 +49,7 @@ DOC_PINS = [
 ]
 
 # Files that keep the old version on purpose.
-DOCS_WITHOUT_PINS = {"docs/migration.md", "docs/api-compatibility.md"}
+DOCS_WITHOUT_PINS = {"docs/migration.md", "docs/operations/api-compatibility.md"}
 
 # Paths and lines where an old version is history rather than a pin. build.gradle.kts holds
 # apiBaseline; its version line is checked on its own by VERSION_FIELDS.
@@ -58,7 +58,7 @@ LEFTOVER_EXCLUDED = [
     ":!CLAUDE.md",
     ":!build.gradle.kts",
     ":!docs/migration.md",
-    ":!docs/api-compatibility.md",
+    ":!docs/operations/api-compatibility.md",
     ":!.github/",
     ":!buildSrc/",
 ]

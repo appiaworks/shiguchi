@@ -81,8 +81,8 @@ request shapes and OpenAPI schema all follow the new service's descriptors.
 
 ## See also
 
-- [docs/http-annotations.md](../../docs/http-annotations.md) — how `google.api.http` becomes a
+- [docs/guides/http-annotations.md](../../docs/guides/http-annotations.md) — how `google.api.http` becomes a
   route, verb, path variables, query parameters and body mapping.
-- [docs/configuration.md](../../docs/configuration.md) — full `shiguchi.*` reference.
-- [docs/service-discovery.md](../../docs/service-discovery.md) — pointing `services[]` at more
+- [docs/reference/configuration.md](../../docs/reference/configuration.md) — full `shiguchi.*` reference.
+- [docs/guides/service-discovery.md](../../docs/guides/service-discovery.md) — pointing `services[]` at more
   than a fixed `host`/`port`.

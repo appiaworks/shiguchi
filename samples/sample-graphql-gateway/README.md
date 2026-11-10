@@ -2,13 +2,13 @@
 
 REST + GraphQL from the same gRPC backend, no gRPC proxy and no console. GraphQL schema
 generation reads `(shiguchi.graphql)` on each RPC and `(shiguchi.field)` on each message field
-(`docs/graphql-annotations.md`) to decide which methods become queries/mutations/resolvers and
+(`docs/guides/graphql-annotations.md`) to decide which methods become queries/mutations/resolvers and
 how types are shaped — REST routes still come from `google.api.http` as usual.
 
 There is no backend bundled with this sample. Point `shiguchi.services[0]` at any gRPC
 service with reflection enabled and `(shiguchi.graphql)` options on the methods you want exposed;
-the examples below assume the `demo.library.Library` service from `docs/graphql-annotations.md`
-and `docs/ui.md` (`GetBook` → query `book`, `ListBooks` → query `books`), so adjust field names
+the examples below assume the `demo.library.Library` service from `docs/guides/graphql-annotations.md`
+and `docs/guides/ui.md` (`GetBook` → query `book`, `ListBooks` → query `books`), so adjust field names
 to your own schema.
 
 ## Run
@@ -77,9 +77,9 @@ shiguchi:
 
 ## See also
 
-- [docs/graphql-annotations.md](../../docs/graphql-annotations.md) — `(shiguchi.graphql)`,
+- [docs/guides/graphql-annotations.md](../../docs/guides/graphql-annotations.md) — `(shiguchi.graphql)`,
   `(shiguchi.field)`, DataLoader batching (`loader_for`/`resolves_type`), and the YAML
   `field-overrides` alternative to touching protos.
-- [docs/http-annotations.md](../../docs/http-annotations.md) — the REST surface this sample
+- [docs/guides/http-annotations.md](../../docs/guides/http-annotations.md) — the REST surface this sample
   keeps enabled alongside GraphQL.
-- [docs/configuration.md](../../docs/configuration.md) — full `shiguchi.*` reference.
+- [docs/reference/configuration.md](../../docs/reference/configuration.md) — full `shiguchi.*` reference.

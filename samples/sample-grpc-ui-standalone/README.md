@@ -1,12 +1,12 @@
 # sample-grpc-ui-standalone
 
-Just the embedded gRPC web console (`docs/ui.md`), nothing else — no REST routes, no GraphQL, no
+Just the embedded gRPC web console (`docs/guides/ui.md`), nothing else — no REST routes, no GraphQL, no
 gRPC proxy. Depends only on `shiguchi-ui-spring-boot4-starter`. Useful as a developer-facing
 try-it tool that sits next to a service without standing up a full gateway.
 
 There is no backend bundled with this sample. Point `shiguchi.services[0]` at any gRPC
 service with reflection enabled; the console lists whatever that backend exposes. The examples
-below assume the `demo.library.Library` service used in `docs/ui.md` (`GetBook`, `ListBooks`,
+below assume the `demo.library.Library` service used in `docs/guides/ui.md` (`GetBook`, `ListBooks`,
 ...) — the console works identically against your own service, it will just show different
 services/methods in the tree.
 
@@ -78,7 +78,7 @@ shiguchi:
 
 ## See also
 
-- [docs/ui.md](../../docs/ui.md) — full walkthrough of the service tree, invoke view, auth and
+- [docs/guides/ui.md](../../docs/guides/ui.md) — full walkthrough of the service tree, invoke view, auth and
   metadata handling, and streaming responses, with screenshots.
-- [docs/configuration.md](../../docs/configuration.md) — `shiguchi.ui.*` reference and the
+- [docs/reference/configuration.md](../../docs/reference/configuration.md) — `shiguchi.ui.*` reference and the
   `security.surfaces.ui.require-auth` override.

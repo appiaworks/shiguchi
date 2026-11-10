@@ -4,7 +4,7 @@
 
   No dedicated Maven plugin is involved: io.github.ascopes:protobuf-maven-plugin runs
   protoc-gen-java-extras straight from its Maven coordinates, in the same protoc run as the Java
-  generator. See docs/protoc-java-extras.md.
+  generator. See docs/libraries/protoc-java-extras.md.
 
   Build:  mvn package
   Run:    mvn -q exec:java

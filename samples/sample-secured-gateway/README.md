@@ -117,6 +117,6 @@ are readable by anything on the network path. ...
 - **Certificates come from your platform**, not from application code. The generation here is a
   sample affordance, not a pattern.
 
-→ [docs/security.md](../../docs/security.md) ·
-[docs/configuration.md](../../docs/configuration.md) ·
-[docs/troubleshooting.md](../../docs/troubleshooting.md)
+→ [docs/guides/security.md](../../docs/guides/security.md) ·
+[docs/reference/configuration.md](../../docs/reference/configuration.md) ·
+[docs/operations/troubleshooting.md](../../docs/operations/troubleshooting.md)
