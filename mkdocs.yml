@@ -1,0 +1,106 @@
+site_name: Shiguchi
+site_description: REST, GraphQL, OpenAPI and push messaging in front of any gRPC service.
+site_url: https://appiaworks.github.io/shiguchi/
+repo_url: https://github.com/appiaworks/shiguchi
+repo_name: appiaworks/shiguchi
+edit_uri: edit/main/docs/
+docs_dir: docs
+exclude_docs: |
+  hooks/
+strict: true
+
+theme:
+  name: material
+  logo: brand/shiguchi-mark.svg
+  favicon: brand/favicon.svg
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+
+# The docs link to files outside docs/ (SECURITY.md, samples, benchmarks); the hook points
+# those at the repository on GitHub, so the Markdown stays readable on GitHub and on the site.
+hooks:
+  - docs/hooks/repo_links.py
+
+validation:
+  omitted_files: info
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify {kwds: {case: lower}}
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+plugins:
+  - search
+
+nav:
+  - Home: README.md
+  - Getting started:
+      - Tutorial: tutorial.md
+      - Configuration: configuration.md
+      - Comparison: comparison.md
+      - Troubleshooting: troubleshooting.md
+  - Shaping the API:
+      - REST (google.api.http): http-annotations.md
+      - GraphQL and shiguchi options: graphql-annotations.md
+      - Transcoding: transcoding.md
+      - JSON types: json-types.md
+      - Projections, paging, sorting: projections-paging-sorting.md
+      - Merging backends: merging.md
+      - Error handling: error-handling.md
+      - Validation: validation.md
+  - Other client surfaces:
+      - gRPC-Web: grpc-web.md
+      - Avro: avro.md
+      - Console: ui.md
+  - Backends and traffic:
+      - Service discovery: service-discovery.md
+      - Resilience: resilience.md
+      - Caching: caching.md
+      - Rate limiting: rate-limiting.md
+  - Security:
+      - Security: security.md
+      - BFF: bff.md
+  - Push messaging (Cursus):
+      - Cursus: push.md
+      - Command line: push-cli.md
+  - Running in production:
+      - Deployment: deployment.md
+      - Observability: observability.md
+      - Performance: performance.md
+  - Libraries without the gateway:
+      - protobuf-java-extras: proto-serde-standalone.md
+      - protoc-java-extras: protoc-java-extras.md
+      - API compatibility: api-compatibility.md
+  - Design notes:
+      - Cursus: design/push.md
+      - BFF: design/bff.md
+      - GraphQL live queries: design/graphql-live.md
+  - About:
+      - Brand: brand/README.md

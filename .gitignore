@@ -46,3 +46,6 @@ bin/
 # ...except the repository root bin/ (the cursus wrappers)
 !/bin/
 .playwright-mcp/
+
+# mkdocs output
+/site/
