@@ -62,7 +62,8 @@ plugins:
       redirect_maps:
         api-compatibility.md: operations/api-compatibility.md
         avro.md: guides/avro.md
-        bff.md: guides/bff.md
+        bff.md: guides/bff/index.md
+        guides/bff.md: guides/bff/index.md
         caching.md: guides/caching.md
         comparison.md: concepts/comparison.md
         configuration.md: reference/configuration.md
@@ -75,11 +76,13 @@ plugins:
         merging.md: guides/merging.md
         observability.md: operations/observability.md
         performance.md: concepts/performance.md
-        projections-paging-sorting.md: guides/projections-paging-sorting.md
+        projections-paging-sorting.md: guides/projections/index.md
+        guides/projections-paging-sorting.md: guides/projections/index.md
         proto-serde-standalone.md: libraries/proto-serde-standalone.md
         protoc-java-extras.md: libraries/protoc-java-extras.md
         push-cli.md: reference/push-cli.md
-        push.md: guides/push.md
+        push.md: guides/cursus/index.md
+        guides/push.md: guides/cursus/index.md
         rate-limiting.md: guides/rate-limiting.md
         resilience.md: guides/resilience.md
         security.md: guides/security.md
@@ -105,7 +108,12 @@ nav:
       - GraphQL and shiguchi options: guides/graphql-annotations.md
       - Transcoding: concepts/transcoding.md
       - JSON types: guides/json-types.md
-      - Projections, paging, sorting: guides/projections-paging-sorting.md
+      - Projections, paging, sorting:
+          - Overview: guides/projections/index.md
+          - Paging: guides/projections/paging.md
+          - Sorting: guides/projections/sorting.md
+          - Field projection: guides/projections/field-projection.md
+          - JPA example: guides/projections/jpa-example.md
       - Merging backends: guides/merging.md
       - Error handling: guides/error-handling.md
       - Validation: guides/validation.md
@@ -120,9 +128,23 @@ nav:
       - Rate limiting: guides/rate-limiting.md
   - Security:
       - Security: guides/security.md
-      - BFF: guides/bff.md
+      - BFF:
+          - Overview: guides/bff/index.md
+          - Endpoints, refresh, logout: guides/bff/endpoints.md
+          - Push with the cookie: guides/bff/push-with-cookie.md
+          - Threat model: guides/bff/threat-model.md
+          - Deployment and migrating: guides/bff/migrating.md
   - Push messaging (Cursus):
-      - Cursus: guides/push.md
+      - Cursus:
+          - Overview: guides/cursus/index.md
+          - Subscribing: guides/cursus/subscribing.md
+          - Publishing: guides/cursus/publishing.md
+          - Topics, sources, hooks: guides/cursus/topics-and-sources.md
+          - Delivery and sessions: guides/cursus/delivery.md
+          - Authorization: guides/cursus/authorization.md
+          - Operations: guides/cursus/operations.md
+          - Engines: guides/cursus/engines.md
+          - Configuration: guides/cursus/configuration.md
       - Command line: reference/push-cli.md
   - Running in production:
       - Deployment: operations/deployment.md

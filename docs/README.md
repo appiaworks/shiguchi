@@ -12,8 +12,8 @@ Every guide in this folder, grouped by what you are trying to do. New to Shiguch
 | decide whether Shiguchi fits | [comparison](concepts/comparison.md) |
 | fix a 404, a backend that does not load, or odd JSON | [troubleshooting](operations/troubleshooting.md) |
 | run it in Kubernetes | [deployment](operations/deployment.md), [observability](operations/observability.md) |
-| lock it down | [security](guides/security.md), then [bff](guides/bff.md) for browser apps |
-| push events to clients | [push](guides/push.md), [push-cli](reference/push-cli.md) |
+| lock it down | [security](guides/security.md), then [bff](guides/bff/index.md) for browser apps |
+| push events to clients | [push](guides/cursus/index.md), [push-cli](reference/push-cli.md) |
 | use the JSON serde or typed accessors without the gateway | [proto-serde-standalone](libraries/proto-serde-standalone.md), [protoc-java-extras](libraries/protoc-java-extras.md) |
 
 ## Getting started
@@ -38,7 +38,7 @@ How a proto contract becomes the HTTP surfaces.
   serde tiers and the JSON mapping rules.
 - [json-types.md](guides/json-types.md): dates, times, decimals, money, durations and numbers on every
   surface; string escaping and print options.
-- [projections-paging-sorting.md](guides/projections-paging-sorting.md): the `read_mask`,
+- [projections-paging-sorting.md](guides/projections/index.md): the `read_mask`,
   `page_request` and `sort_fields` conventions, with a Spring Data JPA backend.
 - [merging.md](guides/merging.md): one sorted, paged endpoint served by several backends.
 - [error-handling.md](guides/error-handling.md): the gRPC to HTTP status table and custom error bodies.
@@ -67,14 +67,14 @@ How a proto contract becomes the HTTP surfaces.
 - [security.md](guides/security.md): the JWT resource server, per-surface gating, scopes and claims,
   what backends receive, TLS to backends, your own filter chain. The default posture is in
   [SECURITY.md](../SECURITY.md).
-- [bff.md](guides/bff.md): browser sign-in with a session cookie (experimental): threat model, setup,
+- [bff.md](guides/bff/index.md): browser sign-in with a session cookie (experimental): threat model, setup,
   sessions, refresh, CSRF, logout and revocation.
 
 ## Push messaging (Cursus)
 
 Experimental: the shape may change in a minor release.
 
-- [push.md](guides/push.md): server-to-client messaging over SSE, WebSocket, gRPC and GraphQL
+- [push.md](guides/cursus/index.md): server-to-client messaging over SSE, WebSocket, gRPC and GraphQL
   subscriptions; topics, namespaces, delivery guarantees, engines, authorization, administration.
 - [push-cli.md](reference/push-cli.md): the `cursus` command line: install, profiles, every verb, exit codes.
 - The npm client: [shiguchi-cursus-client-js](../shiguchi-cursus-client-js/README.md).

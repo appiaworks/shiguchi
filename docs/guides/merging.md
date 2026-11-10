@@ -272,7 +272,7 @@ sub-calls per page equal the source count, bounded only by `max-sources`.
 
 - [`samples/sample-merge-gateway`](../../samples/sample-merge-gateway) — runnable two-backend merge,
   one sorted and one not
-- [projections-paging-sorting.md](projections-paging-sorting.md) — the `page_request` / `sort_fields`
+- [projections-paging-sorting.md](projections/index.md) — the `page_request` / `sort_fields`
   conventions a merge is built on, and how to implement them in a backend so its sources can stream
 - [transcoding.md](../concepts/transcoding.md) — the serde tiers a merge opts out of
 - [configuration.md](../reference/configuration.md) — full property reference

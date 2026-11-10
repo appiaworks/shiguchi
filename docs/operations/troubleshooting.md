@@ -316,7 +316,7 @@ server:
 
 Check whether you are asking for the whole message. The gateway supports field projection, and a
 projected conversion never costs more than the full one — see
-[projections-paging-sorting.md](../guides/projections-paging-sorting.md).
+[projections-paging-sorting.md](../guides/projections/index.md).
 
 ---
 

@@ -14,7 +14,7 @@ Key pieces:
 - `routing/` — `GrpcRouteRegistry`, `RouteDefinition`, `ServiceEndpointContext`, and
   `ConventionArgMapper` (maps the paging/sorting arguments every surface accepts onto the
   `page_request` / `sort_fields` convention fields —
-  see [docs/guides/projections-paging-sorting.md](../docs/guides/projections-paging-sorting.md)).
+  see [docs/guides/projections/index.md](../docs/guides/projections/index.md)).
 - `reflection/` — gRPC server-reflection client with transitive dependency resolution.
 - `config/GatewayProperties` — all `shiguchi.*` configuration
   (see [docs/reference/configuration.md](../docs/reference/configuration.md)).

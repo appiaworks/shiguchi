@@ -189,7 +189,7 @@ for what it does on logout and CSRF.
 Use a proxy when you want sign-in in front of an application that needs no gateway of its own; use
 this module when the gateway already is your edge and you want revocation, logout propagation and
 session-bound streams. It is a plain OIDC client of your issuer, not an identity provider
-([bff.md](../guides/bff.md)).
+([bff.md](../guides/bff/index.md)).
 
 ---
 

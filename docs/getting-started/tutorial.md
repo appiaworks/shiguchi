@@ -257,7 +257,7 @@ management:
 | Shape REST paths, bodies, query parameters | [http-annotations.md](../guides/http-annotations.md) |
 | Control the GraphQL schema | [graphql-annotations.md](../guides/graphql-annotations.md) |
 | Return useful errors | [error-handling.md](../guides/error-handling.md) |
-| Page, sort and project large lists | [projections-paging-sorting.md](../guides/projections-paging-sorting.md) |
+| Page, sort and project large lists | [projections-paging-sorting.md](../guides/projections/index.md) |
 | Combine several backends into one response | [merging.md](../guides/merging.md) |
 | Survive a flaky backend | [resilience.md](../guides/resilience.md) |
 | Every property there is | [configuration.md](../reference/configuration.md) |

@@ -8,7 +8,7 @@ as `google.api.http`. They all live in the `shiguchi` package, one file per conc
 | `shiguchi/graphql.proto` | `(shiguchi.graphql)` on a method, `(shiguchi.field)` on a field | The generated GraphQL schema |
 | `shiguchi/method.proto` | `(shiguchi.method)` on a method | Every surface: REST, GraphQL, gRPC-Web |
 | `shiguchi/merge.proto` | `(shiguchi.merge)` on a method | A route served by merging backends, see [merging.md](merging.md) |
-| `shiguchi/topic.proto` | `(shiguchi.topic)` on a method | A push topic fed by a server stream, see [push.md](push.md) |
+| `shiguchi/topic.proto` | `(shiguchi.topic)` on a method | A push topic fed by a server stream, see [push.md](cursus/index.md) |
 
 Import `shiguchi/annotations.proto` to get all four at once, or only the files you use:
 
@@ -54,7 +54,7 @@ resolve, look at what your build extracted under `build/extracted-include-protos
 Maven's `protobuf-maven-plugin` does not extract protos from dependencies. Unpack them with
 `maven-dependency-plugin` and add the output directory to `<additionalProtoPathElements>` — the
 full snippet is in
-[projections-paging-sorting.md](projections-paging-sorting.md#getting-the-protos).
+[projections-paging-sorting.md](projections/index.md#getting-the-protos).
 
 **As a zip (any toolchain).** A `protos` classifier artifact carries the same files with no jar
 involved, for Go, Rust, Python, buf or a plain `protoc`:
@@ -107,7 +107,7 @@ rpc ListBooks(ListBooksRequest) returns (ListBooksResponse) {
 | `shareable`, `external`, `requires`, `provides` | Federation directives on the field, see [Federation](#federation) |
 | `directives` | Raw SDL directives appended to the field, see [Federation](#federation) |
 
-Push namespaces get subscription fields of their own without an annotation; see [push.md](push.md#graphql-subscriptions).
+Push namespaces get subscription fields of their own without an annotation; see [push.md](cursus/subscribing.md#graphql-subscriptions).
 
 ## Field option `(shiguchi.field)`
 

@@ -192,7 +192,7 @@ it is a proto bug, and a response that merely looks wrong is harder to find than
 
 The paging, sorting and projection conventions (`?pageSize=`, `?pageToken=`, `?sort=`,
 `?fields=`) are recognised by field name on the request message and folded onto their
-convention fields — see [projections-paging-sorting.md](projections-paging-sorting.md).
+convention fields — see [projections-paging-sorting.md](projections/index.md).
 
 ## Backend response headers and trailers
 

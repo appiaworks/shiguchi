@@ -84,7 +84,7 @@ load balancing, retries and hedging, TLS, forwarded headers and outbound metrics
 ## Server streaming from Connect-ES
 
 A long-lived server stream works from a browser through the same transport. This is
-`PushService/Subscribe` ([push.md](push.md#grpc-grpc-web-and-typed-json)) with Connect-ES v2: the
+`PushService/Subscribe` ([push.md](cursus/subscribing.md#grpc-grpc-web-and-typed-json)) with Connect-ES v2: the
 client is generated from `push.proto` by `protoc-gen-es`, and `createGrpcWebTransport` speaks the
 gateway's protocol.
 

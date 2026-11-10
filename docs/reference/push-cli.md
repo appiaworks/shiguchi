@@ -1,7 +1,7 @@
 # cursus: the Cursus command line
 
 Experimental. `cursus` subscribes, publishes, lists and searches a gateway's
-[push surface](../guides/push.md) from a terminal. Output is NDJSON on stdout (one JSON document per line,
+[push surface](../guides/cursus/index.md) from a terminal. Output is NDJSON on stdout (one JSON document per line,
 flushed as it is produced) and diagnostics go to stderr, so it composes with `jq`, `grep` and
 shell loops. It is a plain Java program (picocli, the JDK's HTTP client and WebSocket, gRPC stubs,
 Jackson), no Spring, started with Java 21 or newer.
@@ -83,7 +83,7 @@ A line is `{topic, id, data}` plus `attributes`, `key` and `time` where the tran
 | `--after ID` | resume after this event id |
 | `--group G --member M` | join a consumer group (`member` defaults to host-pid) |
 | `--session S` | a client session id |
-| `--origin ID` | this subscriber's own origin id: events published with the same origin are not delivered to it (echo suppression, see [push.md](../guides/push.md#echo-suppression)); ignored with `--group` |
+| `--origin ID` | this subscriber's own origin id: events published with the same origin are not delivered to it (echo suppression, see [push.md](../guides/cursus/publishing.md#echo-suppression)); ignored with `--group` |
 | `--qos` | `AT_MOST_ONCE` or `AT_LEAST_ONCE` |
 | `--ack` | acknowledge each event after printing it |
 | `-n`, `--max-events N` | exit 0 after N events |
