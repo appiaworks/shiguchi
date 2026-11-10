@@ -41,6 +41,18 @@ public class GraphQlLiveConfiguration {
         return new GraphQlLiveCursusBridge(invalidations, broker, push.resolvedInstanceId());
     }
 
+    /** Upstream events on a method's {@code invalidated_by} topics re-run its live queries. */
+    @Bean
+    @ConditionalOnProperty(prefix = "shiguchi.graphql.live", name = "enabled", havingValue = "true")
+    @ConditionalOnClass(name = "dev.appiaworks.shiguchi.cursus.PushBroker")
+    @ConditionalOnProperty(prefix = "shiguchi.cursus", name = "enabled", havingValue = "true")
+    GraphQlLiveUpstreamFeed gatewayGraphQlLiveUpstreamFeed(
+            GrpcRouteRegistry registry,
+            dev.appiaworks.shiguchi.cursus.PushBroker broker,
+            GraphQlLiveInvalidations invalidations) {
+        return new GraphQlLiveUpstreamFeed(registry, broker, invalidations, java.time.Duration.ofSeconds(30));
+    }
+
     /** Warns when invalidations cannot leave the process. */
     @Bean
     @ConditionalOnProperty(prefix = "shiguchi.graphql.live", name = "enabled", havingValue = "true")
