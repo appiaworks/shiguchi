@@ -90,7 +90,7 @@ class GraphQlLiveUpstreamFeed implements InitializingBean, DisposableBean {
                     topic,
                     t -> broker.subscribe(t)
                             .subscribe(
-                                    event -> invalidations.receive(wanted().getOrDefault(t, Set.of())),
+                                    event -> invalidations.receive(wanted().getOrDefault(t, Set.of()), "upstream"),
                                     e -> log.warn("GraphQL live feed on {} ended: {}", t, e.toString())));
         }
     }

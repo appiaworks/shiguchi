@@ -141,6 +141,9 @@ public class GraphQlConfig {
 
         /** A live query with no news is run again after this long, so a missed signal is repaired. Zero: never. */
         private java.time.Duration refreshInterval = java.time.Duration.ofMinutes(5);
+
+        /** Live re-executions this instance runs at once; the rest wait in order. */
+        private int maxConcurrentReexecutions = 32;
     }
 
     @Data

@@ -49,6 +49,8 @@ class GraphQlLiveInterceptor implements WebGraphQlInterceptor, Ordered {
     private final GraphQlLiveStreams streams;
     private final GraphQlConfig.LiveConfig config;
     private final ObjectProvider<CookieSessionBindingInterceptor> binding;
+    private final GraphQlLiveGate gate;
+    private final GraphQlLiveMetrics metrics;
 
     GraphQlLiveInterceptor(
             GraphQlLiveDependencies dependencies,
@@ -64,6 +66,26 @@ class GraphQlLiveInterceptor implements WebGraphQlInterceptor, Ordered {
             GraphQlLiveStreams streams,
             GraphQlConfig.LiveConfig config,
             ObjectProvider<CookieSessionBindingInterceptor> binding) {
+        this(
+                dependencies,
+                invalidations,
+                streams,
+                config,
+                binding,
+                new GraphQlLiveGate(config.getMaxConcurrentReexecutions()),
+                new GraphQlLiveMetrics(null, () -> 0, () -> 0));
+    }
+
+    GraphQlLiveInterceptor(
+            GraphQlLiveDependencies dependencies,
+            GraphQlLiveInvalidations invalidations,
+            GraphQlLiveStreams streams,
+            GraphQlConfig.LiveConfig config,
+            ObjectProvider<CookieSessionBindingInterceptor> binding,
+            GraphQlLiveGate gate,
+            GraphQlLiveMetrics metrics) {
+        this.gate = gate;
+        this.metrics = metrics;
         this.binding = binding;
         this.dependencies = dependencies;
         this.invalidations = invalidations;
@@ -92,10 +114,10 @@ class GraphQlLiveInterceptor implements WebGraphQlInterceptor, Ordered {
             Duration throttle = throttle(shape.throttleMs());
             Flux<ExecutionResult> results = triggers(shape.services(), throttle)
                     .concatMap(
-                            trigger -> run(request, chain)
+                            trigger -> gate.limit(run(request, chain).doOnNext(r -> metrics.executed()))
                                     .concatWith(Mono.delay(throttle).then(Mono.empty())),
                             1)
-                    .distinctUntilChanged(GraphQlLiveInterceptor::content)
+                    .transform(this::unchanged)
                     .index((i, result) -> numbered(result, i + 1))
                     .takeUntil(GraphQlLiveInterceptor::endsStream)
                     .doFinally(signal -> lease.release());
@@ -133,7 +155,7 @@ class GraphQlLiveInterceptor implements WebGraphQlInterceptor, Ordered {
         Flux<Object> refresh = config.getRefreshInterval().isZero()
                         || config.getRefreshInterval().isNegative()
                 ? Flux.never()
-                : Flux.interval(config.getRefreshInterval()).map(i -> (Object) i);
+                : Flux.interval(config.getRefreshInterval()).doOnNext(i -> metrics.signal("refresh")).map(i -> (Object) i);
         return Flux.merge(Mono.just((Object) "start"), signals, refresh).onBackpressureLatest();
     }
 
@@ -141,6 +163,22 @@ class GraphQlLiveInterceptor implements WebGraphQlInterceptor, Ordered {
         return Mono.defer(() -> chain.next(request))
                 .map(response -> response.getExecutionResult())
                 .filter(result -> !(result.getData() instanceof Publisher));
+    }
+
+    /** Drops a result equal to the one before it. */
+    private Flux<ExecutionResult> unchanged(Flux<ExecutionResult> results) {
+        return Flux.defer(() -> {
+            java.util.concurrent.atomic.AtomicReference<Map<String, Object>> last =
+                    new java.util.concurrent.atomic.AtomicReference<>();
+            return results.filter(result -> {
+                Map<String, Object> now = content(result);
+                if (now.equals(last.getAndSet(now))) {
+                    metrics.skipped();
+                    return false;
+                }
+                return true;
+            });
+        });
     }
 
     private Mono<String> principal() {

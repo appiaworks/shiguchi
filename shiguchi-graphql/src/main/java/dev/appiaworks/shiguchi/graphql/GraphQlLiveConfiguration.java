@@ -29,37 +29,13 @@ public class GraphQlLiveConfiguration {
         return new GraphQlLiveInvalidations();
     }
 
-    /** Carries invalidations between instances through the Cursus broker, when the push module is on. */
-    @Bean
-    @ConditionalOnProperty(prefix = "shiguchi.graphql.live", name = "enabled", havingValue = "true")
-    @ConditionalOnClass(name = "dev.appiaworks.shiguchi.cursus.PushBroker")
-    @ConditionalOnProperty(prefix = "shiguchi.cursus", name = "enabled", havingValue = "true")
-    GraphQlLiveCursusBridge gatewayGraphQlLiveCursusBridge(
-            GraphQlLiveInvalidations invalidations,
-            dev.appiaworks.shiguchi.cursus.PushBroker broker,
-            dev.appiaworks.shiguchi.cursus.PushProperties push) {
-        return new GraphQlLiveCursusBridge(invalidations, broker, push.resolvedInstanceId());
-    }
-
-    /** Upstream events on a method's {@code invalidated_by} topics re-run its live queries. */
-    @Bean
-    @ConditionalOnProperty(prefix = "shiguchi.graphql.live", name = "enabled", havingValue = "true")
-    @ConditionalOnClass(name = "dev.appiaworks.shiguchi.cursus.PushBroker")
-    @ConditionalOnProperty(prefix = "shiguchi.cursus", name = "enabled", havingValue = "true")
-    GraphQlLiveUpstreamFeed gatewayGraphQlLiveUpstreamFeed(
-            GrpcRouteRegistry registry,
-            dev.appiaworks.shiguchi.cursus.PushBroker broker,
-            GraphQlLiveInvalidations invalidations) {
-        return new GraphQlLiveUpstreamFeed(registry, broker, invalidations, java.time.Duration.ofSeconds(30));
-    }
-
     /** Warns when invalidations cannot leave the process. */
     @Bean
     @ConditionalOnProperty(prefix = "shiguchi.graphql.live", name = "enabled", havingValue = "true")
     org.springframework.boot.ApplicationRunner gatewayGraphQlLiveScopeNotice(
-            org.springframework.beans.factory.ObjectProvider<GraphQlLiveCursusBridge> bridge) {
+            org.springframework.beans.factory.ListableBeanFactory beans) {
         return args -> {
-            if (bridge.getIfAvailable() == null) {
+            if (!beans.containsBean("gatewayGraphQlLiveCursusBridge")) {
                 log.warn("GraphQL live queries are invalidated in this process only: with several gateway instances a"
                         + " mutation re-runs the live queries on the instance that served it (enable"
                         + " shiguchi.cursus with a shared engine to carry them across instances)");
@@ -73,19 +49,19 @@ public class GraphQlLiveConfiguration {
             GatewayProperties properties,
             GraphQlLiveDependencies dependencies,
             GraphQlLiveInvalidations invalidations,
-            org.springframework.beans.factory.ObjectProvider<CookieSessionBindingInterceptor> binding) {
+            org.springframework.beans.factory.ObjectProvider<CookieSessionBindingInterceptor> binding,
+            org.springframework.beans.factory.ObjectProvider<io.micrometer.core.instrument.MeterRegistry> meters) {
         GraphQlConfig.LiveConfig live = properties.getGraphql().getLive();
         log.info(
                 "GraphQL live queries: at least {} between results, {} per principal, {} in all",
                 live.getMinInterval(),
                 live.getMaxPerPrincipal(),
                 live.getMaxTotal());
-        return new GraphQlLiveInterceptor(
-                dependencies,
-                invalidations,
-                new GraphQlLiveStreams(live.getMaxPerPrincipal(), live.getMaxTotal()),
-                live,
-                binding);
+        GraphQlLiveStreams streams = new GraphQlLiveStreams(live.getMaxPerPrincipal(), live.getMaxTotal());
+        GraphQlLiveGate gate = new GraphQlLiveGate(live.getMaxConcurrentReexecutions());
+        GraphQlLiveMetrics metrics = new GraphQlLiveMetrics(meters.getIfAvailable(), streams::active, gate::waiting);
+        invalidations.metrics(metrics);
+        return new GraphQlLiveInterceptor(dependencies, invalidations, streams, live, binding, gate, metrics);
     }
 
     @Bean
@@ -93,5 +69,31 @@ public class GraphQlLiveConfiguration {
     GraphQlLiveInvalidationInterceptor gatewayGraphQlLiveInvalidationInterceptor(
             GraphQlLiveDependencies dependencies, GraphQlLiveInvalidations invalidations) {
         return new GraphQlLiveInvalidationInterceptor(dependencies, invalidations);
+    }
+
+    /** The beans that need the push module; a class of their own, so it is not read without it. */
+    @Configuration
+    @ConditionalOnProperty(prefix = "shiguchi.graphql.live", name = "enabled", havingValue = "true")
+    @ConditionalOnClass(name = "dev.appiaworks.shiguchi.cursus.PushBroker")
+    @ConditionalOnProperty(prefix = "shiguchi.cursus", name = "enabled", havingValue = "true")
+    static class CursusLive {
+
+        /** Carries invalidations between instances through the Cursus broker. */
+        @Bean
+        GraphQlLiveCursusBridge gatewayGraphQlLiveCursusBridge(
+                GraphQlLiveInvalidations invalidations,
+                dev.appiaworks.shiguchi.cursus.PushBroker broker,
+                dev.appiaworks.shiguchi.cursus.PushProperties push) {
+            return new GraphQlLiveCursusBridge(invalidations, broker, push.resolvedInstanceId());
+        }
+
+        /** Upstream events on a method's {@code invalidated_by} topics re-run its live queries. */
+        @Bean
+        GraphQlLiveUpstreamFeed gatewayGraphQlLiveUpstreamFeed(
+                GrpcRouteRegistry registry,
+                dev.appiaworks.shiguchi.cursus.PushBroker broker,
+                GraphQlLiveInvalidations invalidations) {
+            return new GraphQlLiveUpstreamFeed(registry, broker, invalidations, java.time.Duration.ofSeconds(30));
+        }
     }
 }
