@@ -341,7 +341,7 @@ wrapping it in the same GraphQL schema. See the `sample-rest-downstream` sample.
 
 **Which Spring Boot versions?**
 Spring Boot 4 (`spring-boot4` in the artifact id). Boot 3 was supported up to 0.18.x; see
-[Compatibility](../README.md#compatibility).
+[Compatibility](compatibility.md).
 
 **Is the web console safe to expose?**
 It is an RPC client holding your gateway's credentials — it can call every method on every

@@ -62,6 +62,9 @@ plugins:
 nav:
   - Home: README.md
   - Getting started:
+      - Quick start: quick-start.md
+      - Features: features.md
+      - Compatibility: compatibility.md
       - Tutorial: tutorial.md
       - Configuration: configuration.md
       - Comparison: comparison.md

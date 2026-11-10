@@ -1,13 +1,13 @@
 # Deployment
 
 The Helm chart and the `sample-full` OCI image are published on every tagged release (see
-[README → Deploy](../README.md#deploy)). This page covers the runtime side: which JVM the image
+[the chart values](../helm/values.yaml)). This page covers the runtime side: which JVM the image
 runs, how to get your own compiled stubs into it, and how the chart tunes it.
 
 ## Runtime
 
 The image is `eclipse-temurin:25-jre` running the boot jar, built on the latest Spring Boot 4. The
-libraries need Spring Boot 4 ([Compatibility](../README.md#compatibility)) and are compiled for Java 21,
+libraries need Spring Boot 4 ([Compatibility](compatibility.md)) and are compiled for Java 21,
 so an application of your own can run them on 21, but JDK 25 is what CI tests on and what the image
 ships: it brings compact object headers, generational-only ZGC and the AOT cache, none of which 21
 has.
