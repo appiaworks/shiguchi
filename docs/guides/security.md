@@ -139,7 +139,7 @@ converter, make it a `ReactiveJwtAuthenticationConverter` and set the claim on i
 lacks the principal claim (`sub` by default) is refused with `401`.
 
 A push namespace can match `PRINCIPAL_MATCH` topics on another claim without renaming the caller
-anywhere else: see `principal-claim` in [push.md](push.md#authorization).
+anywhere else: see `principal-claim` in [push.md](cursus/authorization.md#authorization).
 
 ## Authorizing calls
 
@@ -261,7 +261,7 @@ shiguchi:
 
 The chain then matches only what it still gates or serves — `/actuator/gateway-refresh`, the
 `gateway-traffic` writes, the browser surfaces (console, GraphiQL, `/graphql`, Swagger), the
-`shiguchi.cors.paths`, with gRPC-Web on its path prefix, and with [push](push.md) on its
+`shiguchi.cors.paths`, with gRPC-Web on its path prefix, and with [push](cursus/index.md) on its
 `shiguchi.cursus.path` (the namespaces' own checks need the chain to have read the JWT) — and
 every other route skips it. What those routes lose: Spring Security's default response headers (`X-Content-Type-Options`,
 `X-Frame-Options`, `Cache-Control: no-store`, `Referrer-Policy`) and its request firewall. The
@@ -383,7 +383,7 @@ push connections.
 **Stream expiry:** a gRPC-Web or REST server stream or a GraphQL subscription of a bearer caller ends
 at the token's `exp` with `UNAUTHENTICATED` "token expired" (`shiguchi.security.end-streams-at-token-expiry`,
 default `true`), and an operation sent on an open bearer GraphQL WebSocket past `exp` is refused;
-a cookie caller's stream follows its session instead. See [bff.md](bff.md#rest-grpc-web-and-graphql-streams).
+a cookie caller's stream follows its session instead. See [bff.md](bff/push-with-cookie.md#rest-grpc-web-and-graphql-streams).
 
 **Revocation delay:** the cookie stops working at once; a push socket on another instance closes within
 `shiguchi.cursus.session-check-interval`, and a REST, gRPC-Web or GraphQL stream within

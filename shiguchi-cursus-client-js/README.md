@@ -3,7 +3,7 @@
 > **Experimental.** The API may change before 1.0.
 
 A small TypeScript client for the gateway's push WebSocket protocol (`push.v1.json`, see
-[docs/guides/push.md](../docs/guides/push.md#websocket)). It does what every consumer of the protocol otherwise
+[docs/guides/cursus/index.md](../docs/guides/cursus/subscribing.md#websocket)). It does what every consumer of the protocol otherwise
 rewrites:
 
 - reconnects with capped exponential backoff and jitter;

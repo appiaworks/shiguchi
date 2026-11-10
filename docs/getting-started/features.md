@@ -70,7 +70,7 @@ The whole feature set on one page; each section links to the guide that owns it.
   `read_mask`, and `page_info` fields activate `?pageSize`/`?pageToken`/`?sort=`/`?fields=`
   mapping and `X-Next-Page-Token` / `X-Total-Count` response headers, with no annotation.
   All of them are advertised in the generated OpenAPI document.
-  → [docs/projections-paging-sorting.md](../guides/projections-paging-sorting.md)
+  → [docs/projections-paging-sorting.md](../guides/projections/index.md)
 - **gRPC→HTTP status mapping** with a pluggable `GatewayErrorRenderer` for custom error
   bodies. **Rich error details** travel with the error: the `google.rpc.Status` details a
   backend attaches (`BadRequest` field violations, `ErrorInfo`, `RetryInfo`, its own types)
@@ -141,7 +141,7 @@ The whole feature set on one page; each section links to the guide that owns it.
   a `gateway-push` actuator endpoint and a console tab for operators;
   `shiguchi-cursus-*-starter`; a `cursus` command line (subscribe, publish, list, search, republish, tombstone, seek, send, bench; NDJSON, jbang or fat jar,
   [docs/push-cli.md](../reference/push-cli.md)). Guide:
-  [docs/push.md](../guides/push.md), design: [docs/design/push.md](../design/push.md).
+  [docs/push.md](../guides/cursus/index.md), design: [docs/design/push.md](../design/push.md).
 
 ## OpenAPI & the web console
 
@@ -183,7 +183,7 @@ The whole feature set on one page; each section links to the guide that owns it.
   backends. Cookie requests need an exact `Origin` match against the session's application (CSRF,
   WebSocket handshakes included), and no backend can set a cookie on the browser. Server-side
   sessions: Redis or a database for more than one instance.
-  → [docs/bff.md](../guides/bff.md) (guide), [docs/design/bff.md](../design/bff.md), [docs/security.md](../guides/security.md)
+  → [docs/bff.md](../guides/bff/index.md) (guide), [docs/design/bff.md](../design/bff.md), [docs/security.md](../guides/security.md)
 - **TLS and mTLS to backends** — per-service trust store, client cert chain, and PKCS#8 key.
 - **CORS** scoped to the browser surfaces by default, with REST routes deliberately excluded.
 - **Security headers** on those same surfaces — a Content-Security-Policy fitted to the bundled

@@ -117,7 +117,7 @@ queries/mutations (from `(shiguchi.graphql)` annotations, or convention-named li
 
 ## Push
 
-With the push surface on ([push.md](push.md)), a **Push** button in the top bar switches the
+With the push surface on ([push.md](cursus/index.md)), a **Push** button in the top bar switches the
 console to its admin views: the instance overview and namespaces, the topics with a live tail,
 the open connections with disconnect, and a test publish. They read the `gateway-push` actuator
 endpoint, so it must be exposed; the writes carry the console's global auth token.

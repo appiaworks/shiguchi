@@ -1,4 +1,4 @@
-/** Frames and options of the push WebSocket protocol (`push.v1.json`). See docs/guides/push.md in the gateway repo. */
+/** Frames and options of the push WebSocket protocol (`push.v1.json`). See docs/guides/cursus/index.md in the gateway repo. */
 
 /** One event as the gateway delivers it. `time` is epoch milliseconds. */
 export interface PushEvent {

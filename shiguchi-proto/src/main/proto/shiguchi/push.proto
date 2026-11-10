@@ -12,7 +12,7 @@ syntax = "proto3";
 // when the gateway knows the type (it is one of the messages of a configured service), and is
 // refused otherwise. Subscribers over every transport see the same JSON.
 //
-// See docs/guides/push.md.
+// See docs/guides/cursus/index.md.
 package shiguchi.cursus.v1;
 
 import "google/api/annotations.proto";
