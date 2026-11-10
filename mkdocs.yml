@@ -101,6 +101,7 @@ nav:
       - Compatibility: operations/compatibility.md
       - Tutorial: getting-started/tutorial.md
       - Configuration: reference/configuration.md
+      - Proto options: reference/proto-options.md
       - Comparison: concepts/comparison.md
       - Troubleshooting: operations/troubleshooting.md
   - Shaping the API:
