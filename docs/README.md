@@ -103,8 +103,8 @@ Experimental: the shape may change in a minor release.
 Background on why things are built the way they are. They record decisions and history, so
 read the guides above for current behaviour.
 
-- [design/push.md](design/push.md): Cursus: prior art, vocabulary, SPIs, QoS and sessions.
-- [design/bff.md](design/bff.md): the BFF: decisions, the threat model and the build plan.
+- [design/push.md](../design/push.md): Cursus: prior art, vocabulary, SPIs, QoS and sessions.
+- [design/bff.md](../design/bff.md): the BFF: decisions, the threat model and the build plan.
 
 ## About the project
 

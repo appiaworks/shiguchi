@@ -155,9 +155,5 @@ nav:
       - protobuf-java-extras: libraries/proto-serde-standalone.md
       - protoc-java-extras: libraries/protoc-java-extras.md
       - API compatibility: operations/api-compatibility.md
-  - Design notes:
-      - Cursus: design/push.md
-      - BFF: design/bff.md
-      - GraphQL live queries: design/graphql-live.md
   - About:
       - Brand: brand/README.md
