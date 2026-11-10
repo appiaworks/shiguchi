@@ -1,6 +1,6 @@
 # GraphQL live queries (`@live`) — design
 
-Status: decisions taken 2026-11-08 (section 10); proposal otherwise. Nothing here is built. It follows the response cache (E1) and the
+Status: built (decisions of 2026-11-08, section 10; the departures from the first proposal are in section 11). It follows the response cache (E1) and the
 push module (`shiguchi-cursus`), and is meant to be approved before any code.
 
 ## 1. What and why
@@ -65,7 +65,7 @@ response cache, which may be off, so the observer lives in its own interceptor
 both are on they share the `Plan` computation.
 
 **(b) Upstream events.** A new field on `(shiguchi.graphql)`: `repeated string invalidated_by`, a
-list of Cursus topic patterns (the same pattern syntax as `TopicPattern`). A method whose result
+list of exact Cursus topics, `namespace:name` (see section 11). A method whose result
 changes when an event arrives on one of those topics is invalidated by it. The topics are fed by
 whatever already feeds Cursus: `PushSource` (Kafka, gRPC stream), `(shiguchi.topic)` declarative
 topics, or an explicit publish. The field number is the next free one in `GraphQlRule` at the time
@@ -180,3 +180,20 @@ Settled on 2026-11-08:
 5. **No per-method timer.** `refresh-interval` is the only time-based re-run.
 6. **Two interceptors** (live observer and response cache) sharing `Plan`, so the cache works
    without `live`.
+
+## 11. As built: departures from the proposal
+
+1. **One bridge topic, not one per service.** Instances share `shiguchi.graphql:live.invalidate`; the
+   invalidated services travel in the `services` attribute (comma-separated) and the sender in `origin`.
+   Subscribing per service would mean subscribing and unsubscribing as streams come and go; one topic costs
+   one subscription per instance, and an instance that has no interested stream drops the signal at the
+   dependency filter. The event is published straight to the broker (no namespace, store or archive).
+2. **`invalidated_by` takes exact topics.** `PushBroker.subscribe` has no wildcard form, so an entry with `*`
+   or `{}` is ignored with a startup warning. The routes are read again every 30 seconds to pick up methods
+   that appear later. Upstream events are not relayed: every instance receives the event itself.
+3. **Signal sources.** `shiguchi.graphql.live.signals` is tagged `mutation`, `upstream`, `remote` (an
+   invalidation received from another instance) or `refresh`. The proposal had no `remote`.
+4. **Session end and token expiry** reuse `CookieSessionBindingInterceptor`: the live interceptor passes its
+   stream through it, so a BFF session end or a JWT `exp` ends the stream at once, not at its next run.
+5. **Tests.** The two-instance case runs two bridges with two Redis brokers on one embedded Redis
+   (`GraphQlLiveRedisBridgeTest`), not two gateway applications.
