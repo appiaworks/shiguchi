@@ -32,5 +32,9 @@ dependencies {
     testImplementation(libs.dgs.spring.graphql.test)
     testImplementation(libs.reactor.test)
     testImplementation(project(":shiguchi-cursus"))
+    // A real Redis for the cross-instance live-invalidation test (same as the Cursus REDIS engine tests).
+    testImplementation("org.springframework.boot:spring-boot-starter-data-redis-reactive")
+    testImplementation("com.github.codemonstur:embedded-redis:1.4.4")
+    testImplementation("io.lettuce:lettuce-core:7.9.0.RELEASE")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
