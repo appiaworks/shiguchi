@@ -108,7 +108,7 @@ read the guides above for current behaviour.
 
 ## About the project
 
-- [README](../README.md): what Shiguchi is, the feature list and a quick start.
+- [README](../README.md): what Shiguchi is. [Quick start](quick-start.md), [features](features.md) and [compatibility](compatibility.md) hold what it used to carry.
 - [CHANGELOG.md](../CHANGELOG.md): release history.
 - [CONTRIBUTING.md](../CONTRIBUTING.md): build, test and pull request guidelines.
 - [SECURITY.md](../SECURITY.md): the security model and how to report a vulnerability.

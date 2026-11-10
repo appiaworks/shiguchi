@@ -4,7 +4,7 @@ A walkthrough that starts with a gRPC backend you already have and ends with a g
 REST, GraphQL, an OpenAPI document and a web console in front of it — adding one piece at a
 time, and explaining what each one actually did.
 
-The [quick start](../README.md#quick-start) is the five-minute version. This is the one that
+The [quick start](quick-start.md) is the five-minute version. This is the one that
 explains why each step is there, and what to do when a step does not do what you expected.
 
 **What you need:** JDK 21+, and a gRPC service with
