@@ -7,6 +7,7 @@ syntax = "proto3";
 package greeter;
 
 import "shiguchi/graphql.proto";
+import "shiguchi/method.proto";
 
 option java_package = "dev.appiaworks.shiguchi.bench.greeter";
 option java_multiple_files = true;
@@ -34,5 +35,7 @@ message HelloReply {
 service Greeter {
   rpc SayHello(HelloRequest) returns (HelloReply) {
     option (shiguchi.graphql) = { type: QUERY name: "hello" };
+    // Only used by row 6 (shiguchi.graphql.response-cache); inert while the cache is off.
+    option (shiguchi.method) = { cache_ttl_seconds: 300 };
   }
 }
