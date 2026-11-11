@@ -278,95 +278,15 @@ code ([full walkthrough with screenshots](../guides/ui.md)):
 Disabled by default — it can invoke any wired method, so ship it behind auth
 (`security.surfaces.ui.require-auth: true`; see [SECURITY.md](../../SECURITY.md)).
 
-## Security
+## Security, performance, observability
 
-The gateway boots **open by default** (`security.mode: PERMIT_ALL`) so the try-it-now
-surfaces work on first run, but it gives you three escalating ways to lock it down:
+Each has one owner page; this one only points at them.
 
-```yaml
-shiguchi:
-  security:
-    mode: AUTHENTICATED          # require a valid JWT on every request
-  ui:
-    require-auth: true           # or: just gate the gRPC console
-spring:
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: https://your-idp.example.com   # required by both options above
-```
-
-- **`security.mode: PERMIT_ALL`** (default) — bootable with no IdP. Still protects the two
-  dangerous surfaces: the `gateway-refresh` actuator endpoint always requires auth, and the
-  gRPC console API is gated when `ui.require-auth: true`. A loud WARN is logged at startup.
-- **`security.mode: AUTHENTICATED`** — every request needs a valid JWT (OAuth2 resource
-  server). Fails fast at startup if no `issuer-uri`/JWT decoder is configured, so you never
-  get a silent "401 everything."
-- **Per-surface control** — `security.surfaces.{ui,graphql,openapi,rest}.require-auth`
-  gates browser-facing surfaces while machine-facing REST stays open (or the reverse),
-  and `shiguchi.cors.*` enables CORS on exactly the browser surfaces.
-- **Bring your own** — define a `SecurityWebFilterChain` bean and it fully replaces the
-  default.
-
-Per-route scopes from your proto annotations are enforced automatically. Setting up the JWT
-decoder, mapping claims to scopes, TLS to backends and bringing your own chain are in
-[docs/security.md](../guides/security.md); see
-[SECURITY.md](../../SECURITY.md) for the full model.
-
-## Performance
-
-The hot path caches gRPC method descriptors and marshallers (Caffeine + `ConcurrentHashMap`)
-and dispatches calls fully non-blocking on the reactive stack — no thread is held during the
-backend round-trip. REST responses pick the fastest serde tier available: with compiled proto
-stubs on the classpath (STATIC mode), the generated parser reads the wire bytes and a
-writer compiled for the stub class emits the JSON through its getters (Tier 1); for dynamic-only services a descriptor-driven
-transcoder streams the wire bytes straight to JSON with no message object at all (Tier 0),
-falling back to the dynamic path for the rare wire encodings that need merge semantics. The
-GraphQL path skips JSON entirely (proto⇄Map) and converts only the
-composite subtrees your query selects (scalars always convert so type resolvers and federation
-batch keys keep working); disable with `shiguchi.graphql.selection-projection: false`.
-Server-streaming responses are flow-controlled end to end: a slow NDJSON or WebSocket consumer
-backpressures the gRPC backend instead of buffering in the gateway, and a consumer that
-disconnects cancels the backend call.
-
-Measured response-serde cost by discovery mode (JMH, in-process channel, medium message;
-RPC floor 1.1 µs — details in [docs/transcoding.md](../concepts/transcoding.md)):
-
-| Mode | Typical response path | Serde cost/request |
-| --- | --- | --- |
-| `DYNAMIC` / `PB_FILE` / `STATIC` | Tier 0: wire bytes → JSON directly, no classes needed | ≈1.5 µs (fastest; ≈3.6× Tier 3, measured in `EndToEndDispatchBenchmark`) |
-| `STATIC`, where Tier 0 cannot serve (`Any`, groups, paginated unary replies) | Tier 1: generated parser + typed writer | ≈1.7 µs |
-| fallback (rare encodings) | Tier 2: generated serializer / Tier 3: JsonFormat | ≈3.4 µs / ≈5.4 µs |
-
-A JMH benchmark suite lives in
-[`shiguchi-benchmarks`](../../shiguchi-benchmarks/README.md):
-
-```bash
-./gradlew :shiguchi-benchmarks:jmh
-```
-
-The *Benchmarks* workflow runs the suite on demand, keeps the history on the `benchmarks`
-branch, and flags a run that regresses more than 20% against it
-(`.github/workflows/bench.yml`).
-
-## Observability
-
-Metrics, tracing, and logging work out of the box — full reference in
-[docs/observability.md](../operations/observability.md):
-
-- **Micrometer metrics** on every outbound call: `grpc.client.call.started` (counter) and
-  `grpc.client.call.duration` (timer) tagged `grpc_service` / `grpc_method` /
-  `grpc_status`, so error-rate and latency dashboards need no log parsing, plus
-  `grpc.client.call.messages.sent` / `.received` so streaming volume is visible. Standard
-  `http.server.requests` covers the inbound side; expose Prometheus via
-  `management.endpoints.web.exposure.include: prometheus`. A ready-made
-  [Grafana dashboard](../grafana/shiguchi.json) covers traffic, latency, errors and
-  gateway state; `samples/observability` runs it against any sample with one `docker compose up`.
-- **Distributed tracing**: W3C/B3/request-id headers are forwarded to backends by default,
-  and when an `OpenTelemetry` bean is present the gRPC OTel plugin adds client spans and
-  metrics — one end-to-end trace across the gateway with zero configuration.
-- **Access log** (`shiguchi.access-log.enabled: true`): one `COMMON` or `JSON` line
-  per request — remote IP, route, HTTP + gRPC status, duration, principal, protocol (REST or
-  gRPC-Web), including requests rejected by security or rate limiting — on the
-  dedicated logger `dev.appiaworks.shiguchi.access`.
+- **Security:** the gateway boots open (`security.mode: PERMIT_ALL`) and offers three escalating
+  ways to lock it down: [security guide](../guides/security.md), [SECURITY.md](../../SECURITY.md).
+- **Performance:** the serde tiers and their numbers are in
+  [transcoding](../concepts/transcoding.md#the-serde-tiers); what to tune is in
+  [performance](../concepts/performance.md); the raw runs are in
+  [shiguchi-benchmarks](../../shiguchi-benchmarks/README.md).
+- **Observability:** metrics, tracing, the access log and the Grafana dashboard are in
+  [observability](../operations/observability.md).
