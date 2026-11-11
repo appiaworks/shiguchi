@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-11-11
+
 ### Added
 
 - `shiguchi.graphql.live.*`: `query ... @live` over WebSocket or SSE re-runs whenever a mutation through the
