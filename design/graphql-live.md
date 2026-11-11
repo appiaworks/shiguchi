@@ -195,5 +195,7 @@ Settled on 2026-11-08:
    invalidation received from another instance) or `refresh`. The proposal had no `remote`.
 4. **Session end and token expiry** reuse `CookieSessionBindingInterceptor`: the live interceptor passes its
    stream through it, so a BFF session end or a JWT `exp` ends the stream at once, not at its next run.
-5. **Tests.** The two-instance case runs two bridges with two Redis brokers on one embedded Redis
-   (`GraphQlLiveRedisBridgeTest`), not two gateway applications.
+5. **Tests.** The bridge runs two Redis brokers on one embedded Redis (`GraphQlLiveRedisBridgeTest`);
+   `GraphQlLiveTwoGatewaysEndToEndTest` (bff starter tests) boots two gateway applications on one embedded
+   Redis, and a mutation on one re-runs a live query held open on the other. Token expiry over a real
+   socket: `GraphQlLiveTokenExpiryEndToEndTest`.
