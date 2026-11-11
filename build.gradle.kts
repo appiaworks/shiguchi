@@ -4,7 +4,7 @@ import org.gradle.authentication.http.HttpHeaderAuthentication
 // Security floor for the build's own classpath: gradle-node-plugin 7.1.0 asks for Jackson 2.14.2.
 buildscript {
     dependencies {
-        classpath(platform("com.fasterxml.jackson:jackson-bom:2.21.8"))
+        classpath(platform("com.fasterxml.jackson:jackson-bom:2.22.4"))
     }
 }
 
@@ -34,7 +34,7 @@ allprojects {
 // one once the Boot BOM passes it (check with dependencyInsight). The configuration is not
 // published, so consumers' own Boot BOM still decides.
 val securityFloors = listOf(
-    "com.fasterxml.jackson:jackson-bom:2.21.8",
+    "com.fasterxml.jackson:jackson-bom:2.22.4",
     "org.apache.logging.log4j:log4j-bom:2.25.5",
     "io.opentelemetry:opentelemetry-bom:1.67.0",
 )
@@ -46,6 +46,7 @@ val securityFloorModules = listOf(
     "com.ongres.scram:scram-client:3.3",
     "com.ongres.scram:scram-common:3.3",
     "org.postgresql:postgresql:42.7.14",
+    "org.json:json:20260814",
 )
 subprojects {
     val floors = configurations.create("securityFloors") {
