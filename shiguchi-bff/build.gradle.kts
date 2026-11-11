@@ -3,9 +3,13 @@ import org.gradle.api.tasks.SourceSetContainer
 // The bff credential source runs the UpstreamCredentialSourceContract from -rest's test sources
 // (the repository has no test fixtures; abstract contract bases live with the tests).
 evaluationDependsOn(":shiguchi-rest")
+// ConfigurationReferenceDriftTest reuses core's ConfigurationReferenceChecker.
+evaluationDependsOn(":shiguchi-core")
 
 // Resolved outside the dependencies block: there `project(...)` is a dependency factory, not a Project.
 val restTestOutput = project(":shiguchi-rest").extensions.getByType<SourceSetContainer>()["test"].output
+
+val coreTestOutput = project(":shiguchi-core").extensions.getByType<SourceSetContainer>()["test"].output
 
 dependencies {
     implementation(platform(libs.spring.boot4.bom))
@@ -30,6 +34,7 @@ dependencies {
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.reactor.test)
     testImplementation(restTestOutput)
+    testImplementation(coreTestOutput)
     testImplementation("org.springframework.boot:spring-boot-starter-data-redis-reactive")
     // A real Redis for the REDIS store tests (Redis 5 on Windows, 6.2+ on Linux): scripts cannot be faked.
     testImplementation("com.github.codemonstur:embedded-redis:1.4.4")
@@ -43,4 +48,10 @@ dependencies {
     testImplementation(libs.spring.boot.starter.webflux)
     testImplementation(libs.spring.boot.starter.actuator)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+// ConfigurationReferenceDriftTest reads the hand-written reference; rerun when the docs change.
+tasks.test {
+    inputs.dir(rootProject.layout.projectDirectory.dir("docs/reference")).withPropertyName("configurationReference")
+    inputs.dir(rootProject.layout.projectDirectory.dir("docs/guides")).withPropertyName("guides")
 }
