@@ -159,13 +159,17 @@ machine as above (2026-11-09). `shiguchi-benchmarks/comparison/lattice/run.sh` r
 | 3. Shiguchi GraphQL | 16 300 | 1.77 ms | 4.59 ms | 750 %, 0.9 GB |
 | 4. Shiguchi GraphQL, document cache on | 17 000 | 1.70 ms | 4.42 ms | 720 %, 0.9 GB |
 | 5. Shiguchi REST, `bench.Orders/Get` (for reference) | 17 500 | 1.71 ms | 4.03 ms | 640 %, 0.9 GB |
+| 6. Shiguchi GraphQL, response cache on (see note) | 43 900 | 0.47 ms | 5.62 ms | 1 000 %, 0.9 GB |
 
 What it says: with the cache off the two gateways are within 8% of each other (row 3 against
 row 1), so the advertised six-figure number is the cache answering without calling the backend,
 not the gateway. This gateway's GraphQL path costs about the same as its REST path; it uses
 more CPU and about twice the memory for the same throughput (512 MB heap plus JVM overhead).
 This gateway's own response cache ([caching.md](../guides/caching.md)) answers without calling the
-backend too; it is not measured here. CPU is the `podman stats` sample after the second run and the gateway shares the VM with the backend and
+backend too: row 6 serves about 3x the uncached rate (43 900 against 14 600 for row 3 in the same run), but stays well below
+Protocol-Lattice's 128 900 in that run, so the cache removes the backend call, not the rest of the request path.
+Row 6 comes from a re-run on 2026-11-10 (rows 1 to 5 above are from 2026-11-09); in that run rows 1 to 5 measured
+16 600, 128 900, 14 600, 16 900 and 10 900 req/s, so compare row 6 with its own run's row 3, not with the table's. CPU is the `podman stats` sample after the second run and the gateway shares the VM with the backend and
 the load generator, so read ratios, not absolutes.
 
 ## Browser sign-in (session cookie)
