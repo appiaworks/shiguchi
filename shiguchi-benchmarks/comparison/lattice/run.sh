@@ -2,7 +2,8 @@
 # GraphQL side by side: Protocol-Lattice (Rust) and this gateway in front of the same
 # greeter.Greeter/SayHello backend, same query, same load generator, all as podman containers.
 # Rows (README of shiguchi-benchmarks): 1 lattice cache off, 2 lattice cache on, 3 this gateway
-# GraphQL, 4 this gateway GraphQL with the document cache, 5 this gateway REST on bench.Orders.
+# GraphQL, 4 this gateway GraphQL with the document cache, 5 this gateway REST on bench.Orders, 6 this gateway GraphQL
+# with its response cache (shiguchi.graphql.response-cache).
 #
 #   ./gradlew :shiguchi-benchmarks:jmhJar
 #   (WSL) shiguchi-benchmarks/comparison/lattice/build.sh <lattice checkout>
@@ -75,6 +76,7 @@ lattice lattice-nocache off
 lattice lattice-cache on
 shiguchi shiguchi-gql http://lat-gateway:8080/graphql "$GQL" "$GQLPROPS"
 shiguchi shiguchi-gql-doccache http://lat-gateway:8080/graphql "$GQL" "$GQLPROPS,shiguchi.graphql.document-cache.enabled=true"
+shiguchi shiguchi-gql-respcache http://lat-gateway:8080/graphql "$GQL" "$GQLPROPS,shiguchi.graphql.response-cache.enabled=true"
 shiguchi shiguchi-rest http://lat-gateway:8080/bench.Orders/Get "$REST" ""
 
 python - "$OUT" <<'PY'
@@ -82,7 +84,8 @@ import json, glob, statistics, sys, re
 out = sys.argv[1]
 labels = [("lattice-nocache","1 Protocol-Lattice, cache off"),("lattice-cache","2 Protocol-Lattice, cache on"),
           ("shiguchi-gql","3 Shiguchi GraphQL"),("shiguchi-gql-doccache","4 Shiguchi GraphQL, document cache"),
-          ("shiguchi-rest","5 Shiguchi REST (bench.Orders/Get)")]
+          ("shiguchi-rest","5 Shiguchi REST (bench.Orders/Get)"),
+          ("shiguchi-gql-respcache","6 Shiguchi GraphQL, response cache")]
 print("\n%-38s %9s %8s %8s %8s %7s" % ("row","req/s","p50 ms","p99 ms","non-200","repeats"))
 for key, label in labels:
     runs = [json.load(open(f)) for f in sorted(glob.glob(f"{out}/lattice-{key}-[0-9].json"))]
