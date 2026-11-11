@@ -55,6 +55,24 @@ protobuf {
     generateProtoTasks {
         all().forEach { task ->
             task.plugins { create("grpc") }
+            if (task.sourceSet.name == "main") {
+                // The descriptor set, with the comments, that ProtoOptionsReferenceTest renders into
+                // docs/reference/proto-options.md.
+                task.generateDescriptorSet = true
+                task.descriptorSetOptions.path = layout.buildDirectory.file("descriptors/shiguchi.desc").get().asFile.path
+                task.descriptorSetOptions.includeSourceInfo = true
+            }
         }
     }
+}
+
+tasks.test {
+    val descriptors = layout.buildDirectory.file("descriptors/shiguchi.desc")
+    dependsOn(tasks.named("generateProto"))
+    inputs.file(descriptors).withPropertyName("descriptors")
+    inputs.file(rootProject.layout.projectDirectory.file("docs/reference/proto-options.md")).optional().withPropertyName("protoOptionsReference")
+    systemProperty("shiguchi.descriptors", descriptors.get().asFile.path)
+    systemProperty("shiguchi.protoOptionsDoc", rootProject.layout.projectDirectory.file("docs/reference/proto-options.md").asFile.path)
+    // -Dshiguchi.docs.update=true rewrites the reference instead of checking it
+    System.getProperty("shiguchi.docs.update")?.let { systemProperty("shiguchi.docs.update", it) }
 }
