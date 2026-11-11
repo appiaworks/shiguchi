@@ -1,3 +1,11 @@
+import org.gradle.api.tasks.SourceSetContainer
+
+// ConfigurationReferenceDriftTest reuses core's ConfigurationReferenceChecker.
+evaluationDependsOn(":shiguchi-core")
+
+// Resolved outside the dependencies block: there `project(...)` is a dependency factory, not a Project.
+val coreTestOutput = project(":shiguchi-core").extensions.getByType<SourceSetContainer>()["test"].output
+
 dependencies {
     implementation(platform(libs.spring.boot4.bom))
     api(project(":shiguchi-core"))
@@ -26,6 +34,7 @@ dependencies {
     annotationProcessor(libs.lombok)
 
     testImplementation(libs.spring.boot.starter.test)
+    testImplementation(coreTestOutput)
     testImplementation(libs.reactor.test)
     testImplementation(libs.spring.boot.starter.webflux)
     testImplementation(libs.spring.boot.starter.actuator)
@@ -54,5 +63,7 @@ dependencies {
 
 // PushClientProtocolFixtureTest reads the TypeScript client's frame fixture; rerun when it changes.
 tasks.withType<Test>().configureEach {
+    inputs.dir(rootProject.layout.projectDirectory.dir("docs/reference")).withPropertyName("configurationReference")
+    inputs.dir(rootProject.layout.projectDirectory.dir("docs/guides")).withPropertyName("guides")
     inputs.file("../../shiguchi-cursus-client-js/test/fixtures/frames.json").withPropertyName("pushClientFrames")
 }
