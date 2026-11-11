@@ -14,7 +14,7 @@ What ships now: SSE and WebSocket subscriptions, HTTP publishing, the `PushServi
 engine (one instance) and the Redis and Postgres engines (every instance sees every event,
 history kept across restarts), `AT_MOST_ONCE` and `AT_LEAST_ONCE` delivery with resume, per-namespace authorization, a
 close frame on shutdown, the `gateway-push` endpoint and the console's Push tab. The design in
-[design/push.md](../../design/push.md) covers what follows: GraphQL subscriptions, the Postgres engine
+[design/push.md](../../../design/push.md) covers what follows: GraphQL subscriptions, the Postgres engine
 and message search, persistent sessions and groups, the command line.
 
 It is in-app messaging, not mobile push (APNs/FCM), and not a message broker.

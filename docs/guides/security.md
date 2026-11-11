@@ -325,7 +325,7 @@ invalid bearer token is a 401, and under `AUTHENTICATED` so is any other header 
 does not accept. Cookie requests are protected against cross-site request forgery; see
 [Cookie-authenticated requests](#cookie-authenticated-requests-csrf-and-websockets).
 The module never defines a `ReactiveJwtDecoder`, so Spring Boot's issuer decoder keeps validating
-bearer callers. The module also serves the sign-in endpoints (login, callback, session, logout, providers) and, unless you define a `BffSessionAuthenticator` of your own, authenticates the session cookie it issues; see [design/bff.md](../design/bff.md).
+bearer callers. The module also serves the sign-in endpoints (login, callback, session, logout, providers) and, unless you define a `BffSessionAuthenticator` of your own, authenticates the session cookie it issues; see [design/bff.md](../../design/bff.md).
 
 ### Cookie-authenticated requests: CSRF and WebSockets
 
@@ -391,7 +391,7 @@ a cookie caller's stream follows its session instead. See [bff.md](bff/push-with
 backends until it expires, and a call in flight is not interrupted. The back-channel endpoint is open to
 anonymous callers by design (the signed token is the credential) and outside the `Origin` check because
 it is not cookie-authenticated. It has been run by hand against a real issuer's sender, outside CI. See
-[design/bff.md](../design/bff.md#10-session-lifecycle-built-in-g5).
+[design/bff.md](../../design/bff.md#10-session-lifecycle-built-in-g5).
 
 ## Bringing your own chain
 

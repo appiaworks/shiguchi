@@ -14,9 +14,9 @@ the classpath (e.g. `micrometer-registry-prometheus` + actuator) you get:
 | `grpc.client.call.messages.sent` | counter | `grpc_service`, `grpc_method` |
 | `grpc.client.call.messages.received` | counter | `grpc_service`, `grpc_method` |
 | `gateway.ratelimit.requests` | counter | `outcome` = `allowed` / `rejected` (inbound [rate limiter](../guides/rate-limiting.md), when enabled) |
-| `gateway.bff.refresh` | counter | `outcome` = `ok` (this instance refreshed a session's token) / `rejected` (the issuer refused, the session ended) / `transient` (the issuer or the store could not be reached) / `waited` (another request or instance had refreshed it); browser sessions, [design/bff.md](../design/bff.md#8-token-refresh-built-in-g2), when `shiguchi.bff.enabled` |
+| `gateway.bff.refresh` | counter | `outcome` = `ok` (this instance refreshed a session's token) / `rejected` (the issuer refused, the session ended) / `transient` (the issuer or the store could not be reached) / `waited` (another request or instance had refreshed it); browser sessions, [design/bff.md](../../design/bff.md#8-token-refresh-built-in-g2), when `shiguchi.bff.enabled` |
 | `gateway.bff.revocation` | counter | `outcome` = `revoked` (the issuer accepted the revocation of a logged-out session's token) / `failed` (non-2xx, timeout or connection error) / `skipped` (the provider has no revocation endpoint); best effort, never changes the logout, when `shiguchi.bff.enabled` |
-| `gateway.bff.logout` | counter | `kind` = `backchannel` (an issuer's logout token) / `admin` (`BffSessions` or the `gateway-bff-sessions` endpoint) / `user` (the browser's own logout) / `refresh-rejected` (the issuer refused the refresh token); counts sessions ended, [design/bff.md](../design/bff.md#10-session-lifecycle-built-in-g5), when `shiguchi.bff.enabled` |
+| `gateway.bff.logout` | counter | `kind` = `backchannel` (an issuer's logout token) / `admin` (`BffSessions` or the `gateway-bff-sessions` endpoint) / `user` (the browser's own logout) / `refresh-rejected` (the issuer refused the refresh token); counts sessions ended, [design/bff.md](../../design/bff.md#10-session-lifecycle-built-in-g5), when `shiguchi.bff.enabled` |
 
 `grpc_status` is the gRPC code name (`OK`, `NOT_FOUND`, …), so error rate slices need no
 message parsing. Suggested panels:

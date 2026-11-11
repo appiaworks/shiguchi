@@ -1,7 +1,7 @@
 # Browser sign-in with a session cookie (BFF pattern)
 
 > Experimental, `shiguchi-bff`, off unless `shiguchi.bff.enabled=true`. The design record,
-> with every decision and its reasons, is [design/bff.md](../../design/bff.md); every property is in
+> with every decision and its reasons, is [design/bff.md](../../../design/bff.md); every property is in
 > [configuration.md](../../reference/configuration.md). A runnable single-page app is in `samples/sample-bff-spa`.
 
 ## What it is for

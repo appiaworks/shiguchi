@@ -56,7 +56,7 @@ client.subscribe('user:alice', { onEvent: console.log })
 
 Cookie mode means "whatever the handshake authenticates": anonymous, or a request the gateway's
 security chain accepts, which includes the session cookie of a browser sign-in
-([docs/design/bff.md](../docs/design/bff.md)). A socket opened with that cookie lives as long as the
+([design/bff.md](../design/bff.md)). A socket opened with that cookie lives as long as the
 BFF session, not the access token, and the gateway closes it with **4440** `session ended` within
 `shiguchi.cursus.session-check-interval` (30 s by default) of a logout, a refused token refresh or
 the session's expiry. In cookie mode close 4401 stops the client and reports `signed-out` through

@@ -15,7 +15,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *
  * <p>Experimental. The module first ships in 0.14.0, so properties, store formats and endpoint shapes
  * may still change without a migration. Sign-in and back-channel logout have been run by hand
- * against the production issuer, outside CI. The request hardening itself is built (see docs/design/bff.md).
+ * against the production issuer, outside CI. The request hardening itself is built (see design/bff.md).
  *
  * <pre>
  * shiguchi:

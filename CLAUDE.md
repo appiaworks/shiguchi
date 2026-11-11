@@ -46,7 +46,7 @@ Main ships Spring Boot 4 only (`spring-boot4/*`). 0.18.x was the last release li
 
 - Conventional Commits (`feat:`, `fix:`, `chore:`...).
 - Tests: BDD naming `GIVEN_..._WHEN_..._SHOULD_...` with `@DisplayName` (see CONTRIBUTING.md).
-- Feature/config changes must update README.md and any affected docs in the same PR.
+- Feature/config changes must update the guide page under `docs/guides/` and the reference entry (`docs/reference/`) in the same PR; touch README.md only if the pitch changes. Design history lives in `design/`, outside the site.
 
 ## Do not touch
 
