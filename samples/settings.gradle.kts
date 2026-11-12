@@ -40,6 +40,7 @@ include(
     "sample-openfga-authz",
     "sample-opa-authz",
     "sample-merge-gateway",
+    "sample-jpa-backend",
     "sample-rest-downstream",
     "sample-avro-downstream",
     "sample-rate-limited-gateway",

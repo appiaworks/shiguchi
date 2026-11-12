@@ -42,7 +42,8 @@ where the enum is expected and normalised to the `SORT_ORDER_*` form.
 
 The gateway does not validate that `field` names a real field on your resource — that
 check belongs to the backend, which should reject unknown sort keys rather than
-interpolating them into a query (see the allow-list in the JPA example below).
+interpolating them into a query. [`SortSpec`](../../reference/backend-support.md#sortspec) is that allow-list, and the
+[JPA example](jpa-example.md) shows it in use.
 
 > There is no `order_by` convention. `sort_fields` / `?sort=` is the only spelling the
 > gateway recognises.

@@ -19,6 +19,8 @@ dependencies {
         api("io.github.appiaworks:shiguchi-avro:${project.version}")
         api("io.github.appiaworks:shiguchi-grpc-proxy:${project.version}")
         api("io.github.appiaworks:shiguchi-ui:${project.version}")
+        api("io.github.appiaworks:shiguchi-backend-support:${project.version}")
+        api("io.github.appiaworks:shiguchi-backend-support-jpa:${project.version}")
         api("io.github.appiaworks:shiguchi-spring-boot4-autoconfigure:${project.version}")
         api("io.github.appiaworks:shiguchi-spring-boot4-starter:${project.version}")
         api("io.github.appiaworks:shiguchi-ui-spring-boot4-autoconfigure:${project.version}")

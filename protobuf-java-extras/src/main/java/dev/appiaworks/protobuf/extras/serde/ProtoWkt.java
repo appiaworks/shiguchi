@@ -19,6 +19,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -153,10 +154,21 @@ public final class ProtoWkt {
                             .build();
                 }
                 case "google.protobuf.FieldMask" -> {
-                    FieldMask mask = FieldMaskUtil.fromJsonString(value.toString());
                     DynamicMessage.Builder b = DynamicMessage.newBuilder(d);
                     FieldDescriptor paths = d.findFieldByNumber(1);
-                    for (String p : mask.getPathsList()) b.addRepeatedField(paths, p);
+                    if (value instanceof Map<?, ?> m) {
+                        // The message form, {"paths": ["a", "b.c"]}, which is what the REST layer
+                        // builds from ?fields=. Paths are taken as they are, not run through the
+                        // camelCase-to-snake_case conversion the string form gets.
+                        if (!(m.get("paths") instanceof Collection<?> list)) {
+                            throw new IllegalArgumentException(
+                                    "expected a comma-separated string or {\"paths\": [...]}");
+                        }
+                        for (Object p : list) b.addRepeatedField(paths, String.valueOf(p));
+                    } else {
+                        FieldMask mask = FieldMaskUtil.fromJsonString(value.toString());
+                        for (String p : mask.getPathsList()) b.addRepeatedField(paths, p);
+                    }
                     yield b.build();
                 }
                 case "google.protobuf.Struct" -> {
