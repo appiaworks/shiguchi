@@ -148,7 +148,7 @@ public final class GrpcUiSchemaDto {
             OAuthFlowDto authorizationCode,
             OAuthFlowDto clientCredentials) {}
 
-    public record OAuthFlowDto(String authorizationUrl, String tokenUrl, Map<String, String> scopes) {}
+    public record OAuthFlowDto(String authorizationUrl, String tokenUrl, Map<String, String> scopes, String clientId) {}
 
     // -------------------------------------------------------------------------
     // Auth token exchange records

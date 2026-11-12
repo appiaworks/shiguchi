@@ -95,6 +95,11 @@ public class OpenApiConfig {
             private String authorizationUrl;
             private String tokenUrl;
             private String refreshUrl;
+            /**
+             * Optional public client id the gRPC console and Swagger UI pre-fill. Never a secret:
+             * it is served to anyone who can open the console.
+             */
+            private String clientId;
             /** Scope name → description */
             private Map<String, String> scopes = new java.util.LinkedHashMap<>();
         }

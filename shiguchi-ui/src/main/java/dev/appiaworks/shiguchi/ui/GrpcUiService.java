@@ -354,11 +354,12 @@ public class GrpcUiService {
         GrpcUiSchemaDto.OAuthFlowDto clientCreds = null;
         if (cfg.getAuthorizationCode() != null) {
             var f = cfg.getAuthorizationCode();
-            authCode = new GrpcUiSchemaDto.OAuthFlowDto(f.getAuthorizationUrl(), f.getTokenUrl(), f.getScopes());
+            authCode = new GrpcUiSchemaDto.OAuthFlowDto(
+                    f.getAuthorizationUrl(), f.getTokenUrl(), f.getScopes(), f.getClientId());
         }
         if (cfg.getClientCredentials() != null) {
             var f = cfg.getClientCredentials();
-            clientCreds = new GrpcUiSchemaDto.OAuthFlowDto(null, f.getTokenUrl(), f.getScopes());
+            clientCreds = new GrpcUiSchemaDto.OAuthFlowDto(null, f.getTokenUrl(), f.getScopes(), f.getClientId());
         }
         return new GrpcUiSchemaDto.AuthProviderDto(
                 id,

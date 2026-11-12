@@ -123,7 +123,7 @@ export default function App() {
         <span className="text-blue-400 font-bold text-sm">gRPC UI</span>
         <span className="text-slate-600 text-xs">Shiguchi</span>
         {links?.grpcProxyEnabled && (
-          <span className="text-[9px] text-yellow-600 border border-yellow-800 rounded px-1.5 py-0.5">
+          <span className="text-[11px] text-yellow-600 border border-yellow-800 rounded px-1.5 py-0.5">
             proxy :{links.grpcProxyPort}
           </span>
         )}
@@ -142,11 +142,11 @@ export default function App() {
         >
           <span>Auth</span>
           {authLabel && (
-            <span className="text-[10px] text-slate-400 max-w-[8rem] truncate">{authLabel}</span>
+            <span className="text-[12px] text-slate-400 max-w-[8rem] truncate">{authLabel}</span>
           )}
           {globalAuthToken && (
             <span
-              className={`text-[10px] ${
+              className={`text-[12px] ${
                 globalExpired ? 'text-red-400' : globalSecondsLeft !== null && globalSecondsLeft < 60 ? 'text-yellow-400' : 'text-green-500'
               }`}
             >
@@ -189,8 +189,10 @@ export default function App() {
           </a>
         )}
 
-        {showAuth && <GlobalAuthPanel onClose={() => setShowAuth(false)} />}
       </header>
+
+      {/* In flow, so opening it pushes the main area down instead of covering it */}
+      {showAuth && <GlobalAuthPanel onClose={() => setShowAuth(false)} />}
 
       {/* Main split, or the push admin views */}
       <div className="flex-1 min-h-0">
@@ -203,7 +205,7 @@ export default function App() {
               {/* Left panel header: title + search */}
               <div className="px-2 py-1.5 border-b border-slate-700 shrink-0 space-y-1.5">
                 <div className="flex items-center">
-                  <span className="text-[10px] text-slate-600 uppercase tracking-wider">Services</span>
+                  <span className="text-[12px] text-slate-600 uppercase tracking-wider">Services</span>
                 </div>
                 <div className="relative">
                   <input

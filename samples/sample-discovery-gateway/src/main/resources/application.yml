@@ -21,6 +21,10 @@ shiguchi:
     discovery-refresh: 2s
   openapi:
     enabled: true
+  graphql:
+    enabled: true
+  ui:
+    enabled: true
 
 management:
   metrics:

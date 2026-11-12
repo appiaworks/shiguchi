@@ -85,6 +85,29 @@ public class OpenApiConfig {
         };
     }
 
+    /**
+     * Pre-fills Swagger UI's Authorize dialog with the configured public client id. Swagger's
+     * {@code initOAuth} is global, so it applies only when exactly one scheme configures one, and
+     * never overrides {@code springdoc.swagger-ui.oauth.client-id}.
+     */
+    @Bean
+    public org.springframework.beans.factory.SmartInitializingSingleton swaggerOAuthClientIdDefault(
+            org.springframework.beans.factory.ObjectProvider<org.springdoc.core.properties.SwaggerUiOAuthProperties>
+                    oauth) {
+        return () -> {
+            var ids = new java.util.LinkedHashSet<String>();
+            props.getOpenapi().getSecuritySchemes().values().forEach(s -> {
+                if (s.getAuthorizationCode() != null && s.getAuthorizationCode().getClientId() != null)
+                    ids.add(s.getAuthorizationCode().getClientId());
+            });
+            var p = oauth.getIfAvailable();
+            if (p != null
+                    && ids.size() == 1
+                    && (p.getClientId() == null || p.getClientId().isBlank()))
+                p.setClientId(ids.iterator().next());
+        };
+    }
+
     /** Exposes /v3/api-docs.yaml (springdoc only serves JSON by default on WebFlux). */
     @Bean
     public RouterFunction<ServerResponse> openApiYamlRoute() {

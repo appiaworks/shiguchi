@@ -3,6 +3,8 @@ import { LazyEditor } from './LazyEditor'
 import { useRef, useState } from 'react'
 import { toCurl, toGrpcurl } from '../api/exportCommand'
 import { invokeClientStream, invokeStream, invokeUnary } from '../api/grpcUiApi'
+import { parseMessageFile } from '../lib/messageFile'
+import { canStreamToFile, openStreamFile, type StreamFile } from '../lib/streamFile'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import { useGrpcUiStore } from '../store/useGrpcUiStore'
 import type { StreamError } from '../types/schema'
@@ -38,11 +40,16 @@ export function InvokePanel() {
     setRequestMode,
     setResult,
     appendChunk,
+    streamLimit,
+    setStreamLimit,
     addHistoryEntry,
     restoreHistory,
   } = useGrpcUiStore()
 
   const abortRef = useRef<AbortController | null>(null)
+  const [fileError, setFileError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [saveToFile, setSaveToFile] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [modeError, setModeError] = useState<string | null>(null)
   const [copied, setCopied] = useState<'curl' | 'grpcurl' | null>(null)
@@ -120,6 +127,19 @@ export function InvokePanel() {
     setRequestMode(mode)
   }
 
+  /** Replaces the message list with the messages of a chosen NDJSON / JSON-array file. */
+  async function loadMessagesFromFile(file: File) {
+    const parsed = parseMessageFile(await file.text())
+    if (!parsed.ok) {
+      setFileError(`${file.name}: ${parsed.error}`)
+      return
+    }
+    setFileError(null)
+    if (requestMode === 'form') setRequestMode('json')
+    setPayload(parsed.messages[0])
+    setExtraPayloads(parsed.messages.slice(1))
+  }
+
   function effectivePayload(): string {
     if (requestMode === 'form') return JSON.stringify(formValues) || '{}'
     return payload
@@ -134,9 +154,23 @@ export function InvokePanel() {
     }
 
     const pld = effectivePayload()
-    setResult({ status: 'loading', response: null, grpcStatus: null, errorMessage: null, errorDetails: null, durationMs: null, streamChunks: [] })
+    setResult({ status: 'loading', response: null, grpcStatus: null, errorMessage: null, errorDetails: null, durationMs: null, streamChunks: [], streamTotal: 0 })
 
     if (isStreaming) {
+      // The save dialog needs the click's user activation, so open it before anything else is awaited.
+      let file: StreamFile | null = null
+      if (saveToFile) {
+        try {
+          file = await openStreamFile(`${selectedMethod.name}-${Date.now()}.ndjson`)
+        } catch (e) {
+          setResult({ status: 'error', errorMessage: `Could not open the file: ${String(e)}` })
+          return
+        }
+        if (!file) {
+          setResult({ status: 'idle' })
+          return
+        }
+      }
       const ctrl = new AbortController()
       abortRef.current = ctrl
       setResult({ status: 'streaming' })
@@ -148,6 +182,7 @@ export function InvokePanel() {
         )) {
           if (event.event === 'data') {
             appendChunk(event.data)
+            if (file) await file.write(event.data)
           } else if (event.event === 'error') {
             // The backend failed mid-stream: keep the chunks received so far, show the status.
             failed = true
@@ -204,6 +239,12 @@ export function InvokePanel() {
         }
       } catch (e) {
         if ((e as Error).name !== 'AbortError') setResult({ status: 'error', errorMessage: String(e) })
+      } finally {
+        try {
+          await file?.close()
+        } catch {
+          // the outcome is already shown; a failed close only loses the tail of the file
+        }
       }
     } else {
       try {
@@ -258,8 +299,8 @@ export function InvokePanel() {
             <span className="text-white font-semibold text-xs">{selectedMethod.name}</span>
             {selectedMethod.httpMethod && (
               <>
-                <span className="ml-2 text-slate-600 text-[10px]">{selectedMethod.httpMethod}</span>
-                <span className="text-slate-500 text-[10px]">{selectedMethod.httpPath}</span>
+                <span className="ml-2 text-slate-600 text-[12px]">{selectedMethod.httpMethod}</span>
+                <span className="text-slate-500 text-[12px]">{selectedMethod.httpPath}</span>
               </>
             )}
             <div className="flex-1" />
@@ -267,13 +308,13 @@ export function InvokePanel() {
               <div className="relative">
                 <button
                   onClick={() => setShowHistory((v) => !v)}
-                  className="text-[10px] text-slate-600 hover:text-slate-300 px-1.5 py-0.5 rounded border border-slate-700"
+                  className="text-[12px] text-slate-600 hover:text-slate-300 px-1.5 py-0.5 rounded border border-slate-700"
                 >
                   History ({relevantHistory.length})
                 </button>
                 {showHistory && (
                   <div className="absolute right-0 top-full mt-1 z-50 w-72 bg-slate-900 border border-slate-700 rounded shadow-xl">
-                    <div className="px-2 py-1 text-[9px] text-slate-600 uppercase tracking-wider border-b border-slate-800">
+                    <div className="px-2 py-1 text-[11px] text-slate-600 uppercase tracking-wider border-b border-slate-800">
                       Recent · {selectedMethod.name}
                     </div>
                     <div className="max-h-64 overflow-y-auto">
@@ -284,18 +325,18 @@ export function InvokePanel() {
                           className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-slate-800 text-left border-b border-slate-800 last:border-0"
                         >
                           <div className="flex-1 min-w-0">
-                            <div className="text-[10px] text-slate-400 truncate font-mono">
+                            <div className="text-[12px] text-slate-400 truncate font-mono">
                               {entry.payload.length > 40
                                 ? entry.payload.slice(0, 40) + '…'
                                 : entry.payload}
                             </div>
-                            <div className="text-[9px] text-slate-600">
+                            <div className="text-[11px] text-slate-600">
                               {new Date(entry.timestamp).toLocaleTimeString()}
                               {entry.metadataEntries.length > 0 && ` · ${entry.metadataEntries.length} meta`}
                             </div>
                           </div>
                           {entry.grpcStatus && (
-                            <span className={`text-[9px] px-1 rounded shrink-0 ${
+                            <span className={`text-[11px] px-1 rounded shrink-0 ${
                               entry.grpcStatus === 'OK'
                                 ? 'bg-emerald-900 text-emerald-400'
                                 : 'bg-red-900 text-red-400'
@@ -328,7 +369,7 @@ export function InvokePanel() {
                     <button
                       key={tab}
                       onClick={() => switchToMode(tab)}
-                      className={`px-3 py-1 text-[10px] uppercase tracking-wider transition-colors ${
+                      className={`px-3 py-1 text-[12px] uppercase tracking-wider transition-colors ${
                         requestMode === tab
                           ? 'text-blue-400 border-b-2 border-blue-500'
                           : 'text-slate-600 hover:text-slate-400'
@@ -339,7 +380,7 @@ export function InvokePanel() {
                   ))}
                 </div>
                 {modeError && (
-                  <div role="alert" className="px-3 py-1 text-[11px] text-red-300 bg-red-950/40 border-b border-red-900 shrink-0">
+                  <div role="alert" className="px-3 py-1 text-[12px] text-red-300 bg-red-950/40 border-b border-red-900 shrink-0">
                     Fix the JSON before switching to the form: {modeError}
                   </div>
                 )}
@@ -371,12 +412,32 @@ export function InvokePanel() {
 
                 {isClientStreaming && (
                   <div className="border-t border-slate-700 shrink-0 max-h-56 overflow-y-auto">
-                    <div className="px-3 py-1 flex items-center justify-between text-[10px] text-slate-600">
+                    <div className="px-3 py-1 flex items-center justify-between text-[12px] text-slate-600">
                       <span>
                         MESSAGE STREAM ({extraPayloads.length + 1} message
                         {extraPayloads.length === 0 ? '' : 's'})
                       </span>
                       <div className="flex gap-1">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".json,.ndjson,.jsonl,application/json"
+                        className="hidden"
+                        aria-label="Messages file"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0]
+                          e.target.value = ''
+                          if (f) void loadMessagesFromFile(f)
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-2 py-0.5 rounded border border-slate-600 text-slate-300 hover:bg-slate-700"
+                        title="Replace the messages with those of an NDJSON (one per line) or JSON array file"
+                      >
+                        from file…
+                      </button>
                       <button
                         type="button"
                         onClick={() => addExtraPayload()}
@@ -400,9 +461,12 @@ export function InvokePanel() {
                       </button>
                       </div>
                     </div>
+                    {fileError && (
+                      <div role="alert" className="px-3 pb-1 text-[12px] text-red-400">{fileError}</div>
+                    )}
                     {extraPayloads.map((extra, i) => (
                       <div key={i} className="px-3 pb-2">
-                        <div className="flex items-center justify-between text-[10px] text-slate-600 pb-0.5">
+                        <div className="flex items-center justify-between text-[12px] text-slate-600 pb-0.5">
                           <span>#{i + 2}</span>
                           <button
                             type="button"
@@ -433,7 +497,7 @@ export function InvokePanel() {
 
             <Panel defaultSize="35%" minSize="20%">
               <div className="h-full flex flex-col">
-                <div className="px-3 py-1 text-[10px] text-slate-600 border-b border-slate-700 shrink-0">
+                <div className="px-3 py-1 text-[12px] text-slate-600 border-b border-slate-700 shrink-0">
                   INPUT SCHEMA
                 </div>
                 <div className="flex-1 min-h-0">
@@ -457,9 +521,36 @@ export function InvokePanel() {
             >
               {busy ? 'Cancel' : isStreaming ? 'Stream' : 'Send'}
             </button>
-            <span className="text-slate-600 text-[10px]">
+            <span className="text-slate-600 text-[12px]">
               {selectedMethod.methodType.replace('_', ' ')}
             </span>
+            {isStreaming && (
+              <>
+                <label
+                  className="flex items-center gap-1 text-[12px] text-slate-400"
+                  title="Messages kept in the response pane; older ones are dropped to save browser memory. 0 keeps all."
+                >
+                  keep last
+                  <input
+                    type="number"
+                    min={0}
+                    aria-label="Streamed messages to keep"
+                    value={streamLimit}
+                    onChange={(e) => setStreamLimit(Number(e.target.value))}
+                    className="w-16 bg-slate-800 border border-slate-700 rounded px-1 py-0.5 text-slate-200"
+                  />
+                </label>
+                {canStreamToFile() && (
+                  <label
+                    className="flex items-center gap-1 text-[12px] text-slate-400"
+                    title="Write every message to a file (NDJSON) as it arrives; you pick the file when you press Stream."
+                  >
+                    <input type="checkbox" checked={saveToFile} onChange={(e) => setSaveToFile(e.target.checked)} />
+                    save to file
+                  </label>
+                )}
+              </>
+            )}
 
             <div className="flex-1" />
 
@@ -468,14 +559,14 @@ export function InvokePanel() {
             <button
               onClick={() => void copyCommand('curl')}
               title="Copy a curl command for this request (through the gateway)"
-              className="text-[10px] text-slate-500 hover:text-slate-200 px-1.5 py-0.5 rounded border border-slate-700 hover:border-slate-500 transition-colors"
+              className="text-[12px] text-slate-500 hover:text-slate-200 px-1.5 py-0.5 rounded border border-slate-700 hover:border-slate-500 transition-colors"
             >
               {copied === 'curl' ? 'Copied ✓' : 'Copy as curl'}
             </button>
             <button
               onClick={() => void copyCommand('grpcurl')}
               title="Copy a grpcurl command for this request (straight to the backend)"
-              className="text-[10px] text-slate-500 hover:text-slate-200 px-1.5 py-0.5 rounded border border-slate-700 hover:border-slate-500 transition-colors"
+              className="text-[12px] text-slate-500 hover:text-slate-200 px-1.5 py-0.5 rounded border border-slate-700 hover:border-slate-500 transition-colors"
             >
               {copied === 'grpcurl' ? 'Copied ✓' : 'Copy as grpcurl'}
             </button>
@@ -488,7 +579,7 @@ export function InvokePanel() {
       {/* Response panel */}
       <Panel defaultSize="45%" minSize="20%">
         <div className="h-full flex flex-col">
-          <div className="px-3 py-1 text-[10px] text-slate-600 border-b border-slate-700 shrink-0">
+          <div className="px-3 py-1 text-[12px] text-slate-600 border-b border-slate-700 shrink-0">
             RESPONSE
           </div>
           <div className="flex-1 min-h-0">
