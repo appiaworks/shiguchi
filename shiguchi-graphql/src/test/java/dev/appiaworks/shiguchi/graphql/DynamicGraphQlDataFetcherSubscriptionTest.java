@@ -62,7 +62,7 @@ class DynamicGraphQlDataFetcherSubscriptionTest {
         GatewayAuthorizationEnforcer authEnforcer = mock(GatewayAuthorizationEnforcer.class);
         when(authEnforcer.enforce(any(), any(), any())).thenReturn(Mono.empty());
         GraphQlFieldMaskInjector maskInjector = mock(GraphQlFieldMaskInjector.class);
-        when(maskInjector.inject(any(), any(), any())).thenAnswer(inv -> inv.getArgument(0));
+        when(maskInjector.inject(any(), any(), any(), any())).thenAnswer(inv -> inv.getArgument(0));
 
         ctx = new ServiceEndpointContext(new ServiceDefinition(), null);
         MethodDescriptor watch = FILE.findServiceByName("Events").findMethodByName("Watch");

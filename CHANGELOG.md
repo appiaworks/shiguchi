@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- GraphQL: a Relay-style list query (`edges { node { ... } }`) no longer sends the connection's own fields
+  (`edges`, `totalCount`) as `read_mask` paths, which made a backend that honours the mask return every
+  field blank except the identity ones. The mask is now the selected node fields, as `?fields=` is on REST.
+
 - `read_mask` reached the backend as a single path containing the text `{paths=[title]}` instead of `title`, so
   a backend that honoured the mask selected nothing. REST (`?fields=`, `X-Fields`) and the GraphQL selection-set
   pushdown both build the mask as `{"paths": [...]}`, and the conversion to `google.protobuf.FieldMask` treated

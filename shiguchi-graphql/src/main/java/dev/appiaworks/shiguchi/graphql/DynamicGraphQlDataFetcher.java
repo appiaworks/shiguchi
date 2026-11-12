@@ -114,7 +114,7 @@ public class DynamicGraphQlDataFetcher implements DataFetcher<Object> {
         MethodDescriptor md = ctx.lookupMethod(route.getFullServiceName(), route.getMethodName())
                 .orElse(null);
         if (md != null) {
-            args = fieldMaskInjector.inject(args, md.getInputType(), env);
+            args = fieldMaskInjector.inject(args, md.getInputType(), md.getOutputType(), env);
         } else {
             log.warn(
                     "[GraphQL] No MethodDescriptor for {}/{} — check staticServiceClasses config",
