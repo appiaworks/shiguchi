@@ -14,6 +14,11 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
+/** "42 chunks", or "last 1000 of 25000 chunks" once the cap has dropped older ones. */
+function chunkCount(shown: number, total: number): string {
+  return total > shown ? `last ${shown} of ${total} chunks` : `${shown} chunks`
+}
+
 function prettyJson(raw: string | null): string {
   if (!raw) return ''
   try {
@@ -46,7 +51,7 @@ function ErrorDetails({ details }: { details: unknown[] }) {
 
 export function ResponseViewer() {
   const { result, responseTab, setResponseTab } = useGrpcUiStore()
-  const { status, response, grpcStatus, errorMessage, errorDetails, durationMs, streamChunks } = result
+  const { status, response, grpcStatus, errorMessage, errorDetails, durationMs, streamChunks, streamTotal } = result
 
   if (status === 'idle') {
     return (
@@ -69,7 +74,7 @@ export function ResponseViewer() {
       <div className="h-full overflow-y-auto p-2">
         <div className="flex items-center gap-2 mb-2">
           <span className="text-slate-400 text-xs">Streaming…</span>
-          <span className="text-slate-500 text-xs">{streamChunks.length} chunks</span>
+          <span className="text-slate-500 text-xs">{chunkCount(streamChunks.length, streamTotal)}</span>
         </div>
         <div className="space-y-1">
           {streamChunks.map((chunk, i) => (
@@ -101,7 +106,7 @@ export function ResponseViewer() {
           <span className="text-red-400 text-xs truncate">{errorMessage}</span>
         )}
         {streamChunks.length > 0 && (
-          <span className="text-slate-500 text-xs">{streamChunks.length} chunks</span>
+          <span className="text-slate-500 text-xs">{chunkCount(streamChunks.length, streamTotal)}</span>
         )}
         <div className="flex-1" />
         {(['pretty', 'raw'] as const).map((tab) => (

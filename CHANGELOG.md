@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- gRPC UI: server-streaming responses keep only the last 1000 messages in the browser (the **keep last** field changes it, 0 = all) and can be written to an NDJSON file as they arrive (**save to file**, Chromium only).
 - `shiguchi-backend-support` and `shiguchi-backend-support-jpa` (both `EXPERIMENTAL`): helpers for the
   backend behind a list method. `SortSpec` (allow-listed `sort_fields`, tie-breaker), `MaskSpec`
   (`read_mask` to columns), `PageWindow` / `PageCursor` (clamped page size, offset or keyset tokens,

@@ -195,5 +195,34 @@ describe('useGrpcUiStore', () => {
 
       expect(useGrpcUiStore.getState().result.streamChunks).toEqual(['{"n":1}', '{"n":2}'])
     })
+
+    it('keeps only the last N chunks while still counting every one', () => {
+      useGrpcUiStore.getState().setStreamLimit(3)
+      useGrpcUiStore.getState().setResult({ status: 'streaming', streamChunks: [], streamTotal: 0 })
+
+      for (let i = 1; i <= 5; i++) useGrpcUiStore.getState().appendChunk(`{"n":${i}}`)
+
+      const { streamChunks, streamTotal } = useGrpcUiStore.getState().result
+      expect(streamChunks).toEqual(['{"n":3}', '{"n":4}', '{"n":5}'])
+      expect(streamTotal).toBe(5)
+    })
+
+    it('keeps everything when the limit is 0', () => {
+      useGrpcUiStore.getState().setStreamLimit(0)
+      useGrpcUiStore.getState().setResult({ status: 'streaming', streamChunks: [], streamTotal: 0 })
+
+      for (let i = 0; i < 2500; i++) useGrpcUiStore.getState().appendChunk('{}')
+
+      expect(useGrpcUiStore.getState().result.streamChunks).toHaveLength(2500)
+    })
+
+    it('normalises a negative or fractional limit and persists it', () => {
+      useGrpcUiStore.getState().setStreamLimit(-4)
+      expect(useGrpcUiStore.getState().streamLimit).toBe(0)
+
+      useGrpcUiStore.getState().setStreamLimit(12.7)
+      expect(useGrpcUiStore.getState().streamLimit).toBe(12)
+      expect(localStorage.getItem('grpcui-stream-limit')).toBe('12')
+    })
   })
 })

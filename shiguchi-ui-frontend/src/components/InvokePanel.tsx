@@ -3,6 +3,7 @@ import { LazyEditor } from './LazyEditor'
 import { useRef, useState } from 'react'
 import { toCurl, toGrpcurl } from '../api/exportCommand'
 import { invokeClientStream, invokeStream, invokeUnary } from '../api/grpcUiApi'
+import { canStreamToFile, openStreamFile, type StreamFile } from '../lib/streamFile'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import { useGrpcUiStore } from '../store/useGrpcUiStore'
 import type { StreamError } from '../types/schema'
@@ -38,11 +39,14 @@ export function InvokePanel() {
     setRequestMode,
     setResult,
     appendChunk,
+    streamLimit,
+    setStreamLimit,
     addHistoryEntry,
     restoreHistory,
   } = useGrpcUiStore()
 
   const abortRef = useRef<AbortController | null>(null)
+  const [saveToFile, setSaveToFile] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [modeError, setModeError] = useState<string | null>(null)
   const [copied, setCopied] = useState<'curl' | 'grpcurl' | null>(null)
@@ -134,9 +138,23 @@ export function InvokePanel() {
     }
 
     const pld = effectivePayload()
-    setResult({ status: 'loading', response: null, grpcStatus: null, errorMessage: null, errorDetails: null, durationMs: null, streamChunks: [] })
+    setResult({ status: 'loading', response: null, grpcStatus: null, errorMessage: null, errorDetails: null, durationMs: null, streamChunks: [], streamTotal: 0 })
 
     if (isStreaming) {
+      // The save dialog needs the click's user activation, so open it before anything else is awaited.
+      let file: StreamFile | null = null
+      if (saveToFile) {
+        try {
+          file = await openStreamFile(`${selectedMethod.name}-${Date.now()}.ndjson`)
+        } catch (e) {
+          setResult({ status: 'error', errorMessage: `Could not open the file: ${String(e)}` })
+          return
+        }
+        if (!file) {
+          setResult({ status: 'idle' })
+          return
+        }
+      }
       const ctrl = new AbortController()
       abortRef.current = ctrl
       setResult({ status: 'streaming' })
@@ -148,6 +166,7 @@ export function InvokePanel() {
         )) {
           if (event.event === 'data') {
             appendChunk(event.data)
+            if (file) await file.write(event.data)
           } else if (event.event === 'error') {
             // The backend failed mid-stream: keep the chunks received so far, show the status.
             failed = true
@@ -204,6 +223,12 @@ export function InvokePanel() {
         }
       } catch (e) {
         if ((e as Error).name !== 'AbortError') setResult({ status: 'error', errorMessage: String(e) })
+      } finally {
+        try {
+          await file?.close()
+        } catch {
+          // the outcome is already shown; a failed close only loses the tail of the file
+        }
       }
     } else {
       try {
@@ -460,6 +485,33 @@ export function InvokePanel() {
             <span className="text-slate-600 text-[12px]">
               {selectedMethod.methodType.replace('_', ' ')}
             </span>
+            {isStreaming && (
+              <>
+                <label
+                  className="flex items-center gap-1 text-[12px] text-slate-400"
+                  title="Messages kept in the response pane; older ones are dropped to save browser memory. 0 keeps all."
+                >
+                  keep last
+                  <input
+                    type="number"
+                    min={0}
+                    aria-label="Streamed messages to keep"
+                    value={streamLimit}
+                    onChange={(e) => setStreamLimit(Number(e.target.value))}
+                    className="w-16 bg-slate-800 border border-slate-700 rounded px-1 py-0.5 text-slate-200"
+                  />
+                </label>
+                {canStreamToFile() && (
+                  <label
+                    className="flex items-center gap-1 text-[12px] text-slate-400"
+                    title="Write every message to a file (NDJSON) as it arrives; you pick the file when you press Stream."
+                  >
+                    <input type="checkbox" checked={saveToFile} onChange={(e) => setSaveToFile(e.target.checked)} />
+                    save to file
+                  </label>
+                )}
+              </>
+            )}
 
             <div className="flex-1" />
 
