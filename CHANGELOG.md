@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Breaking (wire format):** REST errors are now RFC 9457 `application/problem+json` and GraphQL errors carry `extensions.code` and `fieldErrors` by default. Set `shiguchi.rest.error-format: GRPC` and `shiguchi.graphql.error-format: GRPC` to keep the old `{code, message, details}` / raw `details` shape.
 - `shiguchi.rest.error-format: PROBLEM_JSON` (RFC 9457 `application/problem+json`, `BadRequest` flattened to `errors`) and `shiguchi.graphql.error-format: NATIVE` (`extensions.code`, `fieldErrors` with the GraphQL argument path). Both default to the current gRPC shape. A GraphQL error from a bare `StatusRuntimeException` now carries the backend's details too.
 - `shiguchi-backend-support` and `shiguchi-backend-support-jpa` (both `EXPERIMENTAL`): helpers for the
   backend behind a list method. `SortSpec` (allow-listed `sort_fields`, tie-breaker), `MaskSpec`

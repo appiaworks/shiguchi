@@ -22,13 +22,13 @@ public class RestConfig {
     private boolean autoMapping = false;
 
     /**
-     * Shape of the error body the default renderer writes. {@code GRPC} (default):
-     * {@code {code, message, details:[{"@type": ...}]}}. {@code PROBLEM_JSON}: RFC 9457
+     * Shape of the error body the default renderer writes. {@code GRPC}:
+     * {@code {code, message, details:[{"@type": ...}]}}. {@code PROBLEM_JSON} (default): RFC 9457
      * {@code application/problem+json} ({@code type, title, status, detail, instance, code}), with
      * the {@code BadRequest} field violations flattened to {@code errors:[{field, message, reason}]}.
      * A {@code GatewayErrorRenderer} bean of your own replaces both.
      */
-    private ErrorFormat errorFormat = ErrorFormat.GRPC;
+    private ErrorFormat errorFormat = ErrorFormat.PROBLEM_JSON;
 
     public enum ErrorFormat {
         GRPC,

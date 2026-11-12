@@ -56,7 +56,11 @@ import org.springframework.web.reactive.function.client.WebClient;
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = {"shiguchi.ui.enabled=false", "shiguchi.openapi.enabled=false"})
+        properties = {
+            "shiguchi.ui.enabled=false",
+            "shiguchi.openapi.enabled=false",
+            "shiguchi.graphql.error-format=GRPC"
+        })
 @DisplayName("gRPC error details on the GraphQL surface end to end (Boot 4, DGS)")
 class GraphQlErrorDetailsEndToEndTest {
 

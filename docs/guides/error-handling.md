@@ -268,8 +268,9 @@ gets the same treatment with reason `BINDING_CONFLICT`
 
 ## Native-looking errors
 
-By default a validation failure reaches the client in its gRPC shape: the `google.rpc.BadRequest`
-with its `@type` member. Two switches reshape it without touching the backend.
+Up to 0.20 a validation failure reached the client in its gRPC shape: the `google.rpc.BadRequest`
+with its `@type` member. From 0.21 the defaults reshape it without touching the backend; two
+switches choose the shape.
 
 REST, `shiguchi.rest.error-format: PROBLEM_JSON` (RFC 9457, `application/problem+json`):
 
@@ -302,5 +303,5 @@ GraphQL, `shiguchi.graphql.error-format: NATIVE`:
 
 `field` is the proto field path turned into the argument path the caller wrote: segments in
 lowerCamelCase, and prefixed with `input.` when the field takes an `input` argument. Details other
-than `BadRequest` stay under `details` in both. Both default to `GRPC`, so nothing changes until
-you opt in. A custom `GatewayErrorRenderer` bean replaces the REST switch.
+than `BadRequest` stay under `details` in both. Both are the default since 0.21; set
+`error-format: GRPC` on either to keep the previous shape. A custom `GatewayErrorRenderer` bean replaces the REST switch.
