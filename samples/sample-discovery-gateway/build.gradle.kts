@@ -6,6 +6,8 @@ plugins {
 
 group = "dev.appiaworks.shiguchi.sample"
 
+// DGS 12.1 needs json-path 3; the Boot 4.1 BOM holds it at 2.10 (docs/operations/troubleshooting.md).
+extra["json-path.version"] = "3.0.0"
 
 val gatewayVersion = providers.gradleProperty("gatewayVersion").get()
 
@@ -21,6 +23,9 @@ dependencies {
     implementation("io.github.appiaworks:shiguchi-core:$gatewayVersion")
     implementation("io.github.appiaworks:shiguchi-rest:$gatewayVersion")
     implementation("io.github.appiaworks:shiguchi-openapi-spring-boot4-starter:$gatewayVersion")
+    // The browser surfaces the UI smoke test (scripts/ui-smoke) loads: gRPC console and GraphiQL.
+    implementation("io.github.appiaworks:shiguchi-ui-spring-boot4-starter:$gatewayVersion")
+    implementation("io.github.appiaworks:shiguchi-graphql-spring-boot4-starter:$gatewayVersion")
 
     // The DiscoveryClient interface the gateway's discovery:/// name resolver asks for. Swap for
     // spring-cloud-starter-netflix-eureka-client / -consul-discovery / -kubernetes-client to talk

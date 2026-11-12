@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `scripts/ui-smoke`: a headless-Chromium smoke test that loads the gRPC console, GraphiQL and Swagger UI of a running gateway and fails on a blank page, a CSP violation or a console error. Runs nightly in CI; `sample-discovery-gateway` now also serves the console and GraphiQL.
 
 - `shiguchi.openapi.security-schemes.<id>.authorization-code.client-id` (also on `client-credentials`): a public OAuth2 client id the gRPC console pre-fills (a value saved in the browser wins) and Swagger UI uses when exactly one scheme sets it. No client secret property.
 - gRPC UI: **from file…** loads the messages of a client-streaming call from an NDJSON or JSON-array file.
