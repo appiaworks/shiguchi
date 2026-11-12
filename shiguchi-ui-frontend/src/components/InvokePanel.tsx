@@ -258,8 +258,8 @@ export function InvokePanel() {
             <span className="text-white font-semibold text-xs">{selectedMethod.name}</span>
             {selectedMethod.httpMethod && (
               <>
-                <span className="ml-2 text-slate-600 text-[10px]">{selectedMethod.httpMethod}</span>
-                <span className="text-slate-500 text-[10px]">{selectedMethod.httpPath}</span>
+                <span className="ml-2 text-slate-600 text-[12px]">{selectedMethod.httpMethod}</span>
+                <span className="text-slate-500 text-[12px]">{selectedMethod.httpPath}</span>
               </>
             )}
             <div className="flex-1" />
@@ -267,13 +267,13 @@ export function InvokePanel() {
               <div className="relative">
                 <button
                   onClick={() => setShowHistory((v) => !v)}
-                  className="text-[10px] text-slate-600 hover:text-slate-300 px-1.5 py-0.5 rounded border border-slate-700"
+                  className="text-[12px] text-slate-600 hover:text-slate-300 px-1.5 py-0.5 rounded border border-slate-700"
                 >
                   History ({relevantHistory.length})
                 </button>
                 {showHistory && (
                   <div className="absolute right-0 top-full mt-1 z-50 w-72 bg-slate-900 border border-slate-700 rounded shadow-xl">
-                    <div className="px-2 py-1 text-[9px] text-slate-600 uppercase tracking-wider border-b border-slate-800">
+                    <div className="px-2 py-1 text-[11px] text-slate-600 uppercase tracking-wider border-b border-slate-800">
                       Recent · {selectedMethod.name}
                     </div>
                     <div className="max-h-64 overflow-y-auto">
@@ -284,18 +284,18 @@ export function InvokePanel() {
                           className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-slate-800 text-left border-b border-slate-800 last:border-0"
                         >
                           <div className="flex-1 min-w-0">
-                            <div className="text-[10px] text-slate-400 truncate font-mono">
+                            <div className="text-[12px] text-slate-400 truncate font-mono">
                               {entry.payload.length > 40
                                 ? entry.payload.slice(0, 40) + '…'
                                 : entry.payload}
                             </div>
-                            <div className="text-[9px] text-slate-600">
+                            <div className="text-[11px] text-slate-600">
                               {new Date(entry.timestamp).toLocaleTimeString()}
                               {entry.metadataEntries.length > 0 && ` · ${entry.metadataEntries.length} meta`}
                             </div>
                           </div>
                           {entry.grpcStatus && (
-                            <span className={`text-[9px] px-1 rounded shrink-0 ${
+                            <span className={`text-[11px] px-1 rounded shrink-0 ${
                               entry.grpcStatus === 'OK'
                                 ? 'bg-emerald-900 text-emerald-400'
                                 : 'bg-red-900 text-red-400'
@@ -328,7 +328,7 @@ export function InvokePanel() {
                     <button
                       key={tab}
                       onClick={() => switchToMode(tab)}
-                      className={`px-3 py-1 text-[10px] uppercase tracking-wider transition-colors ${
+                      className={`px-3 py-1 text-[12px] uppercase tracking-wider transition-colors ${
                         requestMode === tab
                           ? 'text-blue-400 border-b-2 border-blue-500'
                           : 'text-slate-600 hover:text-slate-400'
@@ -339,7 +339,7 @@ export function InvokePanel() {
                   ))}
                 </div>
                 {modeError && (
-                  <div role="alert" className="px-3 py-1 text-[11px] text-red-300 bg-red-950/40 border-b border-red-900 shrink-0">
+                  <div role="alert" className="px-3 py-1 text-[12px] text-red-300 bg-red-950/40 border-b border-red-900 shrink-0">
                     Fix the JSON before switching to the form: {modeError}
                   </div>
                 )}
@@ -371,7 +371,7 @@ export function InvokePanel() {
 
                 {isClientStreaming && (
                   <div className="border-t border-slate-700 shrink-0 max-h-56 overflow-y-auto">
-                    <div className="px-3 py-1 flex items-center justify-between text-[10px] text-slate-600">
+                    <div className="px-3 py-1 flex items-center justify-between text-[12px] text-slate-600">
                       <span>
                         MESSAGE STREAM ({extraPayloads.length + 1} message
                         {extraPayloads.length === 0 ? '' : 's'})
@@ -402,7 +402,7 @@ export function InvokePanel() {
                     </div>
                     {extraPayloads.map((extra, i) => (
                       <div key={i} className="px-3 pb-2">
-                        <div className="flex items-center justify-between text-[10px] text-slate-600 pb-0.5">
+                        <div className="flex items-center justify-between text-[12px] text-slate-600 pb-0.5">
                           <span>#{i + 2}</span>
                           <button
                             type="button"
@@ -433,7 +433,7 @@ export function InvokePanel() {
 
             <Panel defaultSize="35%" minSize="20%">
               <div className="h-full flex flex-col">
-                <div className="px-3 py-1 text-[10px] text-slate-600 border-b border-slate-700 shrink-0">
+                <div className="px-3 py-1 text-[12px] text-slate-600 border-b border-slate-700 shrink-0">
                   INPUT SCHEMA
                 </div>
                 <div className="flex-1 min-h-0">
@@ -457,7 +457,7 @@ export function InvokePanel() {
             >
               {busy ? 'Cancel' : isStreaming ? 'Stream' : 'Send'}
             </button>
-            <span className="text-slate-600 text-[10px]">
+            <span className="text-slate-600 text-[12px]">
               {selectedMethod.methodType.replace('_', ' ')}
             </span>
 
@@ -468,14 +468,14 @@ export function InvokePanel() {
             <button
               onClick={() => void copyCommand('curl')}
               title="Copy a curl command for this request (through the gateway)"
-              className="text-[10px] text-slate-500 hover:text-slate-200 px-1.5 py-0.5 rounded border border-slate-700 hover:border-slate-500 transition-colors"
+              className="text-[12px] text-slate-500 hover:text-slate-200 px-1.5 py-0.5 rounded border border-slate-700 hover:border-slate-500 transition-colors"
             >
               {copied === 'curl' ? 'Copied ✓' : 'Copy as curl'}
             </button>
             <button
               onClick={() => void copyCommand('grpcurl')}
               title="Copy a grpcurl command for this request (straight to the backend)"
-              className="text-[10px] text-slate-500 hover:text-slate-200 px-1.5 py-0.5 rounded border border-slate-700 hover:border-slate-500 transition-colors"
+              className="text-[12px] text-slate-500 hover:text-slate-200 px-1.5 py-0.5 rounded border border-slate-700 hover:border-slate-500 transition-colors"
             >
               {copied === 'grpcurl' ? 'Copied ✓' : 'Copy as grpcurl'}
             </button>
@@ -488,7 +488,7 @@ export function InvokePanel() {
       {/* Response panel */}
       <Panel defaultSize="45%" minSize="20%">
         <div className="h-full flex flex-col">
-          <div className="px-3 py-1 text-[10px] text-slate-600 border-b border-slate-700 shrink-0">
+          <div className="px-3 py-1 text-[12px] text-slate-600 border-b border-slate-700 shrink-0">
             RESPONSE
           </div>
           <div className="flex-1 min-h-0">

@@ -49,7 +49,7 @@ function FieldList({
   }
 
   if (items.length === 0) {
-    return <div className="text-slate-700 text-[10px] italic">empty message</div>
+    return <div className="text-slate-700 text-[12px] italic">empty message</div>
   }
 
   return (
@@ -113,13 +113,13 @@ function OneofGroup({
 
   return (
     <div className="border border-slate-700 rounded p-1.5">
-      <div className="text-[9px] text-slate-600 mb-1 uppercase tracking-wider">oneof {oneofName}</div>
+      <div className="text-[11px] text-slate-600 mb-1 uppercase tracking-wider">oneof {oneofName}</div>
       <div className="flex flex-wrap gap-1 mb-1.5">
         {fields.map((f) => (
           <button
             key={f.name}
             onClick={() => pick(f.name)}
-            className={`px-2 py-0.5 rounded text-[10px] border transition-colors ${
+            className={`px-2 py-0.5 rounded text-[12px] border transition-colors ${
               activeField.name === f.name
                 ? 'bg-blue-800 border-blue-600 text-blue-100'
                 : 'border-slate-700 text-slate-500 hover:text-slate-300'
@@ -211,9 +211,9 @@ function ScalarField({
           onClick={() => setExpanded((e) => !e)}
           className="flex items-center gap-1 text-slate-400 text-xs hover:text-slate-200 w-full text-left py-0.5"
         >
-          <span className="text-slate-600 text-[10px]">{expanded ? '▾' : '▸'}</span>
+          <span className="text-slate-600 text-[12px]">{expanded ? '▾' : '▸'}</span>
           <span className="font-mono text-slate-400">{field.name}</span>
-          <span className="text-slate-700 text-[10px] ml-1">message</span>
+          <span className="text-slate-700 text-[12px] ml-1">message</span>
         </button>
         {expanded && (
           <div className="ml-3 border-l border-slate-800 pl-2 mt-0.5">
@@ -232,7 +232,7 @@ function ScalarField({
   }
 
   const label = (
-    <span className="text-slate-500 text-[10px] font-mono shrink-0" style={{ marginLeft: indent }}>
+    <span className="text-slate-500 text-[12px] font-mono shrink-0" style={{ marginLeft: indent }}>
       {field.name}
     </span>
   )
@@ -466,16 +466,16 @@ function RepeatedField({
   return (
     <div style={{ marginLeft: indent }}>
       <div className="flex items-center gap-1 py-0.5">
-        <span className="text-slate-500 text-[10px] font-mono">{field.name}</span>
-        <span className="text-slate-700 text-[10px]">[ ]</span>
-        <button onClick={add} className="ml-1 text-[10px] text-blue-500 hover:text-blue-400">
+        <span className="text-slate-500 text-[12px] font-mono">{field.name}</span>
+        <span className="text-slate-700 text-[12px]">[ ]</span>
+        <button onClick={add} className="ml-1 text-[12px] text-blue-500 hover:text-blue-400">
           + add
         </button>
       </div>
       <div className="ml-2 space-y-1">
         {arr.map((item, i) => (
           <div key={i} className="flex items-start gap-1">
-            <span className="text-slate-700 text-[10px] pt-1 shrink-0">[{i}]</span>
+            <span className="text-slate-700 text-[12px] pt-1 shrink-0">[{i}]</span>
             <div className="flex-1 min-w-0">
               {field.type === 'message' && field.fields.length > 0 ? (
                 <FieldList
@@ -495,7 +495,7 @@ function RepeatedField({
             </div>
             <button
               onClick={() => remove(i)}
-              className="text-[10px] text-slate-600 hover:text-red-400 pt-1 shrink-0"
+              className="text-[12px] text-slate-600 hover:text-red-400 pt-1 shrink-0"
             >
               ×
             </button>
@@ -546,9 +546,9 @@ function MapField({
   return (
     <div style={{ marginLeft: indent }}>
       <div className="flex items-center gap-1 py-0.5">
-        <span className="text-slate-500 text-[10px] font-mono">{field.name}</span>
-        <span className="text-slate-700 text-[10px]">{'{}'}</span>
-        <button onClick={add} className="ml-1 text-[10px] text-blue-500 hover:text-blue-400">
+        <span className="text-slate-500 text-[12px] font-mono">{field.name}</span>
+        <span className="text-slate-700 text-[12px]">{'{}'}</span>
+        <button onClick={add} className="ml-1 text-[12px] text-blue-500 hover:text-blue-400">
           + add
         </button>
       </div>
@@ -560,9 +560,9 @@ function MapField({
               defaultValue={k}
               onBlur={(e) => updateKey(k, e.target.value)}
               placeholder="key"
-              className="w-24 bg-slate-800 text-slate-300 text-[10px] px-1.5 py-0.5 rounded border border-slate-700 outline-none font-mono"
+              className="w-24 bg-slate-800 text-slate-300 text-[12px] px-1.5 py-0.5 rounded border border-slate-700 outline-none font-mono"
             />
-            <span className="text-slate-700 text-[10px]">:</span>
+            <span className="text-slate-700 text-[12px]">:</span>
             {valueField ? (
               <div className="flex-1 min-w-0">
                 <ScalarField
@@ -578,12 +578,12 @@ function MapField({
                 value={String(v ?? '')}
                 onChange={(e) => updateVal(k, e.target.value)}
                 placeholder="value"
-                className="flex-1 bg-slate-800 text-slate-300 text-[10px] px-1.5 py-0.5 rounded border border-slate-700 outline-none font-mono"
+                className="flex-1 bg-slate-800 text-slate-300 text-[12px] px-1.5 py-0.5 rounded border border-slate-700 outline-none font-mono"
               />
             )}
             <button
               onClick={() => remove(k)}
-              className="text-[10px] text-slate-600 hover:text-red-400 shrink-0"
+              className="text-[12px] text-slate-600 hover:text-red-400 shrink-0"
             >
               ×
             </button>

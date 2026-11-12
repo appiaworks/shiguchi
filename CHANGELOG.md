@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- gRPC UI: larger text (base font 13 to 15 px, the smallest labels 9-11 px to 11-12 px), and the global auth panel now opens in the page flow and pushes the main area down instead of covering it.
 - gRPC console: the **Form** tab is now the default request input (JSON is the second tab) and the last choice is remembered per browser. Restoring a history entry keeps the current tab. Client-streaming calls get a *copy of #1* button.
 
 ## [0.20.0] - 2026-11-11

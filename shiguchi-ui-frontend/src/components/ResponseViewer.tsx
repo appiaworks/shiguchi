@@ -31,7 +31,7 @@ function ErrorDetails({ details }: { details: unknown[] }) {
         const type = typeof d === 'object' && d !== null ? String((d as Record<string, unknown>)['@type'] ?? '') : ''
         return (
           <div key={i}>
-            <div className="text-[10px] uppercase tracking-wider text-red-400 mb-0.5">
+            <div className="text-[12px] uppercase tracking-wider text-red-400 mb-0.5">
               {type.replace(/^type\.googleapis\.com\//, '') || `detail ${i + 1}`}
             </div>
             <pre className="text-xs text-slate-300 bg-slate-800 rounded p-1 overflow-x-auto whitespace-pre-wrap break-all">
@@ -108,7 +108,7 @@ export function ResponseViewer() {
           <button
             key={tab}
             onClick={() => setResponseTab(tab)}
-            className={`px-2 py-0.5 text-[10px] uppercase tracking-wider transition-colors ${
+            className={`px-2 py-0.5 text-[12px] uppercase tracking-wider transition-colors ${
               responseTab === tab
                 ? 'text-blue-400 border-b border-blue-500'
                 : 'text-slate-600 hover:text-slate-400'

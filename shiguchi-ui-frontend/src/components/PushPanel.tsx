@@ -61,8 +61,8 @@ const NO_PROVIDERS: AuthProviderDto[] = []
 
 const INPUT =
   'bg-slate-800 text-slate-300 text-xs px-2 py-1 rounded outline-none placeholder-slate-700 border border-slate-700 focus:border-slate-500'
-const SMALL_BUTTON = 'text-[10px] px-1.5 py-0.5 rounded border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-500 disabled:opacity-50'
-const DANGER_BUTTON = 'text-[10px] px-1.5 py-0.5 rounded border border-red-900 text-red-400 hover:border-red-700 disabled:opacity-50'
+const SMALL_BUTTON = 'text-[12px] px-1.5 py-0.5 rounded border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-500 disabled:opacity-50'
+const DANGER_BUTTON = 'text-[12px] px-1.5 py-0.5 rounded border border-red-900 text-red-400 hover:border-red-700 disabled:opacity-50'
 
 /**
  * The push surface's admin views over the `gateway-push` actuator endpoint: the instance at a
@@ -84,7 +84,7 @@ export function PushPanel({ adminPath, pushPath }: Props) {
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center gap-1 px-3 py-1.5 border-b border-slate-700 shrink-0">
-        <span className="text-[10px] text-slate-600 uppercase tracking-wider mr-2">Push</span>
+        <span className="text-[12px] text-slate-600 uppercase tracking-wider mr-2">Push</span>
         {(['overview', 'topics', 'connections', 'messages', 'publish', 'sources', 'sessions', 'audit'] as View[]).map((v) => (
           <button
             key={v}
@@ -141,7 +141,7 @@ function usePolling<T>(load: () => Promise<T>, onError: (e: string | null) => vo
 function Stat({ label, value, tone = 'text-slate-200' }: { label: string; value: string | number; tone?: string }) {
   return (
     <div className="bg-slate-800 rounded px-3 py-2 min-w-[7rem]">
-      <div className="text-[10px] uppercase tracking-wider text-slate-500">{label}</div>
+      <div className="text-[12px] uppercase tracking-wider text-slate-500">{label}</div>
       <div className={`text-lg font-semibold ${tone}`}>{value}</div>
     </div>
   )
@@ -185,7 +185,7 @@ function Overview({ adminPath, auth, onError }: { adminPath: string; auth: PushA
       </div>
       <table className="w-full text-xs">
         <thead>
-          <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
+          <tr className="text-left text-[12px] uppercase tracking-wider text-slate-500">
             <th className="py-1">namespace</th>
             <th>qos</th>
             <th>history</th>
@@ -243,7 +243,7 @@ function Topics({ adminPath, pushPath, auth, onError }: { adminPath: string; pus
       ) : (
         <table className="w-full text-xs">
           <thead>
-            <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
+            <tr className="text-left text-[12px] uppercase tracking-wider text-slate-500">
               <th className="py-1">topic</th>
               <th className="text-right">subscribers</th>
               <th className="text-right">history</th>
@@ -333,19 +333,19 @@ function Tail({ topic, pushPath, token }: { topic: string; pushPath: string; tok
         <span className="text-slate-400">tail</span>
         <span className="font-mono text-slate-200">{topic}</span>
         <span
-          className={`text-[10px] ${
+          className={`text-[12px] ${
             state === 'open' ? 'text-green-500' : state === 'closed' ? 'text-red-400' : state === 'waiting' ? 'text-yellow-400' : 'text-slate-500'
           }`}
         >
           {state}
         </span>
-        <span className="text-slate-600 text-[10px]">{entries.filter((e) => e.kind === 'event').length} events</span>
+        <span className="text-slate-600 text-[12px]">{entries.filter((e) => e.kind === 'event').length} events</span>
       </div>
       <div className="max-h-64 overflow-y-auto p-1 space-y-0.5">
         {entries.map((e, i) => (
           <pre
             key={i}
-            className={`text-[11px] rounded px-1 py-0.5 overflow-x-auto whitespace-pre-wrap break-all ${
+            className={`text-[12px] rounded px-1 py-0.5 overflow-x-auto whitespace-pre-wrap break-all ${
               e.kind === 'event'
                 ? 'text-slate-300 bg-slate-800'
                 : e.kind === 'gap'
@@ -401,15 +401,15 @@ function Connections({ adminPath, auth, onError }: { adminPath: string; auth: Pu
   return (
     <>
     {instances.size > 0 && (
-      <div className="mb-2 text-[10px] text-slate-500">
+      <div className="mb-2 text-[12px] text-slate-500">
         cluster-wide registry: {connections.length} connection{connections.length === 1 ? '' : 's'} on {instances.size} instance
         {instances.size === 1 ? '' : 's'}
       </div>
     )}
-    {notice && <div className="mb-2 text-[10px] text-emerald-400">{notice}</div>}
+    {notice && <div className="mb-2 text-[12px] text-emerald-400">{notice}</div>}
     <table className="w-full text-xs">
       <thead>
-        <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
+        <tr className="text-left text-[12px] uppercase tracking-wider text-slate-500">
           <th className="py-1">id</th>
           <th>instance</th>
           <th>transport</th>
@@ -423,11 +423,11 @@ function Connections({ adminPath, auth, onError }: { adminPath: string; auth: Pu
       <tbody>
         {connections.map((c) => (
           <tr key={c.id} className="border-t border-slate-800 text-slate-300">
-            <td className="py-1 font-mono text-[10px] text-slate-400">{c.id.slice(0, 8)}</td>
-            <td className="font-mono text-[10px]">{c.instance ?? <span className="text-slate-600">local</span>}</td>
+            <td className="py-1 font-mono text-[12px] text-slate-400">{c.id.slice(0, 8)}</td>
+            <td className="font-mono text-[12px]">{c.instance ?? <span className="text-slate-600">local</span>}</td>
             <td>{c.transport}</td>
             <td>{c.principal ?? <span className="text-slate-600">anonymous</span>}</td>
-            <td className="font-mono text-[10px]">{c.deviceId ?? <span className="text-slate-600">-</span>}</td>
+            <td className="font-mono text-[12px]">{c.deviceId ?? <span className="text-slate-600">-</span>}</td>
             <td className="font-mono">{c.topics.join(', ')}</td>
             <td className="text-slate-500">{new Date(c.since).toLocaleTimeString()}</td>
             <td className="text-right">
@@ -648,7 +648,7 @@ function Messages({
       ) : (
         <table className="w-full text-xs">
           <thead>
-            <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
+            <tr className="text-left text-[12px] uppercase tracking-wider text-slate-500">
               <th className="py-1">time</th>
               <th>topic</th>
               <th>id</th>
@@ -667,11 +667,11 @@ function Messages({
               >
                 <td className="py-1 text-slate-500 whitespace-nowrap">{new Date(m.time).toLocaleString()}</td>
                 <td className="font-mono">{m.topic}</td>
-                <td className="font-mono text-[10px] text-slate-400">{m.id}</td>
-                <td className="font-mono text-[10px] text-slate-400">{m.typeUrl ? m.typeUrl.split('/').pop() : 'json'}</td>
+                <td className="font-mono text-[12px] text-slate-400">{m.id}</td>
+                <td className="font-mono text-[12px] text-slate-400">{m.typeUrl ? m.typeUrl.split('/').pop() : 'json'}</td>
                 <td className="text-right">{m.bytes}</td>
                 <td className="text-slate-500 truncate max-w-xs">{m.attributes ? Object.entries(m.attributes).map(([k, v]) => `${k}=${v}`).join(' ') : ''}</td>
-                <td className="text-right">{m.tombstoned && <span className="text-[10px] text-red-400">tombstone</span>}</td>
+                <td className="text-right">{m.tombstoned && <span className="text-[12px] text-red-400">tombstone</span>}</td>
               </tr>
             ))}
           </tbody>
@@ -723,7 +723,7 @@ function MessageDetail({
     <div className="border border-slate-700 rounded p-2 space-y-2 text-xs">
       <div className="flex items-center gap-2">
         <span className="font-mono text-slate-200">{m.topic}</span>
-        <span className="font-mono text-[10px] text-slate-400">{m.id}</span>
+        <span className="font-mono text-[12px] text-slate-400">{m.id}</span>
         <span className="text-slate-500">{new Date(m.time).toLocaleString()}</span>
         {m.tombstoned && (
           <span className="text-red-400">
@@ -756,7 +756,7 @@ function MessageDetail({
         )}
       </div>
       {pretty !== undefined ? (
-        <pre className="text-[11px] text-slate-300 bg-slate-800 rounded px-2 py-1 overflow-x-auto max-h-64 whitespace-pre-wrap break-all">{pretty}</pre>
+        <pre className="text-[12px] text-slate-300 bg-slate-800 rounded px-2 py-1 overflow-x-auto max-h-64 whitespace-pre-wrap break-all">{pretty}</pre>
       ) : (
         <div className="text-slate-600">payload hidden by admin.payload-visibility</div>
       )}
@@ -855,9 +855,9 @@ function Deliveries({ adminPath, auth, topic, id }: { adminPath: string; auth: P
         <span className="text-slate-600">({scope})</span>
       </div>
       {state.log.length > 0 && (
-        <table className="w-full text-[11px]">
+        <table className="w-full text-[12px]">
           <thead>
-            <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
+            <tr className="text-left text-[12px] uppercase tracking-wider text-slate-500">
               <th className="py-0.5">time</th>
               <th>connection</th>
               <th>principal</th>
@@ -869,7 +869,7 @@ function Deliveries({ adminPath, auth, topic, id }: { adminPath: string; auth: P
             {state.log.map((d, i) => (
               <tr key={`${d.connectionId}-${i}`} className="border-t border-slate-800 text-slate-300">
                 <td className="py-0.5 text-slate-500 whitespace-nowrap">{new Date(d.time).toLocaleTimeString()}</td>
-                <td className="font-mono text-[10px]">{d.connectionId}</td>
+                <td className="font-mono text-[12px]">{d.connectionId}</td>
                 <td>{d.principal ?? <span className="text-slate-600">anonymous</span>}</td>
                 <td>{d.transport}</td>
                 <td className={d.outcome === 'delivered' ? '' : 'text-amber-400'}>{d.outcome}</td>
@@ -930,7 +930,7 @@ function JobPanel({
   return (
     <div className="border border-slate-700 rounded px-2 py-1 text-xs flex items-center gap-3">
       <span className="text-slate-400">job</span>
-      <span className="font-mono text-[10px] text-slate-400">{job.id.slice(0, 8)}</span>
+      <span className="font-mono text-[12px] text-slate-400">{job.id.slice(0, 8)}</span>
       <span className={job.state === 'RUNNING' ? 'text-blue-300' : job.state === 'DONE' ? 'text-emerald-400' : 'text-yellow-400'}>{job.state}</span>
       <span className="text-slate-300">
         {job.published} / {job.matched} published{job.failed > 0 ? `, ${job.failed} failed` : ''}
@@ -1028,10 +1028,10 @@ function Sessions({ adminPath, auth, onError }: { adminPath: string; auth: PushA
       </form>
       {groups !== null && groups.length > 0 && (
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">consumer groups</div>
+          <div className="text-[12px] uppercase tracking-wider text-slate-500 mb-1">consumer groups</div>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
+              <tr className="text-left text-[12px] uppercase tracking-wider text-slate-500">
                 <th className="py-1">group</th>
                 <th>topic</th>
                 <th className="text-right">pending</th>
@@ -1047,7 +1047,7 @@ function Sessions({ adminPath, auth, onError }: { adminPath: string; auth: PushA
                   <td className="font-mono">{g.topic}</td>
                   <td className={`text-right ${g.pending > 0 ? 'text-amber-400' : ''}`}>{g.pending}</td>
                   <td className="text-right">{g.members}</td>
-                  <td className="font-mono text-[10px] text-slate-400">{g.cursor ?? '—'}</td>
+                  <td className="font-mono text-[12px] text-slate-400">{g.cursor ?? '—'}</td>
                   <td className="text-right whitespace-nowrap">
                     <SeekControl
                       disabled={busy}
@@ -1100,7 +1100,7 @@ function Sessions({ adminPath, auth, onError }: { adminPath: string; auth: PushA
       ) : (
         <table className="w-full text-xs">
           <thead>
-            <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
+            <tr className="text-left text-[12px] uppercase tracking-wider text-slate-500">
               <th className="py-1">session</th>
               <th>topic</th>
               <th>cursor</th>
@@ -1113,7 +1113,7 @@ function Sessions({ adminPath, auth, onError }: { adminPath: string; auth: PushA
               <tr key={`${s.session}/${s.topic}`} className="border-t border-slate-800 text-slate-300">
                 <td className="py-1 font-mono">{s.session}</td>
                 <td className="font-mono">{s.topic}</td>
-                <td className="font-mono text-[10px] text-slate-400">{s.cursor}</td>
+                <td className="font-mono text-[12px] text-slate-400">{s.cursor}</td>
                 <td className="text-slate-500 whitespace-nowrap">{s.expiresAt ? new Date(s.expiresAt).toLocaleString() : '—'}</td>
                 <td className="text-right whitespace-nowrap">
                   <SeekControl
@@ -1180,7 +1180,7 @@ function SendControl({ disabled, run }: { disabled: boolean; run: (data: string,
   return (
     <span className="inline-flex items-center gap-1">
       <input value={data} onChange={(e) => setData(e.target.value)} placeholder='{"hello":"you"}' aria-label="Send payload" className={`${INPUT} font-mono w-40`} />
-      <label className="text-[10px] text-slate-500 inline-flex items-center gap-0.5">
+      <label className="text-[12px] text-slate-500 inline-flex items-center gap-0.5">
         <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} aria-label="Wait for acknowledgement" />
         ack
       </label>
@@ -1257,7 +1257,7 @@ function Sources({ adminPath, auth, onError }: { adminPath: string; auth: PushAu
   return (
     <div className="space-y-4">
       <div>
-        <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">sources</div>
+        <div className="text-[12px] uppercase tracking-wider text-slate-500 mb-1">sources</div>
         {sources.length === 0 ? (
           <div className="text-xs text-slate-500">
             No source: declare one under <span className="font-mono">shiguchi.cursus.sources</span> (<span className="font-mono">KAFKA</span>,{' '}
@@ -1266,7 +1266,7 @@ function Sources({ adminPath, auth, onError }: { adminPath: string; auth: PushAu
         ) : (
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
+              <tr className="text-left text-[12px] uppercase tracking-wider text-slate-500">
                 <th className="py-1">name</th>
                 <th>kind</th>
                 <th>state</th>
@@ -1280,7 +1280,7 @@ function Sources({ adminPath, auth, onError }: { adminPath: string; auth: PushAu
               {sources.map((s) => (
                 <tr key={s.name} className="border-t border-slate-800 text-slate-300">
                   <td className="py-1 font-mono">{s.name}</td>
-                  <td className="font-mono text-[10px] text-slate-400 break-all">{s.kind}</td>
+                  <td className="font-mono text-[12px] text-slate-400 break-all">{s.kind}</td>
                   <td className={s.state === 'owner' || s.state === 'running' ? 'text-emerald-400' : 'text-slate-500'}>
                     {s.state}
                     {!s.shared && <span className="text-slate-600"> (every instance)</span>}
@@ -1288,7 +1288,7 @@ function Sources({ adminPath, auth, onError }: { adminPath: string; auth: PushAu
                   <td className="text-right">{s.published}</td>
                   <td className={`text-right ${s.failed > 0 ? 'text-amber-400' : ''}`}>{s.failed}</td>
                   <td className="text-slate-500 whitespace-nowrap">{s.lastEventAt ? new Date(s.lastEventAt).toLocaleTimeString() : '—'}</td>
-                  <td className="text-amber-400 text-[10px] break-all">{s.lastError ?? ''}</td>
+                  <td className="text-amber-400 text-[12px] break-all">{s.lastError ?? ''}</td>
                 </tr>
               ))}
             </tbody>
@@ -1297,7 +1297,7 @@ function Sources({ adminPath, auth, onError }: { adminPath: string; auth: PushAu
       </div>
       <div>
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-[10px] uppercase tracking-wider text-slate-500">dead-letter queue</span>
+          <span className="text-[12px] uppercase tracking-wider text-slate-500">dead-letter queue</span>
           <span className="text-xs text-slate-500">{dlq.length} entr{dlq.length === 1 ? 'y' : 'ies'} on this instance</span>
           <input value={target} onChange={(e) => setTarget(e.target.value)} placeholder="retry to topic (optional)" aria-label="Retry target topic" className={`${INPUT} font-mono w-48`} />
           {notice && <span className="text-xs text-emerald-400">{notice}</span>}
@@ -1307,7 +1307,7 @@ function Sources({ adminPath, auth, onError }: { adminPath: string; auth: PushAu
         ) : (
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
+              <tr className="text-left text-[12px] uppercase tracking-wider text-slate-500">
                 <th className="py-1">time</th>
                 <th>source</th>
                 <th>reason</th>
@@ -1321,7 +1321,7 @@ function Sources({ adminPath, auth, onError }: { adminPath: string; auth: PushAu
                 <tr key={e.id} className="border-t border-slate-800 text-slate-300">
                   <td className="py-1 text-slate-500 whitespace-nowrap">{new Date(e.time).toLocaleTimeString()}</td>
                   <td className="font-mono">{e.source}</td>
-                  <td className="text-amber-400 text-[10px] break-all">{e.reason}</td>
+                  <td className="text-amber-400 text-[12px] break-all">{e.reason}</td>
                   <td className="font-mono">{e.topic ?? <span className="text-slate-600">none</span>}</td>
                   <td className="text-right">{e.bytes}</td>
                   <td className="text-right whitespace-nowrap">
@@ -1373,7 +1373,7 @@ function Audit({ adminPath, auth, onError }: { adminPath: string; auth: PushAuth
   return (
     <table className="w-full text-xs">
       <thead>
-        <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
+        <tr className="text-left text-[12px] uppercase tracking-wider text-slate-500">
           <th className="py-1">time</th>
           <th>principal</th>
           <th>action</th>
@@ -1387,7 +1387,7 @@ function Audit({ adminPath, auth, onError }: { adminPath: string; auth: PushAuth
             <td className="py-1 text-slate-500 whitespace-nowrap">{new Date(e.time).toLocaleString()}</td>
             <td>{e.principal}</td>
             <td className="font-mono">{e.action}</td>
-            <td className="font-mono text-[10px] text-slate-400 break-all">
+            <td className="font-mono text-[12px] text-slate-400 break-all">
               {Object.entries(e.arguments)
                 .filter(([, v]) => v !== null && v !== undefined && v !== '')
                 .map(([k, v]) => `${k}=${String(v)}`)

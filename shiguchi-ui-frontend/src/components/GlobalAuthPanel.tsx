@@ -132,16 +132,16 @@ export function GlobalAuthPanel({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="absolute top-full left-0 right-0 z-50 bg-slate-900 border-b border-slate-700 shadow-2xl">
+    <div className="shrink-0 max-h-[60vh] overflow-y-auto bg-slate-900 border-b border-slate-700">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-2 border-b border-slate-800">
         <span className="text-xs font-semibold text-slate-200">Global Auth</span>
-        <span className="text-[10px] text-slate-500">Applied to all requests unless overridden per-call</span>
+        <span className="text-[12px] text-slate-500">Applied to all requests unless overridden per-call</span>
         <div className="flex-1" />
         {globalAuthToken && (
           <div className="flex items-center gap-2">
             <span
-              className={`text-[10px] font-mono ${
+              className={`text-[12px] font-mono ${
                 isExpired ? 'text-red-400' : secondsLeft !== null && secondsLeft < 60 ? 'text-yellow-400' : 'text-green-500'
               }`}
             >
@@ -153,7 +153,7 @@ export function GlobalAuthPanel({ onClose }: { onClose: () => void }) {
             </span>
             <button
               onClick={() => setGlobalAuthToken('', null)}
-              className="text-[10px] text-slate-600 hover:text-red-400 transition-colors"
+              className="text-[12px] text-slate-600 hover:text-red-400 transition-colors"
             >
               clear
             </button>
@@ -170,7 +170,7 @@ export function GlobalAuthPanel({ onClose }: { onClose: () => void }) {
       <div className="px-4 py-3 space-y-3 max-w-2xl">
         {/* Provider selector */}
         <div className="flex items-center gap-3">
-          <span className="text-[10px] text-slate-500 w-20 shrink-0">Provider</span>
+          <span className="text-[12px] text-slate-500 w-20 shrink-0">Provider</span>
           <select
             value={globalProviderId ?? ''}
             onChange={(e) => { setGlobalProviderId(e.target.value || null); setError(null) }}
@@ -188,7 +188,7 @@ export function GlobalAuthPanel({ onClose }: { onClose: () => void }) {
         {/* Manual bearer */}
         {isManual && (
           <div className="flex items-center gap-3">
-            <span className="text-[10px] text-slate-500 w-20 shrink-0">Token</span>
+            <span className="text-[12px] text-slate-500 w-20 shrink-0">Token</span>
             <input
               type="text"
               value={globalAuthToken}
@@ -202,7 +202,7 @@ export function GlobalAuthPanel({ onClose }: { onClose: () => void }) {
         {/* API Key */}
         {isApiKey && (
           <div className="flex items-center gap-3">
-            <span className="text-[10px] text-slate-500 w-20 shrink-0">
+            <span className="text-[12px] text-slate-500 w-20 shrink-0">
               {activeProvider!.apiKeyIn}/{activeProvider!.apiKeyName}
             </span>
             <input
@@ -219,7 +219,7 @@ export function GlobalAuthPanel({ onClose }: { onClose: () => void }) {
         {(isOAuth2Code || isOAuth2Client) && (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-slate-500 w-20 shrink-0">client_id</span>
+              <span className="text-[12px] text-slate-500 w-20 shrink-0">client_id</span>
               <input
                 type="text"
                 value={clientId}
@@ -227,7 +227,7 @@ export function GlobalAuthPanel({ onClose }: { onClose: () => void }) {
                 placeholder="client_id"
                 className="w-52 bg-slate-800 text-slate-300 text-xs px-2 py-1 rounded border border-slate-700 outline-none placeholder-slate-600 font-mono"
               />
-              <label className="flex items-center gap-1 text-[10px] text-slate-500 cursor-pointer select-none">
+              <label className="flex items-center gap-1 text-[12px] text-slate-500 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={rememberClientId}
@@ -239,7 +239,7 @@ export function GlobalAuthPanel({ onClose }: { onClose: () => void }) {
             </div>
             {isOAuth2Client && (
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-slate-500 w-20 shrink-0">client_secret</span>
+                <span className="text-[12px] text-slate-500 w-20 shrink-0">client_secret</span>
                 <input
                   type="password"
                   value={clientSecret}
@@ -251,7 +251,7 @@ export function GlobalAuthPanel({ onClose }: { onClose: () => void }) {
             )}
             <div className="flex items-center gap-3">
               {globalAuthToken && (
-                <span className="text-green-500 text-[10px] font-mono" title={globalAuthToken}>
+                <span className="text-green-500 text-[12px] font-mono" title={globalAuthToken}>
                   ✓ {globalAuthToken.slice(0, 24)}…
                 </span>
               )}
@@ -268,7 +268,7 @@ export function GlobalAuthPanel({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        {error && <div className="text-[10px] text-red-400">{error}</div>}
+        {error && <div className="text-[12px] text-red-400">{error}</div>}
       </div>
     </div>
   )
