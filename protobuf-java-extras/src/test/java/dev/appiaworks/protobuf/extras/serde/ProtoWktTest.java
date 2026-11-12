@@ -86,6 +86,28 @@ class ProtoWktTest {
                 .contains("user.email");
     }
 
+    @Test
+    @DisplayName(
+            "Given a {paths: [...]} object WHEN a FieldMask is built from Java SHOULD keep each path as given, not the map's toString")
+    void given_pathsObject_when_fromJava_should_keepPathsVerbatim() {
+        // What the REST layer builds from ?fields=: snake_case paths in the message form.
+        DynamicMessage mask = ProtoWkt.fromJava(
+                Map.of("paths", List.of("author_id", "author.display_name")), FieldMask.getDescriptor());
+
+        FieldDescriptor paths = FieldMask.getDescriptor().findFieldByNumber(1);
+        assertThat(mask.getField(paths)).asList().containsExactly("author_id", "author.display_name");
+    }
+
+    @Test
+    @DisplayName(
+            "Given the comma-separated string form WHEN a FieldMask is built from Java SHOULD convert camelCase to snake_case")
+    void given_commaString_when_fromJava_should_convertToSnakeCase() {
+        DynamicMessage mask = ProtoWkt.fromJava("authorId,title", FieldMask.getDescriptor());
+
+        FieldDescriptor paths = FieldMask.getDescriptor().findFieldByNumber(1);
+        assertThat(mask.getField(paths)).asList().containsExactly("author_id", "title");
+    }
+
     // Test 3a: toJsonValue for Int64Value → String
     @Test
     @DisplayName("Given Int64Value WKT with value=9999999999, when toJsonValue, should return String '9999999999'")
