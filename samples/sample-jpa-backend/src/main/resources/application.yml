@@ -22,3 +22,5 @@ shiguchi:
         - dev.appiaworks.shiguchi.sample.jpabackend.proto.BookServiceGrpc
   openapi:
     enabled: true
+  graphql:
+    enabled: true
