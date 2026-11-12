@@ -3,6 +3,7 @@ import { LazyEditor } from './LazyEditor'
 import { useRef, useState } from 'react'
 import { toCurl, toGrpcurl } from '../api/exportCommand'
 import { invokeClientStream, invokeStream, invokeUnary } from '../api/grpcUiApi'
+import { parseMessageFile } from '../lib/messageFile'
 import { canStreamToFile, openStreamFile, type StreamFile } from '../lib/streamFile'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import { useGrpcUiStore } from '../store/useGrpcUiStore'
@@ -46,6 +47,8 @@ export function InvokePanel() {
   } = useGrpcUiStore()
 
   const abortRef = useRef<AbortController | null>(null)
+  const [fileError, setFileError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [saveToFile, setSaveToFile] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [modeError, setModeError] = useState<string | null>(null)
@@ -122,6 +125,19 @@ export function InvokePanel() {
     }
     setModeError(null)
     setRequestMode(mode)
+  }
+
+  /** Replaces the message list with the messages of a chosen NDJSON / JSON-array file. */
+  async function loadMessagesFromFile(file: File) {
+    const parsed = parseMessageFile(await file.text())
+    if (!parsed.ok) {
+      setFileError(`${file.name}: ${parsed.error}`)
+      return
+    }
+    setFileError(null)
+    if (requestMode === 'form') setRequestMode('json')
+    setPayload(parsed.messages[0])
+    setExtraPayloads(parsed.messages.slice(1))
   }
 
   function effectivePayload(): string {
@@ -402,6 +418,26 @@ export function InvokePanel() {
                         {extraPayloads.length === 0 ? '' : 's'})
                       </span>
                       <div className="flex gap-1">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".json,.ndjson,.jsonl,application/json"
+                        className="hidden"
+                        aria-label="Messages file"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0]
+                          e.target.value = ''
+                          if (f) void loadMessagesFromFile(f)
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-2 py-0.5 rounded border border-slate-600 text-slate-300 hover:bg-slate-700"
+                        title="Replace the messages with those of an NDJSON (one per line) or JSON array file"
+                      >
+                        from file…
+                      </button>
                       <button
                         type="button"
                         onClick={() => addExtraPayload()}
@@ -425,6 +461,9 @@ export function InvokePanel() {
                       </button>
                       </div>
                     </div>
+                    {fileError && (
+                      <div role="alert" className="px-3 pb-1 text-[12px] text-red-400">{fileError}</div>
+                    )}
                     {extraPayloads.map((extra, i) => (
                       <div key={i} className="px-3 pb-2">
                         <div className="flex items-center justify-between text-[12px] text-slate-600 pb-0.5">

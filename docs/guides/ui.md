@@ -101,6 +101,14 @@ field violations, an `ErrorInfo`, a `RetryInfo`, one of its own message types), 
 lists them under the status line, one block per detail headed by its type. A streaming call
 that fails part-way keeps the chunks received so far and shows the failure the same way.
 
+### Client streams from a file
+
+On a client-streaming method, **from file…** in the message-stream header replaces the messages
+with those of a file: NDJSON / JSON Lines (one JSON object per line) or a JSON array. The first
+message fills the request editor and the rest become the extra messages. A malformed file is
+rejected with the offending line and nothing is replaced. The whole file is read into the browser,
+so keep it to what the page can comfortably list.
+
 ### Long server streams
 
 A server-streaming call keeps only the last **1000** messages in the response pane, so a stream
