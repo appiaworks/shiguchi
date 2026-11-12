@@ -1,3 +1,4 @@
+import { jsonToFormValues } from '../lib/formJson'
 import { LazyEditor } from './LazyEditor'
 import { useRef, useState } from 'react'
 import { toCurl, toGrpcurl } from '../api/exportCommand'
@@ -43,6 +44,7 @@ export function InvokePanel() {
 
   const abortRef = useRef<AbortController | null>(null)
   const [showHistory, setShowHistory] = useState(false)
+  const [modeError, setModeError] = useState<string | null>(null)
   const [copied, setCopied] = useState<'curl' | 'grpcurl' | null>(null)
 
   // Ctrl/Cmd+Enter sends. Registered here rather than on the editor so it works wherever focus is
@@ -103,15 +105,18 @@ export function InvokePanel() {
   function switchToMode(mode: 'json' | 'form') {
     if (mode === requestMode) return
     if (mode === 'form') {
-      try {
-        setFormValues(JSON.parse(payload || '{}') as Record<string, unknown>)
-      } catch {
-        setFormValues({})
+      const parsed = jsonToFormValues(payload, selectedMethod!.inputSchema)
+      if (!parsed.ok) {
+        // Stay on the JSON tab: switching would replace what the user typed with an empty form.
+        setModeError(parsed.error)
+        return
       }
+      setFormValues(parsed.values)
     } else {
       const json = JSON.stringify(formValues, null, 2)
       setPayload(json && json !== '{}' ? json : '{\n  \n}')
     }
+    setModeError(null)
     setRequestMode(mode)
   }
 
@@ -319,7 +324,7 @@ export function InvokePanel() {
               <div className="h-full flex flex-col">
                 {/* Tab bar */}
                 <div className="flex items-center border-b border-slate-700 shrink-0">
-                  {(['json', 'form'] as const).map((tab) => (
+                  {(['form', 'json'] as const).map((tab) => (
                     <button
                       key={tab}
                       onClick={() => switchToMode(tab)}
@@ -329,10 +334,15 @@ export function InvokePanel() {
                           : 'text-slate-600 hover:text-slate-400'
                       }`}
                     >
-                      {tab === 'json' ? 'Request JSON' : 'Form'}
+                      {tab === 'json' ? 'JSON' : 'Form'}
                     </button>
                   ))}
                 </div>
+                {modeError && (
+                  <div role="alert" className="px-3 py-1 text-[11px] text-red-300 bg-red-950/40 border-b border-red-900 shrink-0">
+                    Fix the JSON before switching to the form: {modeError}
+                  </div>
+                )}
                 <div className="flex-1 min-h-0">
                   {requestMode === 'json' ? (
                     <LazyEditor
@@ -366,13 +376,29 @@ export function InvokePanel() {
                         MESSAGE STREAM ({extraPayloads.length + 1} message
                         {extraPayloads.length === 0 ? '' : 's'})
                       </span>
+                      <div className="flex gap-1">
                       <button
                         type="button"
-                        onClick={addExtraPayload}
+                        onClick={() => addExtraPayload()}
                         className="px-2 py-0.5 rounded border border-slate-600 text-slate-300 hover:bg-slate-700"
                       >
                         + message
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          try {
+                            addExtraPayload(JSON.stringify(JSON.parse(effectivePayload() || '{}'), null, 2))
+                          } catch {
+                            addExtraPayload(effectivePayload())
+                          }
+                        }}
+                        className="px-2 py-0.5 rounded border border-slate-600 text-slate-300 hover:bg-slate-700"
+                        title="Add a new message that starts as a copy of message #1"
+                      >
+                        + copy of #1
+                      </button>
+                      </div>
                     </div>
                     {extraPayloads.map((extra, i) => (
                       <div key={i} className="px-3 pb-2">

@@ -50,8 +50,10 @@ Working top to bottom:
   | `x-tenant-id` | `acme` |
   | `x-request-id` | `req-42` |
 
-- **Request** — proto3 JSON for the input message (`REQUEST JSON` tab, schema-aware
-  editor), or the **Form** tab for field-by-field input. The form uses pickers for
+- **Request** — the **Form** tab (the default) for field-by-field input, or the **JSON** tab for
+  the proto3 JSON of the input message (schema-aware editor). The console remembers the last tab you used
+  and keeps both in sync; switching to the form with invalid JSON shows the parse error instead. Client-streaming
+  calls take message #1 in the form, further messages as JSON, with a *copy of #1* button. The form uses pickers for
   `Timestamp` (date-time), `google.type.Date` (date) and `google.type.TimeOfDay` (time) fields,
   which travel as the ISO text described in [json-types.md](json-types.md). For `GetBook`
   (`demo.library.GetBookRequest`) the request is simply:

@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pushdown both build the mask as `{"paths": [...]}`, and the conversion to `google.protobuf.FieldMask` treated
   that object as a string. It now keeps the paths as given.
 
+### Changed
+
+- gRPC console: the **Form** tab is now the default request input (JSON is the second tab) and the last choice is remembered per browser. Restoring a history entry keeps the current tab. Client-streaming calls get a *copy of #1* button.
+
 ## [0.20.0] - 2026-11-11
 
 ### Added
@@ -106,6 +110,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- gRPC web UI form: switching from the JSON tab keeps proto field names (`user_id`) and unknown keys instead of
+  dropping them, and shows the parse error instead of an empty form; int64/uint64 fields keep their exact digits
+  (as strings); a message cut off by the depth limit is edited as JSON.
 - Cursus `REDIS` store over RESP2: Lettuce 7.1.0–7.6.x (Spring Boot 4.1.2 manages 7.5.2) merges
   the entries of a multi-entry stream read into one malformed message
   ([redis/lettuce#3800](https://github.com/redis/lettuce/issues/3800)). A group claim of several

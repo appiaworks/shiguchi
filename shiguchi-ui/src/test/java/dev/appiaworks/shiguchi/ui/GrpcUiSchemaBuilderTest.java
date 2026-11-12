@@ -246,6 +246,101 @@ class GrpcUiSchemaBuilderTest {
         return builder.getSchema().get(0).methods().get(0).inputSchema();
     }
 
+    @Test
+    @DisplayName(
+            "GIVEN a real oneof and a proto3 optional field WHEN building the schema SHOULD tag only the oneof member")
+    void given_oneofAndProto3Optional_when_building_should_tagOnlyRealOneof() throws Exception {
+        GrpcUiSchemaDto.MessageSchema input = inputOf(presenceFile("schema.presence"));
+
+        assertThat(field(input, "email").oneofName()).isEqualTo("contact");
+        assertThat(field(input, "phone").oneofName()).isEqualTo("contact");
+        assertThat(field(input, "nickname").oneofName()).isNull();
+        assertThat(field(input, "plain").oneofName()).isNull();
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN proto3 fields WHEN building the schema SHOULD report presence for optional and oneof members only")
+    void given_proto3Fields_when_building_should_reportPresence() throws Exception {
+        GrpcUiSchemaDto.MessageSchema input = inputOf(presenceFile("schema.presence2"));
+
+        assertThat(field(input, "nickname").hasPresence()).isTrue();
+        assertThat(field(input, "email").hasPresence()).isTrue();
+        assertThat(field(input, "plain").hasPresence()).isFalse();
+        assertThat(field(input, "tags").hasPresence()).isFalse();
+    }
+
+    @Test
+    @DisplayName("GIVEN repeated and map fields WHEN building the schema SHOULD label them")
+    void given_repeatedAndMap_when_building_should_labelThem() throws Exception {
+        GrpcUiSchemaDto.MessageSchema input = inputOf(presenceFile("schema.presence3"));
+
+        assertThat(field(input, "tags").label()).isEqualTo("repeated");
+        GrpcUiSchemaDto.FieldSchema labels = field(input, "labels");
+        assertThat(labels.label()).isEqualTo("map");
+        assertThat(labels.mapEntry()).isTrue();
+        assertThat(labels.fields())
+                .extracting(GrpcUiSchemaDto.FieldSchema::name)
+                .containsExactly("key", "value");
+    }
+
+    private static GrpcUiSchemaDto.MessageSchema inputOf(FileDescriptor file) throws Exception {
+        GrpcRouteRegistry registry = new GrpcRouteRegistry();
+        registry.registerContext(context("presence-svc", file, false));
+        GrpcUiSchemaBuilder builder = new GrpcUiSchemaBuilder(registry);
+        builder.rebuild();
+        return builder.getSchema().get(0).methods().get(0).inputSchema();
+    }
+
+    /** proto3 request: oneof contact {email, phone}, optional nickname, plain, repeated tags, map labels. */
+    private static FileDescriptor presenceFile(String pkg) throws Exception {
+        FieldDescriptorProto.Type str = FieldDescriptorProto.Type.TYPE_STRING;
+        DescriptorProto request = DescriptorProto.newBuilder()
+                .setName("GetRequest")
+                .addOneofDecl(com.google.protobuf.DescriptorProtos.OneofDescriptorProto.newBuilder()
+                        .setName("contact"))
+                .addOneofDecl(com.google.protobuf.DescriptorProtos.OneofDescriptorProto.newBuilder()
+                        .setName("_nickname"))
+                .addField(scalar("email", 1, str).toBuilder().setOneofIndex(0))
+                .addField(scalar("phone", 2, str).toBuilder().setOneofIndex(0))
+                .addField(
+                        scalar("nickname", 3, str).toBuilder().setOneofIndex(1).setProto3Optional(true))
+                .addField(scalar("plain", 4, str))
+                .addField(scalar("tags", 5, str).toBuilder().setLabel(FieldDescriptorProto.Label.LABEL_REPEATED))
+                .addField(FieldDescriptorProto.newBuilder()
+                        .setName("labels")
+                        .setNumber(6)
+                        .setType(FieldDescriptorProto.Type.TYPE_MESSAGE)
+                        .setTypeName("." + pkg + ".GetRequest.LabelsEntry")
+                        .setLabel(FieldDescriptorProto.Label.LABEL_REPEATED))
+                .addNestedType(DescriptorProto.newBuilder()
+                        .setName("LabelsEntry")
+                        .setOptions(com.google.protobuf.DescriptorProtos.MessageOptions.newBuilder()
+                                .setMapEntry(true))
+                        .addField(scalar("key", 1, str))
+                        .addField(scalar("value", 2, str)))
+                .build();
+        DescriptorProto response =
+                DescriptorProto.newBuilder().setName("GetResponse").build();
+        ServiceDescriptorProto service = ServiceDescriptorProto.newBuilder()
+                .setName("OrderService")
+                .addMethod(MethodDescriptorProto.newBuilder()
+                        .setName("Get")
+                        .setInputType("." + pkg + ".GetRequest")
+                        .setOutputType("." + pkg + ".GetResponse"))
+                .build();
+        return FileDescriptor.buildFrom(
+                FileDescriptorProto.newBuilder()
+                        .setName(pkg.replace('.', '_') + ".proto")
+                        .setPackage(pkg)
+                        .setSyntax("proto3")
+                        .addMessageType(request)
+                        .addMessageType(response)
+                        .addService(service)
+                        .build(),
+                new FileDescriptor[0]);
+    }
+
     private static GrpcUiSchemaDto.FieldSchema field(GrpcUiSchemaDto.MessageSchema message, String name) {
         return message.fields().stream()
                 .filter(f -> f.name().equals(name))

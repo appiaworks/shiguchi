@@ -166,8 +166,10 @@ public class GrpcUiSchemaBuilder implements dev.appiaworks.shiguchi.routing.Sche
             label = "optional";
         }
 
-        String oneofName =
-                (fd.getContainingOneof() != null) ? fd.getContainingOneof().getName() : null;
+        // A proto3 `optional` field sits in a synthetic one-field oneof; that is presence, not a choice.
+        String oneofName = (fd.getRealContainingOneof() != null)
+                ? fd.getRealContainingOneof().getName()
+                : null;
 
         String typeName = null;
         List<GrpcUiSchemaDto.FieldSchema> nestedFields = Collections.emptyList();
@@ -215,7 +217,8 @@ public class GrpcUiSchemaBuilder implements dev.appiaworks.shiguchi.routing.Sche
                 enumValues,
                 oneofName,
                 mapEntry,
-                wellKnownType);
+                wellKnownType,
+                fd.hasPresence());
     }
 
     private static String resolveMethodType(MethodDescriptor md) {
