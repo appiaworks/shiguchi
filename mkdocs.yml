@@ -108,6 +108,7 @@ nav:
   - Shaping the API:
       - REST (google.api.http): guides/http-annotations.md
       - GraphQL and shiguchi options: guides/graphql-annotations.md
+      - Architecture: concepts/architecture.md
       - Transcoding: concepts/transcoding.md
       - JSON types: guides/json-types.md
       - Projections, paging, sorting:

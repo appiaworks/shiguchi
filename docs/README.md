@@ -34,6 +34,7 @@ How a proto contract becomes the HTTP surfaces.
   `additional_bindings`, binary bodies, unknown query parameters.
 - [graphql-annotations.md](guides/graphql-annotations.md): the `shiguchi.*` proto options:
   `(shiguchi.graphql)`, `(shiguchi.field)` and `(shiguchi.method)`.
+- [architecture.md](concepts/architecture.md): the components between clients and backends, and one request end to end.
 - [transcoding.md](concepts/transcoding.md): how schemas are discovered at runtime, the request flow, the
   serde tiers and the JSON mapping rules.
 - [json-types.md](guides/json-types.md): dates, times, decimals, money, durations and numbers on every
