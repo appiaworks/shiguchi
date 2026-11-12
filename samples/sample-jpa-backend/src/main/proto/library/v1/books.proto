@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package sample.library.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/field_mask.proto";
+import "shiguchi/pagination.proto";
+
+option java_package = "dev.appiaworks.shiguchi.sample.jpabackend.proto";
+option java_multiple_files = true;
+
+// A library catalogue. The gateway fills `page_request`, `sort_fields` and `read_mask` from
+// `?pageSize=&pageToken=`, `?sort=` and `?fields=`; the backend turns them into one JPA query.
+service BookService {
+  rpc ListBooks(ListBooksRequest) returns (ListBooksResponse) {
+    option (google.api.http) = {get: "/v1/books"};
+  }
+}
+
+message Book {
+  string id = 1;
+  string title = 2;
+  string author = 3;
+  int32 published_year = 4;
+}
+
+message ListBooksRequest {
+  shiguchi.pagination.PageRequest page_request = 1;
+  repeated shiguchi.pagination.SortField sort_fields = 2;
+  google.protobuf.FieldMask read_mask = 3;
+}
+
+message ListBooksResponse {
+  repeated Book books = 1;
+  shiguchi.pagination.PageInfo page_info = 2;
+}

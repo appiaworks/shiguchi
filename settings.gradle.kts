@@ -19,6 +19,8 @@ include(
     "shiguchi-bff",
     "shiguchi-benchmarks",
     "shiguchi-ui",
+    "shiguchi-backend-support",
+    "shiguchi-backend-support-jpa",
     // Spring Boot 4 modules
     "shiguchi-spring-boot4-autoconfigure",
     "shiguchi-spring-boot4-starter",

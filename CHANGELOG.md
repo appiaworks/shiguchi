@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `shiguchi-backend-support` and `shiguchi-backend-support-jpa` (both `EXPERIMENTAL`): helpers for the
+  backend behind a list method. `SortSpec` (allow-listed `sort_fields`, tie-breaker), `MaskSpec`
+  (`read_mask` to columns), `PageWindow` / `PageCursor` (clamped page size, offset or keyset tokens,
+  optionally HMAC-signed), `ProtoProjector` (builds messages from named values through the descriptor),
+  `UnaryCalls.respond` (client errors become `INVALID_ARGUMENT`, not `UNKNOWN`) and, for JPA,
+  `ProjectionQuery` (reads only the masked columns, offset or keyset paging, a filter and a count).
+  Guide: `docs/guides/projections/jpa-example.md`; reference: `docs/reference/backend-support.md`; runnable in
+  `samples/sample-jpa-backend`.
+
 ### Fixed
 
 - `read_mask` reached the backend as a single path containing the text `{paths=[title]}` instead of `title`, so

@@ -102,6 +102,7 @@ nav:
       - Tutorial: getting-started/tutorial.md
       - Configuration: reference/configuration.md
       - Proto options: reference/proto-options.md
+      - Backend helpers: reference/backend-support.md
       - Comparison: concepts/comparison.md
       - Troubleshooting: operations/troubleshooting.md
   - Shaping the API:

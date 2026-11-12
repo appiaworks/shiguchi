@@ -19,7 +19,8 @@ not configurable — only the emitted REST header names are (see
 > [!IMPORTANT]
 > The gateway does not implement paging, sorting, or filtering. It maps transport-level
 > query parameters onto your request message and reads your response message back out.
-> **Your backend still has to honour those fields** — the JPA section below shows one way.
+> **Your backend still has to honour those fields**. The [JPA example](jpa-example.md) shows one way,
+> using the [backend helpers](../../reference/backend-support.md) so each list method is a few lines.
 
 ## At a glance: how each surface spells it
 
@@ -224,6 +225,7 @@ choice, not a workaround; adjust the `package` and `java_package` to yours if yo
 
 ## Related
 
+- [jpa-example.md](jpa-example.md) and [backend-support.md](../../reference/backend-support.md) — honouring these fields in your backend.
 - [configuration.md](../../reference/configuration.md) — every `shiguchi.*` property.
 - [transcoding.md](../../concepts/transcoding.md) — the serde tiers, and why `page_info` responses skip Tier 0.
 - [graphql-annotations.md](../graphql-annotations.md) — `(shiguchi.graphql)` / `(shiguchi.field)` options.

@@ -125,6 +125,6 @@ These are real gaps in the current release, not omissions in this document:
   argument: a client can tell that a previous page exists without being able to ask for it.
 - **Sort keys are not validated against the resource.** The gateway forwards whatever
   `field` string it is given; rejecting unknown keys is the backend's job (see the
-  allow-list in the JPA example below).
+  allow-list in the [JPA example](jpa-example.md); [`SortSpec`](../../reference/backend-support.md#sortspec) does it).
 
 ---

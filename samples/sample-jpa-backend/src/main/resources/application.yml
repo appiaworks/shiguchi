@@ -1,0 +1,24 @@
+server:
+  port: 8080
+
+sample:
+  backend-port: 9090
+  # offset (default) or keyset. Same gateway contract either way; only the token's contents change.
+  paging: offset
+
+spring:
+  jpa:
+    open-in-view: false
+
+shiguchi:
+  services:
+    - name: library
+      host: localhost
+      port: 9090
+      # STATIC keeps the sample self-contained: the schema comes from the generated stubs, so the
+      # backend needs no reflection service.
+      mode: STATIC
+      static-service-classes:
+        - dev.appiaworks.shiguchi.sample.jpabackend.proto.BookServiceGrpc
+  openapi:
+    enabled: true
