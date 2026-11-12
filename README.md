@@ -26,16 +26,47 @@ UI, and a built-in web console for trying calls out. No stub generation step in 
 gateway, no per-endpoint controllers, no schema kept in sync by hand. Add an RPC to your
 proto and it shows up on every surface.
 
-```yaml
-shiguchi:
-  services:
-    - name: library-service
-      host: localhost
-      port: 9090
+### One proto, three calls
+
+```proto
+service BookService {
+  rpc ListBooks(ListBooksRequest) returns (ListBooksResponse) {
+    option (google.api.http) = {get: "/v1/books"};   // the only annotation
+  }
+}
 ```
 
-That is the whole configuration. `GET /v1/books/1`, `POST /graphql`, `/swagger-ui.html`,
-and `/grpc-ui` all work against your existing service.
+**REST**
+
+```bash
+curl 'localhost:8080/v1/books?pageSize=2&sort=publishedYear:desc'
+```
+
+```json
+{"books":[{"id":"05","title":"Heat","author":"Mann","publishedYear":2020},
+          {"id":"06","title":"Beloved","author":"Morrison","publishedYear":1987}],
+ "pageInfo":{"totalCount":10, "nextPageToken":"…"}}
+```
+
+**GraphQL** (with the GraphQL starter; lists come back as Relay connections)
+
+```graphql
+{ bookListBooks(first: 2, sort: [{field: "publishedYear", sortOrder: SORT_ORDER_DESC}]) {
+    totalCount
+    edges { node { title author publishedYear } }
+} }
+```
+
+```json
+{"data":{"bookListBooks":{"totalCount":10,"edges":[
+  {"node":{"title":"Heat","author":"Mann","publishedYear":2020}},
+  {"node":{"title":"Beloved","author":"Morrison","publishedYear":1987}}]}}}
+```
+
+**gRPC**: the same service, untouched, on its own port. The gateway added no code to it.
+The OpenAPI document, Swagger UI and the web console come from the same descriptor. The example
+is [`sample-jpa-backend`](samples/sample-jpa-backend); the configuration is in the
+[quick start](#quick-start).
 
 | Surface | Path | Module |
 | --- | --- | --- |
@@ -54,15 +85,7 @@ and drift from the proto. This is a Spring Boot dependency instead: descriptor-d
 runtime, on the reactive stack, with the transcoding hot path optimised down to
 microseconds ([benchmarks](docs/concepts/performance.md)). Runs on Spring Boot 4.
 
-> [!WARNING]
-> **The gateway does not authenticate callers by default.** Out of the box it permits all
-> requests at the transport layer and forwards bearer tokens / metadata to your backends.
-> The embedded gRPC UI (`/grpc-ui`) can invoke **any** wired method. Before exposing the
-> gateway outside a trusted network you **must** front it with authentication and review
-> [SECURITY.md](SECURITY.md). Ship the UI disabled (`shiguchi.ui.enabled=false`) in
-> production unless it is behind auth.
-
----
+**The gateway does not authenticate callers by default.** Put authentication in front of it before it leaves a trusted network: [SECURITY.md](SECURITY.md), [security guide](docs/guides/security.md).
 
 ---
 
@@ -76,6 +99,8 @@ flowchart TB
         O[OpenAPI / Swagger UI]
         U[gRPC Web Console]
         P[gRPC clients]
+        S[Streaming clients<br/>NDJSON · SSE · WebSocket · gRPC-Web]
+        W[Browsers<br/>BFF session cookie]
     end
 
     subgraph gateway [Shiguchi]
@@ -83,6 +108,8 @@ flowchart TB
         serde[Tiered dynamic serde<br/>wire / proto ⇄ JSON / Map]
         disp[Reactive dispatcher<br/>non-blocking, flow-controlled]
         proxy[Transparent gRPC proxy<br/>native gRPC port + merged reflection]
+        auth[Auth edge<br/>JWT · BFF sign-in · authorizer SPI]
+        push[Cursus push<br/>topics · fan-out · replay]
         disco[Schema discovery<br/>reflection · classpath · .pb file · OpenAPI]
     end
 
@@ -97,6 +124,11 @@ flowchart TB
     O --> route
     U --> route
     P --> proxy
+    S --> route
+    W -.-> auth
+    auth -.-> route
+    G -. subscriptions · @live .-> push
+    push --> S
     route --> serde
     serde --> disp
     disp --> B
@@ -105,6 +137,24 @@ flowchart TB
     proxy --> B
     route -.-> disco
     disco -.descriptors.-> serde
+```
+
+Streaming RPCs (server, client and bidirectional) reach REST callers as NDJSON, SSE or
+WebSocket frames, GraphQL callers as subscriptions or `@live` queries, and browsers as gRPC-Web.
+The request path, end to end:
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant G as Shiguchi
+    participant B as gRPC backend
+    C->>G: GET /v1/books?pageSize=2
+    G->>G: auth edge, route lookup (google.api.http)
+    G->>G: JSON/query to protobuf (serde tier)
+    G->>B: ListBooks (gRPC, non-blocking)
+    B-->>G: ListBooksResponse
+    G->>G: protobuf to JSON
+    G-->>C: 200 application/json
 ```
 
 How a request flows through the serde tiers is documented in
@@ -122,7 +172,17 @@ dependencies {
 }
 ```
 
-Point it at a backend in `application.yml` (shown above) and run. One backend, four surfaces:
+Point it at a backend in `application.yml` and run:
+
+```yaml
+shiguchi:
+  services:
+    - name: library-service
+      host: localhost
+      port: 9090
+```
+
+That is the whole configuration. One backend, four surfaces:
 
 ```bash
 curl localhost:8080/v1/books/1
