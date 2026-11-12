@@ -398,3 +398,5 @@ sample denies in that case: an annotation typo or a missing parameter must not d
 "allow". A rule missing any of the three fields is dropped at startup with a WARN rather than
 failing the route.
 
+
+> Reference: [GraphQL reference](../reference/graphql.md) lists the full mapping rules, keys and defaults.

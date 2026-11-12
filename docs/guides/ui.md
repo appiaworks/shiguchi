@@ -204,3 +204,5 @@ shiguchi:
   ui:
     enabled: true
 ```
+
+> Reference: [OpenAPI reference](../reference/openapi.md) lists the full mapping rules, keys and defaults.
