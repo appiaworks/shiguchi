@@ -235,8 +235,11 @@ half looks like when it fails.
   preflight succeeds on a gated surface. It applies to the browser surfaces only; a transcoded
   REST route never gains permissive CORS by accident.
 - **Security headers** (`shiguchi.headers.*`, on by default) send a Content-Security-Policy
-  fitted to the bundled console, GraphiQL and Swagger, plus `Referrer-Policy` and
-  `Permissions-Policy`, on those pages only.
+  fitted to the bundled console and Swagger, plus `Referrer-Policy` and `Permissions-Policy`,
+  on those pages only. GraphiQL gets its own, wider policy
+  (`shiguchi.headers.graphiql-content-security-policy`) because Spring GraphQL's page loads its
+  code from `esm.sh`, runs an inline bootstrap and starts Monaco workers from `blob:` URLs;
+  the console and Swagger stay strict.
 - **The console** invokes through the same dispatch path as REST, so request validation
   applies to it and the bearer token pasted into a call reaches the backend. The per-method
   scope check does not run there: the console is gated as a whole by its surface. It is disabled

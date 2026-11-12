@@ -118,6 +118,7 @@ spring:
 | `shiguchi.openapi.security-schemes.*` | `{}` | Named schemes for the Swagger Authorize dialog (`type`: `http`/`apiKey`/`oauth2`/`openIdConnect` with the usual sub-fields) |
 | `shiguchi.headers.enabled` | `true` | Security response headers on the browser surfaces (console, GraphiQL, GraphQL, Swagger) — never on transcoded REST routes |
 | `shiguchi.headers.content-security-policy` | a policy fitting the bundled pages | `Content-Security-Policy`. Replace it when serving your own assets or embedding the console; empty disables the header |
+| `shiguchi.headers.graphiql-content-security-policy` | allows `esm.sh`, inline script/style, `blob:` workers | `Content-Security-Policy` for `/graphiql` only (the page loads its code from the CDN); empty falls back to `content-security-policy` |
 | `shiguchi.headers.referrer-policy` | `no-referrer` | `Referrer-Policy`; empty keeps Spring Security's default |
 | `shiguchi.headers.permissions-policy` | device APIs off | `Permissions-Policy`; empty disables the header |
 | `shiguchi.headers.strict-transport-security` | `""` (off) | `Strict-Transport-Security`, sent only on HTTPS. Off because an ingress usually owns it and a wrong `max-age` outlives the mistake |
