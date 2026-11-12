@@ -51,8 +51,11 @@ public class GatewayDefaults {
     /** Error body shape; replace with your own {@link GatewayErrorRenderer} bean. */
     @Bean
     @ConditionalOnMissingBean(GatewayErrorRenderer.class)
-    public GatewayErrorRenderer gatewayErrorRenderer() {
-        return new DefaultGatewayErrorRenderer();
+    public GatewayErrorRenderer gatewayErrorRenderer(GatewayProperties properties) {
+        return properties.getRest().getErrorFormat()
+                        == dev.appiaworks.shiguchi.config.RestConfig.ErrorFormat.PROBLEM_JSON
+                ? new ProblemJsonGatewayErrorRenderer()
+                : new DefaultGatewayErrorRenderer();
     }
 
     /**

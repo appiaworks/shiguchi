@@ -265,3 +265,42 @@ parameter name as `field` and `UNKNOWN_QUERY_PARAMETER` as `reason`. See
 `reject-conflicting-values: true`, a path variable or query parameter that contradicts the body
 gets the same treatment with reason `BINDING_CONFLICT`
 ([conflicting values](http-annotations.md#conflicting-values)).
+
+## Native-looking errors
+
+By default a validation failure reaches the client in its gRPC shape: the `google.rpc.BadRequest`
+with its `@type` member. Two switches reshape it without touching the backend.
+
+REST, `shiguchi.rest.error-format: PROBLEM_JSON` (RFC 9457, `application/problem+json`):
+
+```json
+{
+  "type": "about:blank",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "invalid request",
+  "instance": "/v1/users",
+  "code": "INVALID_ARGUMENT",
+  "errors": [{ "field": "email", "message": "must be an address", "reason": "string.email" }]
+}
+```
+
+GraphQL, `shiguchi.graphql.error-format: NATIVE`:
+
+```json
+{
+  "message": "invalid request",
+  "path": ["createUser"],
+  "extensions": {
+    "code": "BAD_USER_INPUT",
+    "grpcCode": "INVALID_ARGUMENT",
+    "errorType": "BAD_REQUEST",
+    "fieldErrors": [{ "field": "input.email", "message": "must be an address", "rule": "string.email" }]
+  }
+}
+```
+
+`field` is the proto field path turned into the argument path the caller wrote: segments in
+lowerCamelCase, and prefixed with `input.` when the field takes an `input` argument. Details other
+than `BadRequest` stay under `details` in both. Both default to `GRPC`, so nothing changes until
+you opt in. A custom `GatewayErrorRenderer` bean replaces the REST switch.

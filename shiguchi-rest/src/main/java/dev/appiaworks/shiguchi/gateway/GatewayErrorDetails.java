@@ -140,6 +140,34 @@ public final class GatewayErrorDetails {
                         r.getRetryDelay().getSeconds(), r.getRetryDelay().getNanos()));
     }
 
+    /** One entry of a {@code google.rpc.BadRequest}: a proto field path, why it failed, and a machine reason. */
+    public record FieldViolation(String field, String description, String reason) {}
+
+    /** The {@code BadRequest} field violations of every such detail, in order; empty when there are none. */
+    public List<FieldViolation> fieldViolations() {
+        List<FieldViolation> out = new ArrayList<>();
+        for (Any any : details) {
+            if (!any.is(BadRequest.class)) continue;
+            try {
+                for (BadRequest.FieldViolation v : any.unpack(BadRequest.class).getFieldViolationsList()) {
+                    out.add(new FieldViolation(v.getField(), v.getDescription(), v.getReason()));
+                }
+            } catch (InvalidProtocolBufferException ignored) {
+                // an undecodable BadRequest stays visible through asJson()
+            }
+        }
+        return out;
+    }
+
+    /** {@link #asJson()} without the {@code BadRequest} details (already surfaced by {@link #fieldViolations()}). */
+    public List<Map<String, Object>> asJsonExceptBadRequest() {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Map<String, Object> d : asJson()) {
+            if (!"type.googleapis.com/google.rpc.BadRequest".equals(d.get("@type"))) out.add(d);
+        }
+        return out;
+    }
+
     /**
      * Every detail as proto3 JSON (an object with an {@code @type} member), in order. Unknown
      * detail types come back as {@code {"@type": url, "value": base64}}. Computed once.

@@ -33,10 +33,15 @@ import org.junit.jupiter.api.Test;
 class GrpcGraphQlExceptionHandlerTest {
 
     private static DataFetchingEnvironment env() {
+        return env(Map.of());
+    }
+
+    private static DataFetchingEnvironment env(Map<String, Object> arguments) {
         Field field = Field.newField("getBook")
                 .sourceLocation(new SourceLocation(1, 3))
                 .build();
         return DataFetchingEnvironmentImpl.newDataFetchingEnvironment()
+                .arguments(arguments)
                 .mergedField(MergedField.newMergedField(field).build())
                 .executionStepInfo(ExecutionStepInfo.newExecutionStepInfo()
                         .type(Scalars.GraphQLString)
@@ -154,5 +159,65 @@ class GrpcGraphQlExceptionHandlerTest {
                 .isEqualTo("INTERNAL");
         assertThat(GrpcGraphQlExceptionHandler.errorType(Status.Code.UNKNOWN)).isEqualTo("UNKNOWN");
         verifyNoInteractions(mock(DataFetcherExceptionHandler.class));
+    }
+
+    private static StatusRuntimeException badRequest() {
+        BadRequest br = BadRequest.newBuilder()
+                .addFieldViolations(BadRequest.FieldViolation.newBuilder()
+                        .setField("user.display_name")
+                        .setDescription("must not be blank")
+                        .setReason("NOT_BLANK"))
+                .build();
+        return StatusProto.toStatusRuntimeException(com.google.rpc.Status.newBuilder()
+                .setCode(Status.Code.INVALID_ARGUMENT.value())
+                .setMessage("invalid")
+                .addDetails(Any.pack(br))
+                .build());
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN error-format NATIVE and a BadRequest WHEN handled SHOULD expose code BAD_USER_INPUT and fieldErrors with the camelCased input path, without raw details")
+    void given_nativeFormat_when_badRequest_should_flattenToFieldErrors() throws Exception {
+        DataFetchingEnvironment withInput = env(Map.of("input", Map.of()));
+        DataFetcherExceptionHandlerParameters p = DataFetcherExceptionHandlerParameters.newExceptionParameters()
+                .dataFetchingEnvironment(withInput)
+                .exception(badRequest())
+                .build();
+
+        GraphQLError error = new GrpcGraphQlExceptionHandler(mock(DataFetcherExceptionHandler.class), true)
+                .handleException(p)
+                .get()
+                .getErrors()
+                .get(0);
+
+        Map<String, Object> ext = error.getExtensions();
+        assertThat(ext).containsEntry("code", "BAD_USER_INPUT").containsEntry("grpcCode", "INVALID_ARGUMENT");
+        assertThat(ext).doesNotContainKey("details");
+        assertThat(ext.get("fieldErrors"))
+                .isEqualTo(List.of(Map.of(
+                        "field", "input.user.displayName", "message", "must not be blank", "rule", "NOT_BLANK")));
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a bare StatusRuntimeException carrying a BadRequest WHEN handled in the default format SHOULD keep the details")
+    void given_bareStatusWithDetails_when_handled_should_keepDetails() throws Exception {
+        GraphQLError error =
+                single(new GrpcGraphQlExceptionHandler(mock(DataFetcherExceptionHandler.class)), badRequest());
+
+        assertThat(error.getExtensions()).containsKey("details").doesNotContainKey("fieldErrors");
+    }
+
+    @Test
+    @DisplayName("GIVEN a path whose first segment is an argument WHEN mapped SHOULD not add the input prefix")
+    void given_pathStartingWithArgument_when_mapped_should_notPrefix() {
+        DataFetchingEnvironment env = DataFetchingEnvironmentImpl.newDataFetchingEnvironment()
+                .arguments(Map.of("id", "1", "input", Map.of()))
+                .build();
+
+        assertThat(GrpcGraphQlExceptionHandler.graphQlFieldPath("id", env)).isEqualTo("id");
+        assertThat(GrpcGraphQlExceptionHandler.graphQlFieldPath("items[0].sku_code", env))
+                .isEqualTo("input.items[0].skuCode");
     }
 }
