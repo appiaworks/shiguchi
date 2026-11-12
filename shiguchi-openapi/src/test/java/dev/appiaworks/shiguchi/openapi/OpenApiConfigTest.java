@@ -21,6 +21,63 @@ import org.junit.jupiter.api.Test;
 @DisplayName("OpenApiConfig.mergeComponents")
 class OpenApiConfigTest {
 
+    private static dev.appiaworks.shiguchi.config.GatewayProperties propsWithClientIds(String... ids) {
+        var props = new dev.appiaworks.shiguchi.config.GatewayProperties();
+        for (int i = 0; i < ids.length; i++) {
+            var flow = new dev.appiaworks.shiguchi.config.OpenApiConfig.SecuritySchemeConfig.OAuthFlowConfig();
+            flow.setClientId(ids[i]);
+            var scheme = new dev.appiaworks.shiguchi.config.OpenApiConfig.SecuritySchemeConfig();
+            scheme.setType("oauth2");
+            scheme.setAuthorizationCode(flow);
+            props.getOpenapi().getSecuritySchemes().put("s" + i, scheme);
+        }
+        return props;
+    }
+
+    @Test
+    @DisplayName("GIVEN exactly one configured client id WHEN initialised SHOULD default Swagger's initOAuth to it")
+    void given_oneClientId_when_initialised_should_defaultSwaggerClientId() {
+        var oauth = new org.springdoc.core.properties.SwaggerUiOAuthProperties();
+        new OpenApiConfig(null, null, propsWithClientIds("pub"))
+                .swaggerOAuthClientIdDefault(provider(oauth))
+                .afterSingletonsInstantiated();
+        assertThat(oauth.getClientId()).isEqualTo("pub");
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN two different client ids or an explicit springdoc value WHEN initialised SHOULD leave Swagger alone")
+    void given_ambiguousOrExplicit_when_initialised_should_notTouchSwagger() {
+        var two = new org.springdoc.core.properties.SwaggerUiOAuthProperties();
+        new OpenApiConfig(null, null, propsWithClientIds("a", "b"))
+                .swaggerOAuthClientIdDefault(provider(two))
+                .afterSingletonsInstantiated();
+        assertThat(two.getClientId()).isNull();
+
+        var explicit = new org.springdoc.core.properties.SwaggerUiOAuthProperties();
+        explicit.setClientId("mine");
+        new OpenApiConfig(null, null, propsWithClientIds("pub"))
+                .swaggerOAuthClientIdDefault(provider(explicit))
+                .afterSingletonsInstantiated();
+        assertThat(explicit.getClientId()).isEqualTo("mine");
+    }
+
+    private static org.springframework.beans.factory.ObjectProvider<
+                    org.springdoc.core.properties.SwaggerUiOAuthProperties>
+            provider(org.springdoc.core.properties.SwaggerUiOAuthProperties value) {
+        return new org.springframework.beans.factory.ObjectProvider<>() {
+            @Override
+            public org.springdoc.core.properties.SwaggerUiOAuthProperties getObject() {
+                return value;
+            }
+
+            @Override
+            public org.springdoc.core.properties.SwaggerUiOAuthProperties getIfAvailable() {
+                return value;
+            }
+        };
+    }
+
     @Test
     @DisplayName(
             "Given 'to' empty and 'from' with schemas, parameters, responses and securitySchemes, when merged, should copy all kinds")

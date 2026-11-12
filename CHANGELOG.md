@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `shiguchi.openapi.security-schemes.<id>.authorization-code.client-id` (also on `client-credentials`): a public OAuth2 client id the gRPC console pre-fills (a value saved in the browser wins) and Swagger UI uses when exactly one scheme sets it. No client secret property.
 - gRPC UI: **from file…** loads the messages of a client-streaming call from an NDJSON or JSON-array file.
 - gRPC UI: server-streaming responses keep only the last 1000 messages in the browser (the **keep last** field changes it, 0 = all) and can be written to an NDJSON file as they arrive (**save to file**, Chromium only).
 - `shiguchi-backend-support` and `shiguchi-backend-support-jpa` (both `EXPERIMENTAL`): helpers for the

@@ -46,6 +46,8 @@ export interface OAuthFlowDto {
   authorizationUrl?: string
   tokenUrl?: string
   scopes?: Record<string, string>
+  /** Public client id configured on the gateway, pre-filled in the auth panel. */
+  clientId?: string
 }
 
 export interface AuthProviderDto {

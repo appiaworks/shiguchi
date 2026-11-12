@@ -245,6 +245,28 @@ half looks like when it fails.
   `openapi.global-security`, so a bearer or OAuth2 scheme declared there lets a reader try
   gated routes from the page.
 
+  Give an OAuth2 scheme's `authorization-code` flow a `client-id` and operators no longer type
+  the public client id once per browser:
+
+  ```yaml
+  shiguchi:
+    openapi:
+      security-schemes:
+        keycloak-sso:
+          type: oauth2
+          authorization-code:
+            authorization-url: https://sso.example.com/realms/x/protocol/openid-connect/auth
+            token-url: https://sso.example.com/realms/x/protocol/openid-connect/token
+            client-id: my-public-client
+  ```
+
+  The console pre-fills it (a value the operator saved in that browser wins), and Swagger's
+  Authorize dialog does too when exactly one scheme sets a `client-id` and
+  `springdoc.swagger-ui.oauth.client-id` is unset. Swagger's setting is global, so with several
+  schemes set it yourself. The id is public (it is in the authorize URL) and is served to anyone
+  who can open the console, so use it for public PKCE clients only. There is no `client-secret`
+  property; a `client_credentials` secret is still typed by the operator.
+
 ### Skipping the chain for open REST routes
 
 Under `PERMIT_ALL` a transcoded request still runs through Spring Security's filters — header

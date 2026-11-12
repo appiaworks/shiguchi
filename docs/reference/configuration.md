@@ -114,7 +114,7 @@ spring:
 | `shiguchi.graphql.data-loader.cache.<Type>.max-size` | `10000` | Most entities of `<Type>` kept in that cache |
 | `shiguchi.openapi.enabled` | `true` | OpenAPI 3 spec + Swagger UI |
 | `shiguchi.openapi.global-security` | `[]` | Scheme ids applied as global security requirement |
-| `shiguchi.openapi.security-schemes.*` | `{}` | Named schemes for the Swagger Authorize dialog (`type`: `http`/`apiKey`/`oauth2`/`openIdConnect` with the usual sub-fields) |
+| `shiguchi.openapi.security-schemes.*` | `{}` | Named schemes for the Swagger Authorize dialog (`type`: `http`/`apiKey`/`oauth2`/`openIdConnect` with the usual sub-fields). An `authorization-code` or `client-credentials` flow also takes `client-id`, a public client id the gRPC console pre-fills (and Swagger, when only one scheme sets it); never a secret |
 | `shiguchi.headers.enabled` | `true` | Security response headers on the browser surfaces (console, GraphiQL, GraphQL, Swagger) — never on transcoded REST routes |
 | `shiguchi.headers.content-security-policy` | a policy fitting the bundled pages | `Content-Security-Policy`. Replace it when serving your own assets or embedding the console; empty disables the header |
 | `shiguchi.headers.referrer-policy` | `no-referrer` | `Referrer-Policy`; empty keeps Spring Security's default |

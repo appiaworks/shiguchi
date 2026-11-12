@@ -3,6 +3,7 @@ import { fetchClientCredentialsToken } from '../api/grpcUiApi'
 import { setSessionSecret } from '../store/sessionSecrets'
 import { useGrpcUiStore } from '../store/useGrpcUiStore'
 import { oauthCallbackUrl } from '../api/baseUrl'
+import type { AuthProviderDto } from '../types/schema'
 
 async function generatePkce(): Promise<{ verifier: string; challenge: string }> {
   const array = new Uint8Array(32)
@@ -14,6 +15,11 @@ async function generatePkce(): Promise<{ verifier: string; challenge: string }> 
   const challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
   return { verifier, challenge }
+}
+
+/** Saved browser default, then the gateway's configured client id, then empty. */
+export function resolveClientId(saved: string | undefined, provider: AuthProviderDto | null): string {
+  return saved || provider?.authorizationCode?.clientId || provider?.clientCredentials?.clientId || ''
 }
 
 export function GlobalAuthPanel({ onClose }: { onClose: () => void }) {
@@ -29,7 +35,9 @@ export function GlobalAuthPanel({ onClose }: { onClose: () => void }) {
     : null
 
   const savedDefaults = globalProviderId ? (providerDefaults[globalProviderId] ?? {}) : {}
-  const [clientId, setClientId] = useState(savedDefaults.clientId ?? '')
+  const [clientId, setClientId] = useState(
+    resolveClientId(savedDefaults.clientId, activeProvider),
+  )
   const [clientSecret, setClientSecret] = useState('')
   const [rememberClientId, setRememberClientId] = useState(!!savedDefaults.clientId)
   const [loading, setLoading] = useState(false)
@@ -39,7 +47,7 @@ export function GlobalAuthPanel({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (globalProviderId) {
       const d = providerDefaults[globalProviderId] ?? {}
-      setClientId(d.clientId ?? '')
+      setClientId(resolveClientId(d.clientId, activeProvider))
       setRememberClientId(!!d.clientId)
     } else {
       setClientId('')
