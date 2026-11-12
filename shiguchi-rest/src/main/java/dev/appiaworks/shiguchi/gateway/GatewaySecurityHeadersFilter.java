@@ -53,6 +53,7 @@ public class GatewaySecurityHeadersFilter implements WebFilter {
 
     private final List<String> paths;
     private final Map<String, String> headers;
+    private final Map<String, String> graphiqlHeaders;
     private final String hsts;
 
     public GatewaySecurityHeadersFilter(GatewayProperties properties) {
@@ -65,6 +66,11 @@ public class GatewaySecurityHeadersFilter implements WebFilter {
         putIfSet(resolved, PERMISSIONS_POLICY, config.getPermissionsPolicy());
         config.getCustom().forEach((name, value) -> putIfSet(resolved, name, value));
         this.headers = Map.copyOf(resolved);
+
+        // GraphiQL loads its code from a CDN, so it gets its own policy; everything else is shared.
+        Map<String, String> graphiql = new LinkedHashMap<>(resolved);
+        putIfSet(graphiql, CSP, config.getGraphiqlContentSecurityPolicy());
+        this.graphiqlHeaders = Map.copyOf(graphiql);
 
         // HSTS is separate: it is only meaningful over HTTPS, and sending it on a plaintext
         // request is at best ignored and at worst misleading.
@@ -87,7 +93,8 @@ public class GatewaySecurityHeadersFilter implements WebFilter {
         // response is not writable once it is committed.
         exchange.getResponse().beforeCommit(() -> {
             HttpHeaders responseHeaders = exchange.getResponse().getHeaders();
-            headers.forEach((name, value) -> {
+            Map<String, String> toSet = isGraphiql(exchange) ? graphiqlHeaders : headers;
+            toSet.forEach((name, value) -> {
                 if (responseHeaders.getFirst(name) == null) responseHeaders.set(name, value);
             });
             if (!hsts.isEmpty() && isSecure(exchange) && responseHeaders.getFirst(HSTS) == null) {
@@ -96,6 +103,12 @@ public class GatewaySecurityHeadersFilter implements WebFilter {
             return Mono.empty();
         });
         return chain.filter(exchange);
+    }
+
+    private static boolean isGraphiql(ServerWebExchange exchange) {
+        return MATCHER.match(
+                "/graphiql/**",
+                exchange.getRequest().getPath().pathWithinApplication().value());
     }
 
     /** Whether this request is for one of the browser surfaces (package-private for tests). */

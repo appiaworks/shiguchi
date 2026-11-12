@@ -24,7 +24,7 @@ public class HeadersConfig {
 
     /**
      * {@code Content-Security-Policy} for the browser surfaces. The default is what the
-     * bundled console, GraphiQL and Swagger UI actually need: their own scripts and styles,
+     * bundled console and Swagger UI actually need: their own scripts and styles,
      * inline styles, data/blob images, and same-origin API calls. {@code 'unsafe-inline'} is
      * there for styles only, because those three bundles inject them; scripts are not granted
      * it. Empty disables the header.
@@ -35,6 +35,20 @@ public class HeadersConfig {
     private String contentSecurityPolicy = "default-src 'self'; script-src 'self'; "
             + "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; "
             + "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+
+    /**
+     * {@code Content-Security-Policy} for {@code /graphiql} only. GraphiQL is not self-contained:
+     * Spring GraphQL's page loads its scripts and stylesheets from {@code esm.sh}, runs an inline
+     * import map and bootstrap script, and starts Monaco's workers from {@code blob:} URLs, so the
+     * strict policy above would leave it blank. The default allows exactly that and nothing wider;
+     * the console and Swagger keep the strict policy. Empty falls back to
+     * {@link #contentSecurityPolicy}. Disable GraphiQL (or self-host it) to avoid the CDN.
+     */
+    private String graphiqlContentSecurityPolicy = "default-src 'self'; "
+            + "script-src 'self' 'unsafe-inline' https://esm.sh; "
+            + "style-src 'self' 'unsafe-inline' https://esm.sh; img-src 'self' data: blob:; "
+            + "font-src 'self' data: https://esm.sh; connect-src 'self' https://esm.sh; "
+            + "worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
 
     /** {@code Referrer-Policy}. Empty keeps Spring Security's default. */
     private String referrerPolicy = "no-referrer";

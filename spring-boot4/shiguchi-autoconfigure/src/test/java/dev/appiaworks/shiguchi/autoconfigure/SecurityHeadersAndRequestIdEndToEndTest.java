@@ -70,6 +70,18 @@ class SecurityHeadersAndRequestIdEndToEndTest {
     }
 
     @Test
+    @DisplayName(
+            "GIVEN GraphiQL WHEN a browser loads it SHOULD carry the policy that allows its CDN, inline bootstrap and blob workers, while the console keeps the strict one")
+    void given_graphiql_when_loaded_should_carryItsOwnPolicy() {
+        String graphiql = headersOf("/graphiql").getFirst("Content-Security-Policy");
+        String console = headersOf("/grpc-ui/").getFirst("Content-Security-Policy");
+
+        assertThat(graphiql).contains("https://esm.sh").contains("worker-src 'self' blob:");
+        assertThat(graphiql).contains("script-src 'self' 'unsafe-inline'");
+        assertThat(console).doesNotContain("esm.sh").doesNotContain("worker-src");
+    }
+
+    @Test
     @DisplayName("GIVEN a non-browser path WHEN it responds SHOULD not carry the browser-only headers")
     void given_nonBrowserPath_when_responding_should_omitBrowserHeaders() {
         HttpHeaders headers = headersOf("/actuator/health");

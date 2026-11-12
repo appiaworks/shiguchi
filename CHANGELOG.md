@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- GraphiQL rendered blank under the default `shiguchi.headers.content-security-policy`: the page loads its code from `esm.sh`, runs inline bootstrap scripts and starts Monaco workers from `blob:` URLs. `/graphiql` now gets its own policy, `shiguchi.headers.graphiql-content-security-policy`; the console and Swagger keep the strict one.
 - `read_mask` reached the backend as a single path containing the text `{paths=[title]}` instead of `title`, so
   a backend that honoured the mask selected nothing. REST (`?fields=`, `X-Fields`) and the GraphQL selection-set
   pushdown both build the mask as `{"paths": [...]}`, and the conversion to `google.protobuf.FieldMask` treated
