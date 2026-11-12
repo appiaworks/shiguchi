@@ -28,6 +28,22 @@ public class GraphQlConfig {
     private LimitsConfig limits = new LimitsConfig();
 
     /**
+     * Shape of a backend failure in {@code errors[].extensions}. {@code GRPC}: the raw
+     * {@code details} (proto3 JSON with {@code @type}). {@code NATIVE} (default): {@code code}
+     * ({@code BAD_USER_INPUT}, {@code UNAUTHENTICATED}, {@code FORBIDDEN}, {@code NOT_FOUND},
+     * {@code SERVICE_UNAVAILABLE}, {@code INTERNAL_SERVER_ERROR}) and, for a {@code BadRequest},
+     * {@code fieldErrors:[{field, message, rule}]} with {@code field} as the GraphQL argument path;
+     * other details stay under {@code details}. {@code grpcCode}, {@code errorType}, {@code service}
+     * and {@code method} are kept in both.
+     */
+    private ErrorFormat errorFormat = ErrorFormat.NATIVE;
+
+    public enum ErrorFormat {
+        GRPC,
+        NATIVE
+    }
+
+    /**
      * Who may run introspection queries ({@code __schema}, {@code __type}): everyone (the
      * default), authenticated callers only, or nobody. An operation that selects
      * {@code __schema} or {@code __type} while refused is answered with a GraphQL error and is not

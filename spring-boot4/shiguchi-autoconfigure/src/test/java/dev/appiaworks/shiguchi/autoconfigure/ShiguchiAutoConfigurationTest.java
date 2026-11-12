@@ -83,10 +83,20 @@ class ShiguchiAutoConfigurationTest {
     }
 
     @Test
-    @DisplayName("GIVEN no user beans WHEN the context refreshes SHOULD register a DefaultGatewayErrorRenderer")
-    void GIVEN_noUserBeans_WHEN_contextRefreshes_SHOULD_registerDefaultGatewayErrorRenderer() {
+    @DisplayName("GIVEN no user beans WHEN the context refreshes SHOULD register a ProblemJsonGatewayErrorRenderer")
+    void GIVEN_noUserBeans_WHEN_contextRefreshes_SHOULD_registerProblemJsonGatewayErrorRenderer() {
         runner.run(context -> {
             assertThat(context).hasSingleBean(GatewayErrorRenderer.class);
+            assertThat(context.getBean(GatewayErrorRenderer.class))
+                    .isInstanceOf(dev.appiaworks.shiguchi.gateway.ProblemJsonGatewayErrorRenderer.class);
+        });
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN rest.error-format=GRPC WHEN the context refreshes SHOULD register a DefaultGatewayErrorRenderer")
+    void GIVEN_grpcErrorFormat_WHEN_contextRefreshes_SHOULD_registerDefaultGatewayErrorRenderer() {
+        runner.withPropertyValues("shiguchi.rest.error-format=GRPC").run(context -> {
             assertThat(context.getBean(GatewayErrorRenderer.class)).isInstanceOf(DefaultGatewayErrorRenderer.class);
         });
     }
