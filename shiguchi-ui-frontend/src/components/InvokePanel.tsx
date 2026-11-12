@@ -324,7 +324,7 @@ export function InvokePanel() {
               <div className="h-full flex flex-col">
                 {/* Tab bar */}
                 <div className="flex items-center border-b border-slate-700 shrink-0">
-                  {(['json', 'form'] as const).map((tab) => (
+                  {(['form', 'json'] as const).map((tab) => (
                     <button
                       key={tab}
                       onClick={() => switchToMode(tab)}
@@ -334,7 +334,7 @@ export function InvokePanel() {
                           : 'text-slate-600 hover:text-slate-400'
                       }`}
                     >
-                      {tab === 'json' ? 'Request JSON' : 'Form'}
+                      {tab === 'json' ? 'JSON' : 'Form'}
                     </button>
                   ))}
                 </div>
@@ -376,13 +376,29 @@ export function InvokePanel() {
                         MESSAGE STREAM ({extraPayloads.length + 1} message
                         {extraPayloads.length === 0 ? '' : 's'})
                       </span>
+                      <div className="flex gap-1">
                       <button
                         type="button"
-                        onClick={addExtraPayload}
+                        onClick={() => addExtraPayload()}
                         className="px-2 py-0.5 rounded border border-slate-600 text-slate-300 hover:bg-slate-700"
                       >
                         + message
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          try {
+                            addExtraPayload(JSON.stringify(JSON.parse(effectivePayload() || '{}'), null, 2))
+                          } catch {
+                            addExtraPayload(effectivePayload())
+                          }
+                        }}
+                        className="px-2 py-0.5 rounded border border-slate-600 text-slate-300 hover:bg-slate-700"
+                        title="Add a new message that starts as a copy of message #1"
+                      >
+                        + copy of #1
+                      </button>
+                      </div>
                     </div>
                     {extraPayloads.map((extra, i) => (
                       <div key={i} className="px-3 pb-2">

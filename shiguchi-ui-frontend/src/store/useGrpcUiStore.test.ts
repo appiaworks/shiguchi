@@ -121,7 +121,39 @@ describe('useGrpcUiStore', () => {
       expect(s.selectedMethod?.name).toBe('GetItem')
       expect(s.payload).toBe('{"id":"1"}')
       expect(s.metadataEntries).toEqual([{ key: 'x-tenant', value: 'acme' }])
+      expect(s.requestMode).toBe('form')
+    })
+
+    it('keeps the JSON tab when the user is on it, and fills the form values from the entry', () => {
+      useGrpcUiStore.setState({ services: [CATALOG], requestMode: 'json' })
+
+      useGrpcUiStore.getState().restoreHistory(entry())
+
+      expect(useGrpcUiStore.getState().requestMode).toBe('json')
+      expect(useGrpcUiStore.getState().formValues).toEqual({ id: '1' })
+    })
+
+    it('falls back to the JSON tab when the stored payload is not valid JSON', () => {
+      useGrpcUiStore.setState({ services: [CATALOG], requestMode: 'form' })
+
+      useGrpcUiStore.getState().restoreHistory(entry({ payload: '{broken' }))
+
+      const s = useGrpcUiStore.getState()
       expect(s.requestMode).toBe('json')
+      expect(s.payload).toBe('{broken')
+    })
+
+    it('remembers the last tab choice in localStorage', () => {
+      useGrpcUiStore.getState().setRequestMode('json')
+
+      expect(localStorage.getItem('grpcui-request-mode')).toBe('json')
+    })
+
+    it('seeds a new stream message with the given text', () => {
+      useGrpcUiStore.getState().addExtraPayload('{"a":1}')
+      useGrpcUiStore.getState().addExtraPayload()
+
+      expect(useGrpcUiStore.getState().extraPayloads).toEqual(['{"a":1}', '{\n  \n}'])
     })
 
     it('ignores an entry whose method no longer exists, rather than selecting nothing', () => {

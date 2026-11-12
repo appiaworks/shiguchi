@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { jsonToFormValues } from '../lib/formJson'
 import type { GatewayUiLinks, GroupBy, MethodSchema, RequestMode, ServiceSchema } from '../types/schema'
 
 export type InvokeStatus = 'idle' | 'loading' | 'success' | 'error' | 'streaming'
@@ -83,7 +84,8 @@ interface GrpcUiState {
 
   setPayload: (payload: string) => void
   setExtraPayloads: (payloads: string[]) => void
-  addExtraPayload: () => void
+  /** Adds a request message to a client-streaming call; `initial` seeds it (default: an empty object). */
+  addExtraPayload: (initial?: string) => void
   removeExtraPayload: (index: number) => void
   setFormValues: (values: Record<string, unknown>) => void
   setRequestMode: (mode: RequestMode) => void
@@ -120,6 +122,17 @@ function loadHistory(): HistoryEntry[] {
   }
 }
 
+const REQUEST_MODE_KEY = 'grpcui-request-mode'
+
+/** The last tab the user chose; the form is the default for someone who hasn't chosen yet. */
+function loadRequestMode(): RequestMode {
+  try {
+    return localStorage.getItem(REQUEST_MODE_KEY) === 'json' ? 'json' : 'form'
+  } catch {
+    return 'form'
+  }
+}
+
 function loadProviderDefaults(): Record<string, ProviderDefaults> {
   try {
     return JSON.parse(localStorage.getItem('grpcui-provider-defaults') ?? '{}') as Record<string, ProviderDefaults>
@@ -148,7 +161,7 @@ export const useGrpcUiStore = create<GrpcUiState>((set) => ({
   payload: '{\n  \n}',
   extraPayloads: [],
   formValues: {},
-  requestMode: 'json',
+  requestMode: loadRequestMode(),
   metadataEntries: [],
   result: IDLE_RESULT,
   responseTab: 'pretty',
@@ -185,11 +198,15 @@ export const useGrpcUiStore = create<GrpcUiState>((set) => ({
   setActiveProviderId: (id) => set({ activeProviderId: id }),
   setPayload: (payload) => set({ payload }),
   setExtraPayloads: (extraPayloads) => set({ extraPayloads }),
-  addExtraPayload: () => set((s) => ({ extraPayloads: [...s.extraPayloads, '{\n  \n}'] })),
+  addExtraPayload: (initial) =>
+    set((s) => ({ extraPayloads: [...s.extraPayloads, initial ?? '{\n  \n}'] })),
   removeExtraPayload: (index) =>
     set((s) => ({ extraPayloads: s.extraPayloads.filter((_, i) => i !== index) })),
   setFormValues: (formValues) => set({ formValues }),
-  setRequestMode: (requestMode) => set({ requestMode }),
+  setRequestMode: (requestMode) => {
+    try { localStorage.setItem(REQUEST_MODE_KEY, requestMode) } catch { /* storage unavailable */ }
+    set({ requestMode })
+  },
   setMetadataEntries: (metadataEntries) => set({ metadataEntries }),
 
   setResult: (partial) =>
@@ -228,13 +245,16 @@ export const useGrpcUiStore = create<GrpcUiState>((set) => ({
       const svc = s.services.find((sv) => sv.name === entry.serviceName)
       const method = svc?.methods.find((m) => m.name === entry.methodName)
       if (!svc || !method) return {}
+      // Keep the tab the user is on. The form needs the values parsed from the stored JSON; if
+      // they don't parse (or aren't an object), show the raw text on the JSON tab instead.
+      const parsed = jsonToFormValues(entry.payload, method.inputSchema)
       return {
         selectedService: svc,
         selectedMethod: method,
         payload: entry.payload,
         metadataEntries: entry.metadataEntries,
-        requestMode: 'json' as RequestMode,
-        formValues: {},
+        requestMode: (parsed.ok ? s.requestMode : 'json') as RequestMode,
+        formValues: parsed.ok ? parsed.values : {},
         result: IDLE_RESULT,
       }
     }),
