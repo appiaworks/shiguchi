@@ -182,7 +182,9 @@ jobs:
           # sample-protobuf-java-extras:check rides along: the same consumer-path check for the
           # non-gateway artifacts (protobuf-java-extras, the protoc plugin, and the Gradle plugin
           # resolved by id from mavenLocal). Its tests run the sample; no network service needed.
-          ./gradlew -p samples sample-discovery-gateway:bootJar sample-protobuf-java-extras:check -PgatewayVersion="$GATEWAY_VERSION"
+          # sample-jpa-backend:check is the same for shiguchi-backend-support(-jpa): a real Hibernate
+          # on in-memory H2 behind the gateway, through the published artifacts.
+          ./gradlew -p samples sample-discovery-gateway:bootJar sample-protobuf-java-extras:check sample-jpa-backend:check -PgatewayVersion="$GATEWAY_VERSION"
 
       - name: Boot it
         if: success() && github.event_name != 'push' && steps.code.outputs.run == 'true'
