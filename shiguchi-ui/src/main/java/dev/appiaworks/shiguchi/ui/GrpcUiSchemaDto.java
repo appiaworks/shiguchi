@@ -56,7 +56,9 @@ public final class GrpcUiSchemaDto {
             boolean mapEntry,
             /** Non-null for google.protobuf well-known types: TIMESTAMP, DURATION,
              *  FIELD_MASK, EMPTY, STRUCT, VALUE, ANY, STRING_VALUE, INT32_VALUE, etc. */
-            String wellKnownType) {}
+            String wellKnownType,
+            /** True when the field tracks presence (message, oneof member, proto3 optional): unset differs from default */
+            boolean hasPresence) {}
 
     public record EnumValueSchema(String name, int number) {}
 

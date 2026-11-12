@@ -14,6 +14,7 @@ export interface FieldSchema {
   oneofName?: string
   mapEntry: boolean
   wellKnownType?: string
+  hasPresence?: boolean
 }
 
 export interface MessageSchema {
