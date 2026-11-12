@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { isInt64 } from '../lib/formJson'
 import type { FieldSchema, MessageSchema } from '../types/schema'
 
 interface Props {
@@ -326,6 +327,27 @@ function ScalarField({
     'int32','int64','uint32','uint64','sint32','sint64',
     'fixed32','fixed64','sfixed32','sfixed64','float','double',
   ].includes(field.type)
+  if (isNumeric && isInt64(field.type)) {
+    // Kept as text: a JS number is exact only up to 2^53, and proto3 JSON carries 64-bit values as strings.
+    const text = value === undefined || value === null ? '' : String(value)
+    const valid = text === '' || /^-?\d+$/.test(text)
+    return (
+      <div className="flex items-center gap-2">
+        {label}
+        <input
+          type="text"
+          inputMode="numeric"
+          value={text}
+          onChange={(e) => onChange(e.target.value === '' ? undefined : e.target.value)}
+          placeholder={field.type}
+          aria-invalid={!valid}
+          className={`w-40 bg-slate-800 text-slate-300 text-xs px-2 py-0.5 rounded border outline-none placeholder-slate-700 font-mono ${
+            valid ? 'border-slate-700' : 'border-red-600'
+          }`}
+        />
+      </div>
+    )
+  }
   if (isNumeric) {
     return (
       <div className="flex items-center gap-2">
@@ -343,7 +365,12 @@ function ScalarField({
     )
   }
 
-  // String / bytes / Duration / other well-known / message with no fields
+  // A message whose fields were cut off (depth limit or recursion): edit it as JSON.
+  if (field.type === 'message' && !field.wellKnownType) {
+    return <JsonValueField label={label} field={field} value={value} onChange={onChange} />
+  }
+
+  // String / bytes / Duration / other well-known
   return (
     <div className="flex items-center gap-2">
       {label}
@@ -353,6 +380,50 @@ function ScalarField({
         onChange={(e) => onChange(e.target.value || undefined)}
         placeholder={field.wellKnownType ?? field.typeName ?? field.type}
         className="flex-1 min-w-0 bg-slate-800 text-slate-300 text-xs px-2 py-0.5 rounded border border-slate-700 outline-none placeholder-slate-700 font-mono"
+      />
+    </div>
+  )
+}
+
+function JsonValueField({
+  label,
+  field,
+  value,
+  onChange,
+}: {
+  label: React.ReactNode
+  field: FieldSchema
+  value: unknown
+  onChange: (v: unknown) => void
+}) {
+  const [text, setText] = useState(value === undefined ? '' : JSON.stringify(value))
+  const [bad, setBad] = useState(false)
+  return (
+    <div className="flex items-start gap-2">
+      {label}
+      <textarea
+        value={text}
+        rows={2}
+        spellCheck={false}
+        aria-invalid={bad}
+        placeholder={`${field.typeName ?? 'message'} as JSON`}
+        onChange={(e) => {
+          setText(e.target.value)
+          if (e.target.value.trim() === '') {
+            setBad(false)
+            onChange(undefined)
+            return
+          }
+          try {
+            onChange(JSON.parse(e.target.value))
+            setBad(false)
+          } catch {
+            setBad(true)
+          }
+        }}
+        className={`flex-1 min-w-0 bg-slate-800 text-slate-300 text-xs px-2 py-0.5 rounded border outline-none placeholder-slate-700 font-mono ${
+          bad ? 'border-red-600' : 'border-slate-700'
+        }`}
       />
     </div>
   )

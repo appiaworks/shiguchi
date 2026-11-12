@@ -1,3 +1,4 @@
+import { jsonToFormValues } from '../lib/formJson'
 import { LazyEditor } from './LazyEditor'
 import { useRef, useState } from 'react'
 import { toCurl, toGrpcurl } from '../api/exportCommand'
@@ -43,6 +44,7 @@ export function InvokePanel() {
 
   const abortRef = useRef<AbortController | null>(null)
   const [showHistory, setShowHistory] = useState(false)
+  const [modeError, setModeError] = useState<string | null>(null)
   const [copied, setCopied] = useState<'curl' | 'grpcurl' | null>(null)
 
   // Ctrl/Cmd+Enter sends. Registered here rather than on the editor so it works wherever focus is
@@ -103,15 +105,18 @@ export function InvokePanel() {
   function switchToMode(mode: 'json' | 'form') {
     if (mode === requestMode) return
     if (mode === 'form') {
-      try {
-        setFormValues(JSON.parse(payload || '{}') as Record<string, unknown>)
-      } catch {
-        setFormValues({})
+      const parsed = jsonToFormValues(payload, selectedMethod!.inputSchema)
+      if (!parsed.ok) {
+        // Stay on the JSON tab: switching would replace what the user typed with an empty form.
+        setModeError(parsed.error)
+        return
       }
+      setFormValues(parsed.values)
     } else {
       const json = JSON.stringify(formValues, null, 2)
       setPayload(json && json !== '{}' ? json : '{\n  \n}')
     }
+    setModeError(null)
     setRequestMode(mode)
   }
 
@@ -333,6 +338,11 @@ export function InvokePanel() {
                     </button>
                   ))}
                 </div>
+                {modeError && (
+                  <div role="alert" className="px-3 py-1 text-[11px] text-red-300 bg-red-950/40 border-b border-red-900 shrink-0">
+                    Fix the JSON before switching to the form: {modeError}
+                  </div>
+                )}
                 <div className="flex-1 min-h-0">
                   {requestMode === 'json' ? (
                     <LazyEditor
