@@ -43,7 +43,7 @@ whole setup — no `protobuf(...)` configuration needed:
 
 ```kotlin
 dependencies {
-    implementation("io.github.appiaworks:shiguchi-proto:0.20.0")
+    implementation("io.github.appiaworks:shiguchi-proto:0.21.0")
 }
 ```
 
@@ -60,8 +60,8 @@ full snippet is in
 involved, for Go, Rust, Python, buf or a plain `protoc`:
 
 ```bash
-curl -sLO https://repo1.maven.org/maven2/io/github/appiaworks/shiguchi-proto/0.20.0/shiguchi-proto-0.20.0-protos.zip
-unzip -q shiguchi-proto-0.20.0-protos.zip -d gateway-protos
+curl -sLO https://repo1.maven.org/maven2/io/github/appiaworks/shiguchi-proto/0.21.0/shiguchi-proto-0.21.0-protos.zip
+unzip -q shiguchi-proto-0.21.0-protos.zip -d gateway-protos
 protoc -I . -I gateway-protos --go_out=. bookstore/v1/books.proto
 ```
 
