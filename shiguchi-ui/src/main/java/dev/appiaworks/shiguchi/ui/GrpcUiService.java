@@ -136,7 +136,23 @@ public class GrpcUiService {
                 authProviders,
                 pushEnabled,
                 contextPath + pushPath,
-                contextPath + pushAdminPath);
+                contextPath + pushAdminPath,
+                contextPath + graphqlEndpoint(),
+                webSocketPath(contextPath));
+    }
+
+    /** The GraphQL HTTP path: Spring GraphQL's own setting, then DGS's, then {@code /graphql}. */
+    private String graphqlEndpoint() {
+        return environment.getProperty(
+                "spring.graphql.http.path",
+                environment.getProperty(
+                        "spring.graphql.path", environment.getProperty("dgs.graphql.path", "/graphql")));
+    }
+
+    /** The subscription WebSocket path, or empty: there is no default, so none is served unless it is set. */
+    private String webSocketPath(String contextPath) {
+        String path = environment.getProperty("spring.graphql.websocket.path");
+        return path == null || path.isBlank() ? "" : contextPath + path;
     }
 
     /** Swagger UI is linked only when the OpenAPI feature is on and springdoc'"'"'s UI is really there. */

@@ -17,10 +17,11 @@
   },
   "dependencies": {
     "@graphiql/react": "^1.0.2",
-    "@monaco-editor/react": "^4.6.0",
     "@graphiql/toolkit": "^1.0.1",
+    "@monaco-editor/react": "^4.6.0",
     "graphiql": "^6.0.1",
     "graphql": "^17.1.0",
+    "graphql-ws": "^6.4.2",
     "monaco-editor": "^0.57.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

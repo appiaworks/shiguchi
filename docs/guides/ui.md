@@ -138,7 +138,9 @@ opens the gateway's own page, built into the console bundle (no CDN), with an **
 offers the same sign-in methods as the console: a manual bearer token, an API key, OAuth2 authorization
 code with PKCE, and client credentials, driven by `shiguchi.openapi.security-schemes`. The token stays
 in memory (a reload signs out) and is sent as `Authorization` or the scheme's API-key header on every
-query. Without the console, Spring GraphQL's stock page is served instead, without sign-in:
+query. When `spring.graphql.websocket.path` is set, subscriptions run over `graphql-transport-ws` on the same
+origin and the credential is sent in the `connection_init` payload (a browser cannot set WebSocket headers), so
+the server's WebSocket interceptor must read it from there. Without the console, Spring GraphQL's stock page is served instead, without sign-in:
 
 ![GraphiQL running a books query with a sort argument and edges/node selection, and the paged result](../images/graphiql.png)
 

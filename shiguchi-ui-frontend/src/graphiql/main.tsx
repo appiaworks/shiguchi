@@ -3,10 +3,11 @@ import { StrictMode, useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { GraphiQL } from 'graphiql'
 import { createGraphiQLFetcher } from '@graphiql/toolkit'
+import { createClient } from 'graphql-ws'
 import 'graphiql/style.css'
 import '../index.css'
 import './graphiql.css'
-import { fetchConfig } from '../api/grpcUiApi'
+import { buildAuthHeaders, fetchConfig } from '../api/grpcUiApi'
 import { GlobalAuthPanel } from '../components/GlobalAuthPanel'
 import { useGrpcUiStore } from '../store/useGrpcUiStore'
 import { authFetch } from './authFetch'
@@ -22,11 +23,25 @@ function Page() {
     fetchConfig().then(setLinks).catch((e: unknown) => setError(String(e)))
   }, [setLinks])
 
-  const url = links?.graphqlPath
-  const fetcher = useMemo(
-    () => (url ? createGraphiQLFetcher({ url, fetch: authFetch }) : null),
-    [url],
-  )
+  const url = links?.graphqlEndpoint
+  const wsPath = links?.graphqlWebSocketPath
+  const fetcher = useMemo(() => {
+    if (!url) return null
+    // Subscriptions run over graphql-transport-ws on the same origin. A browser cannot set
+    // headers on a WebSocket, so the credential travels in the connection_init payload; it is
+    // read when the socket connects, so signing in or out applies to the next subscription.
+    const wsClient = wsPath
+      ? createClient({
+          url: new URL(wsPath, window.location.href.replace(/^http/, 'ws')).toString(),
+          lazy: true,
+          connectionParams: () => {
+            const { globalAuthToken, globalProviderId, links: l } = useGrpcUiStore.getState()
+            return buildAuthHeaders(globalAuthToken, globalProviderId, l?.authProviders ?? [])
+          },
+        })
+      : undefined
+    return createGraphiQLFetcher({ url, fetch: authFetch, wsClient })
+  }, [url, wsPath])
 
   return (
     <div className="gql-page">

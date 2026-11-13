@@ -4,7 +4,7 @@ import type { GatewayUiLinks } from '../types/schema'
 import { authFetch } from './authFetch'
 
 const links = (authProviders: GatewayUiLinks['authProviders']): GatewayUiLinks => ({
-  swaggerEnabled: true, swaggerPath: '/swagger-ui.html', graphqlEnabled: true, graphqlPath: '/graphql',
+  swaggerEnabled: true, swaggerPath: '/swagger-ui.html', graphqlEnabled: true, graphqlPath: '/graphql', graphqlEndpoint: '/graphql', graphqlWebSocketPath: '/graphql/ws',
   grpcProxyEnabled: false, grpcProxyPort: 0, authProviders,
 })
 
