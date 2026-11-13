@@ -31,6 +31,7 @@ public final class GrpcUiSchemaDto {
             String methodType,
             MessageSchema inputSchema,
             String outputTypeName,
+            MessageSchema outputSchema,
             /** Nullable — from google.api.http annotation */
             String httpMethod,
             String httpPath) {}

@@ -87,6 +87,19 @@ export function ResponseViewer() {
     )
   }
 
+  // A stream that completed without a message has no body at all: say so instead of a blank panel.
+  if (status === 'success' && response === null && streamChunks.length === 0 && streamTotal === 0) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-1 text-xs">
+        <div className="flex items-center gap-2">
+          {grpcStatus && <StatusBadge status={grpcStatus} />}
+          {durationMs != null && <span className="text-slate-500">{durationMs}ms</span>}
+        </div>
+        <span className="text-slate-400">0 messages, stream completed OK</span>
+      </div>
+    )
+  }
+
   const prettyDisplay = streamChunks.length > 0
     ? streamChunks.map(prettyJson).join('\n')
     : prettyJson(response)

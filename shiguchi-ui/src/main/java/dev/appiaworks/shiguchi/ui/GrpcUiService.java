@@ -23,7 +23,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ClassUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import tools.jackson.core.JacksonException;
@@ -72,6 +74,9 @@ public class GrpcUiService {
                 HttpClient.newBuilder().connectTimeout(TOKEN_TIMEOUT).build();
     }
 
+    private static final String SWAGGER_UI_CLASS = "org.springdoc.core.properties.SwaggerUiConfigProperties";
+    private static final String GRAPHQL_CLASS = "com.netflix.graphql.dgs.DgsQueryExecutor";
+
     private final GrpcUiSchemaBuilder schemaBuilder;
     private final ReactiveGrpcDispatcher dispatcher;
     private final GrpcRouteRegistry registry;
@@ -81,6 +86,7 @@ public class GrpcUiService {
     private final boolean pushEnabled;
     private final String pushPath;
     private final String pushAdminPath;
+    private final Environment environment;
 
     public GrpcUiService(
             GrpcUiSchemaBuilder schemaBuilder,
@@ -91,7 +97,9 @@ public class GrpcUiService {
             @Value("${dgs.graphql.graphiql.path:/graphiql}") String graphiqlPath,
             @Value("${shiguchi.cursus.enabled:false}") boolean pushEnabled,
             @Value("${shiguchi.cursus.path:/push}") String pushPath,
-            @Value("${management.endpoints.web.base-path:/actuator}") String actuatorBasePath) {
+            @Value("${management.endpoints.web.base-path:/actuator}") String actuatorBasePath,
+            Environment environment) {
+        this.environment = environment;
         this.schemaBuilder = schemaBuilder;
         this.dispatcher = dispatcher;
         this.registry = registry;
@@ -119,9 +127,9 @@ public class GrpcUiService {
                         .map(e -> toAuthProviderDto(e.getKey(), e.getValue()))
                         .toList();
         return new GrpcUiSchemaDto.GatewayUiLinks(
-                gatewayProperties.getOpenapi().isEnabled(),
+                swaggerServed(),
                 contextPath + swaggerUiPath,
-                gatewayProperties.getGraphql().isEnabled(),
+                graphiqlServed(),
                 contextPath + graphiqlPath,
                 gatewayProperties.getGrpc().isEnabled(),
                 gatewayProperties.getGrpc().getPort(),
@@ -129,6 +137,25 @@ public class GrpcUiService {
                 pushEnabled,
                 contextPath + pushPath,
                 contextPath + pushAdminPath);
+    }
+
+    /** Swagger UI is linked only when the OpenAPI feature is on and springdoc'"'"'s UI is really there. */
+    private boolean swaggerServed() {
+        return gatewayProperties.getOpenapi().isEnabled()
+                && classPresent(SWAGGER_UI_CLASS)
+                && environment.getProperty("springdoc.swagger-ui.enabled", Boolean.class, true);
+    }
+
+    /** GraphiQL is linked only when the GraphQL feature is on, DGS (which serves the page) is present and the page is not switched off. */
+    private boolean graphiqlServed() {
+        return gatewayProperties.getGraphql().isEnabled()
+                && classPresent(GRAPHQL_CLASS)
+                && environment.getProperty("dgs.graphql.graphiql.enabled", Boolean.class, true);
+    }
+
+    /** Whether a class is on the classpath; a seam so tests can simulate an optional library. */
+    boolean classPresent(String className) {
+        return ClassUtils.isPresent(className, getClass().getClassLoader());
     }
 
     /** All services, methods and input schemas. */

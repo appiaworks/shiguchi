@@ -130,12 +130,15 @@ public class GrpcUiSchemaBuilder implements dev.appiaworks.shiguchi.routing.Sche
 
         GrpcUiSchemaDto.MessageSchema inputSchema = buildMessageSchema(md.getInputType(), new HashSet<>(), 0);
 
+        GrpcUiSchemaDto.MessageSchema outputSchema = buildMessageSchema(md.getOutputType(), new HashSet<>(), 0);
+
         return new GrpcUiSchemaDto.MethodSchema(
                 methodName,
                 serviceFqn,
                 resolveMethodType(md),
                 inputSchema,
                 md.getOutputType().getFullName(),
+                outputSchema,
                 httpMethod,
                 httpPath);
     }

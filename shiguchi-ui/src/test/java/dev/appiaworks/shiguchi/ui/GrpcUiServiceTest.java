@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 import reactor.test.StepVerifier;
 
 /**
@@ -52,6 +53,76 @@ class GrpcUiServiceTest {
         assertThat(config.graphqlPath()).isEqualTo("/graphiql");
         assertThat(config.pushAdminPath()).isEqualTo("/actuator/gateway-push");
         assertThat(config.authProviders()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("GIVEN springdoc and the GraphQL engine on the classpath WHEN asking SHOULD link both UIs")
+    void given_librariesPresent_when_askingForConfig_should_linkBoth() {
+        var config = linkService(new GatewayProperties(), new MockEnvironment(), true, true)
+                .config();
+
+        assertThat(config.swaggerEnabled()).isTrue();
+        assertThat(config.graphqlEnabled()).isTrue();
+    }
+
+    @Test
+    @DisplayName("GIVEN neither library on the classpath WHEN asking SHOULD hide both links")
+    void given_librariesMissing_when_askingForConfig_should_hideBoth() {
+        var config = linkService(new GatewayProperties(), new MockEnvironment(), false, false)
+                .config();
+
+        assertThat(config.swaggerEnabled()).isFalse();
+        assertThat(config.graphqlEnabled()).isFalse();
+    }
+
+    @Test
+    @DisplayName("GIVEN the Swagger UI and GraphiQL switched off WHEN asking SHOULD hide both links")
+    void given_uisSwitchedOff_when_askingForConfig_should_hideBoth() {
+        var env = new MockEnvironment()
+                .withProperty("springdoc.swagger-ui.enabled", "false")
+                .withProperty("dgs.graphql.graphiql.enabled", "false");
+
+        var config = linkService(new GatewayProperties(), env, true, true).config();
+
+        assertThat(config.swaggerEnabled()).isFalse();
+        assertThat(config.graphqlEnabled()).isFalse();
+    }
+
+    @Test
+    @DisplayName("GIVEN the OpenAPI and GraphQL features disabled WHEN asking SHOULD hide both links")
+    void given_featuresDisabled_when_askingForConfig_should_hideBoth() {
+        var props = new GatewayProperties();
+        props.getOpenapi().setEnabled(false);
+        props.getGraphql().setEnabled(false);
+
+        var config = linkService(props, new MockEnvironment(), true, true).config();
+
+        assertThat(config.swaggerEnabled()).isFalse();
+        assertThat(config.graphqlEnabled()).isFalse();
+    }
+
+    private static GrpcUiService linkService(
+            GatewayProperties props, MockEnvironment env, boolean swaggerPresent, boolean graphqlPresent) {
+        var serde = new SerdeSelector(new StaticSerdeDetector(), new DynamicProtoSerde(new GrpcDescriptorCache()));
+        var dispatcher = new ReactiveGrpcDispatcher(
+                new GrpcRequestBuilder(), serde, new GrpcDescriptorCache(), new WireJsonTranscoder(), props);
+        var registry = new GrpcRouteRegistry();
+        return new GrpcUiService(
+                new GrpcUiSchemaBuilder(registry),
+                dispatcher,
+                registry,
+                props,
+                "/swagger-ui.html",
+                "/graphiql",
+                false,
+                "/push",
+                "/actuator",
+                env) {
+            @Override
+            boolean classPresent(String className) {
+                return className.startsWith("org.springdoc") ? swaggerPresent : graphqlPresent;
+            }
+        };
     }
 
     @Test
@@ -215,7 +286,8 @@ class GrpcUiServiceTest {
                 "/graphiql",
                 false,
                 "/push",
-                "/actuator");
+                "/actuator",
+                new MockEnvironment());
     }
 
     private static GatewayProperties schemeWithTokenUrl(String tokenUrl) {

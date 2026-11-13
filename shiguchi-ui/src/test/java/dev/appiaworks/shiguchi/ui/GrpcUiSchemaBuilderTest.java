@@ -62,6 +62,20 @@ class GrpcUiSchemaBuilderTest {
     }
 
     @Test
+    @DisplayName("GIVEN a method WHEN building the schema SHOULD describe its response message too")
+    void given_method_when_building_should_includeOutputSchema() throws Exception {
+        GrpcRouteRegistry registry = new GrpcRouteRegistry();
+        registry.registerContext(context("orders-svc", simpleServiceFile("schema.pkg", false), false));
+        GrpcUiSchemaBuilder builder = new GrpcUiSchemaBuilder(registry);
+
+        builder.rebuild();
+
+        GrpcUiSchemaDto.MethodSchema method =
+                builder.getSchema().get(0).methods().get(0);
+        assertThat(method.outputSchema().fullName()).isEqualTo(method.outputTypeName());
+    }
+
+    @Test
     @DisplayName("GIVEN a REST_DOWNSTREAM context (no gRPC channel) WHEN building the schema SHOULD exclude it")
     void given_restDownstreamContext_when_building_should_excludeFromSchema() throws Exception {
         GrpcRouteRegistry registry = new GrpcRouteRegistry();

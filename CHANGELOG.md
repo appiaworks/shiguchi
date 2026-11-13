@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- gRPC console: the schema panel has an **OUTPUT SCHEMA** tab next to the input schema, showing the response message (
+  `api/schema` methods now carry `outputSchema`).
+
+### Fixed
+
+- gRPC console: the Swagger and GraphiQL header links show only when those UIs are actually served (springdoc / DGS
+  present and not switched off), not merely when the feature flag is on.
+- Swagger UI: the Authorize dialog no longer pre-fills one scheme's `client-id` into every OAuth2 scheme. The id is seeded only when the configuration has a single `oauth2` scheme (Swagger UI's `initOAuth` is global); with several, set `springdoc.swagger-ui.oauth.client-id` or type the id.
+- Console: a repeated number field (for example `repeated int64 ids`) starts with an empty row instead of `0`, and rows left empty are dropped from the request body instead of being sent as `null`.
+- Console: a server-streaming call that completes with no messages shows "0 messages, stream completed OK" instead of a blank panel.
+
 ## [0.21.0] - 2026-11-13
 
 ### Added

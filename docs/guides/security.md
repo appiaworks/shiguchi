@@ -273,9 +273,11 @@ half looks like when it fails.
   ```
 
   The console pre-fills it (a value the operator saved in that browser wins), and Swagger's
-  Authorize dialog does too when exactly one scheme sets a `client-id` and
-  `springdoc.swagger-ui.oauth.client-id` is unset. Swagger's setting is global, so with several
-  schemes set it yourself. The id is public (it is in the authorize URL) and is served to anyone
+  Authorize dialog does too, but only when the configuration has exactly one `oauth2` scheme, it sets
+  one `client-id`, and `springdoc.swagger-ui.oauth.client-id` is unset. Swagger UI's `initOAuth` is
+  global: it pre-fills the same id into every OAuth2 scheme, so with several `oauth2` schemes nothing
+  is seeded (a scheme would otherwise get another scheme's id). Type the id in the dialog, or set
+  `springdoc.swagger-ui.oauth.client-id` yourself if one id suits them all. The id is public (it is in the authorize URL) and is served to anyone
   who can open the console, so use it for public PKCE clients only. There is no `client-secret`
   property; a `client_credentials` secret is still typed by the operator.
 

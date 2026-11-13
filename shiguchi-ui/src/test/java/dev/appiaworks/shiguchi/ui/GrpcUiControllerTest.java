@@ -196,7 +196,8 @@ class GrpcUiControllerTest {
                 "/graphiql",
                 false,
                 "/push",
-                "/actuator");
+                "/actuator",
+                new org.springframework.mock.env.MockEnvironment());
         var controller = new GrpcUiController(service, metadataPopulator);
 
         var routerFunction = RouterFunctions.route()

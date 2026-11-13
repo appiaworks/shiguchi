@@ -16,7 +16,9 @@ vi.mock('react-resizable-panels', () => ({
 }))
 vi.mock('./AuthBar', () => ({ AuthBar: () => null }))
 vi.mock('./ResponseViewer', () => ({ ResponseViewer: () => null }))
-vi.mock('./SchemaDoc', () => ({ SchemaDoc: () => null }))
+vi.mock('./SchemaDoc', () => ({
+  SchemaDoc: ({ schema }: { schema: { fullName: string } }) => <div data-testid="schema-doc">{schema.fullName}</div>,
+}))
 vi.mock('./MetadataEditor', () => ({ MetadataEditor: () => null }))
 
 const method = (methodType: MethodSchema['methodType']): MethodSchema => ({
@@ -30,6 +32,10 @@ const method = (methodType: MethodSchema['methodType']): MethodSchema => ({
     ],
   },
   outputTypeName: 't.Res',
+  outputSchema: {
+    fullName: 't.Res',
+    fields: [{ name: 'order_id', jsonName: 'orderId', type: 'string', label: 'optional', fields: [], enumValues: [], mapEntry: false }],
+  },
 })
 const service = (m: MethodSchema): ServiceSchema => ({
   name: 't.Svc', target: 'x:1', methods: [m], namespace: 't', configName: 'c',
@@ -97,5 +103,14 @@ describe('InvokePanel request tabs', () => {
     open('UNARY')
 
     expect(screen.queryByText('+ copy of #1')).toBeNull()
+  })
+
+  it('GIVEN a method WHEN opening the OUTPUT SCHEMA tab THEN the response fields replace the request fields', () => {
+    open('UNARY')
+
+    expect(screen.getByTestId('schema-doc').textContent).toBe('t.Req')
+    fireEvent.click(screen.getByRole('tab', { name: /output schema/i }))
+
+    expect(screen.getByTestId('schema-doc').textContent).toBe('t.Res')
   })
 })

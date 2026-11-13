@@ -87,19 +87,29 @@ public class OpenApiConfig {
 
     /**
      * Pre-fills Swagger UI's Authorize dialog with the configured public client id. Swagger's
-     * {@code initOAuth} is global, so it applies only when exactly one scheme configures one, and
-     * never overrides {@code springdoc.swagger-ui.oauth.client-id}.
+     * {@code initOAuth} is global: the dialog shows the same id for every OAuth2 scheme, so a value
+     * meant for one identity provider would be offered to the others. It is therefore set only when
+     * the spec has exactly one OAuth2 scheme and that scheme configures one id, and never overrides
+     * {@code springdoc.swagger-ui.oauth.client-id}. The gRPC console pre-fills per scheme.
      */
     @Bean
     public org.springframework.beans.factory.SmartInitializingSingleton swaggerOAuthClientIdDefault(
             org.springframework.beans.factory.ObjectProvider<org.springdoc.core.properties.SwaggerUiOAuthProperties>
                     oauth) {
         return () -> {
+            var oauth2 = props.getOpenapi().getSecuritySchemes().values().stream()
+                    .filter(s -> "oauth2".equalsIgnoreCase(s.getType()))
+                    .toList();
+            if (oauth2.size() != 1) return;
+            var s = oauth2.get(0);
             var ids = new java.util.LinkedHashSet<String>();
-            props.getOpenapi().getSecuritySchemes().values().forEach(s -> {
-                if (s.getAuthorizationCode() != null && s.getAuthorizationCode().getClientId() != null)
-                    ids.add(s.getAuthorizationCode().getClientId());
-            });
+            for (var flow : java.util.List.of(
+                    java.util.Optional.ofNullable(s.getAuthorizationCode()),
+                    java.util.Optional.ofNullable(s.getClientCredentials()),
+                    java.util.Optional.ofNullable(s.getImplicit()),
+                    java.util.Optional.ofNullable(s.getPassword()))) {
+                flow.map(f -> f.getClientId()).filter(id -> !id.isBlank()).ifPresent(ids::add);
+            }
             var p = oauth.getIfAvailable();
             if (p != null
                     && ids.size() == 1
