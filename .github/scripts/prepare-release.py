@@ -62,7 +62,7 @@ LEFTOVER_EXCLUDED = [
     ":!.github/",
     ":!buildSrc/",
 ]
-LEFTOVER_EXCLUDED_LINE = re.compile(r"since\s*=|first ships|ships from|not on v|older than")
+LEFTOVER_EXCLUDED_LINE = re.compile(r"since\s*=|@since|first ships|ships from|not on v|older than")
 
 
 class ReleaseError(Exception):
