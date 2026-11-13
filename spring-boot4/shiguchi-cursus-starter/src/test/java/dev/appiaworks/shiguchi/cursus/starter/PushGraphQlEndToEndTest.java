@@ -271,6 +271,46 @@ class PushGraphQlEndToEndTest {
         }
     }
 
+    @Test
+    @DisplayName(
+            "GIVEN a namespace that needs a principal WHEN the bearer token travels in the connection_init payload (a browser cannot set WebSocket headers) SHOULD authenticate the socket and deliver")
+    void given_authenticatedNamespace_when_tokenInConnectionInit_should_serve() {
+        int before = metrics.connections("graphql");
+        try (Subscription authed = new Subscription(
+                wsUri,
+                "subscription { privateEvents(topic: \"y\") { id payload } }",
+                null,
+                "{\"Authorization\":\"Bearer " + USER_TOKEN + "\"}")) {
+            awaitTrue(() -> metrics.connections("graphql") == before + 1);
+            JsonNode connections =
+                    get("/actuator/gateway-push/connections?transport=graphql").get("connections");
+            assertThat(connections)
+                    .anyMatch(c -> "alice".equals(c.get("principal").asString()));
+            publish("secure:y", "{\"n\":2}", null);
+            assertThat(authed.awaitNext(1)
+                            .get(0)
+                            .at("/payload/data/privateEvents/payload/n")
+                            .asInt())
+                    .isEqualTo(2);
+        }
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a bad token in the connection_init payload WHEN the socket connects SHOULD close it without an ack or any event")
+    void given_badTokenInConnectionInit_when_connected_should_closeWithoutAck() {
+        try (Subscription rejected = new Subscription(
+                wsUri,
+                "subscription { privateEvents(topic: \"z\") { id } }",
+                null,
+                "{\"Authorization\":\"Bearer wrong\"}")) {
+            awaitTrue(() -> rejected.ended.get());
+            assertThat(rejected.frames)
+                    .noneMatch(f -> "connection_ack".equals(f.path("type").asString()))
+                    .noneMatch(f -> "next".equals(f.path("type").asString()));
+        }
+    }
+
     // ---- helpers ----
 
     private static JsonNode find(JsonNode fields, String name) {
@@ -325,10 +365,19 @@ class PushGraphQlEndToEndTest {
     private static final class Subscription implements AutoCloseable {
         final List<JsonNode> frames = new CopyOnWriteArrayList<>();
         private final Sinks.Many<String> outbound = Sinks.many().unicast().onBackpressureBuffer();
+        final java.util.concurrent.atomic.AtomicBoolean ended = new java.util.concurrent.atomic.AtomicBoolean();
         private final Disposable connection;
 
         Subscription(URI uri, String query, String token) {
-            outbound.tryEmitNext("{\"type\":\"connection_init\"}");
+            this(uri, query, token, null);
+        }
+
+        /** {@code initPayload}: raw JSON sent as the connection_init payload, or null for none. */
+        Subscription(URI uri, String query, String token, String initPayload) {
+            outbound.tryEmitNext(
+                    initPayload == null
+                            ? "{\"type\":\"connection_init\"}"
+                            : "{\"type\":\"connection_init\",\"payload\":" + initPayload + "}");
             String subscribeFrame;
             try {
                 subscribeFrame = JSON.writeValueAsString(
@@ -354,7 +403,8 @@ class PushGraphQlEndToEndTest {
                                     outbound.tryEmitNext(subscribeFrame);
                                 }
                             })
-                            .then();
+                            .then()
+                            .doFinally(sig -> ended.set(true));
                     return Mono.when(send, receive);
                 }
             };
