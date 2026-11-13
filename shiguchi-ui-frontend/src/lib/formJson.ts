@@ -63,3 +63,19 @@ function normalizeLeaf(value: unknown, f: FieldSchema): unknown {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return value
   return normalize(value as Record<string, unknown>, f.fields)
 }
+
+/** An empty repeated row (still unset) is not a value: drop it instead of sending `null`. */
+function withoutEmptyRows(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.filter((v) => v !== undefined && v !== null && v !== '').map(withoutEmptyRows)
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, withoutEmptyRows(v)]))
+  }
+  return value
+}
+
+/** The request body for the form: the form values as JSON, minus repeated rows nobody filled in. */
+export function formValuesToJson(values: unknown, space?: number): string {
+  return JSON.stringify(withoutEmptyRows(values), null, space)
+}

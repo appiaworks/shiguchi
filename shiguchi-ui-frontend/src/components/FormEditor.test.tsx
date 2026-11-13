@@ -8,6 +8,22 @@ function field(over: Partial<FieldSchema> & { name: string }): FieldSchema {
 }
 
 describe('FormEditor', () => {
+  it('GIVEN a repeated int64 field WHEN adding a row and typing 34 THEN the row starts empty and emits "34"', () => {
+    const onChange = vi.fn()
+    const schema: MessageSchema = { fullName: 't.R', fields: [field({ name: 'ids', type: 'int64', label: 'repeated' })] }
+    const { rerender } = render(<FormEditor schema={schema} values={{}} onChange={onChange} />)
+
+    fireEvent.click(screen.getByText('+ add'))
+    expect(onChange).toHaveBeenLastCalledWith({ ids: [undefined] })
+
+    rerender(<FormEditor schema={schema} values={{ ids: [undefined] }} onChange={onChange} />)
+    const input = screen.getByPlaceholderText('int64') as HTMLInputElement
+    expect(input.value).toBe('')
+    fireEvent.change(input, { target: { value: '34' } })
+
+    expect(onChange).toHaveBeenLastCalledWith({ ids: ['34'] })
+  })
+
   it('GIVEN an int64 field WHEN typing a value above 2^53 THEN emits the exact digits as a string', () => {
     const onChange = vi.fn()
     const schema: MessageSchema = { fullName: 't.R', fields: [field({ name: 'id', type: 'int64' })] }

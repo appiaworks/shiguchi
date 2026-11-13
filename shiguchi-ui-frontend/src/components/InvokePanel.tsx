@@ -1,4 +1,4 @@
-import { jsonToFormValues } from '../lib/formJson'
+import { formValuesToJson, jsonToFormValues } from '../lib/formJson'
 import { LazyEditor } from './LazyEditor'
 import { useRef, useState } from 'react'
 import { toCurl, toGrpcurl } from '../api/exportCommand'
@@ -120,7 +120,7 @@ export function InvokePanel() {
       }
       setFormValues(parsed.values)
     } else {
-      const json = JSON.stringify(formValues, null, 2)
+      const json = formValuesToJson(formValues, 2)
       setPayload(json && json !== '{}' ? json : '{\n  \n}')
     }
     setModeError(null)
@@ -141,7 +141,7 @@ export function InvokePanel() {
   }
 
   function effectivePayload(): string {
-    if (requestMode === 'form') return JSON.stringify(formValues) || '{}'
+    if (requestMode === 'form') return formValuesToJson(formValues) || '{}'
     return payload
   }
 

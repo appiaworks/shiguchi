@@ -323,10 +323,7 @@ function ScalarField({
   }
 
   // Numeric types
-  const isNumeric = [
-    'int32','int64','uint32','uint64','sint32','sint64',
-    'fixed32','fixed64','sfixed32','sfixed64','float','double',
-  ].includes(field.type)
+  const isNumeric = NUMERIC_TYPES.includes(field.type)
   if (isNumeric && isInt64(field.type)) {
     // Kept as text: a JS number is exact only up to 2^53, and proto3 JSON carries 64-bit values as strings.
     const text = value === undefined || value === null ? '' : String(value)
@@ -433,6 +430,11 @@ function JsonValueField({
 // RepeatedField — list with add / remove rows
 // ─────────────────────────────────────────────────────────────────────────────
 
+const NUMERIC_TYPES = [
+  'int32','int64','uint32','uint64','sint32','sint64',
+  'fixed32','fixed64','sfixed32','sfixed64','float','double',
+]
+
 function RepeatedField({
   field,
   values,
@@ -451,7 +453,8 @@ function RepeatedField({
     if (field.type === 'message') return {}
     if (field.type === 'bool') return false
     if (field.type === 'enum') return field.enumValues[0]?.name ?? ''
-    if (['int32','int64','uint32','uint64','float','double'].includes(field.type)) return 0
+    // Numbers start empty: a prefilled 0 would be sent if the row is left as it is, and typing after it gives "034".
+    if (NUMERIC_TYPES.includes(field.type)) return undefined
     return ''
   }
 

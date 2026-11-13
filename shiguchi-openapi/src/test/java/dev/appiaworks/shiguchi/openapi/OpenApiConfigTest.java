@@ -21,45 +21,71 @@ import org.junit.jupiter.api.Test;
 @DisplayName("OpenApiConfig.mergeComponents")
 class OpenApiConfigTest {
 
-    private static dev.appiaworks.shiguchi.config.GatewayProperties propsWithClientIds(String... ids) {
+    /** One OAuth2 scheme per entry; a null id means the scheme sets no client id. */
+    private static dev.appiaworks.shiguchi.config.GatewayProperties oauthSchemes(String... ids) {
         var props = new dev.appiaworks.shiguchi.config.GatewayProperties();
         for (int i = 0; i < ids.length; i++) {
             var flow = new dev.appiaworks.shiguchi.config.OpenApiConfig.SecuritySchemeConfig.OAuthFlowConfig();
             flow.setClientId(ids[i]);
             var scheme = new dev.appiaworks.shiguchi.config.OpenApiConfig.SecuritySchemeConfig();
             scheme.setType("oauth2");
-            scheme.setAuthorizationCode(flow);
+            if (i % 2 == 0) scheme.setAuthorizationCode(flow);
+            else scheme.setClientCredentials(flow);
             props.getOpenapi().getSecuritySchemes().put("s" + i, scheme);
         }
         return props;
     }
 
-    @Test
-    @DisplayName("GIVEN exactly one configured client id WHEN initialised SHOULD default Swagger's initOAuth to it")
-    void given_oneClientId_when_initialised_should_defaultSwaggerClientId() {
+    private static String swaggerClientId(dev.appiaworks.shiguchi.config.GatewayProperties props, String explicit) {
         var oauth = new org.springdoc.core.properties.SwaggerUiOAuthProperties();
-        new OpenApiConfig(null, null, propsWithClientIds("pub"))
+        if (explicit != null) oauth.setClientId(explicit);
+        new OpenApiConfig(null, null, props)
                 .swaggerOAuthClientIdDefault(provider(oauth))
                 .afterSingletonsInstantiated();
-        assertThat(oauth.getClientId()).isEqualTo("pub");
+        return oauth.getClientId();
     }
 
     @Test
     @DisplayName(
-            "GIVEN two different client ids or an explicit springdoc value WHEN initialised SHOULD leave Swagger alone")
-    void given_ambiguousOrExplicit_when_initialised_should_notTouchSwagger() {
-        var two = new org.springdoc.core.properties.SwaggerUiOAuthProperties();
-        new OpenApiConfig(null, null, propsWithClientIds("a", "b"))
-                .swaggerOAuthClientIdDefault(provider(two))
-                .afterSingletonsInstantiated();
-        assertThat(two.getClientId()).isNull();
+            "GIVEN the only OAuth2 scheme sets a client id WHEN initialised SHOULD default Swagger's initOAuth to it")
+    void given_soleOauthSchemeWithClientId_when_initialised_should_defaultSwaggerClientId() {
+        assertThat(swaggerClientId(oauthSchemes("pub"), null)).isEqualTo("pub");
+    }
 
-        var explicit = new org.springdoc.core.properties.SwaggerUiOAuthProperties();
-        explicit.setClientId("mine");
-        new OpenApiConfig(null, null, propsWithClientIds("pub"))
-                .swaggerOAuthClientIdDefault(provider(explicit))
-                .afterSingletonsInstantiated();
-        assertThat(explicit.getClientId()).isEqualTo("mine");
+    @Test
+    @DisplayName("GIVEN a client-credentials-only scheme sets a client id WHEN initialised SHOULD default it too")
+    void given_soleClientCredentialsScheme_when_initialised_should_defaultSwaggerClientId() {
+        var props = oauthSchemes(null, "cc");
+        props.getOpenapi().getSecuritySchemes().remove("s0");
+        assertThat(swaggerClientId(props, null)).isEqualTo("cc");
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN several OAuth2 schemes and only one sets a client id WHEN initialised SHOULD leave Swagger alone, so the other schemes are not offered the wrong id")
+    void given_severalOauthSchemesOneClientId_when_initialised_should_notTouchSwagger() {
+        assertThat(swaggerClientId(oauthSchemes("evo-grpc-ui-dev", null, null), null))
+                .isNull();
+    }
+
+    @Test
+    @DisplayName("GIVEN several OAuth2 schemes with different client ids WHEN initialised SHOULD leave Swagger alone")
+    void given_severalClientIds_when_initialised_should_notTouchSwagger() {
+        assertThat(swaggerClientId(oauthSchemes("a", "b"), null)).isNull();
+    }
+
+    @Test
+    @DisplayName("GIVEN no configured client id WHEN initialised SHOULD leave Swagger alone")
+    void given_noClientId_when_initialised_should_notTouchSwagger() {
+        assertThat(swaggerClientId(oauthSchemes((String) null), null)).isNull();
+        assertThat(swaggerClientId(new dev.appiaworks.shiguchi.config.GatewayProperties(), null))
+                .isNull();
+    }
+
+    @Test
+    @DisplayName("GIVEN an explicit springdoc client id WHEN initialised SHOULD keep it")
+    void given_explicitSpringdocValue_when_initialised_should_keepIt() {
+        assertThat(swaggerClientId(oauthSchemes("pub"), "mine")).isEqualTo("mine");
     }
 
     private static org.springframework.beans.factory.ObjectProvider<
