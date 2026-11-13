@@ -97,7 +97,7 @@ curl localhost:8080/v1/books/1
 
 # GraphQL
 curl -X POST localhost:8080/graphql -H 'Content-Type: application/json' \
-  -d '{"query":"{ books { books { title author } } }"}'
+  -d '{"query":"{ books(first: 2) { edges { node { title author } } } }"}'
 
 # OpenAPI spec + Swagger UI          gRPC console (when enabled)
 open localhost:8080/swagger-ui.html  # localhost:8080/grpc-ui

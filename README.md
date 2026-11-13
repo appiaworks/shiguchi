@@ -134,7 +134,8 @@ That is the whole configuration. One backend, four surfaces:
 
 ```bash
 curl localhost:8080/v1/books/1
-curl -X POST localhost:8080/graphql -H 'Content-Type: application/json'   -d '{"query":"{ books { books { title author } } }"}'
+curl -X POST localhost:8080/graphql -H 'Content-Type: application/json' \
+  -d '{"query":"{ bookListBooks(first: 2) { edges { node { title author } } } }"}'
 # /swagger-ui.html  and  /grpc-ui (when enabled)
 ```
 
