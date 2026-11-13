@@ -4,6 +4,7 @@ package sample.library.v1;
 
 import "google/api/annotations.proto";
 import "google/protobuf/field_mask.proto";
+import "shiguchi/annotations.proto";
 import "shiguchi/pagination.proto";
 
 option java_package = "dev.appiaworks.shiguchi.sample.jpabackend.proto";
@@ -14,6 +15,7 @@ option java_multiple_files = true;
 service BookService {
   rpc ListBooks(ListBooksRequest) returns (ListBooksResponse) {
     option (google.api.http) = {get: "/v1/books"};
+    option (shiguchi.graphql) = {name: "books", type: QUERY, description: "The catalogue, paged and sortable"};
   }
 }
 

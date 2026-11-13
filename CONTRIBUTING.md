@@ -63,6 +63,10 @@ Run a sample locally:
 broken link or anchor, or a page missing from `nav`, fails the `Docs site` check. Add a new page to
 `nav`. Links to files outside `docs/` (`../SECURITY.md`) are fine: the site points them at GitHub.
 
+The GraphiQL and Swagger UI screenshots are scripted: see
+[docs/screenshots/README.md](docs/screenshots/README.md) to regenerate them from
+`samples/sample-jpa-backend`.
+
 ## Coding conventions
 
 - **Tests are required** for behavioral changes. Use JUnit 5 with **BDD-style** method

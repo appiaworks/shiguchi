@@ -129,13 +129,13 @@ The console links to the gateway's sibling surfaces for the same services:
 `google.api.http` binding becomes an OpenAPI 3 operation with schemas generated from the
 proto messages:
 
-![Swagger UI](../images/swagger-ui.png)
+![Swagger UI showing GET /v1/books of the sample library catalogue, with its pageSize, pageToken and sort parameters](../images/swagger-ui.png)
 
 **GraphQL / GraphiQL** (`/graphiql`, from `shiguchi-graphql-*-starter`) — methods become
 queries/mutations (from `(shiguchi.graphql)` annotations, or convention-named like
 `libraryListBooks` when unannotated):
 
-![GraphiQL](../images/graphiql.png)
+![GraphiQL running a books query with a sort argument and edges/node selection, and the paged result](../images/graphiql.png)
 
 ## Push
 
