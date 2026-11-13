@@ -101,6 +101,39 @@ class GrpcUiServiceTest {
         assertThat(config.graphqlEnabled()).isFalse();
     }
 
+    @Test
+    @DisplayName("GIVEN no GraphQL path settings WHEN asking for the config SHOULD report /graphql and no WebSocket")
+    void given_noGraphqlSettings_when_askingForConfig_should_reportDefaultEndpointAndNoSocket() {
+        var config = linkService(new GatewayProperties(), new MockEnvironment(), true, true)
+                .config("/app");
+
+        assertThat(config.graphqlEndpoint()).isEqualTo("/app/graphql");
+        assertThat(config.graphqlWebSocketPath()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("GIVEN Spring GraphQL HTTP and WebSocket paths WHEN asking for the config SHOULD report both")
+    void given_graphqlPaths_when_askingForConfig_should_reportEndpointAndSocket() {
+        var env = new MockEnvironment()
+                .withProperty("spring.graphql.http.path", "/api/gql")
+                .withProperty("spring.graphql.websocket.path", "/api/gql/ws");
+
+        var config = linkService(new GatewayProperties(), env, true, true).config("/app");
+
+        assertThat(config.graphqlEndpoint()).isEqualTo("/app/api/gql");
+        assertThat(config.graphqlWebSocketPath()).isEqualTo("/app/api/gql/ws");
+    }
+
+    @Test
+    @DisplayName("GIVEN only the DGS path WHEN asking for the config SHOULD use it as the endpoint")
+    void given_dgsPath_when_askingForConfig_should_useItAsEndpoint() {
+        var env = new MockEnvironment().withProperty("dgs.graphql.path", "/dgs");
+
+        var config = linkService(new GatewayProperties(), env, true, true).config("");
+
+        assertThat(config.graphqlEndpoint()).isEqualTo("/dgs");
+    }
+
     private static GrpcUiService linkService(
             GatewayProperties props, MockEnvironment env, boolean swaggerPresent, boolean graphqlPresent) {
         var serde = new SerdeSelector(new StaticSerdeDetector(), new DynamicProtoSerde(new GrpcDescriptorCache()));

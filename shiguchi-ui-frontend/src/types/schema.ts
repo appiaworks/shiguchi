@@ -73,6 +73,8 @@ export interface GatewayUiLinks {
   pushEnabled?: boolean
   pushPath?: string
   pushAdminPath?: string
+  graphqlEndpoint?: string
+  graphqlWebSocketPath?: string
 }
 
 export interface InvokeResponse {

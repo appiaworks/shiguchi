@@ -109,7 +109,11 @@ public final class GrpcUiSchemaDto {
             /** Base path of the push endpoints ({@code /push}), for the tail's WebSocket. */
             String pushPath,
             /** The {@code gateway-push} actuator endpoint ({@code /actuator/gateway-push}). */
-            String pushAdminPath) {}
+            String pushAdminPath,
+            /** The GraphQL HTTP endpoint ({@code /graphql}); GraphiQL posts its queries here. */
+            String graphqlEndpoint,
+            /** The GraphQL WebSocket endpoint for subscriptions, or empty when none is configured. */
+            String graphqlWebSocketPath) {}
 
     public record InvokeResponse(
             /** JSON string response; null on error */
