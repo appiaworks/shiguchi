@@ -13,6 +13,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.Environment;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.RouterFunctions;
@@ -57,12 +58,14 @@ public class GrpcUiConfig {
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
-    public RouterFunction<ServerResponse> grpcUiRouterFunction(GatewayProperties props, GrpcUiController controller) {
+    public RouterFunction<ServerResponse> grpcUiRouterFunction(
+            GatewayProperties props, GrpcUiController controller, Environment environment) {
 
         String path = props.getUi().getPath();
 
         RouterFunctions.Builder builder = RouterFunctions.route();
-        if (props.getGraphql().isEnabled()) {
+        if (props.getGraphql().isEnabled()
+                && environment.getProperty("dgs.graphql.graphiql.enabled", Boolean.class, true)) {
             // The gateway's own GraphiQL page (bundled assets, console CSP); wins over Spring GraphQL's stock page.
             builder.GET(GRAPHIQL_PATH, req -> redirectToGraphiql(req, path));
         }

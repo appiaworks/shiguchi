@@ -140,7 +140,8 @@ code with PKCE, and client credentials, driven by `shiguchi.openapi.security-sch
 in memory (a reload signs out) and is sent as `Authorization` or the scheme's API-key header on every
 query. When `spring.graphql.websocket.path` is set, subscriptions run over `graphql-transport-ws` on the same
 origin and the credential is sent in the `connection_init` payload (a browser cannot set WebSocket headers), so
-the server's WebSocket interceptor must read it from there. Without the console, Spring GraphQL's stock page is served instead, without sign-in:
+the gateway reads a `{"Authorization": "Bearer <jwt>"}` payload and authenticates the socket with the same JWT decoder and converter as
+the HTTP chain (a rejected token closes the connection; API keys are not read from the payload). Without the console, Spring GraphQL's stock page is served instead, without sign-in:
 
 ![GraphiQL running a books query with a sort argument and edges/node selection, and the paged result](../images/graphiql.png)
 

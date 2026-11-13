@@ -18,7 +18,9 @@ class GrpcUiCallbackPageTest {
     private WebTestClient clientAt(String uiPath) {
         var props = new GatewayProperties();
         props.getUi().setPath(uiPath);
-        var router = new GrpcUiConfig().grpcUiRouterFunction(props, mock(GrpcUiController.class));
+        var router = new GrpcUiConfig()
+                .grpcUiRouterFunction(
+                        props, mock(GrpcUiController.class), new org.springframework.mock.env.MockEnvironment());
         return WebTestClient.bindToRouterFunction(router).build();
     }
 
