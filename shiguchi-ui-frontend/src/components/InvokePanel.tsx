@@ -52,6 +52,7 @@ export function InvokePanel() {
   const [saveToFile, setSaveToFile] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [modeError, setModeError] = useState<string | null>(null)
+  const [schemaTab, setSchemaTab] = useState<'input' | 'output'>('input')
   const [copied, setCopied] = useState<'curl' | 'grpcurl' | null>(null)
 
   // Ctrl/Cmd+Enter sends. Registered here rather than on the editor so it works wherever focus is
@@ -497,11 +498,29 @@ export function InvokePanel() {
 
             <Panel defaultSize="35%" minSize="20%">
               <div className="h-full flex flex-col">
-                <div className="px-3 py-1 text-[12px] text-slate-600 border-b border-slate-700 shrink-0">
-                  INPUT SCHEMA
+                <div role="tablist" className="flex border-b border-slate-700 shrink-0 text-[12px]">
+                  {(['input', 'output'] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      role="tab"
+                      aria-selected={schemaTab === tab}
+                      onClick={() => setSchemaTab(tab)}
+                      className={`px-3 py-1 uppercase ${
+                        schemaTab === tab
+                          ? 'text-slate-200 border-b-2 border-blue-500'
+                          : 'text-slate-600 hover:text-slate-300'
+                      }`}
+                    >
+                      {tab} schema
+                    </button>
+                  ))}
                 </div>
                 <div className="flex-1 min-h-0">
-                  <SchemaDoc schema={selectedMethod.inputSchema} />
+                  {schemaTab === 'output' && selectedMethod.outputSchema ? (
+                    <SchemaDoc schema={selectedMethod.outputSchema} />
+                  ) : (
+                    <SchemaDoc schema={selectedMethod.inputSchema} />
+                  )}
                 </div>
               </div>
             </Panel>

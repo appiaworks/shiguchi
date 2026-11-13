@@ -30,6 +30,7 @@ export interface MethodSchema {
   methodType: MethodType
   inputSchema: MessageSchema
   outputTypeName: string
+  outputSchema?: MessageSchema
   httpMethod?: string
   httpPath?: string
 }

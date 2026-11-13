@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- gRPC console: the schema panel has an **OUTPUT SCHEMA** tab next to the input schema, showing the response message (
+  `api/schema` methods now carry `outputSchema`).
+
 ### Fixed
 
 - Swagger UI: the Authorize dialog no longer pre-fills one scheme's `client-id` into every OAuth2 scheme. The id is seeded only when the configuration has a single `oauth2` scheme (Swagger UI's `initOAuth` is global); with several, set `springdoc.swagger-ui.oauth.client-id` or type the id.

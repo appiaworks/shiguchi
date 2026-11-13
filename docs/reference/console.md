@@ -12,7 +12,7 @@ its servlet counterpart (`dev.appiaworks.shiguchi.ui.servlet`). For a tour of th
 | `{path}` and `{path}/` | GET | Redirect (302, context-path aware) to `{path}/index.html` |
 | `{path}/**` | GET | The bundled single-page app, from `classpath:/static/grpc-ui/` |
 | `{path}/api/config` | GET | Links to the sibling surfaces and the configured auth providers |
-| `{path}/api/schema` | GET | Every discovered service, method and input schema |
+| `{path}/api/schema` | GET | Every discovered service, method, and its input and output schema |
 | `{path}/api/invoke` | POST | Unary or client-streaming call |
 | `{path}/api/invoke/stream` | POST | Server-streaming call, as server-sent events |
 | `{path}/api/auth/{scheme}/token` | POST | Server-side OAuth2 `client_credentials` exchange |

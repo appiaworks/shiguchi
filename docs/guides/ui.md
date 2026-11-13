@@ -62,8 +62,8 @@ Working top to bottom:
   {"id": 1}
   ```
 
-  The **INPUT SCHEMA** panel on the right shows the message structure with field types
-  (`id : int64`), so you never need the `.proto` file open. Note the proto3 JSON rules:
+  The schema panel on the right shows the request message structure with field types
+  (`id : int64`), so you never need the `.proto` file open. Its **OUTPUT SCHEMA** tab shows the response message the same way. Note the proto3 JSON rules:
   int64 accepts a number or a string, field names accept camelCase or snake_case.
 
 ### The response
