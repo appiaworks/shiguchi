@@ -104,6 +104,7 @@ nav:
       - Proto options: reference/proto-options.md
       - GraphQL: reference/graphql.md
       - OpenAPI: reference/openapi.md
+      - Console: reference/console.md
       - Backend helpers: reference/backend-support.md
       - Comparison: concepts/comparison.md
       - Troubleshooting: operations/troubleshooting.md

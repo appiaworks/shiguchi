@@ -225,4 +225,4 @@ shiguchi:
     enabled: true
 ```
 
-> Reference: [OpenAPI reference](../reference/openapi.md) lists the full mapping rules, keys and defaults.
+> Reference: [Console reference](../reference/console.md) lists the routes and JSON shapes; the [OpenAPI reference](../reference/openapi.md) lists the full mapping rules, keys and defaults.
