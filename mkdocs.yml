@@ -102,6 +102,8 @@ nav:
       - Tutorial: getting-started/tutorial.md
       - Configuration: reference/configuration.md
       - Proto options: reference/proto-options.md
+      - GraphQL: reference/graphql.md
+      - OpenAPI: reference/openapi.md
       - Backend helpers: reference/backend-support.md
       - Comparison: concepts/comparison.md
       - Troubleshooting: operations/troubleshooting.md

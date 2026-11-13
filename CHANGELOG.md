@@ -8,7 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `scripts/ui-smoke`: a headless-Chromium smoke test that loads the gRPC console, GraphiQL and Swagger UI of a running gateway and fails on a blank page, a CSP violation or a console error. Runs nightly in CI; `sample-discovery-gateway` now also serves the console and GraphiQL.
 
+- **Breaking (wire format):** REST errors are now RFC 9457 `application/problem+json` and GraphQL errors carry `extensions.code` and `fieldErrors` by default. Set `shiguchi.rest.error-format: GRPC` and `shiguchi.graphql.error-format: GRPC` to keep the old `{code, message, details}` / raw `details` shape.
+- `shiguchi.rest.error-format: PROBLEM_JSON` (RFC 9457 `application/problem+json`, `BadRequest` flattened to `errors`) and `shiguchi.graphql.error-format: NATIVE` (`extensions.code`, `fieldErrors` with the GraphQL argument path). Both default to the current gRPC shape. A GraphQL error from a bare `StatusRuntimeException` now carries the backend's details too.
+- `shiguchi.openapi.security-schemes.<id>.authorization-code.client-id` (also on `client-credentials`): a public OAuth2 client id the gRPC console pre-fills (a value saved in the browser wins) and Swagger UI uses when exactly one scheme sets it. No client secret property.
+- gRPC UI: **from file…** loads the messages of a client-streaming call from an NDJSON or JSON-array file.
+- gRPC UI: server-streaming responses keep only the last 1000 messages in the browser (the **keep last** field changes it, 0 = all) and can be written to an NDJSON file as they arrive (**save to file**, Chromium only).
 - `shiguchi-backend-support` and `shiguchi-backend-support-jpa` (both `EXPERIMENTAL`): helpers for the
   backend behind a list method. `SortSpec` (allow-listed `sort_fields`, tie-breaker), `MaskSpec`
   (`read_mask` to columns), `PageWindow` / `PageCursor` (clamped page size, offset or keyset tokens,
@@ -24,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`edges`, `totalCount`) as `read_mask` paths, which made a backend that honours the mask return every
   field blank except the identity ones. The mask is now the selected node fields, as `?fields=` is on REST.
 
+- GraphiQL rendered blank under the default `shiguchi.headers.content-security-policy`: the page loads its code from `esm.sh`, runs inline bootstrap scripts and starts Monaco workers from `blob:` URLs. `/graphiql` now gets its own policy, `shiguchi.headers.graphiql-content-security-policy`; the console and Swagger keep the strict one.
 - `read_mask` reached the backend as a single path containing the text `{paths=[title]}` instead of `title`, so
   a backend that honoured the mask selected nothing. REST (`?fields=`, `X-Fields`) and the GraphQL selection-set
   pushdown both build the mask as `{"paths": [...]}`, and the conversion to `google.protobuf.FieldMask` treated
@@ -31,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- gRPC UI: larger text (base font 13 to 15 px, the smallest labels 9-11 px to 11-12 px), and the global auth panel now opens in the page flow and pushes the main area down instead of covering it.
 - gRPC console: the **Form** tab is now the default request input (JSON is the second tab) and the last choice is remembered per browser. Restoring a history entry keeps the current tab. Client-streaming calls get a *copy of #1* button.
 
 ## [0.20.0] - 2026-11-11

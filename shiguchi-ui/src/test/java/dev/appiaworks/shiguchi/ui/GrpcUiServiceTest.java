@@ -55,6 +55,25 @@ class GrpcUiServiceTest {
     }
 
     @Test
+    @DisplayName("GIVEN an authorization-code flow with a client id WHEN asking SHOULD expose it to the console")
+    void given_flowWithClientId_when_askingForConfig_should_exposeIt() {
+        var flow = new OpenApiConfig.SecuritySchemeConfig.OAuthFlowConfig();
+        flow.setAuthorizationUrl("https://idp/auth");
+        flow.setClientId("public-client");
+        var scheme = new OpenApiConfig.SecuritySchemeConfig();
+        scheme.setType("oauth2");
+        scheme.setAuthorizationCode(flow);
+        var props = new GatewayProperties();
+        props.getOpenapi().getSecuritySchemes().put("sso", scheme);
+
+        var config = service(props, new GrpcRouteRegistry()).config();
+
+        assertThat(config.authProviders())
+                .singleElement()
+                .satisfies(p -> assertThat(p.authorizationCode().clientId()).isEqualTo("public-client"));
+    }
+
+    @Test
     @DisplayName("GIVEN a context path WHEN asking for the config SHOULD put it in front of every link")
     void given_contextPath_when_askingForConfig_should_prefixEveryLink() {
         var service = service(new GatewayProperties(), new GrpcRouteRegistry());

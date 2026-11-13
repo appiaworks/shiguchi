@@ -101,6 +101,26 @@ field violations, an `ErrorInfo`, a `RetryInfo`, one of its own message types), 
 lists them under the status line, one block per detail headed by its type. A streaming call
 that fails part-way keeps the chunks received so far and shows the failure the same way.
 
+### Client streams from a file
+
+On a client-streaming method, **from file…** in the message-stream header replaces the messages
+with those of a file: NDJSON / JSON Lines (one JSON object per line) or a JSON array. The first
+message fills the request editor and the rest become the extra messages. A malformed file is
+rejected with the offending line and nothing is replaced. The whole file is read into the browser,
+so keep it to what the page can comfortably list.
+
+### Long server streams
+
+A server-streaming call keeps only the last **1000** messages in the response pane, so a stream
+that runs for hours cannot exhaust the browser's memory. The header shows "last 1000 of 25000
+chunks" once older messages have been dropped. Change the number with the **keep last** field next
+to the Stream button (`0` keeps everything); it is remembered per browser.
+
+To keep every message, tick **save to file** before pressing Stream: the console asks for a file and
+writes each message to it as it arrives, one compact JSON object per line (NDJSON), while the pane
+still shows the most recent ones. The option needs the File System Access API (Chromium-based
+browsers) and is hidden elsewhere.
+
 ## The other browser surfaces
 
 The console links to the gateway's sibling surfaces for the same services:
@@ -204,3 +224,5 @@ shiguchi:
   ui:
     enabled: true
 ```
+
+> Reference: [OpenAPI reference](../reference/openapi.md) lists the full mapping rules, keys and defaults.

@@ -29,7 +29,10 @@ export interface InvokeResult {
   /** google.rpc.Status details of a failed call (BadRequest field violations, RetryInfo, ...) */
   errorDetails: unknown[] | null
   durationMs: number | null
+  /** The most recent messages, at most `streamLimit` of them. */
   streamChunks: string[]
+  /** Every message received, including those dropped from `streamChunks`. */
+  streamTotal: number
 }
 
 export interface ProviderDefaults {
@@ -93,6 +96,9 @@ interface GrpcUiState {
   setResult: (result: Partial<InvokeResult>) => void
   appendChunk: (chunk: string) => void
   setResponseTab: (tab: ResponseTab) => void
+  /** How many streamed messages the response pane keeps (0 = all). Persisted per browser. */
+  streamLimit: number
+  setStreamLimit: (limit: number) => void
   toggleService: (serviceName: string) => void
   setSearchText: (text: string) => void
   setGroupBy: (groupBy: GroupBy) => void
@@ -112,6 +118,7 @@ const IDLE_RESULT: InvokeResult = {
   errorDetails: null,
   durationMs: null,
   streamChunks: [],
+  streamTotal: 0,
 }
 
 function loadHistory(): HistoryEntry[] {
@@ -119,6 +126,20 @@ function loadHistory(): HistoryEntry[] {
     return JSON.parse(localStorage.getItem('grpcui-history') ?? '[]') as HistoryEntry[]
   } catch {
     return []
+  }
+}
+
+const STREAM_LIMIT_KEY = 'grpcui-stream-limit'
+const DEFAULT_STREAM_LIMIT = 1000
+
+function loadStreamLimit(): number {
+  try {
+    const raw = localStorage.getItem(STREAM_LIMIT_KEY)
+    if (raw === null) return DEFAULT_STREAM_LIMIT
+    const n = Number(raw)
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : DEFAULT_STREAM_LIMIT
+  } catch {
+    return DEFAULT_STREAM_LIMIT
   }
 }
 
@@ -165,6 +186,7 @@ export const useGrpcUiStore = create<GrpcUiState>((set) => ({
   metadataEntries: [],
   result: IDLE_RESULT,
   responseTab: 'pretty',
+  streamLimit: loadStreamLimit(),
   expandedServices: new Set(),
   searchText: '',
   groupBy: 'configName',
@@ -213,9 +235,27 @@ export const useGrpcUiStore = create<GrpcUiState>((set) => ({
     set((s) => ({ result: { ...s.result, ...partial } })),
 
   appendChunk: (chunk) =>
-    set((s) => ({
-      result: { ...s.result, streamChunks: [...s.result.streamChunks, chunk] },
-    })),
+    set((s) => {
+      const limit = s.streamLimit
+      const chunks = [...s.result.streamChunks, chunk]
+      return {
+        result: {
+          ...s.result,
+          streamChunks: limit > 0 && chunks.length > limit ? chunks.slice(chunks.length - limit) : chunks,
+          streamTotal: s.result.streamTotal + 1,
+        },
+      }
+    }),
+
+  setStreamLimit: (limit) => {
+    const streamLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 0
+    try {
+      localStorage.setItem(STREAM_LIMIT_KEY, String(streamLimit))
+    } catch {
+      /* storage unavailable */
+    }
+    set({ streamLimit })
+  },
 
   setResponseTab: (responseTab) => set({ responseTab }),
 

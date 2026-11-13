@@ -231,6 +231,24 @@ jobs:
 
           echo "Smoke test passed."
 
+      # The browser surfaces in a real Chromium: the console, GraphiQL and Swagger UI must render
+      # under the gateway's own security headers (a CSP that blocks GraphiQL passed every module
+      # test). Nightly only: Node + a ~90 MB browser download would cost minutes on every PR.
+      - name: Set up Node for the UI smoke test
+        if: success() && github.event_name == 'schedule' && steps.code.outputs.run == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+
+      - name: UI smoke test (nightly)
+        if: success() && github.event_name == 'schedule' && steps.code.outputs.run == 'true'
+        timeout-minutes: 10
+        run: |
+          cd scripts/ui-smoke
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          node smoke.mjs
+
       - name: Stop it
         if: always() && steps.code.outputs.run == 'true'
         run: |

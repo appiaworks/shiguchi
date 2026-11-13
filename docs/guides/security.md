@@ -235,8 +235,11 @@ half looks like when it fails.
   preflight succeeds on a gated surface. It applies to the browser surfaces only; a transcoded
   REST route never gains permissive CORS by accident.
 - **Security headers** (`shiguchi.headers.*`, on by default) send a Content-Security-Policy
-  fitted to the bundled console, GraphiQL and Swagger, plus `Referrer-Policy` and
-  `Permissions-Policy`, on those pages only.
+  fitted to the bundled console and Swagger, plus `Referrer-Policy` and `Permissions-Policy`,
+  on those pages only. GraphiQL gets its own, wider policy
+  (`shiguchi.headers.graphiql-content-security-policy`) because Spring GraphQL's page loads its
+  code from `esm.sh`, runs an inline bootstrap and starts Monaco workers from `blob:` URLs;
+  the console and Swagger stay strict.
 - **The console** invokes through the same dispatch path as REST, so request validation
   applies to it and the bearer token pasted into a call reaches the backend. The per-method
   scope check does not run there: the console is gated as a whole by its surface. It is disabled
@@ -244,6 +247,28 @@ half looks like when it fails.
 - **Swagger's Authorize dialog** is driven by `shiguchi.openapi.security-schemes` and
   `openapi.global-security`, so a bearer or OAuth2 scheme declared there lets a reader try
   gated routes from the page.
+
+  Give an OAuth2 scheme's `authorization-code` flow a `client-id` and operators no longer type
+  the public client id once per browser:
+
+  ```yaml
+  shiguchi:
+    openapi:
+      security-schemes:
+        keycloak-sso:
+          type: oauth2
+          authorization-code:
+            authorization-url: https://sso.example.com/realms/x/protocol/openid-connect/auth
+            token-url: https://sso.example.com/realms/x/protocol/openid-connect/token
+            client-id: my-public-client
+  ```
+
+  The console pre-fills it (a value the operator saved in that browser wins), and Swagger's
+  Authorize dialog does too when exactly one scheme sets a `client-id` and
+  `springdoc.swagger-ui.oauth.client-id` is unset. Swagger's setting is global, so with several
+  schemes set it yourself. The id is public (it is in the authorize URL) and is served to anyone
+  who can open the console, so use it for public PKCE clients only. There is no `client-secret`
+  property; a `client_credentials` secret is still typed by the operator.
 
 ### Skipping the chain for open REST routes
 
