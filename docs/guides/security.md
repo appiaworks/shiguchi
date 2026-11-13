@@ -240,6 +240,15 @@ half looks like when it fails.
   (`shiguchi.headers.graphiql-content-security-policy`) because Spring GraphQL's page loads its
   code from `esm.sh`, runs an inline bootstrap and starts Monaco workers from `blob:` URLs;
   the console and Swagger stay strict.
+  When you configure OAuth2 under `shiguchi.openapi.security-schemes.*`, the origin of each
+  `token-url` is added to the default policy's `connect-src` automatically, because the browser
+  exchanges and refreshes tokens directly with the identity provider (the client-credentials
+  flow goes through the gateway and needs nothing). Nothing else is loosened: `script-src`
+  stays `'self'`, and with no scheme configured the policy is unchanged. A non-empty
+  `shiguchi.headers.content-security-policy` **replaces the whole policy** and is used exactly
+  as written, so list the identity provider's origin in its `connect-src` yourself; an empty
+  value turns the header off. A value identical to the shipped default still counts as the
+  default and gets the origins.
 - **The console** invokes through the same dispatch path as REST, so request validation
   applies to it and the bearer token pasted into a call reaches the backend. The per-method
   scope check does not run there: the console is gated as a whole by its surface. It is disabled

@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- gRPC console: OAuth2 authorization-code (PKCE) sign-in no longer hangs on "loading" under the default Content-Security-Policy. The popup's callback page now loads its script from a same-origin file (`oauth2-callback.js`) instead of an inline script that `script-src 'self'` blocked, and the origins of the configured `shiguchi.openapi.security-schemes.*.token-url` values are added to `connect-src` so the browser can exchange and refresh tokens with the identity provider. `script-src` is unchanged, a custom `shiguchi.headers.content-security-policy` still replaces the default untouched, and an empty one still disables the header.
 - GraphQL: a Relay-style list query (`edges { node { ... } }`) no longer sends the connection's own fields
   (`edges`, `totalCount`) as `read_mask` paths, which made a backend that honours the mask return every
   field blank except the identity ones. The mask is now the selected node fields, as `?fields=` is on REST.

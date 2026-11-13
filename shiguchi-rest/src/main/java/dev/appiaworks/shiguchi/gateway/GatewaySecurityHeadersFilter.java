@@ -1,5 +1,6 @@
 package dev.appiaworks.shiguchi.gateway;
 
+import dev.appiaworks.shiguchi.config.ContentSecurityPolicies;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.HeadersConfig;
 import java.util.LinkedHashMap;
@@ -61,7 +62,7 @@ public class GatewaySecurityHeadersFilter implements WebFilter {
         this.paths = GatewayCorsConfiguration.defaultBrowserPaths(properties);
 
         Map<String, String> resolved = new LinkedHashMap<>();
-        putIfSet(resolved, CSP, config.getContentSecurityPolicy());
+        putIfSet(resolved, CSP, ContentSecurityPolicies.effective(properties));
         putIfSet(resolved, REFERRER_POLICY, config.getReferrerPolicy());
         putIfSet(resolved, PERMISSIONS_POLICY, config.getPermissionsPolicy());
         config.getCustom().forEach((name, value) -> putIfSet(resolved, name, value));

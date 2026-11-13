@@ -25,6 +25,9 @@ import org.springframework.web.reactive.function.client.WebClient;
             "shiguchi.ui.enabled=true",
             "shiguchi.graphql.enabled=false",
             "shiguchi.openapi.enabled=false",
+            "shiguchi.openapi.security-schemes.keycloak-sso.type=oauth2",
+            "shiguchi.openapi.security-schemes.keycloak-sso.authorization-code.authorization-url=https://keycloak.example.org/realms/main/protocol/openid-connect/auth",
+            "shiguchi.openapi.security-schemes.keycloak-sso.authorization-code.token-url=https://keycloak.example.org/realms/main/protocol/openid-connect/token",
             "management.endpoints.web.exposure.include=health"
         })
 @DisplayName("Security headers and request id end to end (Boot 4)")
@@ -79,6 +82,19 @@ class SecurityHeadersAndRequestIdEndToEndTest {
         assertThat(graphiql).contains("https://esm.sh").contains("worker-src 'self' blob:");
         assertThat(graphiql).contains("script-src 'self' 'unsafe-inline'");
         assertThat(console).doesNotContain("esm.sh").doesNotContain("worker-src");
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a configured OAuth2 token url WHEN the console and its callback load SHOULD allow that origin in connect-src and keep script-src strict")
+    void given_oauth2Scheme_when_callbackLoads_should_allowTokenOrigin() {
+        String csp = headersOf("/grpc-ui/oauth2-callback.html").getFirst("Content-Security-Policy");
+        assertThat(csp)
+                .contains("connect-src 'self' https://keycloak.example.org;")
+                .contains("script-src 'self';")
+                .doesNotContain("script-src 'self' 'unsafe-inline'");
+        assertThat(headersOf("/grpc-ui/").getFirst("Content-Security-Policy"))
+                .contains("connect-src 'self' https://keycloak.example.org;");
     }
 
     @Test

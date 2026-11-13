@@ -19,6 +19,11 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class HeadersConfig {
+    /** The shipped {@link #contentSecurityPolicy}. Only this exact value is extended with token origins. */
+    public static final String DEFAULT_CONTENT_SECURITY_POLICY = "default-src 'self'; script-src 'self'; "
+            + "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; "
+            + "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+
     /** Send the headers below on the browser surfaces. */
     private boolean enabled = true;
 
@@ -29,12 +34,15 @@ public class HeadersConfig {
      * there for styles only, because those three bundles inject them; scripts are not granted
      * it. Empty disables the header.
      *
+     * <p>While this is left at the default, the gateway appends the origin of every configured
+     * {@code shiguchi.openapi.security-schemes.*} OAuth2 {@code token-url} to {@code connect-src}, because
+     * the console and Swagger UI exchange and refresh tokens straight from the browser. Any other non-empty
+     * value replaces the policy entirely and is sent as written.
+     *
      * <p>Serving your own assets from a CDN, or embedding the console in another page, means
      * replacing this — it is a starting point, not a guarantee.
      */
-    private String contentSecurityPolicy = "default-src 'self'; script-src 'self'; "
-            + "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; "
-            + "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+    private String contentSecurityPolicy = DEFAULT_CONTENT_SECURITY_POLICY;
 
     /**
      * {@code Content-Security-Policy} for {@code /graphiql} only. GraphiQL is not self-contained:

@@ -26,6 +26,7 @@ val npmBuild by tasks.register<com.github.gradle.node.npm.task.NpmTask>("npmBuil
     inputs.dir("${rootProject.projectDir}/shiguchi-ui-frontend/src")
     // The console compiles the push client from source (see vite.config.ts).
     inputs.dir("${rootProject.projectDir}/shiguchi-cursus-client-js/src")
+    inputs.dir("${rootProject.projectDir}/shiguchi-ui-frontend/public")
     inputs.file("${rootProject.projectDir}/shiguchi-ui-frontend/index.html")
     inputs.file("${rootProject.projectDir}/shiguchi-ui-frontend/vite.config.ts")
     outputs.dir(frontendOutputDir)

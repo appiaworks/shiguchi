@@ -162,4 +162,22 @@ class GatewaySecurityHeadersFilterTest {
         assertThat(exchange.getResponse().getHeaders().getFirst(GatewaySecurityHeadersFilter.CSP))
                 .isNotNull();
     }
+
+    @Test
+    @DisplayName(
+            "GIVEN an OAuth2 token url WHEN the console responds SHOULD allow that origin in connect-src, not on GraphiQL")
+    void given_tokenUrl_when_responding_should_widenConnectSrcOnConsoleOnly() {
+        var flow = new dev.appiaworks.shiguchi.config.OpenApiConfig.SecuritySchemeConfig.OAuthFlowConfig();
+        flow.setTokenUrl("https://keycloak.example.org/realms/main/protocol/openid-connect/token");
+        var scheme = new dev.appiaworks.shiguchi.config.OpenApiConfig.SecuritySchemeConfig();
+        scheme.setType("oauth2");
+        scheme.setAuthorizationCode(flow);
+        properties.getOpenapi().getSecuritySchemes().put("keycloak-sso", scheme);
+
+        assertThat(headersFor(get("/grpc-ui/oauth2-callback.html")).getFirst(GatewaySecurityHeadersFilter.CSP))
+                .contains("connect-src 'self' https://keycloak.example.org;")
+                .contains("script-src 'self';");
+        assertThat(headersFor(get("/graphiql")).getFirst(GatewaySecurityHeadersFilter.CSP))
+                .doesNotContain("keycloak.example.org");
+    }
 }

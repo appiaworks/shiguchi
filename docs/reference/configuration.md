@@ -117,7 +117,7 @@ spring:
 | `shiguchi.openapi.global-security` | `[]` | Scheme ids applied as global security requirement |
 | `shiguchi.openapi.security-schemes.*` | `{}` | Named schemes for the Swagger Authorize dialog (`type`: `http`/`apiKey`/`oauth2`/`openIdConnect` with the usual sub-fields). An `authorization-code` or `client-credentials` flow also takes `client-id`, a public client id the gRPC console pre-fills (and Swagger, when only one scheme sets it); never a secret |
 | `shiguchi.headers.enabled` | `true` | Security response headers on the browser surfaces (console, GraphiQL, GraphQL, Swagger) — never on transcoded REST routes |
-| `shiguchi.headers.content-security-policy` | a policy fitting the bundled pages | `Content-Security-Policy`. Replace it when serving your own assets or embedding the console; empty disables the header |
+| `shiguchi.headers.content-security-policy` | a policy fitting the bundled pages | `Content-Security-Policy`. Replace it when serving your own assets or embedding the console; empty disables the header. The origin of every configured `shiguchi.openapi.security-schemes.*.token-url` is appended to the default's `connect-src` automatically; a non-empty value you set replaces the whole policy and is not rewritten |
 | `shiguchi.headers.graphiql-content-security-policy` | allows `esm.sh`, inline script/style, `blob:` workers | `Content-Security-Policy` for `/graphiql` only (the page loads its code from the CDN); empty falls back to `content-security-policy` |
 | `shiguchi.headers.referrer-policy` | `no-referrer` | `Referrer-Policy`; empty keeps Spring Security's default |
 | `shiguchi.headers.permissions-policy` | device APIs off | `Permissions-Policy`; empty disables the header |
