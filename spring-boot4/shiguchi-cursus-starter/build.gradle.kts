@@ -9,6 +9,8 @@ dependencies {
     testImplementation(project(":shiguchi-graphql-spring-boot4-starter"))
     // The cursus command line, run in-process by PushCliEndToEndTest.
     testImplementation(project(":shiguchi-cursus-cli"))
+    // The CLI keeps picocli off its API; javac reads its annotations (ScopeType) from the class files.
+    testCompileOnly(libs.picocli)
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.reactor.test)
     // The WebSocket test parses frames with Jackson 2, which the push module does not export.

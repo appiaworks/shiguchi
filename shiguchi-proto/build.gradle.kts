@@ -15,7 +15,7 @@ tasks.named<ProcessResources>("processResources") {
 // automatically, which covers JVM consumers. Everyone else -- a Go, Rust, Python or buf
 // toolchain that wants these on its protoc include path -- has no reason to know what a Maven
 // jar is. A zip at a predictable coordinate is something any build can fetch and unzip.
-val protosZip by tasks.registering(Zip::class) {
+val protosZip = tasks.register<Zip>("protosZip") {
     archiveClassifier.set("protos")
     from("src/main/proto")
     // The archive must reproduce the import paths verbatim: `import
@@ -24,8 +24,8 @@ val protosZip by tasks.registering(Zip::class) {
     includeEmptyDirs = false
 }
 
-artifacts {
-    archives(protosZip)
+tasks.named("assemble") {
+    dependsOn(protosZip)
 }
 
 publishing {

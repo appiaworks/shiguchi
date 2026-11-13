@@ -14,7 +14,7 @@ plugins {
 
 // protoc starts a plugin as a program: a script that runs the plugin module's classes on the
 // JVM running Gradle, as the plugin module's own test build does.
-val protocJavaExtras: Configuration by configurations.creating
+val protocJavaExtras: Configuration = configurations.create("protocJavaExtras")
 
 val launcherFile = layout.buildDirectory.file(
     if (OperatingSystem.current().isWindows) "protoc-launcher/protoc-gen-javaextras.bat"
@@ -91,7 +91,7 @@ dependencies {
 // files must be concatenated across jars, not taken from whichever jar came first — or the
 // gateway's auto-configurations (GatewayHttpBenchmark) and the serde code generator are missing.
 val springMetaDir = layout.buildDirectory.dir("spring-meta")
-val mergeSpringMeta by tasks.registering {
+val mergeSpringMeta = tasks.register("mergeSpringMeta") {
     val classpath = configurations.named("jmhRuntimeClasspath")
     val out = springMetaDir
     inputs.files(classpath)
@@ -207,7 +207,7 @@ jmh {
 // same derivative) and relabels them avgt; time-mode results pass through untouched. It lives
 // here rather than as a python3 heredoc in the workflow so the job needs nothing beyond
 // what setup-java installs: Gradle's bundled Groovy JSON is enough.
-val jmhNormalise by tasks.registering {
+val jmhNormalise = tasks.register("jmhNormalise") {
     group = "verification"
     description = "Rewrites build/jmh-results.json with throughput scores inverted to time per op"
     val src = layout.buildDirectory.file("jmh-results.json")

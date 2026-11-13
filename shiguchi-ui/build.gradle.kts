@@ -3,7 +3,7 @@ plugins {
 }
 
 node {
-    version.set("22.13.1")
+    version.set("22.23.5")
     npmVersion.set("10.9.2")
     // Download Node automatically — no local Node install required
     download.set(true)
@@ -12,7 +12,7 @@ node {
 
 // ── Frontend build tasks ──────────────────────────────────────────────────
 
-val npmInstall by tasks.named<com.github.gradle.node.npm.task.NpmTask>("npmInstall") {
+val npmInstall = tasks.named<com.github.gradle.node.npm.task.NpmTask>("npmInstall") {
     // Re-run only when package-lock.json changes (files() tolerates absence on first run)
     inputs.files("${rootProject.projectDir}/shiguchi-ui-frontend/package-lock.json")
     outputs.dir("${rootProject.projectDir}/shiguchi-ui-frontend/node_modules")
@@ -20,7 +20,7 @@ val npmInstall by tasks.named<com.github.gradle.node.npm.task.NpmTask>("npmInsta
 
 val frontendOutputDir = layout.buildDirectory.dir("generated/grpc-ui-static")
 
-val npmBuild by tasks.register<com.github.gradle.node.npm.task.NpmTask>("npmBuild") {
+val npmBuild = tasks.register<com.github.gradle.node.npm.task.NpmTask>("npmBuild") {
     dependsOn(npmInstall)
     args.set(listOf("run", "build"))
     inputs.dir("${rootProject.projectDir}/shiguchi-ui-frontend/src")
