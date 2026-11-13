@@ -143,6 +143,14 @@ Full steps (Maven, annotating protos, samples, building from source):
 [docs/getting-started/quick-start.md](docs/getting-started/quick-start.md). A guided walk-through:
 [docs/getting-started/tutorial.md](docs/getting-started/tutorial.md).
 
+## See it
+
+| Console | GraphiQL | Swagger UI |
+| --- | --- | --- |
+| ![Invoking a method from the gRPC console](docs/images/grpc-ui-invoke.png) | ![GraphiQL running a query against the sample schema](docs/images/graphiql.png) | ![Swagger UI listing the generated operations](docs/images/swagger-ui.png) |
+
+The embedded gRPC console, GraphiQL and Swagger UI, all generated from the same protos ([console guide](docs/guides/ui.md)).
+
 ## Features
 
 Schema discovery without codegen, REST/JSON transcoding, GraphQL with Apollo Federation, OpenAPI

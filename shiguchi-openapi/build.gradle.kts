@@ -7,7 +7,7 @@ dependencies {
     // POM does not pin one.
     compileOnly(libs.springdoc.webflux)
     // DownstreamSpecMerger binds downstream specs through swagger-core's Json/Yaml mappers, which
-    // are Jackson 2 ObjectMappers (swagger-core 2.2.x has no Jackson 3 API), so this one module
+    // are Jackson 2 ObjectMappers (swagger-core 2.2.x has no Jackson 3 API; 2.2.55 is the latest release, checked 2026-11-12), so this one module
     // stays on Jackson 2 at that seam. springdoc supplies it at runtime; the version is the BOM's.
     compileOnly("com.fasterxml.jackson.core:jackson-databind")
     implementation("jakarta.annotation:jakarta.annotation-api")

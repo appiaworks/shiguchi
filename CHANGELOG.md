@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Docs: a GraphQL cookbook (one example per feature, curl and GraphiQL), the console reference page, scripted GraphiQL and Swagger UI screenshots, and console, GraphiQL and Swagger UI screenshots in the README.
 - `scripts/ui-smoke`: a headless-Chromium smoke test that loads the gRPC console, GraphiQL and Swagger UI of a running gateway and fails on a blank page, a CSP violation or a console error. Runs nightly in CI; `sample-discovery-gateway` now also serves the console and GraphiQL.
 
 - **Breaking (wire format):** REST errors are now RFC 9457 `application/problem+json` and GraphQL errors carry `extensions.code` and `fieldErrors` by default. Set `shiguchi.rest.error-format: GRPC` and `shiguchi.graphql.error-format: GRPC` to keep the old `{code, message, details}` / raw `details` shape.
