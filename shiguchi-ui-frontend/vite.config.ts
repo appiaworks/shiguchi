@@ -16,6 +16,12 @@ export default defineConfig({
   build: {
     outDir: '../shiguchi-ui/build/generated/grpc-ui-static/static/grpc-ui',
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        graphiql: fileURLToPath(new URL('./graphiql.html', import.meta.url)),
+      },
+    },
     // Monaco is several megabytes and is deliberately in its own lazily-loaded chunks (see
     // LazyEditor). The default 500 kB warning is about the entry chunk being too big to be
     // worth downloading up front; these chunks are not downloaded up front.

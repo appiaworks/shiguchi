@@ -69,6 +69,46 @@ class ServletUiPathAndSwitchTest {
     @SpringBootTest(
             classes = ServletUiTestApp.class,
             webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+            properties = {"shiguchi.ui.enabled=true", "shiguchi.ui.path=/tools/grpc"})
+    @DisplayName("GraphiQL page with the UI enabled")
+    class GraphiqlPage {
+
+        @Value("${local.server.port}")
+        private int port;
+
+        @Test
+        @DisplayName(
+                "GIVEN GraphQL is enabled WHEN requesting /graphiql SHOULD redirect to the bundled page under the UI path")
+        void given_graphqlEnabled_when_requestingGraphiql_should_redirectToBundledPage() throws Exception {
+            HttpResponse<String> response = new UiHttp(port).get("/graphiql");
+
+            assertThat(response.statusCode()).isEqualTo(307);
+            assertThat(response.headers().firstValue("Location").orElse("")).endsWith("/tools/grpc/graphiql.html");
+        }
+    }
+
+    @Nested
+    @SpringBootTest(
+            classes = ServletUiTestApp.class,
+            webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+            properties = {"shiguchi.ui.enabled=true", "shiguchi.graphql.enabled=false"})
+    @DisplayName("GraphiQL page with GraphQL switched off")
+    class GraphiqlOff {
+
+        @Value("${local.server.port}")
+        private int port;
+
+        @Test
+        @DisplayName("GIVEN GraphQL is disabled WHEN requesting /graphiql SHOULD not redirect")
+        void given_graphqlDisabled_when_requestingGraphiql_should_notRedirect() throws Exception {
+            assertThat(new UiHttp(port).get("/graphiql").statusCode()).isNotEqualTo(307);
+        }
+    }
+
+    @Nested
+    @SpringBootTest(
+            classes = ServletUiTestApp.class,
+            webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
             properties = {"shiguchi.ui.enabled=true", "server.servlet.context-path=/app"})
     @DisplayName("with server.servlet.context-path=/app")
     class ContextPath {

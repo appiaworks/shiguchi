@@ -11,6 +11,8 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.RouterFunctions;
@@ -36,6 +38,9 @@ import reactor.core.publisher.Mono;
 @ConditionalOnProperty(prefix = "shiguchi.ui", name = "enabled", havingValue = "true")
 public class GrpcUiConfig {
 
+    /** Path the GraphiQL page is reachable at; redirects to {@code {ui.path}/graphiql.html}. */
+    static final String GRAPHIQL_PATH = "/graphiql";
+
     private static final Logger log = LoggerFactory.getLogger(GrpcUiConfig.class);
 
     @Value("${server.port:8080}")
@@ -51,12 +56,17 @@ public class GrpcUiConfig {
     }
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
     public RouterFunction<ServerResponse> grpcUiRouterFunction(GatewayProperties props, GrpcUiController controller) {
 
         String path = props.getUi().getPath();
 
-        return RouterFunctions.route()
-                .GET(path + "/api/config", controller::handleGetConfig)
+        RouterFunctions.Builder builder = RouterFunctions.route();
+        if (props.getGraphql().isEnabled()) {
+            // The gateway's own GraphiQL page (bundled assets, console CSP); wins over Spring GraphQL's stock page.
+            builder.GET(GRAPHIQL_PATH, req -> redirectToGraphiql(req, path));
+        }
+        return builder.GET(path + "/api/config", controller::handleGetConfig)
                 .GET(path + "/api/schema", controller::handleGetSchema)
                 .POST(path + "/api/invoke", controller::handleInvoke)
                 .POST(path + "/api/invoke/stream", controller::handleStream)
@@ -71,6 +81,13 @@ public class GrpcUiConfig {
     private static Mono<ServerResponse> redirectToIndex(ServerRequest request, String path) {
         String contextPath = request.requestPath().contextPath().value();
         return ServerResponse.temporaryRedirect(URI.create(contextPath + path + "/index.html"))
+                .build();
+    }
+
+    /** Redirects /graphiql to the bundled GraphiQL page so its relative URLs resolve inside the UI directory. */
+    private static Mono<ServerResponse> redirectToGraphiql(ServerRequest request, String path) {
+        String contextPath = request.requestPath().contextPath().value();
+        return ServerResponse.temporaryRedirect(URI.create(contextPath + path + "/graphiql.html"))
                 .build();
     }
 }

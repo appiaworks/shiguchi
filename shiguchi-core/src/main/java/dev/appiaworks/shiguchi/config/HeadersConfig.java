@@ -45,8 +45,10 @@ public class HeadersConfig {
     private String contentSecurityPolicy = DEFAULT_CONTENT_SECURITY_POLICY;
 
     /**
-     * {@code Content-Security-Policy} for {@code /graphiql} only. GraphiQL is not self-contained:
-     * Spring GraphQL's page loads its scripts and stylesheets from {@code esm.sh}, runs an inline
+     * {@code Content-Security-Policy} for Spring GraphQL's stock {@code /graphiql} page, which is
+     * served only when the console ({@code shiguchi.ui.enabled}) is off; the console's own GraphiQL
+     * page is bundled and uses {@link #contentSecurityPolicy}. The stock page is not self-contained:
+     * it loads its scripts and stylesheets from {@code esm.sh}, runs an inline
      * import map and bootstrap script, and starts Monaco's workers from {@code blob:} URLs, so the
      * strict policy above would leave it blank. The default allows exactly that and nothing wider;
      * the console and Swagger keep the strict policy. Empty falls back to

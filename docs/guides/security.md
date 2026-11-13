@@ -236,10 +236,11 @@ half looks like when it fails.
   REST route never gains permissive CORS by accident.
 - **Security headers** (`shiguchi.headers.*`, on by default) send a Content-Security-Policy
   fitted to the bundled console and Swagger, plus `Referrer-Policy` and `Permissions-Policy`,
-  on those pages only. GraphiQL gets its own, wider policy
-  (`shiguchi.headers.graphiql-content-security-policy`) because Spring GraphQL's page loads its
-  code from `esm.sh`, runs an inline bootstrap and starts Monaco workers from `blob:` URLs;
-  the console and Swagger stay strict.
+  on those pages only. GraphiQL served by the console (`shiguchi.ui.enabled=true`) is part of the
+  bundle and uses the same strict policy. Only Spring GraphQL's stock page, which is served when
+  the console is off, gets its own, wider policy
+  (`shiguchi.headers.graphiql-content-security-policy`) because it loads its code from `esm.sh`,
+  runs an inline bootstrap and starts Monaco workers from `blob:` URLs.
   When you configure OAuth2 under `shiguchi.openapi.security-schemes.*`, the origin of each
   `token-url` is added to the default policy's `connect-src` automatically, because the browser
   exchanges and refreshes tokens directly with the identity provider (the client-credentials

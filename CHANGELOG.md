@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- GraphiQL: with the console enabled, `/graphiql` is now the gateway's own page, bundled into the console (no `esm.sh`), with an **Authorize** button offering the console's sign-in methods (bearer, API key, OAuth2 PKCE, client credentials) from `shiguchi.openapi.security-schemes`. The token is kept in memory and sent on every query. Under the strict console CSP; the stock page and its wider `shiguchi.headers.graphiql-content-security-policy` apply only when the console is off.
 - gRPC console: the schema panel has an **OUTPUT SCHEMA** tab next to the input schema, showing the response message (
   `api/schema` methods now carry `outputSchema`).
 

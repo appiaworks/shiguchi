@@ -16,7 +16,11 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@graphiql/react": "^1.0.2",
     "@monaco-editor/react": "^4.6.0",
+    "@graphiql/toolkit": "^1.0.1",
+    "graphiql": "^6.0.1",
+    "graphql": "^17.1.0",
     "monaco-editor": "^0.57.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
