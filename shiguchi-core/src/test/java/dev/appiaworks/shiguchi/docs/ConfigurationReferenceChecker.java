@@ -26,6 +26,10 @@ import java.util.regex.Pattern;
  */
 public final class ConfigurationReferenceChecker {
 
+    /** Names the reference pages print in the property style that are not properties: a context key, a metric. */
+    private static final Set<String> NOT_PROPERTIES =
+            Set.of("shiguchi.graphql.cost", "shiguchi.graphql.response.cache");
+
     private static final String REFERENCE_PATH = "docs/reference/configuration.md";
 
     /** Mirrors a third-party model (OpenAPI SecurityScheme); the reference says "the usual sub-fields". */
@@ -70,7 +74,7 @@ public final class ConfigurationReferenceChecker {
         return missing;
     }
 
-    /** Full property names the reference gives under {@code ownedRoots} that the code does not bind. */
+    /** Full property names any docs/reference page gives under {@code ownedRoots} that the code does not bind. */
     public List<String> unknownDocumented(Set<String> ownedRoots) throws IOException {
         Set<String> known = new TreeSet<>();
         for (String leaf : leaves()) {
@@ -81,15 +85,21 @@ public final class ConfigurationReferenceChecker {
                 known.add(prefix.toString());
             }
         }
-        Matcher m = Pattern.compile("`(shiguchi(?:\\.[a-z0-9-]+(?:\\[\\])?)+)`")
-                .matcher(Files.readString(docs.resolve("reference/configuration.md")));
+        StringBuilder pages = new StringBuilder();
+        try (var files = Files.list(docs.resolve("reference"))) {
+            for (Path page :
+                    files.filter(f -> f.toString().endsWith(".md")).sorted().toList()) {
+                pages.append(Files.readString(page)).append('\n');
+            }
+        }
+        Matcher m = Pattern.compile("`(shiguchi(?:\\.[a-z0-9-]+(?:\\[\\])?)+)`").matcher(pages);
         List<String> unknown = new ArrayList<>();
         while (m.find()) {
             String name = m.group(1).replace("[]", "");
             if (ownedRoots.stream().noneMatch(o -> name.equals(o) || name.startsWith(o + "."))) {
                 continue;
             }
-            if (!known.contains(name)) {
+            if (!known.contains(name) && !NOT_PROPERTIES.contains(name)) {
                 unknown.add(name);
             }
         }

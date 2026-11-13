@@ -157,8 +157,12 @@ rpc ListBooks(ListBooksRequest) returns (ListBooksResponse) {
 
 ```bash
 curl -s localhost:8080/graphql -H 'content-type: application/json' \
-  -d '{"query":"{ books { books { id title } } }"}'
+  -d '{"query":"{ books(first: 5) { edges { node { id title } } } }"}'
 ```
+
+A response with a `page_info` field (as in the paged `ListBooksResponse` used throughout these
+docs) comes back as a Relay connection, hence `edges { node { ... } }`. A response without
+`page_info` is returned as plain fields, e.g. `{ books { books { id title } } }`.
 
 Server-streaming methods become GraphQL subscriptions over WebSocket. Details and the full
 annotation set: [graphql-annotations.md](../guides/graphql-annotations.md).

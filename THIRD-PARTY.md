@@ -25,6 +25,7 @@ compatibility matrix in [README.md](README.md#compatibility).
 | GraphQL Java | via DGS BOM | MIT | https://github.com/graphql-java/graphql-java |
 | springdoc-openapi | 2.9.x / 3.0.x | Apache-2.0 | https://github.com/springdoc/springdoc-openapi |
 | Swagger UI (bundled by springdoc) | via springdoc | Apache-2.0 | https://github.com/swagger-api/swagger-ui |
+| GraphiQL (not bundled: the `/graphiql` page loads it from esm.sh in the browser) | browser-side | MIT | https://github.com/graphql/graphiql |
 | Caffeine | 3.2.4 | Apache-2.0 | https://github.com/ben-manes/caffeine |
 | Apache Avro (`avro`, `shiguchi-avro` only) | 1.12.2 | Apache-2.0 | https://github.com/apache/avro |
 | Jackson | via Boot BOM | Apache-2.0 | https://github.com/FasterXML/jackson |

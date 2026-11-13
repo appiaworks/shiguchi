@@ -47,6 +47,10 @@ License, Version 2.0, and carry their own NOTICE terms:
   - protovalidate-java (https://github.com/bufbuild/protovalidate-java)
     Copyright Buf Technologies, Inc.
 
+  - Swagger UI (https://github.com/swagger-api/swagger-ui), served with the OpenAPI
+    surface through springdoc-openapi
+    Copyright SmartBear Software
+
   - ClassGraph (https://github.com/classgraph/classgraph)
     Copyright Luke Hutchison
 
@@ -60,5 +64,9 @@ The bundled web console assets in `shiguchi-ui` are built from `shiguchi-ui-fron
 and include React (MIT, Copyright Meta Platforms, Inc. and affiliates), Monaco
 Editor (MIT, Copyright Microsoft Corporation), Zustand (MIT), react-resizable-
 panels (MIT), and Tailwind CSS (MIT).
+
+GraphiQL (https://github.com/graphql/graphiql, MIT, Copyright GraphQL Contributors) is not
+bundled: the GraphQL page served by Spring GraphQL loads it from https://esm.sh in the browser
+at run time.
 
 See THIRD-PARTY.md for the full list with versions and license identifiers.
