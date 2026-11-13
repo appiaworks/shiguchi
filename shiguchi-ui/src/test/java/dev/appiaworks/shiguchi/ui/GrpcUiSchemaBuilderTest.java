@@ -70,7 +70,8 @@ class GrpcUiSchemaBuilderTest {
 
         builder.rebuild();
 
-        GrpcUiSchemaDto.MethodSchema method = builder.getSchema().get(0).methods().get(0);
+        GrpcUiSchemaDto.MethodSchema method =
+                builder.getSchema().get(0).methods().get(0);
         assertThat(method.outputSchema().fullName()).isEqualTo(method.outputTypeName());
     }
 
