@@ -1,5 +1,7 @@
 package dev.appiaworks.shiguchi.ui;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.google.protobuf.Any;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
@@ -231,7 +233,7 @@ class GrpcUiControllerTest {
                 .jsonPath("$.errorMessage")
                 .doesNotExist()
                 .jsonPath("$.response")
-                .value(org.hamcrest.Matchers.containsString("hello"));
+                .value(String.class, v -> assertThat(v).contains("hello"));
     }
 
     @Test
@@ -251,7 +253,7 @@ class GrpcUiControllerTest {
                 .jsonPath("$.response")
                 .doesNotExist()
                 .jsonPath("$.errorMessage")
-                .value(org.hamcrest.Matchers.containsString("test.ui.DoesNotExist"));
+                .value(String.class, v -> assertThat(v).contains("test.ui.DoesNotExist"));
     }
 
     @Test
@@ -330,7 +332,7 @@ class GrpcUiControllerTest {
                 .isOk()
                 .expectBody()
                 .jsonPath("$.durationMs")
-                .value(org.hamcrest.Matchers.greaterThanOrEqualTo(0));
+                .value(Integer.class, v -> assertThat(v).isGreaterThanOrEqualTo(0));
     }
 
     @Test
@@ -403,7 +405,7 @@ class GrpcUiControllerTest {
                 .jsonPath("$.grpcStatus")
                 .isEqualTo("OK")
                 .jsonPath("$.response")
-                .value(org.hamcrest.Matchers.containsString("a,b,c"));
+                .value(String.class, v -> assertThat(v).contains("a,b,c"));
     }
 
     @Test
@@ -421,7 +423,7 @@ class GrpcUiControllerTest {
                 .jsonPath("$.grpcStatus")
                 .isEqualTo("OK")
                 .jsonPath("$.response")
-                .value(org.hamcrest.Matchers.containsString("solo"));
+                .value(String.class, v -> assertThat(v).contains("solo"));
     }
 
     private static String invokeRequestJson(String serviceName, String methodName, String payload) {

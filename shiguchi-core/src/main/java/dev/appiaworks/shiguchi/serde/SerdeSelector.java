@@ -203,7 +203,7 @@ public class SerdeSelector {
     }
 
     /**
-     * Converts a DynamicMessage to Map<String,Object> without JSON. Used by the GraphQL dispatch path.
+     * Converts a DynamicMessage to {@code Map<String,Object>} without JSON. Used by the GraphQL dispatch path.
      * Tier 2 uses the generated toMap(); Tier 3 falls back to ProtoMapConverter.
      */
     @SuppressWarnings("unchecked")
@@ -238,7 +238,7 @@ public class SerdeSelector {
     }
 
     /**
-     * Converts a Map<String,Object> to DynamicMessage without JSON. Used by the GraphQL dispatch path.
+     * Converts a {@code Map<String,Object>} to DynamicMessage without JSON. Used by the GraphQL dispatch path.
      * Tier 2 uses the generated fromMap(); Tier 3 falls back to ProtoMapConverter.
      */
     @SuppressWarnings("unchecked")

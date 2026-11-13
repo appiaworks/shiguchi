@@ -337,7 +337,7 @@ val apiCheckedModules = setOf(
     "shiguchi-ui",
 )
 
-val apiCompatibility by tasks.registering {
+val apiCompatibility = tasks.register("apiCompatibility") {
     group = "verification"
     description = "Checks every published module's public API against the last release."
 }

@@ -12,7 +12,7 @@ import java.util.Objects;
  * paged result set and cannot tell it came from more than one backend.
  *
  * <p>Nothing here is pair-specific: two sources and twenty sources run the same code. What grows
- * with N is cursor size, fan-out width, and — in {@link SourceMode#UNSORTED} — buffered memory.
+ * with N is cursor size, fan-out width, and — for sources that are not pre-sorted — buffered memory.
  *
  * @param sources ordered participants. <strong>Order is significant</strong>: a page cursor
  *     addresses sources by their index here, so reordering the list invalidates every cursor

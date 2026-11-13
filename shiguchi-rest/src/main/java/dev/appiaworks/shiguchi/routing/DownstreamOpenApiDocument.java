@@ -164,7 +164,7 @@ public final class DownstreamOpenApiDocument {
 
     /**
      * Picks the media type of a fetched document: the {@code Content-Type} header when it names
-     * JSON or YAML, else a sniff of the first non-blank character ({@code {} = JSON).
+     * JSON or YAML, else a sniff of the first non-blank character (an opening brace means JSON).
      */
     public static String detectMediaType(byte[] raw, String contentTypeHeader) {
         if (contentTypeHeader != null) {

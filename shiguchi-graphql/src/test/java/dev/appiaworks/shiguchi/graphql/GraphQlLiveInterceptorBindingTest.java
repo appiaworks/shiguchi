@@ -67,6 +67,7 @@ class GraphQlLiveInterceptorBindingTest {
                 URI.create("ws://gw/graphql/ws"),
                 new HttpHeaders(),
                 new LinkedMultiValueMap<>(),
+                null,
                 Map.of(),
                 Map.of("query", "query Q @live { item { id } }"),
                 "1",

@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
  *
  * Activated when shiguchi.grpc.enabled=true. Starts as a SmartLifecycle bean
  * at phase Integer.MAX_VALUE so all registry beans (populated by DynamicRouteLoader
- * @PostConstruct) are ready before the port is opened.
+ * {@code @PostConstruct}) are ready before the port is opened.
  *
  * The server exposes:
  *  - GrpcReflectionAggregator: merged server reflection across all downstream services.
