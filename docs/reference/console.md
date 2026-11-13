@@ -32,7 +32,7 @@ Returns the links the header shows and the auth providers the **Auth** dialog of
 | Field | Meaning |
 | --- | --- |
 | `swaggerEnabled`, `swaggerPath` | `shiguchi.openapi.enabled`, and `springdoc.swagger-ui.path` (default `/swagger-ui.html`). `swaggerEnabled` is true only when springdoc is on the classpath and `springdoc.swagger-ui.enabled` is not `false`, so the header link shows only when Swagger UI is served |
-| `graphqlEnabled`, `graphqlPath` | `shiguchi.graphql.enabled`, and `dgs.graphql.graphiql.path` (default `/graphiql`). `graphqlEnabled` is true only when the GraphQL engine is on the classpath and neither `spring.graphql.graphiql.enabled` nor `dgs.graphql.graphiql.enabled` is `false` |
+| `graphqlEnabled`, `graphqlPath` | `shiguchi.graphql.enabled`, and `dgs.graphql.graphiql.path` (default `/graphiql`). `graphqlEnabled` is true only when DGS (which serves GraphiQL) is on the classpath and `dgs.graphql.graphiql.enabled` is not `false` |
 | `grpcProxyEnabled`, `grpcProxyPort` | `shiguchi.grpc.enabled` and the proxy port, shown in the header |
 | `authProviders` | One entry per `shiguchi.openapi.security-schemes.*` (below) |
 | `pushEnabled` | `shiguchi.cursus.enabled`; shows the **Push** button |

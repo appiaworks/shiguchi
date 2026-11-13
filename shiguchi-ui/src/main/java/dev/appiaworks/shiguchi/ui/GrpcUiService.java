@@ -75,7 +75,7 @@ public class GrpcUiService {
     }
 
     private static final String SWAGGER_UI_CLASS = "org.springdoc.core.properties.SwaggerUiConfigProperties";
-    private static final String GRAPHQL_CLASS = "graphql.GraphQL";
+    private static final String GRAPHQL_CLASS = "com.netflix.graphql.dgs.DgsQueryExecutor";
 
     private final GrpcUiSchemaBuilder schemaBuilder;
     private final ReactiveGrpcDispatcher dispatcher;
@@ -146,11 +146,10 @@ public class GrpcUiService {
                 && environment.getProperty("springdoc.swagger-ui.enabled", Boolean.class, true);
     }
 
-    /** GraphiQL is linked only when the GraphQL feature is on, the engine is present and the page is not switched off. */
+    /** GraphiQL is linked only when the GraphQL feature is on, DGS (which serves the page) is present and the page is not switched off. */
     private boolean graphiqlServed() {
         return gatewayProperties.getGraphql().isEnabled()
                 && classPresent(GRAPHQL_CLASS)
-                && environment.getProperty("spring.graphql.graphiql.enabled", Boolean.class, true)
                 && environment.getProperty("dgs.graphql.graphiql.enabled", Boolean.class, true);
     }
 

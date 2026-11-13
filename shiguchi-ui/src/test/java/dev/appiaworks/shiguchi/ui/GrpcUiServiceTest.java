@@ -80,7 +80,7 @@ class GrpcUiServiceTest {
     void given_uisSwitchedOff_when_askingForConfig_should_hideBoth() {
         var env = new MockEnvironment()
                 .withProperty("springdoc.swagger-ui.enabled", "false")
-                .withProperty("spring.graphql.graphiql.enabled", "false");
+                .withProperty("dgs.graphql.graphiql.enabled", "false");
 
         var config = linkService(new GatewayProperties(), env, true, true).config();
 
