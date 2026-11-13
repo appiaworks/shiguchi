@@ -4,7 +4,7 @@
 `samples/sample-jpa-backend`, so they only ever show the sample's catalogue (no real data, no tokens).
 GraphiQL loads from esm.sh, so the capture needs internet.
 
-1. `./gradlew publishToMavenLocal`, then in `samples/` run `sample-jpa-backend:bootRun` (port 8181; on a
+1. `./gradlew publishToMavenLocal`, then in `samples/` run `sample-jpa-backend:bootRun` (port 8080 by default, so pass `BASE_URL`; to capture the console's own `/graphiql` page (Authorize bar) add the `shiguchi-ui-spring-boot4-starter` dependency temporarily and set `SHIGUCHI_UI_ENABLED=true`, otherwise the stock Spring GraphQL page is shot; on a
    machine with a Gradle mirror add `-I` an init script that puts `mavenLocal()` first).
 2. In a scratch directory: `npm i playwright && npx playwright install chromium`.
 3. Copy `capture.mjs` next to that `node_modules` and run `OUT_DIR=<repo>/docs/images/ node capture.mjs` (`BASE_URL` for another port).

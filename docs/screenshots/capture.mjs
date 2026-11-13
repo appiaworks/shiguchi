@@ -20,13 +20,13 @@ const query = `{
 await page.goto(`${base}/graphiql`);
 const editor = page.locator('.graphiql-query-editor').first();
 await editor.waitFor({ timeout: 60000 });
-await page.waitForTimeout(3000);
+await page.waitForTimeout(6000);
 // Paste rather than type: the editor auto-closes braces and auto-indents typed text.
 await page.evaluate((q) => navigator.clipboard.writeText(q), query);
 await editor.click();
 await page.keyboard.press('Control+A');
 await page.keyboard.press('Control+V');
-await page.locator('.graphiql-execute-button').click();
+await page.keyboard.press('Control+Enter'); // run from the editor; the console's page has no stable run-button hook
 await page.waitForTimeout(4000);
 if (process.env.DEBUG_SHOT) await page.screenshot({ path: process.env.DEBUG_SHOT });
 await page.locator('.graphiql-response').getByText('Dune').first().waitFor({ timeout: 30000 });

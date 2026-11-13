@@ -141,9 +141,9 @@ in memory (a reload signs out) and is sent as `Authorization` or the scheme's AP
 query. When `spring.graphql.websocket.path` is set, subscriptions run over `graphql-transport-ws` on the same
 origin and the credential is sent in the `connection_init` payload (a browser cannot set WebSocket headers), so
 the gateway reads a `{"Authorization": "Bearer <jwt>"}` payload and authenticates the socket with the same JWT decoder and converter as
-the HTTP chain (a rejected token closes the connection; API keys are not read from the payload). Without the console, Spring GraphQL's stock page is served instead, without sign-in:
+the HTTP chain (a rejected token closes the connection; API keys are not read from the payload). Without the console, Spring GraphQL's stock page is served instead, without sign-in. The console's page, with the **Authorize** button, running a query:
 
-![GraphiQL running a books query with a sort argument and edges/node selection, and the paged result](../images/graphiql.png)
+![The console's GraphiQL page with its Authorize button, running a books query with a sort argument and edges/node selection, and the paged result](../images/graphiql.png)
 
 ## Push
 

@@ -87,6 +87,46 @@ microseconds ([benchmarks](docs/concepts/performance.md)). Runs on Spring Boot 4
 
 **The gateway does not authenticate callers by default.** Put authentication in front of it before it leaves a trusted network: [SECURITY.md](SECURITY.md), [security guide](docs/guides/security.md).
 
+### Object links, built from the proto
+
+The GraphQL schema is generated from the same descriptor, and a few field options turn an id into a
+link between types. Annotate a `Book` that carries an `author_id`, and `Book.author` appears in the
+schema by itself, batched into one backend call per query:
+
+```proto
+message Author {
+  string id   = 1 [(shiguchi.field) = {id: true, batch_key: true}];
+  string name = 2;
+}
+
+message Book {
+  string id        = 1 [(shiguchi.field) = {id: true, batch_key: true}];
+  string title     = 2;
+  int32  year      = 3;
+  string author_id = 4 [(shiguchi.field) = {id: true, resolves_type: "Author"}];  // becomes Book.author
+}
+
+service Library {
+  rpc ListBooks(ListBooksRequest) returns (ListBooksResponse) {
+    option (shiguchi.graphql) = {name: "books", type: QUERY};
+  }
+  rpc GetAuthorsByIds(GetAuthorsByIdsRequest) returns (GetAuthorsByIdsResponse) {
+    option (shiguchi.graphql) = {name: "authorsByIds", type: QUERY, loader_for: "Author", loader_ids_field: "ids"};
+  }
+}
+```
+
+```graphql
+type Book { id: ID!  title: String  year: Int  authorId: ID  author: Author }   # generated
+```
+
+```graphql
+{ books(first: 2) { edges { node { title author { name } } } } }
+```
+
+However many books come back, the authors are fetched with a single `GetAuthorsByIds` call. The
+rules are in the [GraphQL annotations guide](docs/guides/graphql-annotations.md#how-the-pieces-combine).
+
 ---
 
 ## Architecture
