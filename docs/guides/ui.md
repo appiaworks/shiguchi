@@ -133,7 +133,12 @@ proto messages:
 
 **GraphQL / GraphiQL** (`/graphiql`, from `shiguchi-graphql-*-starter`) — methods become
 queries/mutations (from `(shiguchi.graphql)` annotations, or convention-named like
-`libraryListBooks` when unannotated):
+`libraryListBooks` when unannotated). With the console enabled (`shiguchi.ui.enabled=true`) `/graphiql`
+opens the gateway's own page, built into the console bundle (no CDN), with an **Authorize** button that
+offers the same sign-in methods as the console: a manual bearer token, an API key, OAuth2 authorization
+code with PKCE, and client credentials, driven by `shiguchi.openapi.security-schemes`. The token stays
+in memory (a reload signs out) and is sent as `Authorization` or the scheme's API-key header on every
+query. Without the console, Spring GraphQL's stock page is served instead, without sign-in:
 
 ![GraphiQL running a books query with a sort argument and edges/node selection, and the paged result](../images/graphiql.png)
 

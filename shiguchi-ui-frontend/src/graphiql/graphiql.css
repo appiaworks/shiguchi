@@ -1,0 +1,5 @@
+html, body, #root { height: 100%; margin: 0; }
+.gql-page { display: flex; flex-direction: column; height: 100vh; }
+.gql-bar { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #0f172a; color: #e2e8f0; font: 13px system-ui, sans-serif; }
+.gql-bar button { background: #1e40af; color: #dbeafe; border: 0; border-radius: 4px; padding: 4px 12px; cursor: pointer; }
+.gql-main { flex: 1; min-height: 0; }

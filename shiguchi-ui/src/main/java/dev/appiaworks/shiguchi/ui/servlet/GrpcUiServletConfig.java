@@ -12,6 +12,8 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.web.servlet.function.RouterFunction;
 import org.springframework.web.servlet.function.RouterFunctions;
@@ -30,6 +32,9 @@ import org.springframework.web.servlet.function.ServerResponse;
 @ConditionalOnProperty(prefix = "shiguchi.ui", name = "enabled", havingValue = "true")
 public class GrpcUiServletConfig {
 
+    /** Path the GraphiQL page is reachable at; redirects to {@code {ui.path}/graphiql.html}. */
+    static final String GRAPHIQL_PATH = "/graphiql";
+
     private static final Logger log = LoggerFactory.getLogger(GrpcUiServletConfig.class);
 
     @Value("${server.port:8080}")
@@ -45,13 +50,18 @@ public class GrpcUiServletConfig {
     }
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
     public RouterFunction<ServerResponse> grpcUiServletRouterFunction(
             GatewayProperties props, GrpcUiServletHandler handler) {
 
         String path = props.getUi().getPath();
 
-        return RouterFunctions.route()
-                .GET(path + "/api/config", handler::handleGetConfig)
+        RouterFunctions.Builder builder = RouterFunctions.route();
+        if (props.getGraphql().isEnabled()) {
+            // The gateway's own GraphiQL page (bundled assets, console CSP); wins over Spring GraphQL's stock page.
+            builder.GET(GRAPHIQL_PATH, req -> redirectToGraphiql(req, path));
+        }
+        return builder.GET(path + "/api/config", handler::handleGetConfig)
                 .GET(path + "/api/schema", handler::handleGetSchema)
                 .POST(path + "/api/invoke", handler::handleInvoke)
                 .POST(path + "/api/invoke/stream", handler::handleStream)
@@ -66,6 +76,13 @@ public class GrpcUiServletConfig {
     private static ServerResponse redirectToIndex(ServerRequest request, String path) {
         String contextPath = request.requestPath().contextPath().value();
         return ServerResponse.temporaryRedirect(URI.create(contextPath + path + "/index.html"))
+                .build();
+    }
+
+    /** Redirects /graphiql to the bundled GraphiQL page so its relative URLs resolve inside the UI directory. */
+    private static ServerResponse redirectToGraphiql(ServerRequest request, String path) {
+        String contextPath = request.requestPath().contextPath().value();
+        return ServerResponse.temporaryRedirect(URI.create(contextPath + path + "/graphiql.html"))
                 .build();
     }
 }
