@@ -131,6 +131,17 @@ export async function invokeClientStream(
   return r.json() as Promise<InvokeResponse>
 }
 
+function httpStatusToGrpcCode(status: number): string {
+  switch (status) {
+    case 401: return 'UNAUTHENTICATED'
+    case 403: return 'PERMISSION_DENIED'
+    case 404: return 'NOT_FOUND'
+    case 429: return 'RESOURCE_EXHAUSTED'
+    case 503: return 'UNAVAILABLE'
+    default: return 'UNKNOWN'
+  }
+}
+
 export async function* invokeStream(
   serviceName: string,
   methodName: string,
@@ -157,7 +168,19 @@ export async function* invokeStream(
     signal,
   })
 
-  const reader = r.body!.getReader()
+  if (!r.ok || !r.body) {
+    // An auth filter in front of the console answers with a plain HTTP status, not an SSE body.
+    // Without this the empty body parses to zero events and the panel never leaves "Streaming".
+    const code = httpStatusToGrpcCode(r.status)
+    const text = (await r.text().catch(() => '')).trim().slice(0, 300)
+    yield {
+      event: 'error',
+      data: JSON.stringify({ code, message: text ? `HTTP ${r.status}: ${text}` : `HTTP ${r.status}` }),
+    }
+    return
+  }
+
+  const reader = r.body.getReader()
   const dec = new TextDecoder()
   let buf = ''
   let eventType = ''
@@ -170,11 +193,13 @@ export async function* invokeStream(
     const lines = buf.split('\n')
     buf = lines.pop() ?? ''
 
-    for (const line of lines) {
-      if (line.startsWith('event: ')) {
-        eventType = line.slice(7).trim()
-      } else if (line.startsWith('data: ')) {
-        const data = line.slice(6)
+    for (const rawLine of lines) {
+      // SSE allows CRLF and an optional space after the colon; Spring's writer emits `event:error`.
+      const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine
+      if (line.startsWith('event:')) {
+        eventType = line.slice(6).trim()
+      } else if (line.startsWith('data:')) {
+        const data = line.slice(line.startsWith('data: ') ? 6 : 5)
         if (eventType === 'data' || eventType === 'done' || eventType === 'error') {
           yield { event: eventType, data }
           if (eventType === 'done') return

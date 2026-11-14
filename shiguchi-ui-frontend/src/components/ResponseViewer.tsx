@@ -50,7 +50,7 @@ function ErrorDetails({ details }: { details: unknown[] }) {
 }
 
 export function ResponseViewer() {
-  const { result, responseTab, setResponseTab } = useGrpcUiStore()
+  const { result, responseTab, setResponseTab, setGlobalAuthDialogOpen } = useGrpcUiStore()
   const { status, response, grpcStatus, errorMessage, errorDetails, durationMs, streamChunks, streamTotal } = result
 
   if (status === 'idle') {
@@ -117,6 +117,14 @@ export function ResponseViewer() {
         )}
         {errorMessage && (
           <span className="text-red-400 text-xs truncate">{errorMessage}</span>
+        )}
+        {grpcStatus === 'UNAUTHENTICATED' && (
+          <button
+            onClick={() => setGlobalAuthDialogOpen(true)}
+            className="text-blue-400 hover:text-blue-300 text-xs underline shrink-0"
+          >
+            Set or refresh credentials
+          </button>
         )}
         {streamChunks.length > 0 && (
           <span className="text-slate-500 text-xs">{chunkCount(streamChunks.length, streamTotal)}</span>

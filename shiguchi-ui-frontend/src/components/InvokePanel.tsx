@@ -177,6 +177,7 @@ export function InvokePanel() {
       abortRef.current = ctrl
       setResult({ status: 'streaming' })
       let failed = false
+      let finished = false
       try {
         for await (const event of invokeStream(
           selectedMethod.fullServiceName, selectedMethod.name, pld, effectiveToken, ctrl.signal,
@@ -188,6 +189,7 @@ export function InvokePanel() {
           } else if (event.event === 'error') {
             // The backend failed mid-stream: keep the chunks received so far, show the status.
             failed = true
+            finished = true
             let err: StreamError = { code: 'INTERNAL', message: event.data }
             try {
               err = JSON.parse(event.data) as StreamError
@@ -211,6 +213,7 @@ export function InvokePanel() {
               grpcStatus: err.code,
             })
           } else if (event.event === 'done') {
+            finished = true
             if (failed) {
               try {
                 const meta = JSON.parse(event.data) as { durationMs?: number }
@@ -238,6 +241,10 @@ export function InvokePanel() {
               setResult({ status: 'success', grpcStatus: 'OK' })
             }
           }
+        }
+        if (!finished && !ctrl.signal.aborted) {
+          // The connection closed without `done` or `error`: never leave the panel on "Streaming".
+          setResult({ status: 'error', grpcStatus: 'UNAVAILABLE', errorMessage: 'Stream ended without a completion event' })
         }
       } catch (e) {
         if ((e as Error).name !== 'AbortError') setResult({ status: 'error', errorMessage: String(e) })
