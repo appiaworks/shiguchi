@@ -15,9 +15,8 @@ function run(search: string, opener: { postMessage: ReturnType<typeof vi.fn> } |
 
 describe('oauth2-callback page', () => {
   it('GIVEN the callback page WHEN inspected SHOULD load its script from a file and carry no inline script', () => {
-    const withoutComments = html.replace(/<!--[\s\S]*?-->/g, '');
-    expect(withoutComments).toContain('<script src="oauth2-callback.js"></script>');
-    expect(withoutComments).not.toMatch(/<script(?![^>]*\bsrc=)[^>]*>/);
+    expect(html).toContain('<script src="oauth2-callback.js"></script>');
+    expect(html).not.toMatch(/<script(?![^>]*\bsrc=)[^>]*>/);
   });
 
   it('GIVEN an opener WHEN the IdP redirects back SHOULD post code and state to the own origin, then close', () => {

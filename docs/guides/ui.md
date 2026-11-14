@@ -85,6 +85,9 @@ the decoded response message as pretty or raw JSON:
 
 (`id` is a string in JSON because proto3 maps int64 → JSON string.)
 
+The **output schema** button in the response header opens the response message's structure beside
+the result, so you can read the fields without leaving the response.
+
 ### Errors
 
 gRPC failures render with the status code, latency, and the server's status description —

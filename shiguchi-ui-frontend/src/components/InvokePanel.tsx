@@ -53,6 +53,7 @@ export function InvokePanel() {
   const [showHistory, setShowHistory] = useState(false)
   const [modeError, setModeError] = useState<string | null>(null)
   const [schemaTab, setSchemaTab] = useState<'input' | 'output'>('input')
+  const [responseSchemaOpen, setResponseSchemaOpen] = useState(false)
   const [copied, setCopied] = useState<'curl' | 'grpcurl' | null>(null)
 
   // Ctrl/Cmd+Enter sends. Registered here rather than on the editor so it works wherever focus is
@@ -598,11 +599,30 @@ export function InvokePanel() {
       {/* Response panel */}
       <Panel defaultSize="45%" minSize="20%">
         <div className="h-full flex flex-col">
-          <div className="px-3 py-1 text-[12px] text-slate-600 border-b border-slate-700 shrink-0">
-            RESPONSE
+          <div className="px-3 py-1 text-[12px] text-slate-600 border-b border-slate-700 shrink-0 flex items-center justify-between">
+            <span>RESPONSE</span>
+            {selectedMethod.outputSchema && (
+              <button
+                aria-pressed={responseSchemaOpen}
+                onClick={() => setResponseSchemaOpen((o) => !o)}
+                className="px-1.5 rounded border border-slate-700 hover:border-slate-500 hover:text-slate-300"
+              >
+                {responseSchemaOpen ? 'hide output schema' : 'output schema'}
+              </button>
+            )}
           </div>
-          <div className="flex-1 min-h-0">
-            <ResponseViewer />
+          <div className="flex-1 min-h-0 flex">
+            <div className="flex-1 min-w-0">
+              <ResponseViewer />
+            </div>
+            {responseSchemaOpen && selectedMethod.outputSchema && (
+              <div
+                data-testid="response-schema"
+                className="w-1/3 min-w-[180px] border-l border-slate-700 overflow-y-auto"
+              >
+                <SchemaDoc schema={selectedMethod.outputSchema} />
+              </div>
+            )}
           </div>
         </div>
       </Panel>

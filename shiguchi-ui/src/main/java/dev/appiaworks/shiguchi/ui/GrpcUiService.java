@@ -138,7 +138,13 @@ public class GrpcUiService {
                 contextPath + pushPath,
                 contextPath + pushAdminPath,
                 contextPath + graphqlEndpoint(),
-                webSocketPath(contextPath));
+                webSocketPath(contextPath),
+                version());
+    }
+
+    private static String version() {
+        String v = GrpcUiService.class.getPackage().getImplementationVersion();
+        return v == null ? "" : v;
     }
 
     /** The GraphQL HTTP path: Spring GraphQL's own setting, then DGS's, then {@code /graphql}. */
