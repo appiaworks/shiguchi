@@ -13,6 +13,14 @@ public class DiscoveryConfig {
     /** Registers the registry's services that opt in through instance metadata. Off by default. */
     private AutoRegisterConfig autoRegister = new AutoRegisterConfig();
 
+    /**
+     * Lets a registered REST service's {@code openapi-url} metadata point at a host other than the
+     * instance's own. Off by default: instance metadata is writable by whoever can register in the
+     * registry, so a foreign document host would let them make the gateway fetch an arbitrary URL.
+     * Requests are still proxied to the instance, never to the document's host.
+     */
+    private boolean allowForeignOpenapiHost = false;
+
     @Data
     @NoArgsConstructor
     public static class AutoRegisterConfig {

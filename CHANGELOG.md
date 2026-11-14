@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Service auto-discovery (opt-in, gRPC): `shiguchi.discovery.auto-register.enabled=true` routes registry services whose instances carry `shiguchi.expose=true` and a `grpc-port`, with include/exclude globs, a removal grace of 3 syncs, and `GET /actuator/gateway-discovery` listing why each service was skipped. See the [service discovery guide](docs/guides/service-discovery.md#registering-services-from-the-registry).
+- Service auto-discovery (opt-in, gRPC and REST): `shiguchi.discovery.auto-register.enabled=true` routes registry services whose instances carry `shiguchi.expose=true`. A `grpc-port` registers a `DYNAMIC` service (schema over reflection); `shiguchi.type=rest`, `openapi-path` or `openapi-url` registers a `REST_DOWNSTREAM` one (schema from the OpenAPI document, proxied to the instance). Metadata cannot set auth or mode, and an `openapi-url` on another host than the instance is refused unless `shiguchi.discovery.allow-foreign-openapi-host=true`. Include/exclude globs, a removal grace of 3 syncs, and `GET /actuator/gateway-discovery` listing why each service was skipped (`FOREIGN_OPENAPI_HOST` and `INVALID_OPENAPI_URL` among them). See the [service discovery guide](docs/guides/service-discovery.md#registering-services-from-the-registry).
 - Console: the auth panel preselects the provider you used last (its id only, in `localStorage`; you still sign in again after a reload).
 - Console: the top bar shows the Shiguchi version (`version` in `api/config`, read from the jar manifest).
 - Console: an **output schema** button in the response header shows the response message structure beside the result.

@@ -32,11 +32,14 @@ public final class DiscoveryMetadata {
     /** The gRPC port when it differs from the registry's (unprefixed, as the name resolver reads it). */
     public static final String GRPC_PORT = "grpc-port";
 
-    /** Reserved for REST discovery: a full OpenAPI document URL (unprefixed). */
+    /** A full OpenAPI document URL for a REST service (unprefixed). Must be on the instance's own host by default. */
     public static final String OPENAPI_URL = "openapi-url";
 
-    /** Reserved for REST discovery: the OpenAPI document path on the instance (unprefixed). */
+    /** The OpenAPI document path on the instance for a REST service (unprefixed). Default {@link #DEFAULT_OPENAPI_PATH}. */
     public static final String OPENAPI_PATH = "openapi-path";
+
+    /** The OpenAPI document path used when a REST service gives neither {@link #OPENAPI_URL} nor {@link #OPENAPI_PATH}. */
+    public static final String DEFAULT_OPENAPI_PATH = "/v3/api-docs";
 
     /** The key under {@code prefix}: {@code key("shiguchi.", EXPOSE)} is {@code shiguchi.expose}. */
     public static String key(String prefix, String name) {

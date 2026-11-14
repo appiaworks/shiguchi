@@ -9,17 +9,22 @@ import dev.appiaworks.shiguchi.gateway.ScgRouteRegistrar;
 import dev.appiaworks.shiguchi.grpc.GrpcProxyHandlerRegistry;
 import dev.appiaworks.shiguchi.routing.DynamicRouteLoader;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
+import dev.appiaworks.shiguchi.routing.RestDownstreamRouteLoader;
 import dev.appiaworks.shiguchi.routing.SchemaReloadListener;
 import dev.appiaworks.shiguchi.routing.SchemaReloadListeners;
 import dev.appiaworks.shiguchi.routing.ServiceEndpointContext;
 import dev.appiaworks.shiguchi.routing.ServiceLoadStatus;
 import jakarta.annotation.PreDestroy;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
@@ -40,15 +45,24 @@ import org.springframework.stereotype.Component;
 /**
  * Routes the services a Spring Cloud registry lists, without a {@code shiguchi.services} entry per
  * service. Every sync lists {@link DiscoveryClient#getServices()}; a service whose instances carry
- * {@code <prefix>expose=true} (any one instance is enough) is loaded as a DYNAMIC service reached
- * through {@code discovery-name}, its schema read over reflection. A service that stays absent for
+ * {@code <prefix>expose=true} (any one instance is enough) is routed: a gRPC service as a DYNAMIC
+ * service reached through {@code discovery-name} (schema read over reflection), a REST service as a
+ * REST_DOWNSTREAM service (schema read from its OpenAPI document). A service that stays absent for
  * {@code removal-grace-syncs} consecutive syncs loses its routes again.
  *
  * <p>Never fatal: a service that cannot be loaded is logged at WARN, recorded in
  * {@link ServiceLoadStatus} and retried on the next sync. The first sync runs after the application
  * is ready.
  *
- * <p>Phase 1 handles gRPC only; a service without {@code grpc-port} (REST) is listed as skipped.
+ * <p>A service is gRPC when an opted-in instance has {@code type=grpc} or, with no type, a
+ * {@code grpc-port}; it is REST when it has {@code type=rest} or, with no type and no
+ * {@code grpc-port}, an {@code openapi-url}/{@code openapi-path}. A service that is both is routed
+ * as gRPC and the REST side is ignored with a WARN.
+ *
+ * <p>Trust: instance metadata is writable by whoever can register in the registry, so it can only
+ * name where a service lives. The OpenAPI document must come from the instance's own host unless
+ * {@code shiguchi.discovery.allow-foreign-openapi-host} is on, requests are always proxied to the
+ * instance, and metadata can set no authentication or mode for the service.
  */
 @Component
 @ConditionalOnProperty(prefix = "shiguchi.discovery.auto-register", name = "enabled", havingValue = "true")
@@ -62,6 +76,8 @@ public class DiscoveredServiceSynchronizer {
         NOT_OPTED_IN,
         EXCLUDED_BY_PATTERN,
         NO_GRPC_PORT,
+        FOREIGN_OPENAPI_HOST,
+        INVALID_OPENAPI_URL,
         EXPLICIT_CONFIG_WINS,
         PROBE_FAILED
     }
@@ -74,6 +90,7 @@ public class DiscoveredServiceSynchronizer {
     private final GatewayProperties properties;
     private final ObjectProvider<DiscoveryClient> discoveryClient;
     private final DynamicRouteLoader routeLoader;
+    private final ObjectProvider<RestDownstreamRouteLoader> restLoader;
     private final GrpcRouteRegistry registry;
     private final Optional<ScgRouteRegistrar> scgRegistrar;
     private final ServiceLoadStatus loadStatus;
@@ -90,6 +107,7 @@ public class DiscoveredServiceSynchronizer {
             GatewayProperties properties,
             ObjectProvider<DiscoveryClient> discoveryClient,
             DynamicRouteLoader routeLoader,
+            ObjectProvider<RestDownstreamRouteLoader> restLoader,
             GrpcRouteRegistry registry,
             Optional<ScgRouteRegistrar> scgRegistrar,
             ServiceLoadStatus loadStatus,
@@ -99,6 +117,7 @@ public class DiscoveredServiceSynchronizer {
         this.properties = properties;
         this.discoveryClient = discoveryClient;
         this.routeLoader = routeLoader;
+        this.restLoader = restLoader;
         this.registry = registry;
         this.scgRegistrar = scgRegistrar;
         this.loadStatus = loadStatus;
@@ -209,30 +228,47 @@ public class DiscoveredServiceSynchronizer {
                         n,
                         exposeKey(prefix));
             }
-            if (!isGrpc(optedIn, prefix)) {
-                if (warnedMixed.add(id + "#rest")) {
-                    log.info("Service '{}' opts in without a gRPC port; REST discovery arrives in a later phase", id);
+            Kind kind = classify(optedIn, prefix);
+            ServiceDefinition desired;
+            if (kind == Kind.GRPC) {
+                warnRestSide(id, optedIn, prefix);
+                desired = grpcDefinition(id, optedIn, prefix);
+            } else if (kind == Kind.REST) {
+                RestPick pick =
+                        pickRest(id, optedIn, prefix, properties.getDiscovery().isAllowForeignOpenapiHost());
+                if (pick.definition == null) {
+                    seen.put(id, new Seen(id, pick.outcome, pick.detail, n, 0));
+                    continue;
                 }
+                desired = pick.definition;
+            } else {
                 seen.put(
-                        id, new Seen(id, Outcome.NO_GRPC_PORT, "no grpc-port metadata (REST not supported yet)", n, 0));
+                        id,
+                        new Seen(
+                                id,
+                                Outcome.NO_GRPC_PORT,
+                                "no grpc-port, openapi-url or openapi-path metadata, and no "
+                                        + DiscoveryMetadata.key(prefix, DiscoveryMetadata.TYPE),
+                                n,
+                                0));
                 continue;
             }
-            warnRestSide(id, optedIn);
 
             present.add(id);
             Tracked existing = tracked.get(id);
-            if (existing != null && registry.contextByServiceName(id).isPresent()) {
+            boolean routed =
+                    existing != null && registry.contextByServiceName(id).isPresent();
+            if (routed && sameTarget(existing.definition(), desired)) {
                 tracked.put(id, new Tracked(existing.definition(), 0));
                 seen.put(
                         id,
                         new Seen(id, Outcome.REGISTERED, existing.definition().getPathPrefix(), n, 0));
                 continue;
             }
-            ServiceDefinition def = definitionFor(id, optedIn, prefix);
             try {
-                load(def);
-                tracked.put(id, new Tracked(def, 0));
-                seen.put(id, new Seen(id, Outcome.REGISTERED, def.getPathPrefix(), n, 0));
+                install(desired, existing == null ? null : existing.definition());
+                tracked.put(id, new Tracked(desired, 0));
+                seen.put(id, new Seen(id, Outcome.REGISTERED, desired.getPathPrefix(), n, 0));
                 changed = true;
             } catch (Exception e) {
                 log.warn("Auto-registering '{}' failed, will retry next sync: {}", id, e.getMessage());
@@ -270,17 +306,34 @@ public class DiscoveredServiceSynchronizer {
             SchemaReloadListeners.notifyAll(reloadListeners.orderedStream().toList(), log);
     }
 
-    private void load(ServiceDefinition def) throws Exception {
-        ServiceEndpointContext ctx = routeLoader.buildContext(def);
+    /** Builds the new context first, so a failed rebuild leaves the old routes in place. */
+    private void install(ServiceDefinition def, ServiceDefinition replaced) throws Exception {
+        ServiceEndpointContext ctx;
+        if (def.isRestDownstream()) {
+            RestDownstreamRouteLoader rest = restLoader.getIfAvailable();
+            if (rest == null) throw new IllegalStateException("REST routing is not available (no REST loader bean)");
+            ctx = rest.buildContext(def);
+        } else {
+            ctx = routeLoader.buildContext(def);
+        }
+        if (replaced != null) unload(replaced);
         registry.registerContext(ctx);
         scgRegistrar.ifPresent(r -> r.register(ctx));
         holder.add(def);
         loadStatus.recordLoaded(def.getName());
         log.info(
-                "Auto-registered '{}' from the registry at {} ({} routes)",
+                "Auto-registered '{}' ({}) from the registry at {} ({} routes)",
                 def.getName(),
+                def.getMode(),
                 def.getPathPrefix(),
                 ctx.getRoutes().size());
+    }
+
+    private static boolean sameTarget(ServiceDefinition a, ServiceDefinition b) {
+        return a.getMode() == b.getMode()
+                && Objects.equals(a.getPathPrefix(), b.getPathPrefix())
+                && Objects.equals(a.getOpenapiUrl(), b.getOpenapiUrl())
+                && Objects.equals(a.getBaseUrl(), b.getBaseUrl());
     }
 
     private void unload(ServiceDefinition def) {
@@ -293,18 +346,148 @@ public class DiscoveredServiceSynchronizer {
         });
     }
 
-    private ServiceDefinition definitionFor(String id, List<ServiceInstance> optedIn, String prefix) {
+    private ServiceDefinition grpcDefinition(String id, List<ServiceInstance> optedIn, String prefix) {
         ServiceDefinition def = new ServiceDefinition();
         def.setName(id);
         def.setDiscoveryName(id);
         def.setMode(GatewayMode.DYNAMIC);
+        def.setPathPrefix(pathPrefix(id, optedIn, prefix));
+        return def;
+    }
+
+    private static String pathPrefix(String id, List<ServiceInstance> optedIn, String prefix) {
         String custom = optedIn.stream()
                 .map(i -> meta(i, DiscoveryMetadata.key(prefix, DiscoveryMetadata.PATH_PREFIX)))
                 .filter(v -> v != null && !v.isBlank())
                 .findFirst()
                 .orElse(null);
-        def.setPathPrefix(normalizePrefix(custom != null ? custom : id));
-        return def;
+        return normalizePrefix(custom != null ? custom : id);
+    }
+
+    private enum Kind {
+        GRPC,
+        REST,
+        NONE
+    }
+
+    /** A REST document picked from the instances, or why none could be used. */
+    private static final class RestPick {
+        ServiceDefinition definition;
+        Outcome outcome = Outcome.NO_GRPC_PORT;
+        String detail = "no usable REST instance (host missing)";
+    }
+
+    private static String typeOf(ServiceInstance i, String prefix) {
+        String t = meta(i, DiscoveryMetadata.key(prefix, DiscoveryMetadata.TYPE));
+        return t == null || t.isBlank() ? null : t.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static boolean notBlank(String v) {
+        return v != null && !v.isBlank();
+    }
+
+    private static boolean hasOpenapiKey(ServiceInstance i) {
+        return notBlank(meta(i, DiscoveryMetadata.OPENAPI_URL)) || notBlank(meta(i, DiscoveryMetadata.OPENAPI_PATH));
+    }
+
+    private static boolean isGrpcInstance(ServiceInstance i, String prefix) {
+        String t = typeOf(i, prefix);
+        return t != null ? "grpc".equals(t) : meta(i, DiscoveryMetadata.GRPC_PORT) != null;
+    }
+
+    private static boolean isRestInstance(ServiceInstance i, String prefix) {
+        String t = typeOf(i, prefix);
+        return t != null ? "rest".equals(t) : meta(i, DiscoveryMetadata.GRPC_PORT) == null && hasOpenapiKey(i);
+    }
+
+    /** gRPC wins when any opted-in instance is gRPC. */
+    private static Kind classify(List<ServiceInstance> optedIn, String prefix) {
+        if (optedIn.stream().anyMatch(i -> isGrpcInstance(i, prefix))) return Kind.GRPC;
+        if (optedIn.stream().anyMatch(i -> isRestInstance(i, prefix))) return Kind.REST;
+        return Kind.NONE;
+    }
+
+    private static String stripBrackets(String host) {
+        return host.startsWith("[") && host.endsWith("]") ? host.substring(1, host.length() - 1) : host;
+    }
+
+    /**
+     * The first REST instance whose document location passes the host check. Requests are always
+     * proxied to the instance ({@code base-url}), never to the host of a foreign document.
+     */
+    private RestPick pickRest(String id, List<ServiceInstance> optedIn, String prefix, boolean allowForeign) {
+        RestPick pick = new RestPick();
+        for (ServiceInstance i : optedIn) {
+            if (!isRestInstance(i, prefix)) continue;
+            String host = i.getHost();
+            if (host == null || host.isBlank()) continue;
+            String bare = stripBrackets(host);
+            String shown = bare.contains(":") ? "[" + bare + "]" : bare;
+            String base =
+                    (i.isSecure() ? "https" : "http") + "://" + shown + (i.getPort() > 0 ? ":" + i.getPort() : "");
+            String url;
+            String given = meta(i, DiscoveryMetadata.OPENAPI_URL);
+            if (notBlank(given)) {
+                url = given.trim();
+                try {
+                    URI u = new URI(url);
+                    String scheme = u.getScheme() == null ? "" : u.getScheme().toLowerCase(Locale.ROOT);
+                    if (!(scheme.equals("http") || scheme.equals("https"))
+                            || u.getHost() == null
+                            || u.getUserInfo() != null) {
+                        throw new URISyntaxException(url, "not an absolute http(s) URL without user info");
+                    }
+                    if (!allowForeign && !stripBrackets(u.getHost()).equalsIgnoreCase(bare)) {
+                        if (warnedMixed.add(id + "#foreign#" + url)) {
+                            log.warn(
+                                    "Service '{}': openapi-url {} is not on the instance's own host '{}'; rejected."
+                                            + " Set shiguchi.discovery.allow-foreign-openapi-host=true to allow it",
+                                    id,
+                                    url,
+                                    host);
+                        }
+                        pick.outcome = Outcome.FOREIGN_OPENAPI_HOST;
+                        pick.detail = "openapi-url host '" + u.getHost() + "' is not the instance host '" + host + "'";
+                        continue;
+                    }
+                } catch (URISyntaxException e) {
+                    if (warnedMixed.add(id + "#invalid#" + url)) {
+                        log.warn("Service '{}': openapi-url '{}' rejected: {}", id, url, e.getReason());
+                    }
+                    pick.outcome = Outcome.INVALID_OPENAPI_URL;
+                    pick.detail = "openapi-url is not an absolute http(s) URL without credentials";
+                    continue;
+                }
+            } else {
+                String path = meta(i, DiscoveryMetadata.OPENAPI_PATH);
+                path = notBlank(path) ? path.trim() : DiscoveryMetadata.DEFAULT_OPENAPI_PATH;
+                if (!path.startsWith("/") || path.startsWith("//")) {
+                    if (warnedMixed.add(id + "#invalid#" + path)) {
+                        log.warn("Service '{}': openapi-path '{}' rejected: it must start with a single '/'", id, path);
+                    }
+                    pick.outcome = Outcome.INVALID_OPENAPI_URL;
+                    pick.detail = "openapi-path must start with a single '/'";
+                    continue;
+                }
+                url = base + path;
+                try {
+                    new URI(url);
+                } catch (URISyntaxException e) {
+                    pick.outcome = Outcome.INVALID_OPENAPI_URL;
+                    pick.detail = "openapi-path is not a valid path";
+                    continue;
+                }
+            }
+            ServiceDefinition def = new ServiceDefinition();
+            def.setName(id);
+            def.setMode(GatewayMode.REST_DOWNSTREAM);
+            def.setOpenapiUrl(url);
+            def.setBaseUrl(base);
+            def.setPathPrefix(pathPrefix(id, optedIn, prefix));
+            pick.definition = def;
+            return pick;
+        }
+        return pick;
     }
 
     static String normalizePrefix(String raw) {
@@ -313,23 +496,20 @@ public class DiscoveredServiceSynchronizer {
         return p.startsWith("/") ? p : "/" + p;
     }
 
-    private boolean isGrpc(List<ServiceInstance> optedIn, String prefix) {
-        String type = optedIn.stream()
-                .map(i -> meta(i, DiscoveryMetadata.key(prefix, DiscoveryMetadata.TYPE)))
-                .filter(v -> v != null && !v.isBlank())
-                .findFirst()
-                .orElse(null);
-        if (type != null) return "grpc".equalsIgnoreCase(type.trim());
-        return optedIn.stream().anyMatch(i -> meta(i, DiscoveryMetadata.GRPC_PORT) != null);
-    }
-
-    private void warnRestSide(String id, List<ServiceInstance> optedIn) {
-        boolean rest = optedIn.stream()
-                .anyMatch(i -> meta(i, DiscoveryMetadata.OPENAPI_URL) != null
-                        || meta(i, DiscoveryMetadata.OPENAPI_PATH) != null);
-        if (rest && warnedMixed.add(id + "#mixed")) {
+    private void warnRestSide(String id, List<ServiceInstance> optedIn, String prefix) {
+        List<String> ignored = new ArrayList<>();
+        for (ServiceInstance i : optedIn) {
+            String url = meta(i, DiscoveryMetadata.OPENAPI_URL);
+            String path = meta(i, DiscoveryMetadata.OPENAPI_PATH);
+            if (notBlank(url)) ignored.add("openapi-url=" + url);
+            else if (notBlank(path)) ignored.add("openapi-path=" + path);
+            else if ("rest".equals(typeOf(i, prefix))) ignored.add("type=rest on " + i.getHost());
+        }
+        if (!ignored.isEmpty() && warnedMixed.add(id + "#mixed")) {
             log.warn(
-                    "Service '{}' publishes gRPC and REST (OpenAPI) metadata; gRPC wins, the REST side is ignored", id);
+                    "Service '{}' publishes gRPC and REST metadata; gRPC wins, the REST side is ignored ({})",
+                    id,
+                    String.join(", ", ignored));
         }
     }
 

@@ -125,6 +125,7 @@ class DiscoveredServiceSynchronizerEndToEndTest {
                 props,
                 bf.getBeanProvider(DiscoveryClient.class),
                 loader,
+                bf.getBeanProvider(dev.appiaworks.shiguchi.routing.RestDownstreamRouteLoader.class),
                 registry,
                 Optional.empty(),
                 new ServiceLoadStatus(),

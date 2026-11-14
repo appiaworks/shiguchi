@@ -10,7 +10,8 @@ import org.springframework.stereotype.Component;
 /**
  * Read-only actuator endpoint: every registry service the last sync saw and what became of it
  * ({@code REGISTERED}, {@code NOT_OPTED_IN}, {@code EXCLUDED_BY_PATTERN}, {@code NO_GRPC_PORT},
- * {@code EXPLICIT_CONFIG_WINS}, {@code PROBE_FAILED}). {@code GET /actuator/gateway-discovery}.
+ * {@code FOREIGN_OPENAPI_HOST}, {@code INVALID_OPENAPI_URL}, {@code EXPLICIT_CONFIG_WINS},
+ * {@code PROBE_FAILED}). {@code GET /actuator/gateway-discovery}.
  * Present only with {@code shiguchi.discovery.auto-register.enabled=true}, and exposed only when
  * {@code management.endpoints.web.exposure.include} names {@code gateway-discovery}. It describes
  * internal topology: keep it off public exposure.

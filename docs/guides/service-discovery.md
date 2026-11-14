@@ -291,39 +291,167 @@ every instance should serve the same schema.
 
 ## Registering services from the registry
 
-By default the gateway only routes services you list under `shiguchi.services`. With
-`shiguchi.discovery.auto-register.enabled=true` it also lists the registry's services and routes the
-ones that opt in. It is off by default: enabling it exposes any opted-in service through the gateway,
-and instance metadata is written by whoever can register in the registry. Narrow it with `include` and
-`exclude` when the registry is shared.
+Listing every backend under `shiguchi.services` does not scale to a registry with dozens of services.
+With auto-registration the gateway lists the registry itself and routes the services that opt in, gRPC
+(`DYNAMIC`, schema read over reflection) and REST (`REST_DOWNSTREAM`, schema read from an OpenAPI
+document) alike. A service appears when its instances carry the metadata below, and its routes go
+away when it leaves the registry.
 
-A backend opts in with instance metadata (the keys sit under `shiguchi.discovery.auto-register.metadata-prefix`, default `shiguchi.`):
+It needs a Spring Cloud `DiscoveryClient` bean (Eureka, Consul, Kubernetes, or the static
+`SimpleDiscoveryClient`) and is off by default.
 
-| Key | Meaning |
-|---|---|
-| `shiguchi.expose` | `true` to opt in. Any one instance carrying it is enough. |
-| `grpc-port` | The gRPC port, when it differs from the registry port. A service without it is skipped (REST discovery arrives in a later phase). |
-| `shiguchi.type` | Optional; `grpc` is the only value handled today. |
-| `shiguchi.path-prefix` | Optional route prefix; default `/<service-id>`. |
+### Enabling it
 
 ```yaml
-# Eureka backend
-eureka.instance.metadata-map:
-  shiguchi.expose: "true"
-  grpc-port: "9090"
+shiguchi:
+  discovery:
+    auto-register:
+      enabled: true
+      # interval: 30s            # default: shiguchi.client.discovery-refresh
+      # removal-grace-syncs: 3
+      # include: ["orders-*"]    # glob patterns on the service id
+      # exclude: ["*-internal"]
 ```
 
-The same keys go in `spring.cloud.consul.discovery.metadata.*` for Consul, or the metadata mapping of
-`spring.cloud.kubernetes.discovery` for Kubernetes.
+The registry is listed every `interval`. Auto-registered services
+are refreshed like other `DYNAMIC` / `REST_DOWNSTREAM` ones when `shiguchi.refresh.enabled` is on.
+Every property is listed in the [configuration reference](../reference/configuration.md).
 
-Behaviour:
+### Making a service discoverable
 
-- The schema is read over reflection, as for a `DYNAMIC` service; the backend must serve reflection.
-  A service that cannot be read is logged at WARN, shown in the health indicator, and retried every sync. Startup never fails.
-- A `shiguchi.services` entry with the same `name` or `discovery-name` always wins.
-- A service absent (or no longer opted in) for `removal-grace-syncs` consecutive syncs loses its routes, so a flapping instance does not drop them. A registry outage removes nothing.
-- Auto-registered services are refreshed like `DYNAMIC` ones when `shiguchi.refresh.enabled` is on. They follow the gateway-wide security, GraphQL and OpenAPI settings; metadata cannot loosen them.
-- `GET /actuator/gateway-discovery` (add it to `management.endpoints.web.exposure.include`; it describes internal topology, so keep it private) lists every registry service the last sync saw and why each was skipped: `NOT_OPTED_IN`, `EXCLUDED_BY_PATTERN`, `NO_GRPC_PORT`, `EXPLICIT_CONFIG_WINS`, `PROBE_FAILED`, or `REGISTERED`.
+A backend opts in with instance metadata. The gateway-owned keys sit under
+`shiguchi.discovery.auto-register.metadata-prefix` (default `shiguchi.`); `grpc-port`, `openapi-url`
+and `openapi-path` are unprefixed.
+
+| Key | Applies to | Meaning |
+|---|---|---|
+| `shiguchi.expose` | both | `true` to opt in. Any one instance carrying it is enough. |
+| `shiguchi.type` | both | `grpc` or `rest`. Optional: absent, a service with `grpc-port` is gRPC, and one with `openapi-url` or `openapi-path` and no `grpc-port` is REST. |
+| `shiguchi.path-prefix` | both | Route prefix; default `/<service-id>`. |
+| `grpc-port` | gRPC | The gRPC port when it differs from the registry port. |
+| `openapi-path` | REST | Path of the OpenAPI document on the instance; default `/v3/api-docs`. Must start with a single `/`. |
+| `openapi-url` | REST | A full document URL instead of a path. Must be on the instance's own host unless [allowed](#security-and-the-trust-boundary). |
+
+A gRPC service needs nothing else; a REST service needs only `shiguchi.expose` plus
+`shiguchi.type=rest` (or an `openapi-*` key). For REST, requests are proxied to the instance's own
+scheme, host and port as the registry reports them (`https` when the instance is registered as
+secure), whatever host the document came from.
+
+If one service id carries both gRPC and REST metadata, gRPC wins and a WARN names the ignored REST
+keys.
+
+Eureka:
+
+```yaml
+eureka.instance.metadata-map:
+  shiguchi.expose: "true"
+  grpc-port: "9090"          # gRPC service
+  # shiguchi.type: rest      # REST service: replace grpc-port with these
+  # openapi-path: /v3/api-docs
+```
+
+Consul:
+
+```yaml
+spring.cloud.consul.discovery.metadata:
+  shiguchi.expose: "true"
+  shiguchi.type: rest
+  openapi-path: /openapi.json
+```
+
+Kubernetes: the keys travel as Service annotations or labels, which Spring Cloud Kubernetes copies into
+the instance metadata (see its `spring.cloud.kubernetes.discovery.metadata.*` settings, and note that a
+label value cannot hold a URL).
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: billing
+  annotations:
+    shiguchi.expose: "true"
+    shiguchi.type: "rest"
+    openapi-path: "/v3/api-docs"
+```
+
+`SimpleDiscoveryClient` (static instances from configuration, handy for local runs and tests; set
+the same properties on the gateway):
+
+```yaml
+spring.cloud.discovery.client.simple.instances:
+  billing:
+    - uri: http://localhost:8081
+      metadata:
+        shiguchi.expose: "true"
+        shiguchi.type: rest
+  orders:
+    - uri: http://localhost:8082
+      metadata:
+        shiguchi.expose: "true"
+        grpc-port: "9090"
+```
+
+Dynamic ports: for REST nothing extra is needed, because the document URL and the proxy target come
+from the host and port the registry already holds, so `server.port=0` works. gRPC reads the port from
+`grpc-port`, so it must be known before registration: give the gRPC server a fixed port, or take one
+value from the environment and use it in both places (`grpc.server.port: ${GRPC_PORT:9090}` and
+`grpc-port: "${GRPC_PORT:9090}"`).
+
+### Security and the trust boundary
+
+Enabling auto-registration means **anyone who can register an instance in the registry can publish a
+service through the gateway**, because instance metadata is written by the registrant. Treat the
+registry as part of the trust boundary and narrow the blast radius:
+
+- Metadata can only say where a service lives and which prefix it takes. It cannot set a per-service
+  authentication, authorization, mode, `base-url` or any other `ServiceDefinition` field. Auto-registered
+  services follow the gateway-wide security, GraphQL and OpenAPI settings; metadata cannot loosen them.
+- `openapi-url` must be on the instance's own host. Otherwise a registrant could make the gateway
+  fetch an arbitrary URL (a cloud metadata endpoint, an internal admin page). A document URL on another
+  host is skipped as `FOREIGN_OPENAPI_HOST` and logged at WARN. A URL that is not an absolute
+  `http(s)` URL, carries user info (`user:pass@`), or an `openapi-path` that does not start with a single `/`
+  is skipped as `INVALID_OPENAPI_URL`. Set `shiguchi.discovery.allow-foreign-openapi-host=true` only when
+  documents are served from a separate spec host you control; requests are still proxied to the
+  instance, never to that host.
+- A `shiguchi.services` entry with the same `name` or `discovery-name` always wins, so a registrant cannot
+  shadow a service you configured.
+- Use `include` / `exclude` on a shared registry. `exclude` wins over `include` and over the metadata.
+- Under `PERMIT_ALL` (the default) the gateway routes are open, so a newly registered service is open
+  too. Use the [security guide](security.md) to set the mode before enabling this on a shared registry.
+
+### Include and exclude
+
+`include` and `exclude` are glob patterns (`*`, `?`, case-insensitive) on the service id.
+When `include` is set only matching ids are routed; `exclude` is applied first and always wins.
+
+### Removal grace
+
+A service that is missing, has no instances, or is no longer opted in for `removal-grace-syncs`
+consecutive syncs (default 3) loses its routes. The grace absorbs the flapping a registry shows while
+it evicts and re-registers instances. A failed registry listing removes nothing. If a REST service's
+instance moves so that its document URL changes, the routes are rebuilt from the new location; a
+failed rebuild keeps the old routes.
+
+### Diagnostics
+
+`GET /actuator/gateway-discovery` (add `gateway-discovery` to `management.endpoints.web.exposure.include`;
+it describes internal topology, so keep it private) lists every service the last sync saw: the
+outcome, a detail, the instance count and, during the grace period, the missed syncs. A service that
+cannot be loaded is also logged at WARN, shown in the health indicator and retried every sync.
+Startup never fails because of it.
+
+### Troubleshooting
+
+| Outcome | Meaning and fix |
+|---|---|
+| `REGISTERED` | Routed. During the grace period the detail says it is being removed. |
+| `NOT_OPTED_IN` | No instance carries `<prefix>expose=true`. Check the metadata prefix and that the value is exactly `true`. |
+| `EXCLUDED_BY_PATTERN` | Rejected by `include` / `exclude`. |
+| `NO_GRPC_PORT` | Opted in but neither `grpc-port` nor an `openapi-*` key (nor `shiguchi.type`) is present. Add one. |
+| `FOREIGN_OPENAPI_HOST` | `openapi-url` points at another host. Use `openapi-path`, or set `allow-foreign-openapi-host`. |
+| `INVALID_OPENAPI_URL` | `openapi-url` is not an absolute `http(s)` URL without credentials, or `openapi-path` does not start with a single `/`. |
+| `EXPLICIT_CONFIG_WINS` | `shiguchi.services` already defines it; the registry entry is ignored. |
+| `PROBE_FAILED` | Reflection or the OpenAPI document could not be read (backend down, no reflection service, document not reachable from the gateway). Retried every sync; the detail has the error. |
 
 ## Without Spring Cloud (`target`)
 

@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import dev.appiaworks.shiguchi.config.GatewayMode;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
@@ -17,6 +18,7 @@ import dev.appiaworks.shiguchi.rest.MergeSpecResolver;
 import dev.appiaworks.shiguchi.routing.DynamicRouteLoader;
 import dev.appiaworks.shiguchi.routing.GrpcChannelFactory;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
+import dev.appiaworks.shiguchi.routing.RestDownstreamRouteLoader;
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
 import dev.appiaworks.shiguchi.routing.SchemaReloadListener;
 import dev.appiaworks.shiguchi.routing.ServiceEndpointContext;
@@ -70,6 +72,10 @@ class DiscoveredServiceSynchronizerTest {
         void put(String id, Map<String, String> metadata) {
             services.put(id, List.of(new DefaultServiceInstance(id + "-1", id, "10.0.0.1", 8080, false, metadata)));
         }
+
+        void putAt(String id, String host, int port, boolean secure, Map<String, String> metadata) {
+            services.put(id, List.of(new DefaultServiceInstance(id + "-1", id, host, port, secure, metadata)));
+        }
     }
 
     /** Builds a context per service instead of reading reflection from a backend. */
@@ -115,6 +121,8 @@ class DiscoveredServiceSynchronizerTest {
         final ServiceLoadStatus status = new ServiceLoadStatus();
         final AutoRegisteredServices holder = new AutoRegisteredServices();
         final List<String> reloads = new CopyOnWriteArrayList<>();
+        final RestDownstreamRouteLoader rest = mock(RestDownstreamRouteLoader.class);
+        final List<ServiceDefinition> restBuilt = new ArrayList<>();
         final DiscoveredServiceSynchronizer sync;
 
         Fixture() {
@@ -122,11 +130,28 @@ class DiscoveredServiceSynchronizerTest {
             DefaultListableBeanFactory bf = new DefaultListableBeanFactory();
             bf.registerSingleton("client", client);
             bf.registerSingleton("listener", (SchemaReloadListener) () -> reloads.add("reload"));
+            bf.registerSingleton("rest", rest);
+            try {
+                when(rest.buildContext(any())).thenAnswer(inv -> {
+                    ServiceDefinition def = inv.getArgument(0);
+                    restBuilt.add(def);
+                    ServiceEndpointContext ctx = new ServiceEndpointContext(def, null);
+                    ctx.addRoute(
+                            RouteDefinition.builder("rest." + def.getName(), "List", MethodType.UNARY, def.getTarget())
+                                    .httpBinding("GET", "/" + def.getName())
+                                    .build());
+                    ctx.setDescriptorHash(new byte[] {2});
+                    return ctx;
+                });
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+            ObjectProvider<RestDownstreamRouteLoader> rests = bf.getBeanProvider(RestDownstreamRouteLoader.class);
             ObjectProvider<DiscoveryClient> clients = bf.getBeanProvider(DiscoveryClient.class);
             ObjectProvider<SchemaReloadListener> listeners = bf.getBeanProvider(SchemaReloadListener.class);
             ObjectProvider<GrpcProxyHandlerRegistry> proxies = bf.getBeanProvider(GrpcProxyHandlerRegistry.class);
             sync = new DiscoveredServiceSynchronizer(
-                    props, clients, loader, registry, Optional.of(scg), status, holder, listeners, proxies);
+                    props, clients, loader, rests, registry, Optional.of(scg), status, holder, listeners, proxies);
         }
 
         Outcome outcome(String id) {
@@ -188,7 +213,8 @@ class DiscoveredServiceSynchronizerTest {
     }
 
     @Test
-    @DisplayName("GIVEN an opted-in service without grpc-port WHEN syncing THEN SHOULD skip it as REST-only")
+    @DisplayName(
+            "GIVEN an opted-in service with neither grpc-port nor openapi metadata WHEN syncing THEN SHOULD skip it")
     void GIVEN_no_grpc_port_WHEN_sync_SHOULD_skip() {
         Fixture f = new Fixture();
         f.client.put("web", Map.of("shiguchi.expose", "true"));
@@ -330,5 +356,213 @@ class DiscoveredServiceSynchronizerTest {
         assertThat(f.registry.contextByServiceName("orders")).isPresent();
         assertThat(f.status.failure("orders")).isEmpty();
         assertThat(f.loader.builds.get()).isEqualTo(2);
+    }
+
+    // ---- REST auto-registration
+
+    private static Map<String, String> restMeta(String key, String value) {
+        return Map.of("shiguchi.expose", "true", key, value);
+    }
+
+    @Test
+    @DisplayName("GIVEN a REST service with openapi metadata but no expose=true WHEN syncing THEN SHOULD not route it")
+    void GIVEN_rest_without_expose_WHEN_sync_SHOULD_not_route() {
+        Fixture f = new Fixture();
+        f.client.put("billing", Map.of("openapi-path", "/docs"));
+
+        f.sync.sync();
+
+        assertThat(f.outcome("billing")).isEqualTo(Outcome.NOT_OPTED_IN);
+        assertThat(f.restBuilt).isEmpty();
+        assertThat(f.registry.contextByServiceName("billing")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("GIVEN type=rest with no openapi keys WHEN syncing THEN SHOULD use /v3/api-docs on the instance")
+    void GIVEN_type_rest_WHEN_sync_SHOULD_use_default_openapi_path() {
+        Fixture f = new Fixture();
+        f.client.put("billing", restMeta("shiguchi.type", "rest"));
+
+        f.sync.sync();
+
+        assertThat(f.outcome("billing")).isEqualTo(Outcome.REGISTERED);
+        ServiceDefinition def = f.holder.definitions().get(0);
+        assertThat(def.getMode()).isEqualTo(GatewayMode.REST_DOWNSTREAM);
+        assertThat(def.getOpenapiUrl()).isEqualTo("http://10.0.0.1:8080/v3/api-docs");
+        assertThat(def.getBaseUrl()).isEqualTo("http://10.0.0.1:8080");
+        assertThat(def.getPathPrefix()).isEqualTo("/billing");
+        assertThat(f.props.getServices()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("GIVEN openapi-path on a secure instance WHEN syncing THEN SHOULD build an https document URL")
+    void GIVEN_openapi_path_on_secure_instance_WHEN_sync_SHOULD_use_https() {
+        Fixture f = new Fixture();
+        f.client.putAt("billing", "billing.internal", 8443, true, restMeta("openapi-path", "/openapi.json"));
+
+        f.sync.sync();
+
+        ServiceDefinition def = f.holder.definitions().get(0);
+        assertThat(def.getOpenapiUrl()).isEqualTo("https://billing.internal:8443/openapi.json");
+        assertThat(def.getBaseUrl()).isEqualTo("https://billing.internal:8443");
+    }
+
+    @Test
+    @DisplayName("GIVEN an openapi-url on the instance's own host WHEN syncing THEN SHOULD accept it")
+    void GIVEN_own_host_openapi_url_WHEN_sync_SHOULD_accept() {
+        Fixture f = new Fixture();
+        f.client.put("billing", restMeta("openapi-url", "http://10.0.0.1:9000/spec.json"));
+
+        f.sync.sync();
+
+        assertThat(f.outcome("billing")).isEqualTo(Outcome.REGISTERED);
+        ServiceDefinition def = f.holder.definitions().get(0);
+        assertThat(def.getOpenapiUrl()).isEqualTo("http://10.0.0.1:9000/spec.json");
+        assertThat(def.getBaseUrl()).isEqualTo("http://10.0.0.1:8080");
+    }
+
+    @Test
+    @DisplayName("GIVEN an openapi-url on another host WHEN syncing THEN SHOULD reject it and fetch nothing")
+    void GIVEN_foreign_openapi_url_WHEN_sync_SHOULD_reject() {
+        Fixture f = new Fixture();
+        f.client.put("billing", restMeta("openapi-url", "http://169.254.169.254/latest/meta-data"));
+
+        f.sync.sync();
+
+        assertThat(f.outcome("billing")).isEqualTo(Outcome.FOREIGN_OPENAPI_HOST);
+        assertThat(f.restBuilt).isEmpty();
+        assertThat(f.registry.contextByServiceName("billing")).isEmpty();
+        assertThat(f.holder.definitions()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("GIVEN a foreign host that only looks like the instance WHEN syncing THEN SHOULD reject it")
+    void GIVEN_lookalike_host_WHEN_sync_SHOULD_reject() {
+        Fixture f = new Fixture();
+        f.client.put("billing", restMeta("openapi-url", "http://10.0.0.1.evil.example/spec"));
+        f.client.put("creds", restMeta("openapi-url", "http://10.0.0.1:8080@evil.example/spec"));
+
+        f.sync.sync();
+
+        assertThat(f.outcome("billing")).isEqualTo(Outcome.FOREIGN_OPENAPI_HOST);
+        assertThat(f.outcome("creds")).isIn(Outcome.INVALID_OPENAPI_URL, Outcome.FOREIGN_OPENAPI_HOST);
+        assertThat(f.restBuilt).isEmpty();
+    }
+
+    @Test
+    @DisplayName("GIVEN a non-http openapi-url or a path without a leading slash WHEN syncing THEN SHOULD reject it")
+    void GIVEN_malformed_openapi_location_WHEN_sync_SHOULD_reject() {
+        Fixture f = new Fixture();
+        f.client.put("file", restMeta("openapi-url", "file:///etc/passwd"));
+        f.client.put("slashes", restMeta("openapi-path", "//evil.example/spec"));
+
+        f.sync.sync();
+
+        assertThat(f.outcome("file")).isEqualTo(Outcome.INVALID_OPENAPI_URL);
+        assertThat(f.outcome("slashes")).isEqualTo(Outcome.INVALID_OPENAPI_URL);
+        assertThat(f.restBuilt).isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN allow-foreign-openapi-host WHEN a foreign openapi-url is listed THEN SHOULD fetch it but still proxy to the instance")
+    void GIVEN_foreign_allowed_WHEN_sync_SHOULD_register_with_instance_base_url() {
+        Fixture f = new Fixture();
+        f.props.getDiscovery().setAllowForeignOpenapiHost(true);
+        f.client.put("billing", restMeta("openapi-url", "https://specs.example.com/billing.json"));
+
+        f.sync.sync();
+
+        assertThat(f.outcome("billing")).isEqualTo(Outcome.REGISTERED);
+        ServiceDefinition def = f.holder.definitions().get(0);
+        assertThat(def.getOpenapiUrl()).isEqualTo("https://specs.example.com/billing.json");
+        assertThat(def.getBaseUrl()).isEqualTo("http://10.0.0.1:8080");
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN gRPC and REST metadata on one service WHEN syncing THEN SHOULD route gRPC and ignore the REST side")
+    void GIVEN_grpc_and_rest_metadata_WHEN_sync_SHOULD_grpc_win() {
+        Fixture f = new Fixture();
+        f.client.put("mixed", Map.of("shiguchi.expose", "true", "grpc-port", "9090", "openapi-path", "/docs"));
+
+        f.sync.sync();
+
+        assertThat(f.outcome("mixed")).isEqualTo(Outcome.REGISTERED);
+        assertThat(f.holder.definitions().get(0).getMode()).isEqualTo(GatewayMode.DYNAMIC);
+        assertThat(f.loader.built).hasSize(1);
+        assertThat(f.restBuilt).isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN explicit shiguchi.services config for a REST service WHEN registry lists it THEN SHOULD leave the config alone")
+    void GIVEN_explicit_config_for_rest_service_WHEN_sync_SHOULD_win() {
+        Fixture f = new Fixture();
+        ServiceDefinition explicit = new ServiceDefinition();
+        explicit.setName("billing");
+        explicit.setMode(GatewayMode.REST_DOWNSTREAM);
+        f.props.getServices().add(explicit);
+        f.client.put("billing", restMeta("openapi-path", "/docs"));
+
+        f.sync.sync();
+
+        assertThat(f.outcome("billing")).isEqualTo(Outcome.EXPLICIT_CONFIG_WINS);
+        assertThat(f.restBuilt).isEmpty();
+        assertThat(f.holder.definitions()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("GIVEN metadata carrying auth or mode keys WHEN syncing THEN SHOULD ignore them")
+    void GIVEN_override_metadata_WHEN_sync_SHOULD_ignore_it() {
+        Fixture f = new Fixture();
+        f.client.put(
+                "billing",
+                Map.of(
+                        "shiguchi.expose", "true",
+                        "openapi-path", "/docs",
+                        "shiguchi.mode", "DYNAMIC",
+                        "shiguchi.auth", "NONE",
+                        "shiguchi.base-url", "http://evil.example"));
+
+        f.sync.sync();
+
+        ServiceDefinition def = f.holder.definitions().get(0);
+        assertThat(def.getMode()).isEqualTo(GatewayMode.REST_DOWNSTREAM);
+        assertThat(def.getBaseUrl()).isEqualTo("http://10.0.0.1:8080");
+    }
+
+    @Test
+    @DisplayName("GIVEN a REST service gone from the registry WHEN 3 syncs pass THEN SHOULD remove it")
+    void GIVEN_rest_service_gone_WHEN_three_syncs_SHOULD_remove() {
+        Fixture f = new Fixture();
+        f.client.put("billing", restMeta("openapi-path", "/docs"));
+        f.sync.sync();
+        assertThat(f.registry.contextByServiceName("billing")).isPresent();
+
+        f.client.services.clear();
+        f.sync.sync();
+        f.sync.sync();
+        assertThat(f.registry.contextByServiceName("billing")).isPresent();
+        f.sync.sync();
+
+        assertThat(f.registry.contextByServiceName("billing")).isEmpty();
+        assertThat(f.holder.definitions()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("GIVEN a REST service whose instance moved WHEN syncing THEN SHOULD reload from the new document URL")
+    void GIVEN_rest_instance_moved_WHEN_sync_SHOULD_reload() {
+        Fixture f = new Fixture();
+        f.client.putAt("billing", "10.0.0.1", 8080, false, restMeta("openapi-path", "/docs"));
+        f.sync.sync();
+
+        f.client.putAt("billing", "10.0.0.2", 8081, false, restMeta("openapi-path", "/docs"));
+        f.sync.sync();
+
+        assertThat(f.restBuilt).hasSize(2);
+        assertThat(f.holder.definitions()).hasSize(1);
+        assertThat(f.holder.definitions().get(0).getOpenapiUrl()).isEqualTo("http://10.0.0.2:8081/docs");
+        assertThat(f.registry.contextByServiceName("billing")).isPresent();
     }
 }
