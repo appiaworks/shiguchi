@@ -147,6 +147,11 @@ jobs:
         if: always() && steps.code.outputs.run == 'true'
         run: python3 .github/scripts/list-retried-tests.py
 
+      - name: Test time by class
+        continue-on-error: true # diagnostics only
+        if: always() && steps.code.outputs.run == 'true'
+        run: python3 .github/scripts/test-timings.py
+
       # JaCoCo runs only with -Pcoverage (see the root build.gradle.kts), passed by a dispatch with
       # the coverage input: its agent slows every test JVM, and it changes the test tasks' cache
       # key, so a nightly run with it would seed a build cache that PR runs cannot hit. Nothing is
@@ -320,6 +325,11 @@ jobs:
         continue-on-error: true # diagnostics only
         if: always()
         run: python3 .github/scripts/list-retried-tests.py
+
+      - name: Test time by class
+        continue-on-error: true # diagnostics only
+        if: always()
+        run: python3 .github/scripts/test-timings.py
 
       - name: Upload test reports
         continue-on-error: true # diagnostics only: a full artifact quota must not fail the job (and skip publishing)
