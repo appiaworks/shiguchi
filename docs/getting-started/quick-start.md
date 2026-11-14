@@ -15,12 +15,12 @@ Gradle (Spring Boot 4):
 
 ```kotlin
 dependencies {
-    implementation("io.github.appiaworks:shiguchi-spring-boot4-starter:0.21.0")
+    implementation("io.github.appiaworks:shiguchi-spring-boot4-starter:0.22.0")
     // optional surfaces:
-    implementation("io.github.appiaworks:shiguchi-openapi-spring-boot4-starter:0.21.0")
-    implementation("io.github.appiaworks:shiguchi-graphql-spring-boot4-starter:0.21.0")
-    implementation("io.github.appiaworks:shiguchi-ui-spring-boot4-starter:0.21.0")
-    implementation("io.github.appiaworks:shiguchi-avro-spring-boot4-starter:0.21.0")   // Avro to REST backends
+    implementation("io.github.appiaworks:shiguchi-openapi-spring-boot4-starter:0.22.0")
+    implementation("io.github.appiaworks:shiguchi-graphql-spring-boot4-starter:0.22.0")
+    implementation("io.github.appiaworks:shiguchi-ui-spring-boot4-starter:0.22.0")
+    implementation("io.github.appiaworks:shiguchi-avro-spring-boot4-starter:0.22.0")   // Avro to REST backends
 }
 ```
 
@@ -30,7 +30,7 @@ Maven (Spring Boot 4):
 <dependency>
   <groupId>io.github.appiaworks</groupId>
   <artifactId>shiguchi-spring-boot4-starter</artifactId>
-  <version>0.21.0</version>
+  <version>0.22.0</version>
 </dependency>
 ```
 
