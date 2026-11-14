@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Console: the top bar shows the Shiguchi version (`version` in `api/config`, read from the jar manifest).
+- Console: an **output schema** button in the response header shows the response message structure beside the result.
 
 ### Fixed
 

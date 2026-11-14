@@ -113,4 +113,13 @@ describe('InvokePanel request tabs', () => {
 
     expect(screen.getByTestId('schema-doc').textContent).toBe('t.Res')
   })
+
+  it('GIVEN a method WHEN toggling the response output schema THEN it shows beside the response', () => {
+    open('UNARY')
+
+    expect(screen.queryByTestId('response-schema')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'output schema' }))
+
+    expect(screen.getByTestId('response-schema').textContent).toBe('t.Res')
+  })
 })
