@@ -10,14 +10,49 @@ import './graphiql.css'
 import { buildAuthHeaders, fetchConfig } from '../api/grpcUiApi'
 import { GlobalAuthPanel } from '../components/GlobalAuthPanel'
 import { useGrpcUiStore } from '../store/useGrpcUiStore'
+import { getSessionSecret } from '../store/sessionSecrets'
+import { useTokenAutoRefresh } from '../hooks/useTokenAutoRefresh'
 import { authFetch } from './authFetch'
 
 function Page() {
   const links = useGrpcUiStore((s) => s.links)
-  const hasToken = useGrpcUiStore((s) => !!s.globalAuthToken)
+  const token = useGrpcUiStore((s) => s.globalAuthToken)
+  const expiry = useGrpcUiStore((s) => s.globalTokenExpiry)
+  const refreshToken = useGrpcUiStore((s) => s.globalRefreshToken)
+  const providerId = useGrpcUiStore((s) => s.globalProviderId)
+  const providerDefaults = useGrpcUiStore((s) => s.providerDefaults)
+  const setGlobalAuthToken = useGrpcUiStore((s) => s.setGlobalAuthToken)
+  const hasToken = !!token
   const setLinks = useGrpcUiStore((s) => s.setLinks)
   const [panelOpen, setPanelOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [now, setNow] = useState(() => Date.now())
+
+  // Refresh 60 s before expiry (refresh_token grant, then client_credentials); when that fails, open the panel.
+  useTokenAutoRefresh(
+    {
+      token,
+      expiry,
+      refreshToken,
+      providerId,
+      clientId: providerId ? providerDefaults[providerId]?.clientId : undefined,
+      clientSecret: providerId ? getSessionSecret(providerId) : undefined,
+    },
+    {
+      setToken: (t, e, rt) => setGlobalAuthToken(t, e, rt),
+      openAuthDialog: () => setPanelOpen(true),
+    },
+    links?.authProviders ?? [],
+  )
+
+  // Re-render when the token expires so the button stops claiming it is authorized.
+  useEffect(() => {
+    if (!token || expiry == null) return
+    const wait = Math.max(0, expiry - Date.now()) + 50
+    const t = setTimeout(() => setNow(Date.now()), wait)
+    return () => clearTimeout(t)
+  }, [token, expiry])
+  const expired = hasToken && expiry != null && expiry <= now
 
   useEffect(() => {
     fetchConfig().then(setLinks).catch((e: unknown) => setError(String(e)))
@@ -49,8 +84,12 @@ function Page() {
     <div className="gql-page">
       <div className="gql-bar">
         <span>Shiguchi GraphiQL</span>
-        <button type="button" onClick={() => setPanelOpen((o) => !o)}>
-          {hasToken ? 'Authorized ✓' : 'Authorize'}
+        <button
+          type="button"
+          className={expired ? 'gql-expired' : undefined}
+          onClick={() => setPanelOpen((o) => !o)}
+        >
+          {expired ? 'Session expired – Authorize' : hasToken ? 'Authorized ✓' : 'Authorize'}
         </button>
       </div>
       {panelOpen && <GlobalAuthPanel onClose={() => setPanelOpen(false)} />}
