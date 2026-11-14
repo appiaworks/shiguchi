@@ -37,6 +37,7 @@ Returns the links the header shows and the auth providers the **Auth** dialog of
 | `authProviders` | One entry per `shiguchi.openapi.security-schemes.*` (below) |
 | `graphqlEndpoint` | The GraphQL HTTP endpoint GraphiQL posts to: `spring.graphql.http.path`, then `spring.graphql.path`, then `dgs.graphql.path`, default `/graphql` |
 | `graphqlWebSocketPath` | `spring.graphql.websocket.path`, or an empty string when no WebSocket is configured (GraphiQL then has no subscriptions) |
+| `version` | The Shiguchi version, read from the console jar's manifest; empty when run from classes. Shown next to the title in the top bar |
 | `pushEnabled` | `shiguchi.cursus.enabled`; shows the **Push** button |
 | `pushPath` | `shiguchi.cursus.path` (default `/push`), for the live tail's WebSocket |
 | `pushAdminPath` | The `gateway-push` actuator endpoint (`management.endpoints.web.base-path` + `/gateway-push`) |

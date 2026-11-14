@@ -187,6 +187,15 @@ class GraphQlCostGuardsEndToEndTest {
     void given_authenticatedIntrospection_when_anonymousIntrospects_should_beRefused() throws Exception {
         Struct response = post("10.0.0.3", Map.of("query", "{ __schema { queryType { name } } }"));
 
+        assertThat(response.getFieldsOrThrow("errors")
+                        .getListValue()
+                        .getValues(0)
+                        .getStructValue()
+                        .getFieldsOrThrow("extensions")
+                        .getStructValue()
+                        .getFieldsOrThrow("code")
+                        .getStringValue())
+                .isEqualTo("BAD_USER_INPUT");
         assertThat(firstError(response)).isNotNull();
         assertThat(response.containsFields("data")
                         && response.getFieldsOrThrow("data").hasStructValue())
