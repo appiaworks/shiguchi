@@ -9,13 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Service auto-discovery (opt-in, gRPC and REST): `shiguchi.discovery.auto-register.enabled=true` routes registry services whose instances carry `shiguchi.expose=true`. A `grpc-port` registers a `DYNAMIC` service (schema over reflection); `shiguchi.type=rest`, `openapi-path` or `openapi-url` registers a `REST_DOWNSTREAM` one (schema from the OpenAPI document, proxied to the instance). Metadata cannot set auth or mode, and an `openapi-url` on another host than the instance is refused unless `shiguchi.discovery.allow-foreign-openapi-host=true`. Include/exclude globs, a removal grace of 3 syncs, and `GET /actuator/gateway-discovery` listing why each service was skipped (`FOREIGN_OPENAPI_HOST` and `INVALID_OPENAPI_URL` among them). See the [service discovery guide](docs/guides/service-discovery.md#registering-services-from-the-registry).
 - Console: the auth panel preselects the provider you used last (its id only, in `localStorage`; you still sign in again after a reload).
 - Console: the top bar shows the Shiguchi version (`version` in `api/config`, read from the jar manifest).
+- Console schema tab: a red `!` after the type of fields marked required by annotation (`google.api.field_behavior = REQUIRED`, `buf.validate` `required` or `string.min_len > 0`; proto3 itself has no required fields), tooltips on the type and the optional, repeated, map and oneof markers, a hover button that copies a field path (`items[].id`), and Expand all / Collapse all. `FieldSchema` in `api/schema` gains a `required` boolean.
 - Console: an **output schema** button in the response header shows the response message structure beside the result.
 - GraphiQL: the page uses GraphiQL 6's transport, so the response pane shows the HTTP status, time and size, and it no longer sends an `OPTIONS` probe before the first query.
 
 ### Fixed
 
+- OpenAPI: `/v3/api-docs` and `/v3/api-docs.yaml` no longer drop `type` (and `format`) from schemas merged from an OpenAPI 3.1 downstream service. The 3.1 document was read correctly but written with the 3.0 serializer, so typed schemas came out as `{}` and Swagger UI showed no fields. New tests compare the served JSON and YAML with the downstream source.
+- Console: server-streaming calls parse SSE frames with or without the space after `event:`/`data:` and with CRLF line endings, so a stream no longer shows nothing when the server omits the space.
+- Console: a non-2xx response on a streaming call (401, 403, 404, 429, 503) now shows an error with its gRPC code instead of an empty stream, and a stream that ends without a completion event shows "Stream ended without a completion event" with the messages received so far. An UNAUTHENTICATED error offers a **Set or refresh credentials** button.
 - GraphQL: with `error-format=NATIVE`, the error for an introspection query refused by `shiguchi.graphql.introspection` now also carries `extensions.code: BAD_USER_INPUT`.
 - GraphQL: with `error-format=NATIVE`, a query refused by `limits.max-depth` or `limits.max-complexity` now also carries `extensions.code: BAD_USER_INPUT`, as syntax and validation errors do.
 - GraphQL: with `shiguchi.graphql.error-format=NATIVE` (the default), syntax and validation errors raised by graphql-java now carry `extensions.code: BAD_USER_INPUT`, like backend validation failures do.

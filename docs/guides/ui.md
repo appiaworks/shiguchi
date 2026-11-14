@@ -66,6 +66,12 @@ Working top to bottom:
   (`id : int64`), so you never need the `.proto` file open. Its **OUTPUT SCHEMA** tab shows the response message the same way. Note the proto3 JSON rules:
   int64 accepts a number or a string, field names accept camelCase or snake_case.
 
+  In the schema panel, a red `!` after a type marks a field annotated as required
+  (`google.api.field_behavior = REQUIRED`, or `buf.validate` `required` / `string.min_len > 0`);
+  proto3 itself has no required fields, so this comes from the annotation only. Hover a type or marker
+  for an explanation, hover a row and click **copy** to copy its path (`items[].id`), and use
+  **Expand all** / **Collapse all** to open or close every nested message and enum.
+
 ### The response
 
 **Send** invokes through the gateway's dynamic dispatch — the same serde and metadata

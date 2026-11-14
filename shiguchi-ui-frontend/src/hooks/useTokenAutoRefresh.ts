@@ -36,14 +36,17 @@ export function useTokenAutoRefresh(
   updater: TokenUpdater,
   providers: AuthProviderDto[],
 ) {
+  const { token, expiry, providerId } = state
   const stateRef = useRef(state)
-  stateRef.current = state
-
   const updaterRef = useRef(updater)
-  updaterRef.current = updater
+
+  // Keep the refs current for the timer callback. Declared before the scheduling effect so it runs first.
+  useEffect(() => {
+    stateRef.current = state
+    updaterRef.current = updater
+  })
 
   useEffect(() => {
-    const { token, expiry, providerId } = stateRef.current
     if (!token || expiry == null) return
 
     const provider = providerId ? providers.find((p) => p.id === providerId) ?? null : null
@@ -101,5 +104,5 @@ export function useTokenAutoRefresh(
 
     return () => clearTimeout(timer)
     // Re-schedule whenever expiry or token changes (new token sets new expiry)
-  }, [state.token, state.expiry, state.refreshToken, providers])
+  }, [token, expiry, providerId, providers])
 }

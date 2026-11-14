@@ -24,6 +24,7 @@ dependencies {
     compileOnly(project(":shiguchi-ui"))
 
 
+    testImplementation(libs.grpc.inprocess)
     testImplementation(libs.spring.boot.starter.test)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

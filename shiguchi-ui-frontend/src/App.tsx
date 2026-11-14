@@ -32,6 +32,7 @@ export default function App() {
   // Sync store-driven open request (e.g. from auto-refresh hook in AuthBar)
   useEffect(() => {
     if (globalAuthDialogOpen) {
+      // oxlint-disable-next-line react/set-state-in-effect -- one-shot hand-off of a store request to local state
       setShowAuth(true)
       setGlobalAuthDialogOpen(false)
     }
@@ -100,6 +101,7 @@ export default function App() {
     onEscape: () => setShowAuth(false),
   })
 
+  // oxlint-disable-next-line react/purity -- the countdown is meant to read the clock on every render
   const now = Date.now()
   const globalSecondsLeft = globalTokenExpiry
     ? Math.max(0, Math.round((globalTokenExpiry - now) / 1000))
@@ -135,7 +137,7 @@ export default function App() {
           <span>Shiguchi{links?.version ? ` ${links.version}` : ''}</span>
         </a>
         {links?.grpcProxyEnabled && (
-          <span className="text-[11px] text-yellow-600 border border-yellow-800 rounded px-1.5 py-0.5">
+          <span className="text-[13px] text-yellow-600 border border-yellow-800 rounded px-1.5 py-0.5">
             proxy :{links.grpcProxyPort}
           </span>
         )}
@@ -154,11 +156,11 @@ export default function App() {
         >
           <span>Auth</span>
           {authLabel && (
-            <span className="text-[12px] text-slate-400 max-w-[8rem] truncate">{authLabel}</span>
+            <span className="text-[14px] text-slate-400 max-w-[8rem] truncate">{authLabel}</span>
           )}
           {globalAuthToken && (
             <span
-              className={`text-[12px] ${
+              className={`text-[14px] ${
                 globalExpired ? 'text-red-400' : globalSecondsLeft !== null && globalSecondsLeft < 60 ? 'text-yellow-400' : 'text-green-500'
               }`}
             >
@@ -217,7 +219,7 @@ export default function App() {
               {/* Left panel header: title + search */}
               <div className="px-2 py-1.5 border-b border-slate-700 shrink-0 space-y-1.5">
                 <div className="flex items-center">
-                  <span className="text-[12px] text-slate-600 uppercase tracking-wider">Services</span>
+                  <span className="text-[14px] text-slate-600 uppercase tracking-wider">Services</span>
                 </div>
                 <div className="relative">
                   <input

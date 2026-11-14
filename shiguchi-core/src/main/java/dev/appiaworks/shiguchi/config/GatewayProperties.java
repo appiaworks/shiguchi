@@ -57,4 +57,7 @@ public class GatewayProperties {
 
     /** gRPC-Web for browser clients, on the HTTP port. Off by default. */
     private GrpcWebConfig grpcWeb = new GrpcWebConfig();
+
+    /** Routes built from a Spring Cloud registry's service list. */
+    private DiscoveryConfig discovery = new DiscoveryConfig();
 }

@@ -11,7 +11,7 @@ export function MethodBadge({ type }: { type: MethodType }) {
   const { label, className } = CONFIG[type]
   return (
     <span
-      className={`inline-flex items-center justify-center w-6 h-4 text-[11px] font-bold border rounded shrink-0 ${className}`}
+      className={`inline-flex items-center justify-center w-6 h-4 text-[13px] font-bold border rounded shrink-0 ${className}`}
       title={type.replace('_', ' ')}
     >
       {label}

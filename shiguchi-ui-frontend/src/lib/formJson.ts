@@ -4,11 +4,11 @@ export type ParsedForm =
   | { ok: true; values: Record<string, unknown> }
   | { ok: false; error: string }
 
-const INT64_TYPES = ['int64', 'uint64', 'sint64', 'fixed64', 'sfixed64']
+const INT64_TYPES = new Set(['int64', 'uint64', 'sint64', 'fixed64', 'sfixed64'])
 
 /** True for 64-bit integers, which the form keeps as strings: a JS number loses precision above 2^53. */
 export function isInt64(type: string): boolean {
-  return INT64_TYPES.includes(type)
+  return INT64_TYPES.has(type)
 }
 
 /**

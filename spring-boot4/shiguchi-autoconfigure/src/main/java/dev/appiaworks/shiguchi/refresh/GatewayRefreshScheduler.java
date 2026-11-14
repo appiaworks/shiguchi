@@ -3,6 +3,7 @@ package dev.appiaworks.shiguchi.refresh;
 import dev.appiaworks.shiguchi.config.GatewayMode;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
+import dev.appiaworks.shiguchi.discovery.AutoRegisteredServices;
 import dev.appiaworks.shiguchi.gateway.ScgRouteRegistrar;
 import dev.appiaworks.shiguchi.grpc.GrpcProxyHandlerRegistry;
 import dev.appiaworks.shiguchi.routing.DynamicRouteLoader;
@@ -64,6 +65,21 @@ public class GatewayRefreshScheduler {
         if (loadStatus != null) this.loadStatus = loadStatus;
     }
 
+    /** Services built from the registry; empty unless auto-registration is on. */
+    private volatile AutoRegisteredServices autoRegistered;
+
+    @Autowired(required = false)
+    public void setAutoRegistered(AutoRegisteredServices autoRegistered) {
+        this.autoRegistered = autoRegistered;
+    }
+
+    private List<ServiceDefinition> allServices() {
+        List<ServiceDefinition> all = new ArrayList<>(properties.getServices());
+        AutoRegisteredServices auto = autoRegistered;
+        if (auto != null) all.addAll(auto.definitions());
+        return all;
+    }
+
     public GatewayRefreshScheduler(
             GatewayProperties properties,
             GrpcRouteRegistry registry,
@@ -82,7 +98,7 @@ public class GatewayRefreshScheduler {
     @Scheduled(fixedDelayString = "#{${shiguchi.refresh.interval-seconds:300} * 1000}")
     public void checkAndRefresh() {
         log.debug("Checking for proto schema changes...");
-        for (ServiceDefinition svcDef : properties.getServices()) {
+        for (ServiceDefinition svcDef : allServices()) {
             if (!isRefreshable(svcDef)) continue;
             registry.contextByServiceName(svcDef.getName()).ifPresent(ctx -> {
                 try {
@@ -102,7 +118,7 @@ public class GatewayRefreshScheduler {
     /** Triggers an immediate refresh of all DYNAMIC services; returns names of changed services. */
     public List<String> refreshAll() {
         List<String> changed = new ArrayList<>();
-        for (ServiceDefinition svcDef : properties.getServices()) {
+        for (ServiceDefinition svcDef : allServices()) {
             if (!isRefreshable(svcDef)) continue;
             try {
                 ServiceEndpointContext newCtx = buildContext(svcDef);
@@ -123,7 +139,7 @@ public class GatewayRefreshScheduler {
 
     /** Triggers an immediate refresh of a single named DYNAMIC service. */
     public boolean refreshService(String serviceName) {
-        ServiceDefinition svcDef = properties.getServices().stream()
+        ServiceDefinition svcDef = allServices().stream()
                 .filter(s -> s.getName().equals(serviceName))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Unknown service: " + serviceName));

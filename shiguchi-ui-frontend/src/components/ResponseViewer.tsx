@@ -35,8 +35,9 @@ function ErrorDetails({ details }: { details: unknown[] }) {
       {details.map((d, i) => {
         const type = typeof d === 'object' && d !== null ? String((d as Record<string, unknown>)['@type'] ?? '') : ''
         return (
+          // oxlint-disable-next-line react/no-array-index-key -- append-only list, never reordered
           <div key={i}>
-            <div className="text-[12px] uppercase tracking-wider text-red-400 mb-0.5">
+            <div className="text-[14px] uppercase tracking-wider text-red-400 mb-0.5">
               {type.replace(/^type\.googleapis\.com\//, '') || `detail ${i + 1}`}
             </div>
             <pre className="text-xs text-slate-300 bg-slate-800 rounded p-1 overflow-x-auto whitespace-pre-wrap break-all">
@@ -50,7 +51,7 @@ function ErrorDetails({ details }: { details: unknown[] }) {
 }
 
 export function ResponseViewer() {
-  const { result, responseTab, setResponseTab } = useGrpcUiStore()
+  const { result, responseTab, setResponseTab, setGlobalAuthDialogOpen } = useGrpcUiStore()
   const { status, response, grpcStatus, errorMessage, errorDetails, durationMs, streamChunks, streamTotal } = result
 
   if (status === 'idle') {
@@ -78,6 +79,7 @@ export function ResponseViewer() {
         </div>
         <div className="space-y-1">
           {streamChunks.map((chunk, i) => (
+            // oxlint-disable-next-line react/no-array-index-key -- append-only list, never reordered
             <pre key={i} className="text-xs text-slate-300 bg-slate-800 rounded p-1 overflow-x-auto">
               {prettyJson(chunk)}
             </pre>
@@ -118,6 +120,14 @@ export function ResponseViewer() {
         {errorMessage && (
           <span className="text-red-400 text-xs truncate">{errorMessage}</span>
         )}
+        {grpcStatus === 'UNAUTHENTICATED' && (
+          <button
+            onClick={() => setGlobalAuthDialogOpen(true)}
+            className="text-blue-400 hover:text-blue-300 text-xs underline shrink-0"
+          >
+            Set or refresh credentials
+          </button>
+        )}
         {streamChunks.length > 0 && (
           <span className="text-slate-500 text-xs">{chunkCount(streamChunks.length, streamTotal)}</span>
         )}
@@ -126,7 +136,7 @@ export function ResponseViewer() {
           <button
             key={tab}
             onClick={() => setResponseTab(tab)}
-            className={`px-2 py-0.5 text-[12px] uppercase tracking-wider transition-colors ${
+            className={`px-2 py-0.5 text-[14px] uppercase tracking-wider transition-colors ${
               responseTab === tab
                 ? 'text-blue-400 border-b border-blue-500'
                 : 'text-slate-600 hover:text-slate-400'
@@ -148,6 +158,7 @@ export function ResponseViewer() {
       ) : streamChunks.length > 0 ? (
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {streamChunks.map((chunk, i) => (
+            // oxlint-disable-next-line react/no-array-index-key -- append-only list, never reordered
             <pre key={i} className="text-xs text-slate-300 bg-slate-800 rounded p-1 overflow-x-auto">
               {prettyJson(chunk)}
             </pre>
@@ -163,7 +174,7 @@ export function ResponseViewer() {
             options={{
               readOnly: true,
               minimap: { enabled: false },
-              fontSize: 12,
+              fontSize: 15,
               lineNumbers: 'off',
               scrollBeyondLastLine: false,
               wordWrap: 'on',

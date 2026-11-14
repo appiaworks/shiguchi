@@ -1,7 +1,7 @@
 package dev.appiaworks.shiguchi.openapi;
 
-import io.swagger.v3.core.util.Json;
-import io.swagger.v3.core.util.Yaml;
+import io.swagger.v3.core.util.Json31;
+import io.swagger.v3.core.util.Yaml31;
 import io.swagger.v3.oas.models.OpenAPI;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
@@ -63,12 +63,25 @@ public class OpenApiCache implements dev.appiaworks.shiguchi.routing.SchemaReloa
 
     private void populate(OpenAPI spec) {
         try {
-            cachedJson = Json.pretty(spec);
-            cachedYaml = Yaml.pretty(spec);
+            cachedJson = toJson(spec);
+            cachedYaml = toYaml(spec);
         } catch (Exception e) {
             log.error("Failed to serialize OpenAPI spec", e);
             cachedJson = "{}";
             cachedYaml = "{}";
         }
+    }
+
+    /**
+     * Serializes with the 3.1 mapper, which writes each schema by its own spec version: a schema bound from a
+     * 3.1 downstream document keeps its {@code types}, one built for 3.0 keeps {@code type}. The 3.0 mapper
+     * drops {@code types}, which left every 3.1 downstream schema without a type.
+     */
+    static String toJson(OpenAPI spec) throws com.fasterxml.jackson.core.JsonProcessingException {
+        return Json31.pretty(spec);
+    }
+
+    static String toYaml(OpenAPI spec) throws com.fasterxml.jackson.core.JsonProcessingException {
+        return Yaml31.pretty(spec);
     }
 }

@@ -83,6 +83,16 @@ public class GrpcRouteRegistry {
                 newCtx.getRoutes().size());
     }
 
+    /** Drops a service's context and its routes; empty when nothing was registered under the name. */
+    public Optional<ServiceEndpointContext> removeContext(String serviceName) {
+        ServiceEndpointContext removed = contextByServiceName.remove(serviceName);
+        if (removed != null) {
+            rebuildIndexes();
+            log.info("Removed context for service '{}'", serviceName);
+        }
+        return Optional.ofNullable(removed);
+    }
+
     private void rebuildIndexes() {
         Map<String, RouteDefinition> newRest = new ConcurrentHashMap<>();
         // LinkedHashMap, not ConcurrentHashMap: schema generation reads this map's iteration order,

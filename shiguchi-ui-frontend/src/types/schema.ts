@@ -15,6 +15,8 @@ export interface FieldSchema {
   mapEntry: boolean
   wellKnownType?: string
   hasPresence?: boolean
+  /** Marked required by annotation (google.api.field_behavior / buf.validate); proto3 has no native required. */
+  required?: boolean
 }
 
 export interface MessageSchema {

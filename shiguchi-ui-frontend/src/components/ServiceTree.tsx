@@ -74,12 +74,12 @@ export function ServiceTree() {
     <div className="h-full flex flex-col">
       {/* Group-by toggle */}
       <div className="flex items-center gap-1 px-2 py-1 border-b border-slate-700 shrink-0">
-        <span className="text-[11px] text-slate-700 mr-1">group</span>
+        <span className="text-[13px] text-slate-700 mr-1">group</span>
         {(['flat', 'configName', 'namespace', 'target'] as const).map((g) => (
           <button
             key={g}
             onClick={() => setGroupBy(g)}
-            className={`text-[11px] px-1.5 py-0.5 rounded transition-colors ${
+            className={`text-[13px] px-1.5 py-0.5 rounded transition-colors ${
               groupBy === g
                 ? 'bg-slate-700 text-slate-200'
                 : 'text-slate-600 hover:text-slate-400'
@@ -101,7 +101,7 @@ export function ServiceTree() {
           groups.map((group, gi) => (
             <div key={group.label ?? gi}>
               {group.label && (
-                <div className="sticky top-0 z-10 px-2 py-0.5 text-[11px] text-slate-600 bg-slate-900 border-b border-slate-800 uppercase tracking-widest">
+                <div className="sticky top-0 z-10 px-2 py-0.5 text-[13px] text-slate-600 bg-slate-900 border-b border-slate-800 uppercase tracking-widest">
                   {group.label}
                 </div>
               )}
@@ -118,7 +118,7 @@ export function ServiceTree() {
                       aria-level={1}
                       className="w-full flex items-center gap-1 px-2 py-1.5 hover:bg-slate-800 text-left"
                     >
-                      <span className="text-slate-400 text-[12px] w-3 shrink-0">
+                      <span className="text-slate-400 text-[14px] w-3 shrink-0">
                         {expanded ? '▾' : '▸'}
                       </span>
                       <span
@@ -128,7 +128,7 @@ export function ServiceTree() {
                         {shortName}
                       </span>
                       {(groupBy === 'flat' || groupBy === 'configName' || groupBy === 'namespace') && (
-                        <span className="ml-auto text-slate-700 text-[11px] shrink-0 truncate max-w-[6rem]">
+                        <span className="ml-auto text-slate-700 text-[13px] shrink-0 truncate max-w-[6rem]">
                           {svc.target}
                         </span>
                       )}

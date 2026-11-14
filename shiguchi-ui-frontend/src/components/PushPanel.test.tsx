@@ -95,6 +95,15 @@ function okJson(body: unknown): Response {
   return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
 }
 
+async function openTail(user: ReturnType<typeof userEvent.setup>) {
+  vi.stubGlobal('WebSocket', FakeSocket)
+  render(<PushPanel adminPath="/actuator/gateway-push" pushPath="/push" />)
+  await user.click(screen.getByRole('button', { name: 'topics' }))
+  await user.click(await screen.findByRole('button', { name: 'tail' }))
+  await waitFor(() => expect(FakeSocket.instances).toHaveLength(1))
+  return FakeSocket.instances[0]
+}
+
 describe('PushPanel', () => {
   const fetchMock = vi.fn<typeof fetch>()
 
@@ -151,15 +160,6 @@ describe('PushPanel', () => {
     vi.unstubAllGlobals()
     FakeSocket.instances = []
   })
-
-  async function openTail(user: ReturnType<typeof userEvent.setup>) {
-    vi.stubGlobal('WebSocket', FakeSocket)
-    render(<PushPanel adminPath="/actuator/gateway-push" pushPath="/push" />)
-    await user.click(screen.getByRole('button', { name: 'topics' }))
-    await user.click(await screen.findByRole('button', { name: 'tail' }))
-    await waitFor(() => expect(FakeSocket.instances).toHaveLength(1))
-    return FakeSocket.instances[0]
-  }
 
   it('tails a topic through the push client: subscribes, lists events, and shows a gap as its own entry', async () => {
     const user = userEvent.setup()

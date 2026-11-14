@@ -59,7 +59,9 @@ public final class GrpcUiSchemaDto {
              *  FIELD_MASK, EMPTY, STRUCT, VALUE, ANY, STRING_VALUE, INT32_VALUE, etc. */
             String wellKnownType,
             /** True when the field tracks presence (message, oneof member, proto3 optional): unset differs from default */
-            boolean hasPresence) {}
+            boolean hasPresence,
+            /** True when annotated required (google.api.field_behavior = REQUIRED, buf.validate required or min_len above 0); proto3 has no native required */
+            boolean required) {}
 
     public record EnumValueSchema(String name, int number) {}
 

@@ -25,16 +25,16 @@ export function MetadataEditor() {
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center gap-2 px-3 py-1 hover:bg-slate-800 text-left"
       >
-        <span className="text-[11px] text-slate-600 uppercase tracking-wider">Metadata</span>
+        <span className="text-[13px] text-slate-600 uppercase tracking-wider">Metadata</span>
         {activeCount > 0 && (
-          <span className="text-[11px] bg-slate-700 text-slate-300 px-1 rounded">
+          <span className="text-[13px] bg-slate-700 text-slate-300 px-1 rounded">
             {activeCount}
           </span>
         )}
-        <span className="ml-auto text-slate-700 text-[11px]">{open ? '▾' : '▸'}</span>
+        <span className="ml-auto text-slate-700 text-[13px]">{open ? '▾' : '▸'}</span>
         <button
           onClick={(e) => { e.stopPropagation(); add() }}
-          className="text-[12px] text-blue-500 hover:text-blue-400 ml-1"
+          className="text-[14px] text-blue-500 hover:text-blue-400 ml-1"
         >
           + add
         </button>
@@ -43,7 +43,7 @@ export function MetadataEditor() {
       {open && (
         <div className="px-3 pb-2">
           {metadataEntries.length === 0 ? (
-            <span className="text-slate-700 text-[12px] italic">No entries</span>
+            <span className="text-slate-700 text-[14px] italic">No entries</span>
           ) : (
             <div className="space-y-1">
               {metadataEntries.map((entry, i) => (
@@ -53,19 +53,19 @@ export function MetadataEditor() {
                     value={entry.key}
                     onChange={(e) => update(i, 'key', e.target.value)}
                     placeholder="key"
-                    className="w-28 bg-slate-800 text-slate-300 text-[12px] px-1.5 py-0.5 rounded border border-slate-700 outline-none font-mono placeholder-slate-700"
+                    className="w-28 bg-slate-800 text-slate-300 text-[14px] px-1.5 py-0.5 rounded border border-slate-700 outline-none font-mono placeholder-slate-700"
                   />
-                  <span className="text-slate-700 text-[12px]">:</span>
+                  <span className="text-slate-700 text-[14px]">:</span>
                   <input
                     type="text"
                     value={entry.value}
                     onChange={(e) => update(i, 'value', e.target.value)}
                     placeholder="value"
-                    className="flex-1 bg-slate-800 text-slate-300 text-[12px] px-1.5 py-0.5 rounded border border-slate-700 outline-none font-mono placeholder-slate-700"
+                    className="flex-1 bg-slate-800 text-slate-300 text-[14px] px-1.5 py-0.5 rounded border border-slate-700 outline-none font-mono placeholder-slate-700"
                   />
                   <button
                     onClick={() => remove(i)}
-                    className="text-[12px] text-slate-600 hover:text-red-400 shrink-0"
+                    className="text-[14px] text-slate-600 hover:text-red-400 shrink-0"
                   >
                     ×
                   </button>
