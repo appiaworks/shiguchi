@@ -447,7 +447,7 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
                 .map(bytes -> new String(bytes, StandardCharsets.UTF_8))
                 .flatMap(body -> authEnforcer
                         .enforce(route, authArguments(pathVars, queryParams), body)
-                        .then(metadataPopulator.build(exchange.getRequest()))
+                        .then(metadataPopulator.build(exchange.getRequest(), route))
                         .flatMap(metadata -> {
                             if (route.isMerge()) {
                                 return writeMergeResponse(exchange, route, ctx, pathVars, queryParams, body, metadata);
@@ -499,7 +499,7 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
 
         return authEnforcer
                 .enforce(route, authArguments(pathVars, queryParams), null)
-                .then(metadataPopulator.build(exchange.getRequest()))
+                .then(metadataPopulator.build(exchange.getRequest(), route))
                 .flatMap(metadata -> dispatcher
                         .dispatchClientStreaming(route, ctx, pathVars, queryParams, lines, metadata)
                         .flatMap(response -> send(exchange, route, ctx, renderJson(ctx, response), null)))
@@ -791,7 +791,7 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
                     RestBodyCodec responseCodec = negotiated.responseCodec();
                     return authEnforcer
                             .enforce(route, authArguments(pathVars, queryParams), bodyForAuth)
-                            .then(metadataPopulator.build(exchange.getRequest()))
+                            .then(metadataPopulator.build(exchange.getRequest(), route))
                             .flatMap(metadata -> sendUnary(
                                     exchange,
                                     route,
@@ -879,7 +879,7 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
                     }
                     return authEnforcer
                             .enforce(route, authArguments(pathVars, queryParams), bodyForAuth)
-                            .then(metadataPopulator.build(exchange.getRequest()))
+                            .then(metadataPopulator.build(exchange.getRequest(), route))
                             .flatMap(metadata -> sendUnary(
                                     exchange,
                                     route,
@@ -958,7 +958,7 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
                     }
                     return authEnforcer
                             .enforce(route, authArguments(pathVars, queryParams), bodyForAuth)
-                            .then(metadataPopulator.build(exchange.getRequest()))
+                            .then(metadataPopulator.build(exchange.getRequest(), route))
                             .flatMap(metadata -> endSignal()
                                     .flatMap(end -> writeHttpBodyStream(
                                             exchange,
@@ -1054,7 +1054,7 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
         boolean rawOut = HttpBodySupport.rawResponse(md.getOutputType(), route.getHttpResponseBody());
         return authEnforcer
                 .enforce(route, authArguments(pathVars, queryParams), null)
-                .then(metadataPopulator.build(exchange.getRequest()))
+                .then(metadataPopulator.build(exchange.getRequest(), route))
                 .flatMap(metadata -> dispatcher.dispatchClientStreamingRequest(route, ctx, messages, metadata))
                 .flatMap(message -> {
                     RenderedResponse rendered;

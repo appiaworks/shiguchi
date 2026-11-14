@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- BFF: `upstream-token-mode: EXCHANGE` (RFC 8693) trades the session's access token for a narrower per-service token at the provider's token endpoint (`exchange.targets`, `exchange.default-target`, `exchange.extra-parameters`). Results are cached per session in process; a refused or failed exchange fails the call and never relays the broad token. `UpstreamCredentialSource` gains a default `authorization(request, authentication, route)`.
+
 ## [0.23.0] - 2026-11-14
 
 ### Added

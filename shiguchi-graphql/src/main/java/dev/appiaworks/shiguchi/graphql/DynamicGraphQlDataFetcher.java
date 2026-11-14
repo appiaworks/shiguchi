@@ -147,7 +147,7 @@ public class DynamicGraphQlDataFetcher implements DataFetcher<Object> {
                             env.getGraphQlContext(),
                             authEnforcer
                                     .enforce(route, finalArgs, null)
-                                    .then(buildMetadataFromEnv(env))
+                                    .then(buildMetadataFromEnv(env, route))
                                     .flatMap(metadata ->
                                             mergeDispatcher.dispatchToMaps(route, finalArgs, metadata, projection)))
                     .map(records -> records.stream()
@@ -165,7 +165,7 @@ public class DynamicGraphQlDataFetcher implements DataFetcher<Object> {
                             env.getGraphQlContext(),
                             authEnforcer
                                     .enforce(route, finalArgs, null)
-                                    .then(buildMetadataFromEnv(env))
+                                    .then(buildMetadataFromEnv(env, route))
                                     .flatMapMany(metadata -> dispatcher.dispatchStreamingToMap(
                                             route, ctx, finalArgs, metadata, projection)))
                     .map(item -> applyResponseTransforms(item, route))
@@ -194,7 +194,7 @@ public class DynamicGraphQlDataFetcher implements DataFetcher<Object> {
                         env.getGraphQlContext(),
                         authEnforcer
                                 .enforce(route, finalArgs, null)
-                                .then(buildMetadataFromEnv(env))
+                                .then(buildMetadataFromEnv(env, route))
                                 .flatMap(metadata -> route.isPassthrough()
                                         ? httpDispatch(route, ctx, finalArgs, metadata, projection)
                                         : dispatcher.dispatchToMap(route, ctx, finalArgs, metadata, projection)))
@@ -252,8 +252,8 @@ public class DynamicGraphQlDataFetcher implements DataFetcher<Object> {
     }
 
     /** The outbound metadata, built the way the REST surface builds it: see {@link GraphQlMetadata}. */
-    private Mono<Metadata> buildMetadataFromEnv(DataFetchingEnvironment env) {
-        return GraphQlMetadata.build(env.getGraphQlContext(), metadataPopulator);
+    private Mono<Metadata> buildMetadataFromEnv(DataFetchingEnvironment env, RouteDefinition route) {
+        return GraphQlMetadata.build(env.getGraphQlContext(), metadataPopulator, route);
     }
 
     private Object applyResponseTransforms(Map<String, Object> item, RouteDefinition route) {

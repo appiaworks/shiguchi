@@ -151,10 +151,17 @@ What the provider (the OIDC issuer) has to offer for the module to work:
 
 ## `relay`, and why there is no `mint`
 
-`upstream-token-mode` has one value, `RELAY` (the default): the access token your issuer issued is
+`upstream-token-mode` is `RELAY` (the default) or `EXCHANGE` (below). With `RELAY`: the access token your issuer issued is
 what backends receive. They validate it against the same issuer as for any other client, and the
 gateway builds the same principal for a cookie caller as for a bearer caller (scopes, `x-principal`,
 rate-limit key, push `PRINCIPAL_MATCH`).
+
+`EXCHANGE` trades the session's access token for a narrower one per backend (RFC 8693) at the provider's token
+endpoint. Map each gRPC service under `exchange.targets.<service-full-name>` with an `audience` and/or `scope`, or set
+`exchange.default-target`; `exchange.extra-parameters` adds issuer-specific form fields. The result is cached per session
+in process until it nears expiry. A service with no target is refused (403), as is an issuer answer of `invalid_target`,
+`access_denied` or `invalid_grant`; an unreachable or failing issuer gives 503. The gateway never falls back to relaying
+the broad token, and tokens never appear in errors or logs.
 
 `mint`, where the gateway would sign its own tokens, is deliberately not offered. It would make the
 gateway an issuer, with signing keys, a JWKS and its own user identity. If you have an issuer, you do

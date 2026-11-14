@@ -3,6 +3,7 @@ package dev.appiaworks.shiguchi.bff;
 import dev.appiaworks.shiguchi.bff.session.BffSession;
 import dev.appiaworks.shiguchi.bff.session.BffSessionStore;
 import dev.appiaworks.shiguchi.gateway.UpstreamCredentialSource;
+import dev.appiaworks.shiguchi.routing.RouteDefinition;
 import dev.appiaworks.shiguchi.security.CookieAuthenticated;
 import dev.appiaworks.shiguchi.security.CookieSessionWatch;
 import io.grpc.Status;
@@ -31,6 +32,7 @@ final class BffUpstreamCredentialSource implements UpstreamCredentialSource {
     private final BffSessionStore store;
     private final BffTokenRefresher refresher;
     private final Clock clock;
+    private final BffTokenExchanger exchanger;
 
     /** A source that always sends the token the caller holds. */
     BffUpstreamCredentialSource() {
@@ -42,13 +44,35 @@ final class BffUpstreamCredentialSource implements UpstreamCredentialSource {
      * @param refresher renews an old token, or {@code null} to send the caller's token as it is
      */
     BffUpstreamCredentialSource(BffSessionStore store, BffTokenRefresher refresher, Clock clock) {
+        this(store, refresher, clock, null);
+    }
+
+    /**
+     * @param exchanger trades the session token for a per-backend one for providers in {@code EXCHANGE}
+     *     mode, or {@code null} to always relay
+     */
+    BffUpstreamCredentialSource(
+            BffSessionStore store, BffTokenRefresher refresher, Clock clock, BffTokenExchanger exchanger) {
         this.store = store;
         this.refresher = refresher;
         this.clock = clock;
+        this.exchanger = exchanger;
     }
 
     @Override
     public Mono<String> authorization(ServerHttpRequest request, Authentication authentication) {
+        return authorization(request, authentication, null);
+    }
+
+    /**
+     * RELAY providers ignore the route. An EXCHANGE provider's session is always read from the store
+     * (the caller's {@link Authentication} knows neither its provider nor its session version), then
+     * its token, renewed if due, is exchanged for the one the route's service gets. A refused
+     * exchange, or a service with no target, is {@code PERMISSION_DENIED}; an exchange that could
+     * not be done is {@code UNAVAILABLE}. There is no fallback to the caller's own token.
+     */
+    @Override
+    public Mono<String> authorization(ServerHttpRequest request, Authentication authentication, RouteDefinition route) {
         if (!(authentication instanceof JwtAuthenticationToken jwt)
                 || !BffSecurityContextRepository.isCookieAuthenticated(jwt)) {
             return Mono.empty();
@@ -57,6 +81,15 @@ final class BffUpstreamCredentialSource implements UpstreamCredentialSource {
         Instant expiresAt = jwt.getToken().getExpiresAt();
         String handle = CookieAuthenticated.handle(authentication);
         Instant now = clock.instant();
+        if (exchanger != null && exchanger.anyEnabled() && store != null && handle != null) {
+            String service = route == null ? null : route.getFullServiceName();
+            return store.find(handle)
+                    .switchIfEmpty(Mono.error(ended()))
+                    .flatMap(session -> exchanger.enabled(session.provider())
+                            ? renewed(session, now).flatMap(current -> exchange(current, service))
+                            : current(session, now).map(BffUpstreamCredentialSource::bearerValue))
+                    .switchIfEmpty(Mono.error(ended()));
+        }
         if (refresher == null
                 || store == null
                 || handle == null
@@ -64,23 +97,46 @@ final class BffUpstreamCredentialSource implements UpstreamCredentialSource {
                 || !refresher.due(expiresAt, now)) {
             return Mono.just(held);
         }
-        return store.find(handle).flatMap(session -> current(session, now)).switchIfEmpty(Mono.error(ended()));
-    }
-
-    private Mono<String> current(BffSession session, Instant now) {
-        boolean expired = !session.accessTokenExpiresAt().isAfter(now);
-        if (!refresher.due(session.accessTokenExpiresAt(), now)) return bearer(session);
-        if (session.refreshToken() == null) return expired ? Mono.error(ended()) : bearer(session);
-        return refresher
-                .refresh(session, expired)
-                .flatMap(refreshed -> refreshed.accessTokenExpiresAt().isAfter(clock.instant())
-                        ? bearer(refreshed)
-                        : Mono.<String>error(ended()))
+        return store.find(handle)
+                .flatMap(session -> current(session, now).map(BffUpstreamCredentialSource::bearerValue))
                 .switchIfEmpty(Mono.error(ended()));
     }
 
-    private static Mono<String> bearer(BffSession session) {
-        return Mono.just("Bearer " + session.accessToken());
+    private Mono<String> exchange(BffSession session, String service) {
+        return exchanger
+                .exchange(session, service)
+                .map(token -> "Bearer " + token)
+                .onErrorMap(
+                        BffTokenExchanger.ExchangeRefused.class,
+                        e -> Status.PERMISSION_DENIED
+                                .withDescription("token exchange refused")
+                                .asRuntimeException())
+                .onErrorMap(
+                        BffTokenExchanger.ExchangeUnavailable.class,
+                        e -> Status.UNAVAILABLE
+                                .withDescription("token exchange unavailable")
+                                .asRuntimeException());
+    }
+
+    /** The session with a token that is not about to expire, renewed when it is due. */
+    private Mono<BffSession> renewed(BffSession session, Instant now) {
+        return refresher == null ? Mono.just(session) : current(session, now);
+    }
+
+    private Mono<BffSession> current(BffSession session, Instant now) {
+        boolean expired = !session.accessTokenExpiresAt().isAfter(now);
+        if (refresher == null || !refresher.due(session.accessTokenExpiresAt(), now)) return Mono.just(session);
+        if (session.refreshToken() == null) return expired ? Mono.error(ended()) : Mono.just(session);
+        return refresher
+                .refresh(session, expired)
+                .flatMap(refreshed -> refreshed.accessTokenExpiresAt().isAfter(clock.instant())
+                        ? Mono.just(refreshed)
+                        : Mono.<BffSession>error(ended()))
+                .switchIfEmpty(Mono.error(ended()));
+    }
+
+    private static String bearerValue(BffSession session) {
+        return "Bearer " + session.accessToken();
     }
 
     private static RuntimeException ended() {

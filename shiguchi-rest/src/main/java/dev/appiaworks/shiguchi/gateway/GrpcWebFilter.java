@@ -226,7 +226,9 @@ public class GrpcWebFilter implements WebFilter {
         return requestMessage
                 .flatMap(message -> authEnforcer
                         .enforce(route, Map.of(), null)
-                        .then(metadataPopulator.build(exchange.getRequest()).defaultIfEmpty(new Metadata()))
+                        .then(metadataPopulator
+                                .build(exchange.getRequest(), route)
+                                .defaultIfEmpty(new Metadata()))
                         .flatMap(metadata -> {
                             // After authorization, as on the REST surface; a violation throws
                             // INVALID_ARGUMENT, answered below in the trailers-only form.

@@ -1,6 +1,7 @@
 package dev.appiaworks.shiguchi.gateway;
 
 import dev.appiaworks.protobuf.extras.api.ApiStatus;
+import dev.appiaworks.shiguchi.routing.RouteDefinition;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.core.Authentication;
 import reactor.core.publisher.Mono;
@@ -36,4 +37,21 @@ public interface UpstreamCredentialSource {
      * @return the header value, or empty for none
      */
     Mono<String> authorization(ServerHttpRequest request, Authentication authentication);
+
+    /**
+     * The {@code authorization} value to send upstream for this caller and the route being called.
+     * Sources that send a different credential per backend (a token exchange) override this one;
+     * the default ignores the route and calls
+     * {@link #authorization(ServerHttpRequest, Authentication)}.
+     *
+     * @param request the inbound request, which carries no {@code Authorization} header
+     * @param authentication the caller, authenticated and not anonymous
+     * @param route the route the call is for, or {@code null} where the caller does not know it
+     *     (some GraphQL paths)
+     * @return the header value, or empty for none
+     */
+    default Mono<String> authorization(
+            ServerHttpRequest request, Authentication authentication, RouteDefinition route) {
+        return authorization(request, authentication);
+    }
 }
