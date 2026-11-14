@@ -109,6 +109,7 @@ class GrpcUiServiceTest {
 
         assertThat(config.graphqlEndpoint()).isEqualTo("/app/graphql");
         assertThat(config.graphqlWebSocketPath()).isEmpty();
+        assertThat(config.version()).isNotNull();
     }
 
     @Test

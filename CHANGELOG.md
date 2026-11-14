@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Console: the top bar shows the Shiguchi version (`version` in `api/config`, read from the jar manifest).
+
 ### Fixed
 
 - GraphQL: with `error-format=NATIVE`, a query refused by `limits.max-depth` or `limits.max-complexity` now also carries `extensions.code: BAD_USER_INPUT`, as syntax and validation errors do.

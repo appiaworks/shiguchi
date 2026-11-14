@@ -121,7 +121,7 @@ export default function App() {
       {/* Top bar */}
       <header className="relative flex items-center gap-3 px-4 py-2 border-b border-slate-700 shrink-0 bg-slate-900">
         <span className="text-blue-400 font-bold text-sm">gRPC UI</span>
-        <span className="text-slate-600 text-xs">Shiguchi</span>
+        <span className="text-slate-600 text-xs">Shiguchi{links?.version ? ` ${links.version}` : ''}</span>
         {links?.grpcProxyEnabled && (
           <span className="text-[11px] text-yellow-600 border border-yellow-800 rounded px-1.5 py-0.5">
             proxy :{links.grpcProxyPort}

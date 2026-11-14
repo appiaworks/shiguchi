@@ -48,6 +48,10 @@ tasks.matching { it.name == "sourcesJar" }.configureEach {
 
 // ── Java dependencies ──────────────────────────────────────────────────────
 
+tasks.jar {
+    manifest { attributes("Implementation-Version" to project.version.toString()) }
+}
+
 dependencies {
     api(platform(libs.spring.boot4.bom))
     api(project(":shiguchi-core"))

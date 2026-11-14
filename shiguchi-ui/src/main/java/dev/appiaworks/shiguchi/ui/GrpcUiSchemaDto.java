@@ -113,7 +113,9 @@ public final class GrpcUiSchemaDto {
             /** The GraphQL HTTP endpoint ({@code /graphql}); GraphiQL posts its queries here. */
             String graphqlEndpoint,
             /** The GraphQL WebSocket endpoint for subscriptions, or empty when none is configured. */
-            String graphqlWebSocketPath) {}
+            String graphqlWebSocketPath,
+            /** The Shiguchi version running, from the console jar's manifest; empty when run from classes. */
+            String version) {}
 
     public record InvokeResponse(
             /** JSON string response; null on error */
