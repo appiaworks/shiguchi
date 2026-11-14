@@ -164,7 +164,8 @@ its own `classification` key to `extensions`.
 | any other | `INTERNAL_SERVER_ERROR` | `INTERNAL` |
 
 Under `NATIVE`, the errors graphql-java raises before any backend call (a syntax error or a failed
-validation, such as an unknown field) carry `code: BAD_USER_INPUT` as well. Under `GRPC` they stay
+validation, such as an unknown field, and a query refused by `limits.max-depth` or
+`limits.max-complexity`) carry `code: BAD_USER_INPUT` as well. Under `GRPC` they stay
 as graphql-java produces them.
 
 ## 4. Limits

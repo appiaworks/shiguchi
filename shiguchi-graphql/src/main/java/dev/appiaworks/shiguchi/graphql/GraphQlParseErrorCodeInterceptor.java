@@ -14,8 +14,9 @@ import org.springframework.graphql.server.WebGraphQlResponse;
 import reactor.core.publisher.Mono;
 
 /**
- * With {@code shiguchi.graphql.error-format=NATIVE}, gives the errors graphql-java raises before
- * any data fetcher runs (syntax errors and validation errors) the same {@code extensions.code}
+ * With {@code shiguchi.graphql.error-format=NATIVE}, gives the errors raised before any data
+ * fetcher runs (syntax errors, validation errors, and queries aborted by the depth or complexity
+ * limit) the same {@code extensions.code}
  * the gateway puts on backend validation failures, {@code BAD_USER_INPUT}. Errors that already
  * carry a {@code code} are left alone.
  */
@@ -26,7 +27,8 @@ public class GraphQlParseErrorCodeInterceptor implements WebGraphQlInterceptor, 
 
     @Override
     public int getOrder() {
-        return Ordered.LOWEST_PRECEDENCE;
+        // Outermost, so it also sees the errors the limits and introspection interceptors answer with.
+        return Ordered.HIGHEST_PRECEDENCE;
     }
 
     @Override
@@ -44,14 +46,15 @@ public class GraphQlParseErrorCodeInterceptor implements WebGraphQlInterceptor, 
 
     private static boolean needsCode(GraphQLError error) {
         Map<String, Object> ext = error.getExtensions();
-        if (ext == null || ext.containsKey("code")) {
+        if (ext != null && ext.containsKey("code")) {
             return false;
         }
         // DGS rewrites getErrorType() to BAD_REQUEST, so match the graphql-java classification
         // it keeps in the extensions (and the original type, for errors DGS did not touch).
-        String classification = String.valueOf(ext.get("classification"));
+        String classification = String.valueOf(ext == null ? null : ext.get("classification"));
         return "InvalidSyntax".equals(classification)
                 || "ValidationError".equals(classification)
+                || "ExecutionAborted".equals(classification)
                 || error.getErrorType() == ErrorType.InvalidSyntax
                 || error.getErrorType() == ErrorType.ValidationError;
     }
