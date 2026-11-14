@@ -289,6 +289,42 @@ Pinning needs instance metadata, so it applies to `discovery-name` services. A `
 headless-Service DNS name has no metadata; there the schema is read over the balanced channel, and
 every instance should serve the same schema.
 
+## Registering services from the registry
+
+By default the gateway only routes services you list under `shiguchi.services`. With
+`shiguchi.discovery.auto-register.enabled=true` it also lists the registry's services and routes the
+ones that opt in. It is off by default: enabling it exposes any opted-in service through the gateway,
+and instance metadata is written by whoever can register in the registry. Narrow it with `include` and
+`exclude` when the registry is shared.
+
+A backend opts in with instance metadata (the keys sit under `shiguchi.discovery.auto-register.metadata-prefix`, default `shiguchi.`):
+
+| Key | Meaning |
+|---|---|
+| `shiguchi.expose` | `true` to opt in. Any one instance carrying it is enough. |
+| `grpc-port` | The gRPC port, when it differs from the registry port. A service without it is skipped (REST discovery arrives in a later phase). |
+| `shiguchi.type` | Optional; `grpc` is the only value handled today. |
+| `shiguchi.path-prefix` | Optional route prefix; default `/<service-id>`. |
+
+```yaml
+# Eureka backend
+eureka.instance.metadata-map:
+  shiguchi.expose: "true"
+  grpc-port: "9090"
+```
+
+The same keys go in `spring.cloud.consul.discovery.metadata.*` for Consul, or the metadata mapping of
+`spring.cloud.kubernetes.discovery` for Kubernetes.
+
+Behaviour:
+
+- The schema is read over reflection, as for a `DYNAMIC` service; the backend must serve reflection.
+  A service that cannot be read is logged at WARN, shown in the health indicator, and retried every sync. Startup never fails.
+- A `shiguchi.services` entry with the same `name` or `discovery-name` always wins.
+- A service absent (or no longer opted in) for `removal-grace-syncs` consecutive syncs loses its routes, so a flapping instance does not drop them. A registry outage removes nothing.
+- Auto-registered services are refreshed like `DYNAMIC` ones when `shiguchi.refresh.enabled` is on. They follow the gateway-wide security, GraphQL and OpenAPI settings; metadata cannot loosen them.
+- `GET /actuator/gateway-discovery` (add it to `management.endpoints.web.exposure.include`; it describes internal topology, so keep it private) lists every registry service the last sync saw and why each was skipped: `NOT_OPTED_IN`, `EXCLUDED_BY_PATTERN`, `NO_GRPC_PORT`, `EXPLICIT_CONFIG_WINS`, `PROBE_FAILED`, or `REGISTERED`.
+
 ## Without Spring Cloud (`target`)
 
 Any gRPC target string works, with gRPC's own resolvers:

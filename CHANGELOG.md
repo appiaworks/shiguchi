@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Service auto-discovery (opt-in, gRPC): `shiguchi.discovery.auto-register.enabled=true` routes registry services whose instances carry `shiguchi.expose=true` and a `grpc-port`, with include/exclude globs, a removal grace of 3 syncs, and `GET /actuator/gateway-discovery` listing why each service was skipped. See the [service discovery guide](docs/guides/service-discovery.md#registering-services-from-the-registry).
 - Console: the auth panel preselects the provider you used last (its id only, in `localStorage`; you still sign in again after a reload).
 - Console: the top bar shows the Shiguchi version (`version` in `api/config`, read from the jar manifest).
 - Console: an **output schema** button in the response header shows the response message structure beside the result.
@@ -16,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Console: server-streaming calls parse SSE frames with or without the space after `event:`/`data:` and with CRLF line endings, so a stream no longer shows nothing when the server omits the space.
+- Console: a non-2xx response on a streaming call (401, 403, 404, 429, 503) now shows an error with its gRPC code instead of an empty stream, and a stream that ends without a completion event shows "Stream ended without a completion event" with the messages received so far. An UNAUTHENTICATED error offers a **Set or refresh credentials** button.
 - GraphQL: with `error-format=NATIVE`, the error for an introspection query refused by `shiguchi.graphql.introspection` now also carries `extensions.code: BAD_USER_INPUT`.
 - GraphQL: with `error-format=NATIVE`, a query refused by `limits.max-depth` or `limits.max-complexity` now also carries `extensions.code: BAD_USER_INPUT`, as syntax and validation errors do.
 - GraphQL: with `shiguchi.graphql.error-format=NATIVE` (the default), syntax and validation errors raised by graphql-java now carry `extensions.code: BAD_USER_INPUT`, like backend validation failures do.
