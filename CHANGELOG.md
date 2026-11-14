@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- OpenAPI: `/v3/api-docs` and `/v3/api-docs.yaml` no longer drop `type` (and `format`) from schemas merged from an OpenAPI 3.1 downstream service. The 3.1 document was read correctly but written with the 3.0 serializer, so typed schemas came out as `{}` and Swagger UI showed no fields. New tests compare the served JSON and YAML with the downstream source.
 - Console: server-streaming calls parse SSE frames with or without the space after `event:`/`data:` and with CRLF line endings, so a stream no longer shows nothing when the server omits the space.
 - Console: a non-2xx response on a streaming call (401, 403, 404, 429, 503) now shows an error with its gRPC code instead of an empty stream, and a stream that ends without a completion event shows "Stream ended without a completion event" with the messages received so far. An UNAUTHENTICATED error offers a **Set or refresh credentials** button.
 - GraphQL: with `error-format=NATIVE`, the error for an introspection query refused by `shiguchi.graphql.introspection` now also carries `extensions.code: BAD_USER_INPUT`.

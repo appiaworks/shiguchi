@@ -383,6 +383,37 @@ class DownstreamSpecMergerTest {
         assertThat(pingOp.getOperationId()).isEqualTo("v31_ping");
     }
 
+    @Test
+    @DisplayName(
+            "Given a 3.1 downstream spec with string and int64 fields, when merged and serialized like /v3/api-docs, should keep type on every schema")
+    void given_openapi31TypedSchemas_when_mergedAndSerialized_should_keepType() throws Exception {
+        // Arrange
+        String spec = """
+                {"openapi":"3.1.0","info":{"title":"t","version":"1"},
+                 "paths":{"/things":{"get":{"operationId":"list","responses":{"200":{"description":"OK",
+                   "content":{"application/json":{"schema":{"$ref":"#/components/schemas/Thing"}}}}}}}},
+                 "components":{"schemas":{"Thing":{"type":"object","properties":{
+                   "name":{"type":"string"},"id":{"type":"integer","format":"int64"}}}}}}
+                """;
+        ServiceEndpointContext ctx = createContextWithSpec(
+                "t31", "", false, spec.getBytes(java.nio.charset.StandardCharsets.UTF_8), "application/json");
+        addRoute(ctx, "GET", "/things", "list");
+        Paths paths = new Paths();
+        Components components = new Components();
+
+        // Act
+        DownstreamSpecMerger.merge(ctx, paths, components);
+        var out = new io.swagger.v3.oas.models.OpenAPI().paths(paths).components(components);
+        var json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(OpenApiCache.toJson(out));
+
+        // Assert
+        var thing = json.at("/components/schemas/t31.Thing");
+        assertThat(thing.path("type").asText()).isEqualTo("object");
+        assertThat(thing.at("/properties/name/type").asText()).isEqualTo("string");
+        assertThat(thing.at("/properties/id/type").asText()).isEqualTo("integer");
+        assertThat(thing.at("/properties/id/format").asText()).isEqualTo("int64");
+    }
+
     // -------------------------------------------------------------------------
     // Helper methods
     // -------------------------------------------------------------------------
