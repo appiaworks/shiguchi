@@ -61,7 +61,9 @@ public final class GrpcUiSchemaDto {
             /** True when the field tracks presence (message, oneof member, proto3 optional): unset differs from default */
             boolean hasPresence,
             /** True when annotated required (google.api.field_behavior = REQUIRED, buf.validate required or min_len above 0); proto3 has no native required */
-            boolean required) {}
+            boolean required,
+            /** GraphQL type names this field's ID resolves to ((shiguchi.field).resolves_type); empty when not a reference */
+            List<String> resolvesTypes) {}
 
     public record EnumValueSchema(String name, int number) {}
 

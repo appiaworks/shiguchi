@@ -225,7 +225,8 @@ public class GrpcUiSchemaBuilder implements dev.appiaworks.shiguchi.routing.Sche
                 mapEntry,
                 wellKnownType,
                 fd.hasPresence(),
-                isRequired(fd));
+                isRequired(fd),
+                resolvesTypes(fd));
     }
 
     private static final int FIELD_BEHAVIOR_EXT = 1052;
@@ -234,6 +235,29 @@ public class GrpcUiSchemaBuilder implements dev.appiaworks.shiguchi.routing.Sche
     private static final int BUF_RULES_REQUIRED = 25;
     private static final int BUF_RULES_STRING = 14;
     private static final int BUF_STRING_MIN_LEN = 2;
+    private static final int SHIGUCHI_FIELD_EXT = 50101;
+    private static final int SHIGUCHI_RESOLVES_TYPE = 9;
+
+    /**
+     * The types an ID field points to, from {@code (shiguchi.field).resolves_type}. Read from the option's wire
+     * bytes like {@link #isRequired}, so the UI needs no dependency on the generated annotation classes.
+     */
+    static List<String> resolvesTypes(FieldDescriptor fd) {
+        List<String> types = new java.util.ArrayList<>();
+        try {
+            UnknownFieldSet options = UnknownFieldSet.parseFrom(fd.getOptions().toByteString());
+            for (ByteString rule : options.getField(SHIGUCHI_FIELD_EXT).getLengthDelimitedList()) {
+                for (ByteString name : UnknownFieldSet.parseFrom(rule)
+                        .getField(SHIGUCHI_RESOLVES_TYPE)
+                        .getLengthDelimitedList()) {
+                    types.add(name.toStringUtf8());
+                }
+            }
+        } catch (java.io.IOException | RuntimeException e) {
+            log.debug("Could not read resolves_type of {}", fd.getFullName(), e);
+        }
+        return types;
+    }
 
     /**
      * Reads the required annotations from the field options' wire bytes, so it works whether or not

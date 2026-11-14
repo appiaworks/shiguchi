@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { SchemaDoc } from './SchemaDoc'
+import { useGrpcUiStore } from '../store/useGrpcUiStore'
 import type { FieldSchema, MessageSchema } from '../types/schema'
 
 function field(over: Partial<FieldSchema>): FieldSchema {
@@ -36,20 +37,13 @@ describe('SchemaDoc', () => {
     expect(screen.getByText('KIND_A')).toBeTruthy()
   })
 
-  it('GIVEN_explicit_optional_scalar_WHEN_rendered_SHOULD_show_optional_badge', () => {
-    render(
-      <SchemaDoc
-        schema={schema(
-          field({ name: 'a', jsonName: 'a', hasPresence: true }),
-          field({ name: 'b', jsonName: 'b', hasPresence: false }),
-        )}
-      />,
-    )
+  it('GIVEN_explicit_optional_scalar_WHEN_rendered_SHOULD_not_show_an_optional_label', () => {
+    render(<SchemaDoc schema={schema(field({ name: 'a', jsonName: 'a', hasPresence: true }))} />)
 
-    expect(screen.getAllByText('optional')).toHaveLength(1)
+    expect(screen.queryByText('optional')).toBeNull()
   })
 
-  it('GIVEN_required_field_WHEN_rendered_SHOULD_show_red_bang_after_type_with_annotation_tooltip', () => {
+  it('GIVEN_required_field_WHEN_rendered_SHOULD_show_required_pill_with_annotation_tooltip', () => {
     render(
       <SchemaDoc
         schema={schema(
@@ -59,11 +53,67 @@ describe('SchemaDoc', () => {
       />,
     )
 
-    const bang = screen.getAllByText('!')
-    expect(bang).toHaveLength(1)
-    expect(bang[0].className).toContain('text-red-500')
-    expect(bang[0].getAttribute('title')).toContain('Marked required by annotation')
-    expect(bang[0].getAttribute('title')).toContain('Proto3 itself has no required fields')
+    const pill = screen.getAllByText('required')
+    expect(pill).toHaveLength(1)
+    expect(pill[0].getAttribute('title')).toContain('Marked required by annotation')
+    expect(pill[0].getAttribute('title')).toContain('Proto3 itself has no required fields')
+  })
+
+  it('GIVEN_required_only_toggled_WHEN_rendered_SHOULD_hide_fields_that_are_not_required', () => {
+    render(
+      <SchemaDoc
+        schema={schema(
+          field({ name: 'a', jsonName: 'a', required: true }),
+          field({ name: 'b', jsonName: 'b' }),
+        )}
+      />,
+    )
+
+    fireEvent.click(screen.getByLabelText('Required only'))
+    expect(screen.queryByText('b')).toBeNull()
+    expect(screen.getByText('a')).toBeTruthy()
+  })
+
+  it('GIVEN_no_required_fields_WHEN_rendered_SHOULD_not_offer_required_only', () => {
+    render(<SchemaDoc schema={schema(field({ name: 'b', jsonName: 'b' }))} />)
+
+    expect(screen.queryByLabelText('Required only')).toBeNull()
+  })
+
+  it('GIVEN_id_field_resolving_a_type_WHEN_chip_clicked_SHOULD_show_the_target_types_fields', () => {
+    useGrpcUiStore.setState({
+      services: [
+        {
+          name: 's',
+          target: 't',
+          namespace: 'n',
+          configName: 'c',
+          methods: [
+            {
+              name: 'GetAuthor',
+              fullServiceName: 'pkg.S',
+              methodType: 'UNARY',
+              inputSchema: { fullName: 'pkg.In', fields: [] },
+              outputTypeName: 'pkg.Author',
+              outputSchema: { fullName: 'pkg.Author', fields: [field({ name: 'pen_name', jsonName: 'penName' })] },
+            },
+          ],
+        },
+      ],
+    })
+    render(<SchemaDoc schema={schema(field({ name: 'author_id', jsonName: 'authorId', resolvesTypes: ['Author'] }))} />)
+
+    expect(screen.queryByText('penName')).toBeNull()
+    fireEvent.click(screen.getByText('→ Author'))
+    expect(screen.getByText('penName')).toBeTruthy()
+    useGrpcUiStore.setState({ services: [] })
+  })
+
+  it('GIVEN_id_field_resolving_an_unknown_type_WHEN_chip_clicked_SHOULD_say_it_is_not_exposed', () => {
+    render(<SchemaDoc schema={schema(field({ name: 'x_id', jsonName: 'xId', resolvesTypes: ['Ghost'] }))} />)
+
+    fireEvent.click(screen.getByText('→ Ghost'))
+    expect(screen.getByText(/Ghost is not part of any schema/)).toBeTruthy()
   })
 
   it('GIVEN_repeated_map_oneof_and_well_known_fields_WHEN_rendered_SHOULD_explain_them_in_tooltips', () => {

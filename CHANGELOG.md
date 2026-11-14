@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Console schema panel: required fields are highlighted (red bar, bold name, **required** pill) and the per-field "optional" label is gone; a **Required only** toggle hides the rest. An ID field with `(shiguchi.field).resolves_type` shows a **→ Type** chip that opens the target type's fields in place. `/api/schema` fields gain `resolvesTypes`.
+
 ### Fixed
 
 - GraphiQL page: the access token is now refreshed 60 s before it expires (refresh-token grant, then client credentials), as in the console. The **Authorize** button turns amber with "Session expired – Authorize" once the token has expired and could not be renewed, instead of staying "Authorized ✓", and the sign-in panel opens when a refresh fails.

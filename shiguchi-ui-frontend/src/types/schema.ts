@@ -17,6 +17,8 @@ export interface FieldSchema {
   hasPresence?: boolean
   /** Marked required by annotation (google.api.field_behavior / buf.validate); proto3 has no native required. */
   required?: boolean
+  /** GraphQL type names this ID field resolves to ((shiguchi.field).resolves_type). */
+  resolvesTypes?: string[]
 }
 
 export interface MessageSchema {

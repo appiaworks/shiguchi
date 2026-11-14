@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FieldSchema, MessageSchema } from '../types/schema'
+import { useGrpcUiStore } from '../store/useGrpcUiStore'
+import { findTypeFields } from '../lib/findType'
 
 /** Bump `n` to make every row apply `open`, whatever the user toggled before. */
 interface BulkToggle {
@@ -27,6 +29,11 @@ function wellKnownTip(wk: string): string {
   return `Well-known type ${wk}: written as a single JSON value, not an object`
 }
 
+/** Keeps required fields and the messages that contain one, for the "Required only" view. */
+function keepRequired(f: FieldSchema): boolean {
+  return f.required === true || f.fields.some(keepRequired)
+}
+
 function anyExpandable(fields: FieldSchema[]): boolean {
   return fields.some((f) => f.fields.length > 0 || f.enumValues.length > 0)
 }
@@ -36,12 +43,17 @@ function FieldRow({
   depth,
   parentPath,
   bulk,
+  requiredOnly,
 }: {
   field: FieldSchema
   depth: number
   parentPath: string
   bulk: BulkToggle | null
+  requiredOnly: boolean
 }) {
+  const services = useGrpcUiStore((s) => s.services)
+  const [openRef, setOpenRef] = useState<string | null>(null)
+  const refFields = openRef ? findTypeFields(services, openRef) : null
   const [open, setOpen] = useState(depth < 2)
   // enum values are noise until asked for: always start collapsed, whatever the depth
   const [enumOpen, setEnumOpen] = useState(false)
@@ -82,11 +94,14 @@ function FieldRow({
       ? 'map: a JSON object with string keys; each value has the type shown below'
       : ''
 
-  const typeTip = field.wellKnownType
+  const baseTip = field.wellKnownType
     ? wellKnownTip(field.wellKnownType)
     : field.typeName
     ? `${field.type}: ${field.typeName}`
     : field.type
+  const typeTip = explicitOptional
+    ? `${baseTip} (proto3 optional: leaving it out differs from sending the default value)`
+    : baseTip
 
   const path = parentPath ? `${parentPath}.${field.jsonName}` : field.jsonName
   const childPrefix = field.label === 'repeated' ? `${path}[]` : path
@@ -103,7 +118,11 @@ function FieldRow({
 
   return (
     <div style={{ paddingLeft: depth * 12 }}>
-      <div className="group flex items-center gap-1 py-0.5">
+      <div
+        className={`group flex items-center gap-1 py-0.5 ${
+          field.required ? 'border-l-2 border-red-500 bg-red-500/5 pl-1' : ''
+        }`}
+      >
         {hasChildren ? (
           <button
             onClick={() => setOpen(!open)}
@@ -114,14 +133,19 @@ function FieldRow({
         ) : (
           <span className="w-3 shrink-0" />
         )}
-        <span className="text-slate-300 text-xs">{field.jsonName}</span>
+        <span className={field.required ? 'text-red-200 text-xs font-semibold' : 'text-slate-300 text-xs'}>
+          {field.jsonName}
+        </span>
         <span className="text-slate-600 text-[14px]">:</span>
         <span className="text-emerald-400 text-[14px]" title={typeTip}>
           {typeLabel}
         </span>
         {field.required && (
-          <span className="text-red-500 text-[14px] font-bold" title={REQUIRED_TIP}>
-            !
+          <span
+            className="rounded bg-red-500/20 px-1 text-red-400 text-[11px] font-semibold uppercase tracking-wide"
+            title={REQUIRED_TIP}
+          >
+            required
           </span>
         )}
         {hasEnum && (
@@ -133,14 +157,17 @@ function FieldRow({
             {enumOpen ? '▾' : '▸'} enum ({field.enumValues.length})
           </button>
         )}
-        {explicitOptional && (
-          <span
-            className="text-sky-500 text-[13px]"
-            title="proto3 optional: leaving it out differs from sending the default value"
+        {(field.resolvesTypes ?? []).map((t) => (
+          <button
+            key={t}
+            onClick={() => setOpenRef(openRef === t ? null : t)}
+            aria-expanded={openRef === t}
+            title={`This ID points to ${t}. Click to ${openRef === t ? 'hide' : 'show'} its fields.`}
+            className="rounded bg-sky-500/15 px-1 text-sky-300 text-[13px] hover:bg-sky-500/25"
           >
-            optional
-          </span>
-        )}
+            → {t}
+          </button>
+        ))}
         {field.label !== 'optional' && (
           <span className={`text-[14px] ${labelColor}`} title={labelTip}>
             [{field.label}]
@@ -166,9 +193,31 @@ function FieldRow({
 
       {open && field.fields.length > 0 && (
         <div>
-          {field.fields.map((f) => (
-            <FieldRow key={f.name} field={f} depth={depth + 1} parentPath={childPrefix} bulk={bulk} />
+          {(requiredOnly ? field.fields.filter(keepRequired) : field.fields).map((f) => (
+            <FieldRow
+              key={f.name}
+              field={f}
+              depth={depth + 1}
+              parentPath={childPrefix}
+              bulk={bulk}
+              requiredOnly={requiredOnly}
+            />
           ))}
+        </div>
+      )}
+
+      {openRef && (
+        <div style={{ paddingLeft: 12 }} className="border-l border-sky-500/40 ml-1">
+          <div className="text-sky-300 text-[13px] py-0.5">{openRef}</div>
+          {refFields ? (
+            refFields.map((f) => (
+              <FieldRow key={f.name} field={f} depth={depth + 1} parentPath="" bulk={null} requiredOnly={false} />
+            ))
+          ) : (
+            <div className="text-slate-500 text-[13px]">
+              {openRef} is not part of any schema the gateway exposes here.
+            </div>
+          )}
         </div>
       )}
 
@@ -190,11 +239,24 @@ function FieldRow({
 export function SchemaDoc({ schema }: { schema: MessageSchema }) {
   const [bulk, setBulk] = useState<BulkToggle | null>(null)
   const toggleAll = (open: boolean) => setBulk((b) => ({ open, n: (b?.n ?? 0) + 1 }))
+  const [requiredOnly, setRequiredOnly] = useState(false)
+  const hasRequired = schema.fields.some(keepRequired)
+  const shown = requiredOnly ? schema.fields.filter(keepRequired) : schema.fields
 
   return (
     <div className="h-full overflow-y-auto px-2 py-1">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
         <span className="min-w-0 break-all text-[14px] text-slate-500">{schema.fullName}</span>
+        {hasRequired && (
+          <label className="flex items-center gap-1 text-[13px] text-slate-400 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={requiredOnly}
+              onChange={(e) => setRequiredOnly(e.target.checked)}
+            />
+            Required only
+          </label>
+        )}
         {anyExpandable(schema.fields) && (
           <span className="ml-auto flex shrink-0 gap-2 whitespace-nowrap text-[13px]">
             <button onClick={() => toggleAll(true)} className="text-slate-500 hover:text-slate-300">
@@ -206,8 +268,8 @@ export function SchemaDoc({ schema }: { schema: MessageSchema }) {
           </span>
         )}
       </div>
-      {schema.fields.map((f) => (
-        <FieldRow key={f.name} field={f} depth={0} parentPath="" bulk={bulk} />
+      {shown.map((f) => (
+        <FieldRow key={f.name} field={f} depth={0} parentPath="" bulk={bulk} requiredOnly={requiredOnly} />
       ))}
       {schema.fields.length === 0 && (
         <div className="text-slate-600 text-xs">(empty message)</div>
