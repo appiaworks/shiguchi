@@ -158,7 +158,7 @@ function FieldRow({
           onClick={copyPath}
           aria-label={`Copy path ${path}`}
           title={copied ? 'Copied' : `Copy path ${path}`}
-          className="ml-1 text-slate-500 text-[12px] opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-slate-300"
+          className="ml-1 text-slate-400 text-[12px] opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-slate-300"
         >
           {copied ? '✓' : 'copy'}
         </button>
@@ -193,10 +193,10 @@ export function SchemaDoc({ schema }: { schema: MessageSchema }) {
 
   return (
     <div className="h-full overflow-y-auto px-2 py-1">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-[14px] text-slate-500">{schema.fullName}</span>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
+        <span className="min-w-0 break-all text-[14px] text-slate-500">{schema.fullName}</span>
         {anyExpandable(schema.fields) && (
-          <span className="ml-auto flex gap-2 text-[13px]">
+          <span className="ml-auto flex shrink-0 gap-2 whitespace-nowrap text-[13px]">
             <button onClick={() => toggleAll(true)} className="text-slate-500 hover:text-slate-300">
               Expand all
             </button>
