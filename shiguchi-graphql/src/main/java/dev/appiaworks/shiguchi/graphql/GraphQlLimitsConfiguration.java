@@ -147,6 +147,12 @@ public class GraphQlLimitsConfiguration {
     }
 
     @Bean
+    @ConditionalOnExpression("'${shiguchi.graphql.error-format:NATIVE}'.toUpperCase() == 'NATIVE'")
+    GraphQlParseErrorCodeInterceptor gatewayGraphQlParseErrorCodeInterceptor() {
+        return new GraphQlParseErrorCodeInterceptor();
+    }
+
+    @Bean
     @ConditionalOnProperty(prefix = "shiguchi.graphql.incremental", name = "enabled", havingValue = "true")
     GraphQlIncrementalInterceptor gatewayGraphQlIncrementalInterceptor() {
         return new GraphQlIncrementalInterceptor();

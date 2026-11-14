@@ -159,6 +159,35 @@ class GraphQlLimitsEndToEndTest {
         assertThat(BACKEND_CALLS.get()).isZero();
     }
 
+    private static String firstErrorCode(Struct response) {
+        Value errors = response.getFieldsOrDefault("errors", null);
+        Struct ext = errors.getListValue()
+                .getValues(0)
+                .getStructValue()
+                .getFieldsOrThrow("extensions")
+                .getStructValue();
+        return ext.containsFields("code") ? ext.getFieldsOrThrow("code").getStringValue() : null;
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a query with a syntax error WHEN sent under NATIVE errors SHOULD carry extensions.code BAD_USER_INPUT")
+    void given_syntaxError_when_sent_should_carryBadUserInputCode() throws Exception {
+        Struct response = graphql("{ item(id: ");
+
+        assertThat(firstErrorCode(response)).isEqualTo("BAD_USER_INPUT");
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a query selecting an unknown field WHEN sent under NATIVE errors SHOULD carry extensions.code BAD_USER_INPUT")
+    void given_validationError_when_sent_should_carryBadUserInputCode() throws Exception {
+        Struct response = graphql("{ nosuch }");
+
+        assertThat(firstErrorCode(response)).isEqualTo("BAD_USER_INPUT");
+        assertThat(BACKEND_CALLS.get()).isZero();
+    }
+
     // ------------------------------------------------------------------ fixtures
 
     /** errs.Store/GetItem(GetRequest{id}) returns Item{id,payload,sku,name,category{name}}, bound as query item. */
