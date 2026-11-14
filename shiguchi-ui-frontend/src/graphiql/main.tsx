@@ -2,7 +2,7 @@ import './workers'
 import { StrictMode, useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { GraphiQL } from 'graphiql'
-import { createGraphiQLFetcher } from '@graphiql/toolkit'
+import { createTransport } from '@graphiql/toolkit'
 import { createClient } from 'graphql-ws'
 import 'graphiql/style.css'
 import '../index.css'
@@ -25,12 +25,12 @@ function Page() {
 
   const url = links?.graphqlEndpoint
   const wsPath = links?.graphqlWebSocketPath
-  const fetcher = useMemo(() => {
+  const transport = useMemo(() => {
     if (!url) return null
     // Subscriptions run over graphql-transport-ws on the same origin. A browser cannot set
     // headers on a WebSocket, so the credential travels in the connection_init payload; it is
     // read when the socket connects, so signing in or out applies to the next subscription.
-    const wsClient = wsPath
+    const subscriptionClient = wsPath
       ? createClient({
           url: new URL(wsPath, window.location.href.replace(/^http/, 'ws')).toString(),
           lazy: true,
@@ -40,7 +40,9 @@ function Page() {
           },
         })
       : undefined
-    return createGraphiQLFetcher({ url, fetch: authFetch, wsClient })
+    // The gateway serves GraphQL over POST only. Naming it skips GraphiQL 6's OPTIONS probe of the
+    // endpoint (2 s timeout) and keeps queries off GET and QUERY.
+    return createTransport({ url, fetch: authFetch, subscriptionClient, supportedMethods: ['POST'] })
   }, [url, wsPath])
 
   return (
@@ -53,7 +55,7 @@ function Page() {
       </div>
       {panelOpen && <GlobalAuthPanel onClose={() => setPanelOpen(false)} />}
       {error && <div role="alert">Could not load the gateway config: {error}</div>}
-      <div className="gql-main">{fetcher && <GraphiQL fetcher={fetcher} />}</div>
+      <div className="gql-main">{transport && <GraphiQL transport={transport} />}</div>
     </div>
   )
 }

@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Console: the auth panel preselects the provider you used last (its id only, in `localStorage`; you still sign in again after a reload).
 - Console: the top bar shows the Shiguchi version (`version` in `api/config`, read from the jar manifest).
 - Console: an **output schema** button in the response header shows the response message structure beside the result.
+- GraphiQL: the page uses GraphiQL 6's transport, so the response pane shows the HTTP status, time and size, and it no longer sends an `OPTIONS` probe before the first query.
 
 ### Fixed
 
