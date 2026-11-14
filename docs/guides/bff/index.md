@@ -163,6 +163,18 @@ in process until it nears expiry. A service with no target is refused (403), as 
 `access_denied` or `invalid_grant`; an unreachable or failing issuer gives 503. The gateway never falls back to relaying
 the broad token, and tokens never appear in errors or logs.
 
+What `EXCHANGE` changes for security:
+
+- A backend receives a short-lived token for its own audience and scope, not the user's full access token, so a
+  compromised or over-curious backend cannot replay it against other services.
+- An unmapped service or a refusal from the issuer is a 403 and the session is kept. An issuer that is down is a 503.
+  Neither falls back to `RELAY`.
+- The cache key is the session, its version, the audience and the scope. A refresh moves the session to a new version
+  and a logout ends it, so either one drops the cached tokens; a refreshed session always exchanges again with its new
+  subject token.
+- The issuer must support RFC 8693 token exchange for the gateway's client. Check this before turning the mode on:
+  without it every call is refused.
+
 `mint`, where the gateway would sign its own tokens, is deliberately not offered. It would make the
 gateway an issuer, with signing keys, a JWKS and its own user identity. If you have an issuer, you do
 not need it; it stays an optional later slice for deployments without one.

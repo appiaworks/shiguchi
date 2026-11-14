@@ -470,6 +470,8 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
                                     .onErrorResume(
                                             StatusRuntimeException.class, ex -> writeErrorResponse(exchange, ctx, ex));
                         })
+                        // also what the credential source raised while the metadata was built
+                        .onErrorResume(StatusRuntimeException.class, ex -> writeErrorResponse(exchange, ctx, ex))
                         .onErrorResume(AccessDeniedException.class, ex -> writeAccessDeniedResponse(exchange, ex)))
                 .onErrorResume(PayloadTooLargeException.class, ex -> writePayloadTooLarge(exchange, ex));
     }

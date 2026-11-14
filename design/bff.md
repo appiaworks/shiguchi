@@ -30,7 +30,7 @@ validating JWTs exactly as for any other caller.
 
 | # | Question | Outcome |
 | --- | --- | --- |
-| D1 | What bearer token do backends receive? | **`relay` only** (answered 2026-10-13). The target deployment runs a dedicated issuer; the gateway is a plain OIDC client of it and sends the issuer's access token upstream. `mint` (the gateway signing its own tokens) and direct social login move to an optional later slice, built only for a deployment without its own issuer. `upstream-token-mode` therefore has one value, `RELAY`, and there is no `upstream-token.*` block |
+| D1 | What bearer token do backends receive? | **`RELAY` (default) and `EXCHANGE`** (answered 2026-10-13; `EXCHANGE` added later). The target deployment runs a dedicated issuer; the gateway is a plain OIDC client of it. `RELAY` sends the issuer's access token upstream. `EXCHANGE` (RFC 8693) trades it at the provider's token endpoint for a per-audience token chosen by the route's gRPC service (`exchange.targets`, `exchange.default-target`). `mint` (the gateway signing its own tokens) and direct social login stay deferred to an optional later slice, built only for a deployment without its own issuer |
 | D2 | The user's stable identity | Deferred with `mint`. In `relay` mode the subject is the issuer's `sub`. Rule kept for the later slice: a subject must match `[A-Za-z0-9_.:@-]{1,128}` (the push topic grammar **minus `/`**), because under `PRINCIPAL_MATCH` subject `a` may subscribe to `a/…`, so a subject `a/b` would be readable by `a` |
 | D3 | Packaging | One shared module `:shiguchi-bff` (package `dev.appiaworks.shiguchi.bff`) found by the gateway's `dev.appiaworks.shiguchi` component scan, plus two test-only starters `grpc-bff-spring-boot{3,4}-starter`, exactly like push. The brief's "starters like push" meant this: push has no autoconfigure modules. See section 4 for the spike that confirmed one module is enough |
 | D4 | Session store | `session.store: MEMORY | REDIS | JDBC`, bound in G0. **Outcome (G1a): the module owns a small `BffSessionStore` SPI** (memory, Redis and JDBC built), with no `oauth2Login()`, no `spring-security-oauth2-client` and no Spring Session. The reasons, as reviewed in S12: **(1) Principal shape.** `oauth2Login()` produces an `OAuth2AuthenticationToken`, but a cookie caller must be the same `JwtAuthenticationToken` a bearer caller is (one converter, so authorities, `x-principal`, the rate-limit key and push `PRINCIPAL_MATCH` need no special case). It also saves through its own context repository and drives redirects the module must control (`return_to`, the allow-list, the provider hint). **(2) The binary break is real but avoidable, and not worth avoiding.** `OAuth2AuthorizationRequest.Builder` became an `AbstractBuilder` in Security 7.x, so a module compiled against 6.5 throws `NoSuchMethodError` on Boot 4, and one compiled module must run on both. Per-line adapters could bridge it; roughly 450 lines of duplication would buy nothing visible, so the module builds the authorize URL itself, POSTs to the token endpoint with `WebClient`, and validates with `NimbusReactiveJwtDecoder` plus its own `aud`/`azp`/`nonce` checks (the raw nonce; Spring's `OidcIdTokenValidator` never checked it). **(3) No `WebSession`, no Spring Session.** A `WebSessionManager` sits on every request and would add a lookup to the hot path, which has none today; Spring Session has no compare-and-set, no lease (the cross-instance refresh of G2), no index by `sid` or subject (back-channel logout, revoke-all, G5) and no reactive JDBC store. The packaging spike's list in section 4 is therefore superseded for the client types |
@@ -91,6 +91,14 @@ the repository wraps the token's details in `dev.appiaworks.shiguchi.security.Co
 (the token class does not change) and the source checks `isCookieAuthenticated`. The source is
 declared `@ConditionalOnMissingBean`, so an application's own source replaces it. `BffUpstreamCredentialSourceTest`
 covers the default source only; no test installs a replacement.
+
+In `EXCHANGE` mode the source reads the session from the store (the caller's authentication knows
+neither its provider nor its session version), renews it if due, then exchanges its access token for
+the route's service through `BffTokenExchanger`, via the three-argument default method
+`UpstreamCredentialSource.authorization(request, authentication, route)`; the two-argument form
+delegates with a null route. A refused exchange or a service with no target maps to
+`PERMISSION_DENIED`, an exchange that could not be done to `UNAVAILABLE`, and there is no fallback to
+the caller's own token. `BffTokenExchangeEndToEndTest` covers it against the stub issuer.
 
 ### 3.4 Configuration and validation
 
