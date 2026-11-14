@@ -11,6 +11,7 @@ being served. Configuration keys are also listed in [configuration.md](configura
 | --- | --- | --- |
 | `/v3/api-docs` | JSON | springdoc, with the generated paths and components merged in by an `OpenApiCustomizer` |
 | `/v3/api-docs.yaml` | YAML (`application/yaml`) | `OpenApiConfig.openApiYamlRoute`, serialised from the generated document (`OpenApiCache`) |
+| `/v3/api-docs/backends/{name}` | JSON | one document per backend (`shiguchi.services[].name`): its paths, its tags and only the schemas they reach, with the configured security schemes. Unknown name: 404 |
 | `/swagger-ui.html` | Swagger UI | springdoc |
 
 - Delivered by the `shiguchi-openapi-*-starter` (WebFlux). The beans are active when `shiguchi.openapi.enabled` is not
@@ -25,6 +26,13 @@ being served. Configuration keys are also listed in [configuration.md](configura
   (`shiguchi.security.surfaces.openapi.require-auth`). `/v3/api-docs.yaml` is not in that list (`/v3/api-docs/**` does not match it), so it is not gated by the `openapi`
   surface: it follows the `rest` surface (the chain's catch-all).
 - CORS default paths include `/swagger-ui/**`, `/swagger-ui.html` and `/v3/api-docs/**`.
+- Organisation: every service is a top-level tag (sorted, described by its proto comment or `<service> (<backend>)`),
+  and every operation has a summary, taken from the proto comment or else the method name in words
+  (`ListCorporationProjects` becomes "List corporation projects"). With two or more backends and
+  `shiguchi.openapi.group-by-backend` (default `true`), Swagger UI gets a document dropdown ("All services" plus one
+  entry per backend), unless `springdoc.swagger-ui.urls` is set. For a long list, springdoc's own keys help:
+  `springdoc.swagger-ui.doc-expansion: none`, `filter: true`, `tags-sorter: alpha`, `operations-sorter: alpha`,
+  `default-models-expand-depth: -1`.
 - Authorize dialog: driven by `shiguchi.openapi.security-schemes` and `global-security` (section 5).
 
 ## 2. Generation rules
@@ -165,6 +173,7 @@ From `dev.appiaworks.shiguchi.config.OpenApiConfig` (prefix `shiguchi.openapi`) 
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `shiguchi.openapi.enabled` | `true` | Generate the spec and register the beans; also the default for `services[].openapi-enabled` |
+| `shiguchi.openapi.group-by-backend` | `true` | Serve `/v3/api-docs/backends/{name}` and fill Swagger UI's document dropdown (needs two or more backends; `springdoc.swagger-ui.urls` set by you wins) |
 | `shiguchi.openapi.security-schemes.<id>` | `{}` | Named schemes added to `components.securitySchemes` |
 | `shiguchi.openapi.security-schemes.<id>.type` | none | `http`, `apiKey`, `oauth2` or `openIdConnect` (matched case-insensitively) |
 | `...scheme` | none | `type=http`: `bearer` or `basic` |

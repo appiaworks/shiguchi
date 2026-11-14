@@ -273,14 +273,27 @@ half looks like when it fails.
             client-id: my-public-client
   ```
 
-  The console pre-fills it (a value the operator saved in that browser wins), and Swagger's
-  Authorize dialog does too, but only when the configuration has exactly one `oauth2` scheme, it sets
-  one `client-id`, and `springdoc.swagger-ui.oauth.client-id` is unset. Swagger UI's `initOAuth` is
-  global: it pre-fills the same id into every OAuth2 scheme, so with several `oauth2` schemes nothing
-  is seeded (a scheme would otherwise get another scheme's id). Type the id in the dialog, or set
-  `springdoc.swagger-ui.oauth.client-id` yourself if one id suits them all. The id is public (it is in the authorize URL) and is served to anyone
-  who can open the console, so use it for public PKCE clients only. There is no `client-secret`
-  property; a `client_credentials` secret is still typed by the operator.
+  The console pre-fills it (a value the operator saved in that browser wins), and so does Swagger's
+  Authorize dialog, **per scheme**. Swagger UI's own `initOAuth` is global, so the gateway adds a small
+  Swagger UI plugin to the generated `swagger-initializer.js` that hands each `oauth2` scheme its own
+  `client-id`; with `keycloak-sso` and `eve-sso` side by side, each dialog shows its own id. Only
+  schemes that set an id are listed (a scheme whose flows set different ids is skipped), and an id
+  already saved for the scheme in the dialog wins. `springdoc.swagger-ui.oauth.client-id` stays the
+  fallback for schemes without an id of their own, and with exactly one `oauth2` scheme it is also
+  seeded from that scheme's id when unset.
+
+  A scheme with an `authorization-code` flow and a `client-id` is a public client, so the gateway also
+  turns on PKCE for Swagger's authorization-code grant
+  (`usePkceWithAuthorizationCodeGrant`) unless you set
+  `springdoc.swagger-ui.oauth.use-pkce-with-authorization-code-grant` yourself. The id is public (it
+  is in the authorize URL) and is served to anyone who can open the console or Swagger UI, so use it
+  for public PKCE clients only. There is no `client-secret` property; a `client_credentials` secret is
+  still typed by the operator.
+
+  Declaring a scheme only fills the Authorize dialog. For "Try it out" to send the token, list the
+  scheme in `shiguchi.openapi.global-security` (a list of scheme ids applied to every operation) or
+  have the operations carry their own `security`. With schemes declared and `global-security` empty,
+  the gateway logs one startup warning saying so.
 
 ### Skipping the chain for open REST routes
 

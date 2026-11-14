@@ -140,6 +140,11 @@ proto messages:
 
 ![Swagger UI showing GET /v1/books of the sample library catalogue, with its pageSize, pageToken and sort parameters](../images/swagger-ui.png)
 
+With many services, each one is a sorted tag and every operation carries a summary. With two or more
+backends the top bar has a document dropdown ("All services" plus one entry per backend); turn it off with
+`shiguchi.openapi.group-by-backend=false`. Springdoc's `springdoc.swagger-ui.doc-expansion: none` and
+`filter: true` keep a long list collapsed and searchable. See the [OpenAPI reference](../reference/openapi.md).
+
 **GraphQL / GraphiQL** (`/graphiql`, from `shiguchi-graphql-*-starter`) — methods become
 queries/mutations (from `(shiguchi.graphql)` annotations, or convention-named like
 `libraryListBooks` when unannotated). With the console enabled (`shiguchi.ui.enabled=true`) `/graphiql`

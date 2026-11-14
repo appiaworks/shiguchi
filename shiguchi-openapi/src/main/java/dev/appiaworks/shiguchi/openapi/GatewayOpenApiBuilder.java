@@ -63,6 +63,8 @@ public class GatewayOpenApiBuilder {
     private final GatewayProperties properties;
     private final ProtoToOpenApiSchemaConverter converter;
     private volatile OpenAPI builtSpec;
+    /** One document per backend (service name), same shape as {@link #builtSpec} but only its routes. */
+    private volatile Map<String, OpenAPI> backendSpecs = Map.of();
 
     /** Non-JSON media types callers may use on gRPC-backed routes (Avro, ...); advertised next to JSON. */
     private final List<dev.appiaworks.shiguchi.rest.RestBodyCodec> codecs;
@@ -124,6 +126,16 @@ public class GatewayOpenApiBuilder {
         return builtSpec;
     }
 
+    /** Names of the backends that contribute at least one documented route, sorted. */
+    public java.util.Set<String> backendNames() {
+        return backendSpecs.keySet();
+    }
+
+    /** The document for one backend: its paths, its tags and only the schemas they reach; null if unknown. */
+    public OpenAPI getBackendSpec(String backend) {
+        return backendSpecs.get(backend);
+    }
+
     // -------------------------------------------------------------------------
 
     private OpenAPI buildSpec() {
@@ -131,13 +143,18 @@ public class GatewayOpenApiBuilder {
         Set<String> visited = new HashSet<>();
         Paths paths = new Paths();
         Components components = new Components();
+        // Sorted, so the Swagger UI order does not depend on route registration order.
+        Map<String, io.swagger.v3.oas.models.tags.Tag> tags = new java.util.TreeMap<>();
+        Map<String, BackendParts> backends = new java.util.TreeMap<>();
 
         for (ServiceEndpointContext ctx : registry.allContexts()) {
             if (!ctx.getConfig().isOpenapiEnabled(properties.getOpenapi().isEnabled())) continue;
 
             // A REST_DOWNSTREAM context has no descriptors; its own document is merged instead.
+            BackendParts backend = backends.computeIfAbsent(backendName(ctx), n -> new BackendParts());
             if (ctx.isRestDownstream()) {
                 DownstreamSpecMerger.merge(ctx, paths, components);
+                DownstreamSpecMerger.merge(ctx, backend.paths, backend.components);
                 continue;
             }
 
@@ -156,6 +173,18 @@ public class GatewayOpenApiBuilder {
 
                 PathItem pathItem = paths.computeIfAbsent(openApiPath(route.getHttpPath()), p -> new PathItem());
                 setOperation(pathItem, route.getHttpMethod(), op);
+                setOperation(
+                        backend.paths.computeIfAbsent(openApiPath(route.getHttpPath()), p -> new PathItem()),
+                        route.getHttpMethod(),
+                        op);
+
+                String tagName = shortServiceTag(route.getFullServiceName());
+                var tag = tags.computeIfAbsent(
+                        tagName,
+                        n -> new io.swagger.v3.oas.models.tags.Tag()
+                                .name(n)
+                                .description(tagDescription(ctx, route.getFullServiceName())));
+                backend.tags.putIfAbsent(tagName, tag);
             }
         }
 
@@ -164,13 +193,92 @@ public class GatewayOpenApiBuilder {
             componentsSchemas.forEach((name, schema) -> components.getSchemas().putIfAbsent(name, (Schema) schema));
         }
 
+        Map<String, OpenAPI> perBackend = new java.util.TreeMap<>();
+        backends.forEach((name, parts) -> {
+            if (parts.paths.isEmpty()) return;
+            Components own = parts.components;
+            if (!componentsSchemas.isEmpty()) {
+                if (own.getSchemas() == null) own.setSchemas(new LinkedHashMap<>());
+                componentsSchemas.forEach((n, schema) -> own.getSchemas().putIfAbsent(n, (Schema) schema));
+            }
+            pruneSchemas(parts.paths, own);
+            perBackend.put(
+                    name,
+                    new OpenAPI()
+                            .info(new Info()
+                                    .title("Shiguchi: " + name)
+                                    .version("1.0")
+                                    .description("Auto-generated from gRPC proto descriptors"))
+                            .tags(new ArrayList<>(parts.tags.values()))
+                            .paths(parts.paths)
+                            .components(own));
+        });
+        this.backendSpecs = java.util.Collections.unmodifiableMap(perBackend);
+
         return new OpenAPI()
                 .info(new Info()
                         .title("Shiguchi")
                         .version("1.0")
                         .description("Auto-generated from gRPC proto descriptors"))
+                .tags(new ArrayList<>(tags.values()))
                 .paths(paths)
                 .components(components);
+    }
+
+    /** What one backend contributes; merged into the full document and kept on its own. */
+    private static final class BackendParts {
+        final Paths paths = new Paths();
+        final Components components = new Components();
+        final Map<String, io.swagger.v3.oas.models.tags.Tag> tags = new java.util.TreeMap<>();
+    }
+
+    private static String backendName(ServiceEndpointContext ctx) {
+        String name = ctx.getConfig().getName();
+        return name == null || name.isBlank() ? "default" : name;
+    }
+
+    private static final java.util.regex.Pattern SCHEMA_REF =
+            java.util.regex.Pattern.compile("#/components/schemas/([^\"]+)");
+
+    /** Drops the component schemas that no path of this document reaches, directly or through other schemas. */
+    private static void pruneSchemas(Paths paths, Components components) {
+        Map<String, Schema> all = components.getSchemas();
+        if (all == null || all.isEmpty()) return;
+        try {
+            Set<String> reached = new HashSet<>();
+            java.util.ArrayDeque<String> pending = new java.util.ArrayDeque<>();
+            collectRefs(io.swagger.v3.core.util.Json31.mapper().writeValueAsString(paths), reached, pending);
+            // Components other than schemas can reference schemas too (downstream documents).
+            for (var section : java.util.Arrays.asList(
+                    components.getResponses(), components.getRequestBodies(), components.getParameters())) {
+                if (section != null)
+                    collectRefs(io.swagger.v3.core.util.Json31.mapper().writeValueAsString(section), reached, pending);
+            }
+            while (!pending.isEmpty()) {
+                Schema schema = all.get(pending.poll());
+                if (schema != null)
+                    collectRefs(io.swagger.v3.core.util.Json31.mapper().writeValueAsString(schema), reached, pending);
+            }
+            all.keySet().retainAll(reached);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            // Keep every schema: a larger document beats a broken one.
+            log.warn("Could not prune schemas for a backend document", e);
+        }
+    }
+
+    private static void collectRefs(String json, Set<String> reached, java.util.ArrayDeque<String> pending) {
+        var m = SCHEMA_REF.matcher(json);
+        while (m.find()) {
+            if (reached.add(m.group(1))) pending.add(m.group(1));
+        }
+    }
+
+    /** The service's proto comment when there is one, else its full name and backend. */
+    private static String tagDescription(ServiceEndpointContext ctx, String fullServiceName) {
+        String comment = ctx.protoComment(fullServiceName);
+        if (comment != null && !comment.isBlank()) return comment;
+        String backend = ctx.getConfig().getName();
+        return backend != null && !backend.isBlank() ? fullServiceName + " (" + backend + ")" : fullServiceName;
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -206,6 +314,10 @@ public class GatewayOpenApiBuilder {
             op.setDescription(described);
             int firstBreak = described.indexOf('\n');
             op.setSummary(firstBreak > 0 ? described.substring(0, firstBreak).trim() : described);
+        } else {
+            // Reflection-loaded descriptors carry no comments, so most methods land here. A
+            // readable name beats an empty row in the Swagger UI list.
+            op.setSummary(humanise(route.getMethodName()));
         }
 
         // The rule's `body` decides what the request body is: a named top-level field maps the
@@ -425,6 +537,14 @@ public class GatewayOpenApiBuilder {
     private static String operationId(RouteDefinition route) {
         String methodName = route.getMethodName();
         return Character.toLowerCase(methodName.charAt(0)) + methodName.substring(1);
+    }
+
+    /** {@code ListCorporationProjects} to "List corporation projects". */
+    static String humanise(String methodName) {
+        if (methodName == null || methodName.isEmpty()) return "";
+        String spaced = methodName.replaceAll("([a-z0-9])([A-Z])", "$1 $2").replaceAll("([A-Z]+)([A-Z][a-z])", "$1 $2");
+        String lower = spaced.toLowerCase();
+        return Character.toUpperCase(lower.charAt(0)) + lower.substring(1);
     }
 
     private static String shortServiceTag(String fullServiceName) {
