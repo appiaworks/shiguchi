@@ -124,6 +124,12 @@ type Book { id: ID!  title: String  year: Int  authorId: ID  author: Author }   
 { books(first: 2) { edges { node { title author { name } } } } }
 ```
 
+```json
+{"data":{"books":{"edges":[
+  {"node":{"title":"Heat","author":{"name":"Mann"}}},
+  {"node":{"title":"Beloved","author":{"name":"Morrison"}}}]}}}
+```
+
 However many books come back, the authors are fetched with a single `GetAuthorsByIds` call. The
 rules are in the [GraphQL annotations guide](docs/guides/graphql-annotations.md#how-the-pieces-combine).
 
@@ -177,6 +183,14 @@ curl localhost:8080/v1/books/1
 curl -X POST localhost:8080/graphql -H 'Content-Type: application/json' \
   -d '{"query":"{ bookListBooks(first: 2) { edges { node { title author } } } }"}'
 # /swagger-ui.html  and  /grpc-ui (when enabled)
+```
+
+The GraphQL call returns:
+
+```json
+{"data":{"bookListBooks":{"edges":[
+  {"node":{"title":"Heat","author":"Mann"}},
+  {"node":{"title":"Beloved","author":"Morrison"}}]}}}
 ```
 
 Full steps (Maven, annotating protos, samples, building from source):
