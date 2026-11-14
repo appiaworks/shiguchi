@@ -35,6 +35,7 @@ function ErrorDetails({ details }: { details: unknown[] }) {
       {details.map((d, i) => {
         const type = typeof d === 'object' && d !== null ? String((d as Record<string, unknown>)['@type'] ?? '') : ''
         return (
+          // oxlint-disable-next-line react/no-array-index-key -- append-only list, never reordered
           <div key={i}>
             <div className="text-[12px] uppercase tracking-wider text-red-400 mb-0.5">
               {type.replace(/^type\.googleapis\.com\//, '') || `detail ${i + 1}`}
@@ -78,6 +79,7 @@ export function ResponseViewer() {
         </div>
         <div className="space-y-1">
           {streamChunks.map((chunk, i) => (
+            // oxlint-disable-next-line react/no-array-index-key -- append-only list, never reordered
             <pre key={i} className="text-xs text-slate-300 bg-slate-800 rounded p-1 overflow-x-auto">
               {prettyJson(chunk)}
             </pre>
@@ -156,6 +158,7 @@ export function ResponseViewer() {
       ) : streamChunks.length > 0 ? (
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {streamChunks.map((chunk, i) => (
+            // oxlint-disable-next-line react/no-array-index-key -- append-only list, never reordered
             <pre key={i} className="text-xs text-slate-300 bg-slate-800 rounded p-1 overflow-x-auto">
               {prettyJson(chunk)}
             </pre>

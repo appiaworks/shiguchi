@@ -32,6 +32,7 @@ export default function App() {
   // Sync store-driven open request (e.g. from auto-refresh hook in AuthBar)
   useEffect(() => {
     if (globalAuthDialogOpen) {
+      // oxlint-disable-next-line react/set-state-in-effect -- one-shot hand-off of a store request to local state
       setShowAuth(true)
       setGlobalAuthDialogOpen(false)
     }
@@ -100,6 +101,7 @@ export default function App() {
     onEscape: () => setShowAuth(false),
   })
 
+  // oxlint-disable-next-line react/purity -- the countdown is meant to read the clock on every render
   const now = Date.now()
   const globalSecondsLeft = globalTokenExpiry
     ? Math.max(0, Math.round((globalTokenExpiry - now) / 1000))
