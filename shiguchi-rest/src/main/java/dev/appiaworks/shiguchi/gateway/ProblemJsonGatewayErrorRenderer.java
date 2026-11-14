@@ -15,8 +15,8 @@ import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * RFC 9457 {@code application/problem+json} error body, selected by
- * {@code shiguchi.rest.error-format=PROBLEM_JSON}: {@code type} ({@code about:blank}), {@code title}
+ * RFC 9457 {@code application/problem+json} error body, the default ({@code shiguchi.rest.error-format=PROBLEM_JSON};
+ * {@code GRPC} restores the previous shape): {@code type} ({@code about:blank}), {@code title}
  * (the HTTP reason phrase), {@code status}, {@code detail} (the gRPC description), {@code instance}
  * (the request path) and the extension member {@code code} (the gRPC status name). A backend
  * {@code BadRequest} becomes {@code errors:[{field, message, reason}]}; any other detail stays under
