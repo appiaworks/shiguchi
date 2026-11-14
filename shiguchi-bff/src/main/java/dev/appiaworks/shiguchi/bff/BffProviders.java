@@ -209,6 +209,28 @@ final class BffProviders {
                 });
     }
 
+    /** A token endpoint answer: the HTTP status and the JSON object body (empty when there was none). */
+    record TokenAnswer(int status, Map<String, Object> body) {}
+
+    /**
+     * Posts a form to the provider's token endpoint, the client authenticated as configured, and returns
+     * whatever status came back with its JSON body; a non-JSON body is an empty one. Errors only for
+     * discovery failures, connection errors and the timeout.
+     */
+    Mono<TokenAnswer> tokenEndpointPost(String id, MultiValueMap<String, String> form, Duration timeout) {
+        BffProperties.Provider p = settings(id);
+        if (p == null) return Mono.error(new IllegalArgumentException("unknown provider " + id));
+        return endpoints(id)
+                .flatMap(e -> tokenRequest(p, e, form).exchangeToMono(response -> {
+                    int status = response.statusCode().value();
+                    return response.bodyToMono(JSON_OBJECT)
+                            .onErrorResume(error -> Mono.empty())
+                            .defaultIfEmpty(Map.of())
+                            .map(body -> new TokenAnswer(status, body));
+                }))
+                .timeout(timeout);
+    }
+
     /**
      * Revokes a token at the provider's revocation endpoint (RFC 7009), authenticating the client as for
      * the token endpoint. Completes empty on a 2xx answer, and also when the provider has no revocation

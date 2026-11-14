@@ -302,8 +302,12 @@ public class BffConfiguration {
     @Bean
     @ConditionalOnMissingBean(UpstreamCredentialSource.class)
     public UpstreamCredentialSource bffUpstreamCredentialSource(
-            BffSessionStore sessionStore, BffTokenRefresher refresher) {
-        return new BffUpstreamCredentialSource(sessionStore, refresher, Clock.systemUTC());
+            BffSessionStore sessionStore,
+            BffTokenRefresher refresher,
+            BffProviders providers,
+            BffProperties properties) {
+        return new BffUpstreamCredentialSource(
+                sessionStore, refresher, Clock.systemUTC(), new BffTokenExchanger(providers, properties));
     }
 
     /**
@@ -384,6 +388,7 @@ public class BffConfiguration {
                     }
                 });
             }
+            problems.addAll(BffTokenExchanger.problems(id, provider));
         });
         String path = properties.getPath();
         if (path == null || !path.startsWith("/") || path.equals("/") || path.endsWith("/")) {

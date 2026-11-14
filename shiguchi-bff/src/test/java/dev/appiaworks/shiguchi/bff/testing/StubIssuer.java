@@ -115,6 +115,12 @@ public final class StubIssuer implements AutoCloseable {
     private volatile String lastTokenRequestBody;
     private volatile Duration refreshDelay;
     private volatile int refreshStatus;
+    private final AtomicInteger exchangeCalls = new AtomicInteger();
+    private volatile int exchangeStatus;
+    private volatile String exchangeError = "invalid_target";
+    private volatile String exchangeTokenType = "Bearer";
+    private volatile Long exchangeExpiresIn = 300L;
+    private volatile String lastExchangeRequestBody;
     private volatile boolean refreshIssuesIdToken;
     private volatile String refreshSubject;
     private volatile String refreshIdTokenSubject;
@@ -180,6 +186,10 @@ public final class StubIssuer implements AutoCloseable {
         endSession = true;
         refreshDelay = Duration.ZERO;
         refreshStatus = 0;
+        exchangeStatus = 0;
+        exchangeError = "invalid_target";
+        exchangeTokenType = "Bearer";
+        exchangeExpiresIn = 300L;
         refreshIssuesIdToken = true;
         refreshSubject = null;
         refreshIdTokenSubject = null;
@@ -354,6 +364,40 @@ public final class StubIssuer implements AutoCloseable {
     }
 
     /** Answers every {@code refresh_token} grant with this HTTP status (for example 503); 0 turns it off. */
+    /** Makes token-exchange requests answer this HTTP status with {@link #exchangeError}; 0 (the default) succeeds. */
+    public StubIssuer exchangeStatus(int status) {
+        this.exchangeStatus = status;
+        return this;
+    }
+
+    /** The OAuth {@code error} code a failing token exchange answers with. */
+    public StubIssuer exchangeError(String error) {
+        this.exchangeError = error;
+        return this;
+    }
+
+    /** The {@code token_type} a successful exchange answers with ({@code Bearer} by default). */
+    public StubIssuer exchangeTokenType(String tokenType) {
+        this.exchangeTokenType = tokenType;
+        return this;
+    }
+
+    /** The {@code expires_in} a successful exchange answers with, or {@code null} to omit it. */
+    public StubIssuer exchangeExpiresIn(Long seconds) {
+        this.exchangeExpiresIn = seconds;
+        return this;
+    }
+
+    /** Token-exchange requests received. */
+    public int exchangeCalls() {
+        return exchangeCalls.get();
+    }
+
+    /** The form body of the last token-exchange request, or {@code null}. */
+    public String lastExchangeRequestBody() {
+        return lastExchangeRequestBody;
+    }
+
     public StubIssuer refreshStatus(int status) {
         this.refreshStatus = status;
         return this;
@@ -512,6 +556,8 @@ public final class StubIssuer implements AutoCloseable {
         tokenCalls.set(0);
         discoveryCalls.set(0);
         refreshCalls.set(0);
+        exchangeCalls.set(0);
+        lastExchangeRequestBody = null;
         jwksCalls.set(0);
         refreshTokens.clear();
         revocationCalls.set(0);
@@ -629,6 +675,9 @@ public final class StubIssuer implements AutoCloseable {
             if ("refresh_token".equals(form.get("grant_type"))) {
                 return Mono.from(handleRefresh(res, form));
             }
+            if ("urn:ietf:params:oauth:grant-type:token-exchange".equals(form.get("grant_type"))) {
+                return Mono.from(handleExchange(res, body));
+            }
             CodeGrant grant = form.get("code") == null ? null : codes.remove(form.get("code"));
             if (!"authorization_code".equals(form.get("grant_type"))
                     || grant == null
@@ -645,6 +694,20 @@ public final class StubIssuer implements AutoCloseable {
             out.put("scope", "openid profile email");
             return Mono.from(json(res, 200, JSONObjectUtils.toJSONString(out)));
         });
+    }
+
+    private Publisher<Void> handleExchange(HttpServerResponse res, String body) {
+        exchangeCalls.incrementAndGet();
+        lastExchangeRequestBody = body;
+        if (exchangeStatus != 0) {
+            return json(res, exchangeStatus, "{\"error\":\"" + exchangeError + "\"}");
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("access_token", sign(accessTokenClaims(subject)));
+        out.put("issued_token_type", "urn:ietf:params:oauth:token-type:access_token");
+        if (exchangeTokenType != null) out.put("token_type", exchangeTokenType);
+        if (exchangeExpiresIn != null) out.put("expires_in", exchangeExpiresIn);
+        return json(res, 200, JSONObjectUtils.toJSONString(out));
     }
 
     private Publisher<Void> handleRefresh(HttpServerResponse res, Map<String, String> form) {

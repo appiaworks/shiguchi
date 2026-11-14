@@ -1,6 +1,7 @@
 package dev.appiaworks.shiguchi.graphql;
 
 import dev.appiaworks.shiguchi.gateway.GrpcMetadataPopulator;
+import dev.appiaworks.shiguchi.routing.RouteDefinition;
 import graphql.GraphQLContext;
 import io.grpc.Metadata;
 import org.slf4j.Logger;
@@ -32,12 +33,17 @@ final class GraphQlMetadata {
      * inbound Authorization header is copied.
      */
     static Mono<Metadata> build(GraphQLContext graphQlContext, GrpcMetadataPopulator populator) {
+        return build(graphQlContext, populator, null);
+    }
+
+    /** As above, naming the route so a per-backend credential source can choose; {@code null} when unknown. */
+    static Mono<Metadata> build(GraphQLContext graphQlContext, GrpcMetadataPopulator populator, RouteDefinition route) {
         ServerWebExchange exchange = exchange(graphQlContext);
         if (populator == null) {
             return Mono.just(authorizationOnly(exchange));
         }
         Mono<Metadata> metadata = exchange != null
-                ? populator.build(exchange.getRequest())
+                ? populator.build(exchange.getRequest(), route)
                 : ReactiveSecurityContextHolder.getContext()
                         .map(SecurityContext::getAuthentication)
                         .map(auth -> auth != null ? auth.getName() : "anonymous")

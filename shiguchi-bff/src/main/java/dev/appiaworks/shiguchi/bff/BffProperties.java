@@ -306,8 +306,46 @@ public class BffProperties {
         /** Scopes requested at sign-in. */
         private List<String> scopes = new ArrayList<>(List.of("openid", "profile", "email"));
 
-        /** What the gateway sends upstream for a signed-in user. {@code RELAY}: the provider's access token. */
+        /**
+         * What the gateway sends upstream for a signed-in user. {@code RELAY}: the provider's access token.
+         * {@code EXCHANGE}: a token the provider issues for the backend being called (RFC 8693); needs
+         * {@link #exchange}.
+         */
         private UpstreamTokenMode upstreamTokenMode = UpstreamTokenMode.RELAY;
+
+        /** Token exchange settings, read when {@link #upstreamTokenMode} is {@code EXCHANGE}. */
+        private Exchange exchange = new Exchange();
+    }
+
+    /** What the gateway asks the provider for when {@code upstream-token-mode} is {@code EXCHANGE}. */
+    @Data
+    public static class Exchange {
+
+        /**
+         * The audience and scope to ask for, by the full name of the gRPC service the call is for
+         * (e.g. {@code acme.orders.v1.OrdersService}).
+         */
+        private Map<String, ExchangeTarget> targets = new LinkedHashMap<>();
+
+        /** Used for a service with no entry in {@link #targets}, and for calls whose service is not known. */
+        private ExchangeTarget defaultTarget;
+
+        /**
+         * Extra form parameters sent on every exchange request (vendor quirks such as {@code resource}).
+         * They cannot replace a protocol parameter ({@code grant_type}, {@code subject_token}, {@code audience}...).
+         */
+        private Map<String, String> extraParameters = new LinkedHashMap<>();
+    }
+
+    /** The token a backend is to receive: who it is for and what it may do. */
+    @Data
+    public static class ExchangeTarget {
+
+        /** The {@code audience} of the exchanged token. At least one of audience and scope is required. */
+        private String audience;
+
+        /** The {@code scope} of the exchanged token, space separated. */
+        private String scope;
     }
 
     public enum ClientAuthenticationMethod {
@@ -318,7 +356,10 @@ public class BffProperties {
     }
 
     public enum UpstreamTokenMode {
-        RELAY
+        /** The provider's access token goes upstream as it is. */
+        RELAY,
+        /** A token exchanged at the provider (RFC 8693) for the backend being called goes upstream. */
+        EXCHANGE
     }
 
     @Data

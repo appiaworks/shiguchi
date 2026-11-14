@@ -2,6 +2,7 @@ package dev.appiaworks.shiguchi.gateway;
 
 import dev.appiaworks.protobuf.extras.api.ApiStatus;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
+import dev.appiaworks.shiguchi.routing.RouteDefinition;
 import io.grpc.Metadata;
 import java.util.List;
 import java.util.Locale;
@@ -160,6 +161,16 @@ public class GrpcMetadataPopulator {
 
     /** Builds metadata from an HTTP request â€” used by ShiguchiFilter (REST path). */
     public Mono<Metadata> build(ServerHttpRequest request) {
+        return build(request, null);
+    }
+
+    /**
+     * As {@link #build(ServerHttpRequest)}, naming the route the call is for so a credential source
+     * that sends a credential per backend (a token exchange) can choose it. {@code route} may be
+     * {@code null} where the caller does not know it.
+     */
+    @ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.24.0")
+    public Mono<Metadata> build(ServerHttpRequest request, RouteDefinition route) {
         if (credentialSource == null) {
             return ReactiveSecurityContextHolder.getContext()
                     .map(SecurityContext::getAuthentication)
@@ -175,7 +186,7 @@ public class GrpcMetadataPopulator {
                         return Mono.just(metadata(request, auth.getName(), null));
                     }
                     return credentialSource
-                            .authorization(request, auth)
+                            .authorization(request, auth, route)
                             .map(credential -> metadata(request, auth.getName(), credential))
                             .switchIfEmpty(Mono.fromSupplier(() -> metadata(request, auth.getName(), null)));
                 })
