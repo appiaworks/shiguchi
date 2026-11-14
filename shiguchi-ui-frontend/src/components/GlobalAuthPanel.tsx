@@ -25,7 +25,7 @@ export function resolveClientId(saved: string | undefined, provider: AuthProvide
 export function GlobalAuthPanel({ onClose }: { onClose: () => void }) {
   const {
     globalProviderId, globalAuthToken, globalTokenExpiry,
-    providerDefaults, links,
+    providerDefaults, links, lastProviderId,
     setGlobalProviderId, setGlobalAuthToken, setProviderDefault,
   } = useGrpcUiStore()
 
@@ -43,6 +43,15 @@ export function GlobalAuthPanel({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const pkceVerifierRef = useRef<string | null>(null)
+
+  // Restore the provider picked last time. The id only: signing in is still needed, and a manual
+  // bearer already in place is not replaced.
+  useEffect(() => {
+    if (!globalProviderId && !globalAuthToken && lastProviderId && authProviders.some((p) => p.id === lastProviderId)) {
+      setGlobalProviderId(lastProviderId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (globalProviderId) {

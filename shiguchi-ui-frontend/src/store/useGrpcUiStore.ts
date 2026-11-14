@@ -51,6 +51,8 @@ interface GrpcUiState {
   globalProviderId: string | null
   globalRefreshToken: string | null
   providerDefaults: Record<string, ProviderDefaults>
+  /** Last provider picked in the auth panel, restored across reloads (id only). */
+  lastProviderId: string | null
 
   // Per-call auth override; null = inherit global
   authToken: string
@@ -162,6 +164,17 @@ function loadProviderDefaults(): Record<string, ProviderDefaults> {
   }
 }
 
+const LAST_PROVIDER_KEY = 'grpcui-last-provider'
+
+/** The provider last picked in the auth panel; the id only, never a token or secret. */
+function loadLastProviderId(): string | null {
+  try {
+    return localStorage.getItem(LAST_PROVIDER_KEY) || null
+  } catch {
+    return null
+  }
+}
+
 export const useGrpcUiStore = create<GrpcUiState>((set) => ({
   services: [],
   selectedService: null,
@@ -173,6 +186,7 @@ export const useGrpcUiStore = create<GrpcUiState>((set) => ({
   globalProviderId: null,
   globalRefreshToken: null,
   providerDefaults: loadProviderDefaults(),
+  lastProviderId: loadLastProviderId(),
 
   authToken: '',
   tokenExpiry: null,
@@ -208,7 +222,13 @@ export const useGrpcUiStore = create<GrpcUiState>((set) => ({
 
   setGlobalAuthToken: (globalAuthToken, expiry = null, refreshToken = null) =>
     set({ globalAuthToken, globalTokenExpiry: expiry, globalRefreshToken: refreshToken }),
-  setGlobalProviderId: (id) => set({ globalProviderId: id }),
+  setGlobalProviderId: (id) => {
+    try {
+      if (id) localStorage.setItem(LAST_PROVIDER_KEY, id)
+      else localStorage.removeItem(LAST_PROVIDER_KEY)
+    } catch { /* storage unavailable */ }
+    set({ globalProviderId: id, lastProviderId: id })
+  },
   setProviderDefault: (providerId, defaults) =>
     set((s) => {
       const providerDefaults = { ...s.providerDefaults, [providerId]: defaults }

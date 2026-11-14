@@ -143,6 +143,22 @@ describe('useGrpcUiStore', () => {
       expect(s.payload).toBe('{broken')
     })
 
+    it('remembers the last provider id, and only the id, in localStorage', () => {
+      useGrpcUiStore.getState().setGlobalProviderId('keycloak')
+
+      expect(localStorage.getItem('grpcui-last-provider')).toBe('keycloak')
+      expect(useGrpcUiStore.getState().lastProviderId).toBe('keycloak')
+    })
+
+    it('forgets the last provider when the user picks manual bearer', () => {
+      useGrpcUiStore.getState().setGlobalProviderId('keycloak')
+
+      useGrpcUiStore.getState().setGlobalProviderId(null)
+
+      expect(localStorage.getItem('grpcui-last-provider')).toBeNull()
+      expect(useGrpcUiStore.getState().lastProviderId).toBeNull()
+    })
+
     it('remembers the last tab choice in localStorage', () => {
       useGrpcUiStore.getState().setRequestMode('json')
 
