@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- GraphQL: with `error-format=NATIVE`, the error for an introspection query refused by `shiguchi.graphql.introspection` now also carries `extensions.code: BAD_USER_INPUT`.
 - GraphQL: with `error-format=NATIVE`, a query refused by `limits.max-depth` or `limits.max-complexity` now also carries `extensions.code: BAD_USER_INPUT`, as syntax and validation errors do.
 - GraphQL: with `shiguchi.graphql.error-format=NATIVE` (the default), syntax and validation errors raised by graphql-java now carry `extensions.code: BAD_USER_INPUT`, like backend validation failures do.
 

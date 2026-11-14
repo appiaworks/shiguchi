@@ -55,6 +55,12 @@ public class GraphQlParseErrorCodeInterceptor implements WebGraphQlInterceptor, 
         return "InvalidSyntax".equals(classification)
                 || "ValidationError".equals(classification)
                 || "ExecutionAborted".equals(classification)
+                || "IntrospectionDisabled".equals(classification)
+                || "IntrospectionDisabled"
+                        .equals(String.valueOf(
+                                error.getErrorType() == null
+                                        ? null
+                                        : error.getErrorType().toSpecification(error)))
                 || error.getErrorType() == ErrorType.InvalidSyntax
                 || error.getErrorType() == ErrorType.ValidationError;
     }
