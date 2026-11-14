@@ -29,7 +29,7 @@ no grpcurl, no client code. Ships with the `shiguchi-ui-*-starter` modules and m
 
 Selecting a method opens the invoke view:
 
-![Invoking GetBook from the console](../images/grpc-ui-invoke.png)
+![Invoking ListBooks from the console](../images/grpc-ui-invoke.png)
 
 ### The request
 
