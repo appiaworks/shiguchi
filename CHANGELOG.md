@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- GraphQL: with `shiguchi.graphql.error-format=NATIVE` (the default), syntax and validation errors raised by graphql-java now carry `extensions.code: BAD_USER_INPUT`, like backend validation failures do.
+
 ## [0.22.0] - 2026-11-13
 
 ### Fixed
