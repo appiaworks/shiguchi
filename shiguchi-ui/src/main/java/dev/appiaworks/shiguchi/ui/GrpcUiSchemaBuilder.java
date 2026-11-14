@@ -1,9 +1,12 @@
 package dev.appiaworks.shiguchi.ui;
 
+import com.google.protobuf.ByteString;
+import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.MethodDescriptor;
 import com.google.protobuf.Descriptors.ServiceDescriptor;
+import com.google.protobuf.UnknownFieldSet;
 import dev.appiaworks.protobuf.extras.serde.ProtoJsonMapping;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
@@ -221,7 +224,47 @@ public class GrpcUiSchemaBuilder implements dev.appiaworks.shiguchi.routing.Sche
                 oneofName,
                 mapEntry,
                 wellKnownType,
-                fd.hasPresence());
+                fd.hasPresence(),
+                isRequired(fd));
+    }
+
+    private static final int FIELD_BEHAVIOR_EXT = 1052;
+    private static final int FIELD_BEHAVIOR_REQUIRED = 2;
+    private static final int BUF_VALIDATE_EXT = 1159;
+    private static final int BUF_RULES_REQUIRED = 25;
+    private static final int BUF_RULES_STRING = 14;
+    private static final int BUF_STRING_MIN_LEN = 2;
+
+    /**
+     * Reads the required annotations from the field options' wire bytes, so it works whether or not
+     * the generated extension classes are on the classpath (no dependency on googleapis or protovalidate).
+     */
+    static boolean isRequired(FieldDescriptor fd) {
+        try {
+            UnknownFieldSet options = UnknownFieldSet.parseFrom(fd.getOptions().toByteString());
+            UnknownFieldSet.Field behavior = options.getField(FIELD_BEHAVIOR_EXT);
+            if (behavior.getVarintList().contains((long) FIELD_BEHAVIOR_REQUIRED)) return true;
+            for (ByteString packed : behavior.getLengthDelimitedList()) {
+                CodedInputStream in = packed.newCodedInput();
+                while (!in.isAtEnd()) {
+                    if (in.readEnum() == FIELD_BEHAVIOR_REQUIRED) return true;
+                }
+            }
+            for (ByteString rulesBytes : options.getField(BUF_VALIDATE_EXT).getLengthDelimitedList()) {
+                UnknownFieldSet rules = UnknownFieldSet.parseFrom(rulesBytes);
+                if (rules.getField(BUF_RULES_REQUIRED).getVarintList().contains(1L)) return true;
+                for (ByteString str : rules.getField(BUF_RULES_STRING).getLengthDelimitedList()) {
+                    for (Long minLen : UnknownFieldSet.parseFrom(str)
+                            .getField(BUF_STRING_MIN_LEN)
+                            .getVarintList()) {
+                        if (minLen > 0) return true;
+                    }
+                }
+            }
+        } catch (java.io.IOException | RuntimeException e) {
+            log.debug("Could not read required annotations of {}", fd.getFullName(), e);
+        }
+        return false;
     }
 
     private static String resolveMethodType(MethodDescriptor md) {

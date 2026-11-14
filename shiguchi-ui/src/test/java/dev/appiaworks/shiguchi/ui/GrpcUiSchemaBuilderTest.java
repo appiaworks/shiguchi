@@ -2,15 +2,18 @@ package dev.appiaworks.shiguchi.ui;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.EnumDescriptorProto;
 import com.google.protobuf.DescriptorProtos.EnumValueDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
+import com.google.protobuf.DescriptorProtos.FieldOptions;
 import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
 import com.google.protobuf.DescriptorProtos.MethodDescriptorProto;
 import com.google.protobuf.DescriptorProtos.ServiceDescriptorProto;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.Descriptors.ServiceDescriptor;
+import com.google.protobuf.UnknownFieldSet;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
@@ -296,6 +299,81 @@ class GrpcUiSchemaBuilderTest {
         assertThat(labels.fields())
                 .extracting(GrpcUiSchemaDto.FieldSchema::name)
                 .containsExactly("key", "value");
+    }
+
+    @Test
+    @DisplayName("GIVEN fields annotated required WHEN building the schema SHOULD flag only those fields")
+    void given_requiredAnnotations_when_building_should_flagRequired() throws Exception {
+        GrpcUiSchemaDto.MessageSchema input = inputOf(requiredFile("schema.required"));
+
+        assertThat(field(input, "behavior_unpacked").required()).isTrue();
+        assertThat(field(input, "behavior_packed").required()).isTrue();
+        assertThat(field(input, "buf_required").required()).isTrue();
+        assertThat(field(input, "buf_min_len").required()).isTrue();
+        assertThat(field(input, "buf_min_len_zero").required()).isFalse();
+        assertThat(field(input, "behavior_optional").required()).isFalse();
+        assertThat(field(input, "plain").required()).isFalse();
+    }
+
+    private static UnknownFieldSet.Field varint(long v) {
+        return UnknownFieldSet.Field.newBuilder().addVarint(v).build();
+    }
+
+    private static UnknownFieldSet.Field bytes(ByteString b) {
+        return UnknownFieldSet.Field.newBuilder().addLengthDelimited(b).build();
+    }
+
+    private static UnknownFieldSet set(int number, UnknownFieldSet.Field value) {
+        return UnknownFieldSet.newBuilder().addField(number, value).build();
+    }
+
+    private static FieldOptions options(int ext, UnknownFieldSet.Field value) {
+        return FieldOptions.newBuilder().setUnknownFields(set(ext, value)).build();
+    }
+
+    /** buf.validate extension (1159) carrying the given FieldRules message. */
+    private static FieldOptions bufOptions(UnknownFieldSet rules) {
+        return options(1159, bytes(rules.toByteString()));
+    }
+
+    /** FieldRules { string { min_len = n } }. */
+    private static UnknownFieldSet minLenRules(long minLen) {
+        UnknownFieldSet stringRules = set(2, varint(minLen));
+        return set(14, bytes(stringRules.toByteString()));
+    }
+
+    private static FileDescriptor requiredFile(String pkg) throws Exception {
+        FieldDescriptorProto.Type str = FieldDescriptorProto.Type.TYPE_STRING;
+        DescriptorProto request = DescriptorProto.newBuilder()
+                .setName("GetRequest")
+                .addField(scalar("behavior_unpacked", 1, str).toBuilder().setOptions(options(1052, varint(2))))
+                .addField(scalar("behavior_packed", 2, str).toBuilder()
+                        .setOptions(options(1052, bytes(ByteString.copyFrom(new byte[] {1, 2})))))
+                .addField(scalar("buf_required", 3, str).toBuilder().setOptions(bufOptions(set(25, varint(1)))))
+                .addField(scalar("buf_min_len", 4, str).toBuilder().setOptions(bufOptions(minLenRules(1))))
+                .addField(scalar("buf_min_len_zero", 5, str).toBuilder().setOptions(bufOptions(minLenRules(0))))
+                .addField(scalar("behavior_optional", 6, str).toBuilder().setOptions(options(1052, varint(1))))
+                .addField(scalar("plain", 7, str))
+                .build();
+        DescriptorProto response =
+                DescriptorProto.newBuilder().setName("GetResponse").build();
+        ServiceDescriptorProto service = ServiceDescriptorProto.newBuilder()
+                .setName("OrderService")
+                .addMethod(MethodDescriptorProto.newBuilder()
+                        .setName("Get")
+                        .setInputType("." + pkg + ".GetRequest")
+                        .setOutputType("." + pkg + ".GetResponse"))
+                .build();
+        return FileDescriptor.buildFrom(
+                FileDescriptorProto.newBuilder()
+                        .setName(pkg.replace('.', '_') + ".proto")
+                        .setPackage(pkg)
+                        .setSyntax("proto3")
+                        .addMessageType(request)
+                        .addMessageType(response)
+                        .addService(service)
+                        .build(),
+                new FileDescriptor[0]);
     }
 
     private static GrpcUiSchemaDto.MessageSchema inputOf(FileDescriptor file) throws Exception {
