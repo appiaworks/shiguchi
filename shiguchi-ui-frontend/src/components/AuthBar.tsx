@@ -199,7 +199,7 @@ export function AuthBar() {
 
         {/* Token status for non-inherit modes, or inherited provider label */}
         {isInherit ? (
-          <span className="text-[12px] text-slate-600">
+          <span className="text-[14px] text-slate-600">
             {globalProvider
               ? `↳ ${globalProvider.description ?? globalProviderId}`
               : globalAuthToken
@@ -210,7 +210,7 @@ export function AuthBar() {
 
         {effectiveToken && effectiveExpiry != null && (
           <span
-            className={`ml-auto text-[12px] shrink-0 ${
+            className={`ml-auto text-[14px] shrink-0 ${
               isExpired ? 'text-red-400' : secondsLeft! < 60 ? 'text-yellow-400' : 'text-green-500'
             }`}
           >
@@ -222,7 +222,7 @@ export function AuthBar() {
       {/* Inherit — show effective token preview if set */}
       {isInherit && effectiveToken && (
         <div className="flex items-center gap-2 px-3 pb-1.5">
-          <span className="text-slate-700 text-[12px] shrink-0 font-mono truncate max-w-[20rem]" title={effectiveToken}>
+          <span className="text-slate-700 text-[14px] shrink-0 font-mono truncate max-w-[20rem]" title={effectiveToken}>
             {effectiveToken.slice(0, 32)}…
           </span>
         </div>
@@ -231,7 +231,7 @@ export function AuthBar() {
       {/* Manual bearer override */}
       {isManualOverride && (
         <div className="flex items-center gap-2 px-3 pb-1.5">
-          <span className="text-slate-600 text-[12px] shrink-0">Bearer</span>
+          <span className="text-slate-600 text-[14px] shrink-0">Bearer</span>
           <input
             type="text"
             value={authToken}
@@ -245,7 +245,7 @@ export function AuthBar() {
       {/* API Key override */}
       {isApiKey && (
         <div className="flex items-center gap-2 px-3 pb-1.5">
-          <span className="text-slate-600 text-[12px] shrink-0">
+          <span className="text-slate-600 text-[14px] shrink-0">
             {activeProvider!.apiKeyIn}/{activeProvider!.apiKeyName}
           </span>
           <input
@@ -280,14 +280,14 @@ export function AuthBar() {
           {authToken ? (
             <>
               <span
-                className="text-green-500 text-[12px] font-mono truncate max-w-[8rem]"
+                className="text-green-500 text-[14px] font-mono truncate max-w-[8rem]"
                 title={authToken}
               >
                 ✓ {authToken.slice(0, 20)}…
               </span>
               <button
                 onClick={() => setAuthToken('', null)}
-                className="text-[12px] text-slate-500 hover:text-red-400"
+                className="text-[14px] text-slate-500 hover:text-red-400"
               >
                 clear
               </button>
@@ -296,7 +296,7 @@ export function AuthBar() {
           <button
             onClick={() => { setReauthNeeded(false); void (isOAuth2Code ? handlePkceLogin() : handleClientCredentials()) }}
             disabled={loading || !clientId || (isOAuth2Client && !clientSecret)}
-            className={`px-2 py-0.5 rounded text-[12px] text-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors ${
+            className={`px-2 py-0.5 rounded text-[14px] text-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors ${
               reauthNeeded ? 'bg-red-700 hover:bg-red-600 animate-pulse' : 'bg-blue-800 hover:bg-blue-700'
             }`}
           >
@@ -306,7 +306,7 @@ export function AuthBar() {
       )}
 
       {error && (
-        <div className="px-3 pb-1.5 text-[12px] text-red-400">{error}</div>
+        <div className="px-3 pb-1.5 text-[14px] text-red-400">{error}</div>
       )}
     </div>
   )
