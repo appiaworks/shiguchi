@@ -188,6 +188,24 @@ class GraphQlLimitsEndToEndTest {
         assertThat(BACKEND_CALLS.get()).isZero();
     }
 
+    @Test
+    @DisplayName(
+            "GIVEN a query deeper than max-depth WHEN sent under NATIVE errors SHOULD carry extensions.code BAD_USER_INPUT")
+    void given_tooDeepQuery_when_sent_should_carryBadUserInputCode() throws Exception {
+        Struct response = graphql("{ item(id: \"7\") { category { name } } }");
+
+        assertThat(firstErrorCode(response)).isEqualTo("BAD_USER_INPUT");
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a query more complex than max-complexity WHEN sent under NATIVE errors SHOULD carry extensions.code BAD_USER_INPUT")
+    void given_tooComplexQuery_when_sent_should_carryBadUserInputCode() throws Exception {
+        Struct response = graphql("{ item(id: \"7\") { id payload sku name } }");
+
+        assertThat(firstErrorCode(response)).isEqualTo("BAD_USER_INPUT");
+    }
+
     // ------------------------------------------------------------------ fixtures
 
     /** errs.Store/GetItem(GetRequest{id}) returns Item{id,payload,sku,name,category{name}}, bound as query item. */
