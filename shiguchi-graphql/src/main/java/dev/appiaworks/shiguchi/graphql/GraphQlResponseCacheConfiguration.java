@@ -2,8 +2,10 @@ package dev.appiaworks.shiguchi.graphql;
 
 import dev.appiaworks.protobuf.extras.api.ApiStatus;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
+import dev.appiaworks.shiguchi.gateway.GatewayAuthorizationEnforcer;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import io.micrometer.core.instrument.MeterRegistry;
+import java.time.Clock;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -23,8 +25,19 @@ public class GraphQlResponseCacheConfiguration {
     @Bean
     @ConditionalOnProperty(prefix = "shiguchi.graphql.response-cache", name = "enabled")
     GraphQlResponseCache graphQlResponseCache(
-            GatewayProperties properties, GrpcRouteRegistry registry, ObjectProvider<MeterRegistry> meters) {
-        return new GraphQlResponseCache(properties.getGraphql().getResponseCache(), registry, meters.getIfAvailable());
+            GatewayProperties properties,
+            GrpcRouteRegistry registry,
+            ObjectProvider<MeterRegistry> meters,
+            ObjectProvider<GatewayAuthorizationEnforcer> enforcer) {
+        return new GraphQlResponseCache(
+                properties.getGraphql().getResponseCache(),
+                registry,
+                meters.getIfAvailable(),
+                Clock.systemUTC(),
+                () -> {
+                    GatewayAuthorizationEnforcer e = enforcer.getIfAvailable();
+                    return e != null && e.decidesPerCaller();
+                });
     }
 
     @Bean

@@ -128,6 +128,57 @@ A `RateLimiter` bean replaces either. It gets the key and the requested token co
 answers a `Decision` (allowed, tokens remaining, seconds to wait), so a per-plan limit, a
 sliding window or a call to an external quota service all fit.
 
+## Rules: per method, tag, principal or claim
+
+`shiguchi.rate-limit.rules[]` adds limits that depend on what is being called. Rules run as a
+`GatewayPolicy` after the authorizer, on every surface (REST, gRPC-Web, GraphQL), so a rule can
+limit a method or a tag the global limiter cannot tell apart. They are independent of
+`shiguchi.rate-limit.enabled`: use the global limiter, rules, or both. With no rules there is no
+policy bean and nothing changes.
+
+```yaml
+shiguchi:
+  rate-limit:
+    client-ip-header: X-Forwarded-For
+    rules:
+      - id: orders-writes
+        match: acme.Orders/*        # glob on <package.Service>/<Method>
+        key: principal              # principal | ip | claim:<name>
+        replenish-rate: 2
+        burst-capacity: 10
+      - id: expensive
+        tag: expensive              # exact route tag, see (shiguchi.method).tags
+        key: claim:tenant
+        replenish-rate: 0.5
+        burst-capacity: 5
+        cost: 5                     # one call takes 5 tokens
+```
+
+- `match` and `tag`: a rule needs at least one. With both, both must fit. `*` matches any run of
+  characters and `?` one, on the full method name (`acme.Orders/PlaceOrder`).
+- `key`: `principal` (default) is the authenticated caller, falling back to the client IP when
+  anonymous. `ip` is the first value of `client-ip-header`; a request without it shares one
+  `ip:unknown` bucket, because a policy does not see the socket peer, so set the header at your
+  trusted proxy. `claim:<name>` uses a claim of the caller's JWT (several users of a tenant share
+  a bucket) and falls back to the principal, then the IP, when the claim is absent.
+- `replenish-rate` and `burst-capacity` are per rule and default to the global values; `cost`
+  (default 1) is the tokens one call takes and must not exceed the burst.
+- **All matching rules apply and the strictest denies.** Each matching rule charges its own
+  bucket (keys are namespaced per rule id); if one or more refuse, the call is answered 429
+  `RESOURCE_EXHAUSTED` with `Retry-After` set to the longest wait. Buckets of rules that allowed
+  are still charged for that call.
+- `id` defaults to `rule-<index>` and must be unique. A rule with neither `match` nor `tag`, a bad
+  `key`, or a `cost` above the burst stops startup.
+- Backend: `MEMORY` keeps one bucket set per instance; `REDIS` shares them, one key prefix per
+  rule. If Redis is unreachable the rules follow `redis.fail-open` (default `true`: allow;
+  `false`: answer 429 with a 1 s `Retry-After`).
+- If a rule's limiter itself errors (a custom `RuleLimiterFactory` whose limiter throws or fails
+  its `Mono`), `rules-on-backend-error` decides: `ALLOW` (default, fail open) lets the call
+  through and logs a warning; `DENY` (fail closed) answers 429 with `Retry-After: 1`, the same
+  outcome as `redis.fail-open: false`.
+- Each rule builds its own limiter with its own rate, so a custom `RateLimiter` bean (which has
+  one fixed rate) does not back rules. Supply a `RuleLimiterFactory` bean to change that.
+
 ## Properties
 
 | Property | Default | Meaning |
@@ -144,6 +195,11 @@ sliding window or a call to an external quota service all fit.
 | `shiguchi.rate-limit.include-headers` | `true` | Send the `X-RateLimit-*` headers |
 | `shiguchi.rate-limit.redis.key-prefix` | `shiguchi:rate-limit:` | Prefix of the Redis keys |
 | `shiguchi.rate-limit.redis.fail-open` | `true` | Allow (true) or refuse (false) when Redis is unreachable |
+| `shiguchi.rate-limit.rules-on-backend-error` | `ALLOW` | `ALLOW` (fail open) or `DENY` (429, `Retry-After: 1`) when a rule's limiter errors |
+| `shiguchi.rate-limit.rules[].id` | `rule-<index>` | Unique rule id; names the rule's buckets |
+| `shiguchi.rate-limit.rules[].match` / `tag` | none | Method glob on `<Service>/<Method>` and/or exact route tag; at least one |
+| `shiguchi.rate-limit.rules[].key` | `principal` | `principal`, `ip` or `claim:<name>` |
+| `shiguchi.rate-limit.rules[].replenish-rate` / `burst-capacity` / `cost` | global values / `1` | Per-rule limit and tokens per call |
 
 `replenish-rate` must be positive, `burst-capacity` at least 1 and `requested-tokens`
 between 1 and `burst-capacity`; anything else stops startup with Boot's failure report.

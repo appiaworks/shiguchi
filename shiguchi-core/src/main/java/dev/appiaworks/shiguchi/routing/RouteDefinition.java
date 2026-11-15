@@ -90,6 +90,12 @@ public class RouteDefinition {
     private final List<String> authScopes;
 
     /**
+     * Free-form tags on the method ({@code (shiguchi.method).tags}). Facts only: inert unless a
+     * policy hook or authorizer reads them. Empty list = none.
+     */
+    private final List<String> tags;
+
+    /**
      * Resolved timeout for calls to the HTTP upstream of a {@code REST_DOWNSTREAM} operation, or
      * null when none was resolved (gRPC routes). See {@code ServiceDefinition.effectiveHttpTimeout}.
      */
@@ -177,6 +183,7 @@ public class RouteDefinition {
                 ? List.copyOf(b.graphQlInvalidatedBy)
                 : List.of();
         this.authScopes = b.authScopes != null ? List.copyOf(b.authScopes) : List.of();
+        this.tags = b.tags != null ? List.copyOf(b.tags) : List.of();
         this.upstreamTimeout = b.upstreamTimeout;
         this.authzRules = b.authzRules != null ? List.copyOf(b.authzRules) : List.of();
         this.cacheTtlSeconds = b.cacheTtlSeconds;
@@ -311,6 +318,11 @@ public class RouteDefinition {
         return authScopes;
     }
 
+    /** Tags declared on the method; empty when none. */
+    public List<String> getTags() {
+        return tags;
+    }
+
     /** Resolved HTTP upstream timeout, or null when none was resolved. */
     public java.time.Duration getUpstreamTimeout() {
         return upstreamTimeout;
@@ -413,6 +425,7 @@ public class RouteDefinition {
         private boolean graphQlLive = true;
         private List<String> graphQlInvalidatedBy;
         private List<String> authScopes;
+        private List<String> tags;
         private java.time.Duration upstreamTimeout;
         private List<AuthzRuleDefinition> authzRules;
         private int cacheTtlSeconds;
@@ -539,6 +552,11 @@ public class RouteDefinition {
 
         public Builder authScopes(List<String> scopes) {
             this.authScopes = scopes;
+            return this;
+        }
+
+        public Builder tags(List<String> tags) {
+            this.tags = tags;
             return this;
         }
 

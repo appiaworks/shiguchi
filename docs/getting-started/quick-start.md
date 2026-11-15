@@ -117,6 +117,7 @@ Self-contained example apps under [`samples/`](../../samples):
 | `sample-rest-downstream` | A REST (non-gRPC) backend aggregated via `REST_DOWNSTREAM` |
 | `sample-avro-downstream` | The same, spoken to in Avro: `x-avro-schema` in the document, `upstream-content.preferred: avro/binary` |
 | `sample-rate-limited-gateway` | Inbound rate limiting, in memory or shared through Redis (`--spring.profiles.active=redis`) |
+| `sample-policy` | Route tags as facts, policy as code: a hot-reloadable file-backed `GatewayPolicy` and tag-based exposure |
 | `sample-protobuf-java-extras` | No gateway: the proto JSON library and typed accessors in plain Java, plus a Kafka serde in proto binary or JSON |
 | `sample-full` | All surfaces together |
 

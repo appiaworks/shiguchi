@@ -1,0 +1,8 @@
+// SUPERSEDED. Design history only; not a usable proto.
+//
+// The draft that lived here defined a standalone `policy_tags` extension under a foreign package
+// and extension number. What shipped is `repeated string tags = 4` inside `MethodRule`
+// (`(shiguchi.method).tags`, shiguchi-proto `method.proto`), so no new extension number was needed.
+// Read vs write comes from the standard `idempotency_level` method option.
+//
+// See docs/reference/proto-options.md and docs/guides/security.md.

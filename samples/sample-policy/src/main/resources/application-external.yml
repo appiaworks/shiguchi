@@ -1,0 +1,6 @@
+# The externally reachable instance of the same image: only methods tagged `external` exist.
+# Untagged methods and methods tagged only `internal` answer 404, as if they were never routed,
+# and are absent from /v3/api-docs. Run the internal instance without this profile.
+shiguchi:
+  exposure:
+    expose-tags: [external]

@@ -253,6 +253,19 @@ extra["json-path.version"] = "3.0.0"
 </properties>
 ```
 
+### `shiguchi.grpc.security.mode is ENFORCE, which requires an OAuth2 JWT decoder`
+
+The proxy port would reject every call, so startup fails instead. Set
+`spring.security.oauth2.resourceserver.jwt.issuer-uri` (or `jwk-set-uri`), or define a
+`ReactiveJwtDecoder` bean, or set the mode back to `PASSTHROUGH`.
+
+### `UNAUTHENTICATED` or `PERMISSION_DENIED` on the gRPC proxy port
+
+In `ENFORCE` mode the call needs `authorization: Bearer <jwt>` metadata; a session cookie is not
+read. `PERMISSION_DENIED` with "declares authz rules" means the method has `(shiguchi.method).authz`
+rules, which the proxy cannot evaluate: call it over REST, GraphQL or gRPC-Web. A stream closing
+with `UNAUTHENTICATED` mid-call means its token expired; reconnect with a fresh one.
+
 ### A property seems to be ignored
 
 In a `@SpringBootTest`, setting one indexed property replaces the **whole list**: specifying

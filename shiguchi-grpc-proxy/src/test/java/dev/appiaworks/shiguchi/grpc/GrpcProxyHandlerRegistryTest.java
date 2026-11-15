@@ -276,6 +276,82 @@ class GrpcProxyHandlerRegistryTest {
         assertThat(outbound.getValue().getAll(AUTHORIZATION_KEY)).containsExactly("Bearer token-abc123");
     }
 
+    @Test
+    @DisplayName(
+            "Given an authenticated call in ENFORCE mode, when the call is proxied, should send the real principal downstream and drop the client's")
+    @SuppressWarnings("unchecked")
+    void GIVEN_authenticatedCall_WHEN_callProxied_SHOULD_sendRealPrincipalDownstream() throws Exception {
+        ServiceEndpointContext ctx = buildContextWithMethod(SERVICE_FQN, testServiceDescriptor, testMethodDescriptor);
+        when(routeRegistry.contextByServiceFqn(SERVICE_FQN)).thenReturn(Optional.of(ctx));
+        ClientCall<DynamicMessage, DynamicMessage> clientCall = mock(ClientCall.class);
+        when(ctx.getChannel().newCall(any(io.grpc.MethodDescriptor.class), any(CallOptions.class)))
+                .thenReturn((ClientCall) clientCall);
+        ServerMethodDefinition<DynamicMessage, DynamicMessage> definition =
+                (ServerMethodDefinition<DynamicMessage, DynamicMessage>)
+                        registry.lookupMethod(FULL_METHOD, "authority");
+
+        Metadata inbound = new Metadata();
+        inbound.put(PRINCIPAL_KEY, "forged");
+        io.grpc.Context.current()
+                .withValue(GrpcProxyServerInterceptor.PRINCIPAL, "alice")
+                .call(() -> definition.getServerCallHandler().startCall(mock(ServerCall.class), inbound));
+
+        ArgumentCaptor<Metadata> outbound = ArgumentCaptor.forClass(Metadata.class);
+        verify(clientCall).start(any(), outbound.capture());
+        assertThat(outbound.getValue().getAll(PRINCIPAL_KEY)).containsExactly("alice");
+    }
+
+    @Test
+    @DisplayName(
+            "Given an authenticated call whose token expires, when the context is cancelled, should cancel the backend call and close the caller with UNAUTHENTICATED")
+    @SuppressWarnings("unchecked")
+    void GIVEN_tokenExpires_WHEN_contextCancelled_SHOULD_closeWithUnauthenticated() throws Exception {
+        ServiceEndpointContext ctx = buildContextWithMethod(SERVICE_FQN, testServiceDescriptor, testMethodDescriptor);
+        when(routeRegistry.contextByServiceFqn(SERVICE_FQN)).thenReturn(Optional.of(ctx));
+        ClientCall<DynamicMessage, DynamicMessage> clientCall = mock(ClientCall.class);
+        when(ctx.getChannel().newCall(any(io.grpc.MethodDescriptor.class), any(CallOptions.class)))
+                .thenReturn((ClientCall) clientCall);
+        ServerMethodDefinition<DynamicMessage, DynamicMessage> definition =
+                (ServerMethodDefinition<DynamicMessage, DynamicMessage>)
+                        registry.lookupMethod(FULL_METHOD, "authority");
+        ServerCall<DynamicMessage, DynamicMessage> serverCall = mock(ServerCall.class);
+
+        io.grpc.Context.CancellableContext context = io.grpc.Context.current()
+                .withValue(GrpcProxyServerInterceptor.PRINCIPAL, "alice")
+                .withCancellation();
+        context.call(() -> definition.getServerCallHandler().startCall(serverCall, new Metadata()));
+        context.cancel(GrpcProxyServerInterceptor.TOKEN_EXPIRED);
+
+        ArgumentCaptor<io.grpc.Status> status = ArgumentCaptor.forClass(io.grpc.Status.class);
+        verify(serverCall).close(status.capture(), any(Metadata.class));
+        assertThat(status.getValue().getCode()).isEqualTo(io.grpc.Status.Code.UNAUTHENTICATED);
+        verify(clientCall).cancel(any(), any());
+    }
+
+    @Test
+    @DisplayName(
+            "Given an authenticated call cancelled by the client, when the context is cancelled for another cause, should not close the call as expired")
+    @SuppressWarnings("unchecked")
+    void GIVEN_clientCancel_WHEN_contextCancelled_SHOULD_notCloseAsExpired() throws Exception {
+        ServiceEndpointContext ctx = buildContextWithMethod(SERVICE_FQN, testServiceDescriptor, testMethodDescriptor);
+        when(routeRegistry.contextByServiceFqn(SERVICE_FQN)).thenReturn(Optional.of(ctx));
+        ClientCall<DynamicMessage, DynamicMessage> clientCall = mock(ClientCall.class);
+        when(ctx.getChannel().newCall(any(io.grpc.MethodDescriptor.class), any(CallOptions.class)))
+                .thenReturn((ClientCall) clientCall);
+        ServerMethodDefinition<DynamicMessage, DynamicMessage> definition =
+                (ServerMethodDefinition<DynamicMessage, DynamicMessage>)
+                        registry.lookupMethod(FULL_METHOD, "authority");
+        ServerCall<DynamicMessage, DynamicMessage> serverCall = mock(ServerCall.class);
+
+        io.grpc.Context.CancellableContext context = io.grpc.Context.current()
+                .withValue(GrpcProxyServerInterceptor.PRINCIPAL, "alice")
+                .withCancellation();
+        context.call(() -> definition.getServerCallHandler().startCall(serverCall, new Metadata()));
+        context.cancel(new RuntimeException("client went away"));
+
+        org.mockito.Mockito.verify(serverCall, org.mockito.Mockito.never()).close(any(), any());
+    }
+
     // =========================================================================
 
     private static final Metadata.Key<String> PRINCIPAL_KEY =
@@ -413,5 +489,17 @@ class GrpcProxyHandlerRegistryTest {
                 .build();
 
         return FileDescriptor.buildFrom(fileProto, new FileDescriptor[0]);
+    }
+
+    @Test
+    @DisplayName("GIVEN a method hidden by expose-tags WHEN lookupMethod SHOULD return null (UNIMPLEMENTED)")
+    void GIVEN_hiddenMethod_WHEN_lookupMethod_SHOULD_returnNull() {
+        ServiceEndpointContext ctx = buildContextWithMethod(SERVICE_FQN, testServiceDescriptor, testMethodDescriptor);
+        ctx.hideMethod(SERVICE_FQN, METHOD_NAME);
+        when(routeRegistry.contextByServiceFqn(SERVICE_FQN)).thenReturn(Optional.of(ctx));
+
+        ServerMethodDefinition<?, ?> result = registry.lookupMethod(FULL_METHOD, "authority");
+
+        assertThat(result).isNull();
     }
 }

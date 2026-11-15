@@ -665,4 +665,99 @@ class StaticRouteLoaderTest {
         assertThat(ctx.getRoutes()).hasSize(1);
         assertThat(ctx.getRoutes().get(0).getAuthScopes()).containsExactly("docs.read");
     }
+
+    @Test
+    @DisplayName("GIVEN a method declaring tags WHEN buildContext SHOULD put the tags on the route")
+    void GIVEN_methodWithTags_WHEN_buildContext_SHOULD_keepTagsOnRoute() throws Exception {
+        // Arrange
+        MethodRule schema =
+                MethodRule.newBuilder().addTags("pii").addTags("financial").build();
+        FileDescriptor fd = buildAnnotatedServiceDescriptor("docs-tags.proto", "GreeterService", "GetDoc", schema);
+        GreeterServiceGrpc.PROTO_SERVICE_DESCRIPTOR = fd.findServiceByName("GreeterService");
+
+        ServiceDefinition svcDef = staticServiceDef("docs", GreeterServiceGrpc.class.getName());
+        StaticRouteLoader loader = buildLoader(propsWith(svcDef), new GrpcRouteRegistry());
+
+        // Act
+        ServiceEndpointContext ctx = loader.buildContext(svcDef);
+
+        // Assert
+        assertThat(ctx.getRoutes()).hasSize(1);
+        assertThat(ctx.getRoutes().get(0).getTags()).containsExactly("pii", "financial");
+    }
+
+    // -------------------------------------------------------------------------
+    // shiguchi.exposure.expose-tags
+    // -------------------------------------------------------------------------
+
+    private ServiceEndpointContext buildExposed(
+            MethodRule schema, List<String> globalTags, List<String> serviceTags, String file) throws Exception {
+        FileDescriptor fd = buildAnnotatedServiceDescriptor(file, "GreeterService", "GetDoc", schema);
+        GreeterServiceGrpc.PROTO_SERVICE_DESCRIPTOR = fd.findServiceByName("GreeterService");
+        ServiceDefinition svcDef = staticServiceDef("docs", GreeterServiceGrpc.class.getName());
+        if (serviceTags != null) svcDef.setExposeTags(new java.util.ArrayList<>(serviceTags));
+        GatewayProperties props = propsWith(svcDef);
+        props.getExposure().setExposeTags(globalTags);
+        return buildLoader(props, new GrpcRouteRegistry()).buildContext(svcDef);
+    }
+
+    @Test
+    @DisplayName("GIVEN no expose-tags WHEN buildContext SHOULD expose an untagged method")
+    void GIVEN_noExposeTags_WHEN_buildContext_SHOULD_exposeEverything() throws Exception {
+        ServiceEndpointContext ctx = buildExposed(MethodRule.newBuilder().build(), List.of(), null, "exp-unset.proto");
+
+        assertThat(ctx.getRoutes()).hasSize(1);
+        assertThat(ctx.hasHiddenMethods()).isFalse();
+    }
+
+    @Test
+    @DisplayName("GIVEN expose-tags [external] WHEN a method carries it SHOULD keep its route")
+    void GIVEN_exposeTags_WHEN_methodTagged_SHOULD_keepRoute() throws Exception {
+        ServiceEndpointContext ctx = buildExposed(
+                MethodRule.newBuilder().addTags("internal").addTags("external").build(),
+                List.of("external"),
+                null,
+                "exp-tagged.proto");
+
+        assertThat(ctx.getRoutes()).hasSize(1);
+        assertThat(ctx.isMethodHidden("GreeterService", "GetDoc")).isFalse();
+    }
+
+    @Test
+    @DisplayName("GIVEN expose-tags [external] WHEN a method is untagged SHOULD hide it with no route")
+    void GIVEN_exposeTags_WHEN_methodUntagged_SHOULD_hide() throws Exception {
+        ServiceEndpointContext ctx =
+                buildExposed(MethodRule.newBuilder().build(), List.of("external"), null, "exp-untagged.proto");
+
+        assertThat(ctx.getRoutes()).isEmpty();
+        assertThat(ctx.isMethodHidden("GreeterService", "GetDoc")).isTrue();
+        assertThat(ctx.isMethodExposed("GreeterService", "GetDoc")).isFalse();
+    }
+
+    @Test
+    @DisplayName("GIVEN expose-tags [external] WHEN a method tag is misspelt or differs in case SHOULD hide it")
+    void GIVEN_exposeTags_WHEN_methodTagTypo_SHOULD_hide() throws Exception {
+        ServiceEndpointContext ctx = buildExposed(
+                MethodRule.newBuilder().addTags("External").addTags("extrenal").build(),
+                List.of("external"),
+                null,
+                "exp-typo.proto");
+
+        assertThat(ctx.getRoutes()).isEmpty();
+        assertThat(ctx.isMethodHidden("GreeterService", "GetDoc")).isTrue();
+    }
+
+    @Test
+    @DisplayName("GIVEN a service expose-tags override WHEN it differs from the global list SHOULD use the override")
+    void GIVEN_serviceOverride_WHEN_buildContext_SHOULD_useOverride() throws Exception {
+        MethodRule partner = MethodRule.newBuilder().addTags("partner").build();
+
+        ServiceEndpointContext overridden =
+                buildExposed(partner, List.of("external"), List.of("partner"), "exp-override.proto");
+        ServiceEndpointContext inherited = buildExposed(partner, List.of("external"), null, "exp-inherit.proto");
+
+        assertThat(overridden.getRoutes()).hasSize(1);
+        assertThat(inherited.getRoutes()).isEmpty();
+        assertThat(inherited.isMethodHidden("GreeterService", "GetDoc")).isTrue();
+    }
 }

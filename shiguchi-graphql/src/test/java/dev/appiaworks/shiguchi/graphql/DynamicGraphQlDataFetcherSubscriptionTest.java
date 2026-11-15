@@ -60,7 +60,7 @@ class DynamicGraphQlDataFetcherSubscriptionTest {
         registry = mock(GrpcRouteRegistry.class);
         grpcDispatcher = mock(ReactiveGrpcDispatcher.class);
         GatewayAuthorizationEnforcer authEnforcer = mock(GatewayAuthorizationEnforcer.class);
-        when(authEnforcer.enforce(any(), any(), any())).thenReturn(Mono.empty());
+        when(authEnforcer.enforce(any(), any(), any(), any(), any())).thenReturn(Mono.empty());
         GraphQlFieldMaskInjector maskInjector = mock(GraphQlFieldMaskInjector.class);
         when(maskInjector.inject(any(), any(), any(), any())).thenAnswer(inv -> inv.getArgument(0));
 

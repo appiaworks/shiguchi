@@ -601,6 +601,13 @@ public class ServiceDefinition {
      */
     private List<String> excludeMethods = new ArrayList<>();
 
+    /**
+     * Allowlist of method tags for this service, overriding {@code shiguchi.exposure.expose-tags}.
+     * Empty (the default) inherits the global list. When the effective list is non-empty, only
+     * methods carrying at least one listed tag exist on any surface; untagged methods are hidden.
+     */
+    private List<String> exposeTags = new ArrayList<>();
+
     // Per-service feature flags (null = inherit global setting)
     private Boolean graphqlEnabled;
     private Boolean restEnabled;
@@ -645,6 +652,12 @@ public class ServiceDefinition {
      * extension on the operation. Enforced by the {@code GatewayAuthorizer} before proxying.
      */
     private Map<String, List<String>> operationScopes = new HashMap<>();
+
+    /**
+     * {@code REST_DOWNSTREAM}: tags per operation, keyed by {@code operationId}. Carried on the
+     * route as facts for a policy hook or authorizer; inert unless something reads them.
+     */
+    private Map<String, List<String>> operationTags = new HashMap<>();
 
     /**
      * {@code REST_DOWNSTREAM}: timeout per operation, keyed by {@code operationId}. Takes
@@ -936,6 +949,30 @@ public class ServiceDefinition {
         if (includeMethods.isEmpty()) return true;
         for (String pattern : includeMethods) {
             if (globMatches(pattern, qualified, methodName)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * The tag allowlist in force for this service: its own {@code expose-tags} when set, else
+     * {@code globalExposeTags}. Empty means everything is exposed.
+     */
+    public List<String> effectiveExposeTags(List<String> globalExposeTags) {
+        if (exposeTags != null && !exposeTags.isEmpty()) return exposeTags;
+        return globalExposeTags != null ? globalExposeTags : List.of();
+    }
+
+    /**
+     * Whether a method with {@code methodTags} passes the tag allowlist. An empty allowlist exposes
+     * everything; otherwise the method needs at least one listed tag (exact, case-sensitive), so an
+     * untagged method or a misspelt tag is hidden rather than leaked.
+     */
+    public boolean isExposedByTags(java.util.Collection<String> methodTags, List<String> globalExposeTags) {
+        List<String> allow = effectiveExposeTags(globalExposeTags);
+        if (allow.isEmpty()) return true;
+        if (methodTags == null) return false;
+        for (String tag : methodTags) {
+            if (allow.contains(tag)) return true;
         }
         return false;
     }

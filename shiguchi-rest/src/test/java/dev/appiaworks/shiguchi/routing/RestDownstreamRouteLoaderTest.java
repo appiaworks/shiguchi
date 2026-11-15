@@ -186,6 +186,41 @@ class RestDownstreamRouteLoaderTest {
     }
 
     @Test
+    @DisplayName("GIVEN operation-tags in config WHEN buildContext SHOULD put the tags on that operation's route only")
+    void given_operationTagsInConfig_when_buildContext_should_putTagsOnRoute() throws Exception {
+        // Arrange
+        byte[] fixture = loadFixture("inventory.json");
+        WebClient.Builder builder = WebClient.builder()
+                .exchangeFunction(req -> Mono.just(ClientResponse.create(HttpStatus.OK)
+                        .header(HttpHeaders.CONTENT_TYPE, "application/json")
+                        .body(new String(fixture))
+                        .build()));
+
+        ServiceDefinition svcDef = buildServiceDef("inventory", "http://localhost:8080/openapi.json");
+        Map<String, List<String>> operationTags = new HashMap<>();
+        operationTags.put("getItem", List.of("pii", "financial"));
+        svcDef.setOperationTags(operationTags);
+        GatewayProperties props = buildGatewayProperties(svcDef);
+        RestDownstreamRouteLoader loader =
+                new RestDownstreamRouteLoader(props, new GrpcRouteRegistry(), Optional.empty(), Optional.of(builder));
+
+        // Act
+        ServiceEndpointContext ctx = loader.buildContext(svcDef);
+
+        // Assert
+        RouteDefinition getItemRoute = ctx.getRoutes().stream()
+                .filter(r -> r.getMethodName().equals("getItem"))
+                .findFirst()
+                .orElseThrow();
+        RouteDefinition listItemsRoute = ctx.getRoutes().stream()
+                .filter(r -> r.getMethodName().equals("listItems"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(getItemRoute.getTags()).containsExactly("pii", "financial");
+        assertThat(listItemsRoute.getTags()).isEmpty();
+    }
+
+    @Test
     @DisplayName("GIVEN openapi-url blank WHEN buildContext SHOULD throw IllegalStateException naming the service")
     void given_blankOpenapiUrl_when_buildContext_should_throwIllegalState() {
         // Arrange
@@ -431,5 +466,32 @@ class RestDownstreamRouteLoaderTest {
 
         // Assert
         assertThat(result).isEqualTo("getItem");
+    }
+
+    @Test
+    @DisplayName("GIVEN expose-tags [external] and operation-tags on one operation WHEN buildContext "
+            + "SHOULD keep only the tagged operation and hide the rest")
+    void given_exposeTags_when_buildContext_should_hideUntaggedOperations() throws Exception {
+        // Arrange
+        byte[] fixture = loadFixture("inventory.json");
+        WebClient.Builder builder = WebClient.builder()
+                .exchangeFunction(req -> Mono.just(ClientResponse.create(HttpStatus.OK)
+                        .header(HttpHeaders.CONTENT_TYPE, "application/json")
+                        .body(new String(fixture))
+                        .build()));
+        ServiceDefinition svcDef = buildServiceDef("inventory", "http://localhost:8080/openapi.json");
+        svcDef.setOperationTags(new HashMap<>(Map.of("getItem", List.of("external"))));
+        GatewayProperties props = buildGatewayProperties(svcDef);
+        props.getExposure().setExposeTags(List.of("external"));
+        RestDownstreamRouteLoader loader =
+                new RestDownstreamRouteLoader(props, new GrpcRouteRegistry(), Optional.empty(), Optional.of(builder));
+
+        // Act
+        ServiceEndpointContext ctx = loader.buildContext(svcDef);
+
+        // Assert
+        assertThat(ctx.getRoutes()).extracting(RouteDefinition::getMethodName).containsExactly("getItem");
+        assertThat(ctx.hasHiddenMethods()).isTrue();
+        assertThat(ctx.getHiddenMethods()).noneMatch(m -> m.endsWith("/getItem"));
     }
 }

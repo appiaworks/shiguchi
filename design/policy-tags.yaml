@@ -1,0 +1,9 @@
+# SUPERSEDED. Design history only.
+#
+# The draft tag catalogue (descriptions, per-tag `exposure: hidden`, warn on unknown tags) was
+# not built. A catalogue that only warns fails open, and the draft content was domain-specific.
+# What shipped: tags are opaque facts on a method (`(shiguchi.method).tags`, or `operation-tags`
+# for REST_DOWNSTREAM), and exposure is an allowlist, `shiguchi.exposure.expose-tags`: a typo hides
+# a method instead of leaking it. Descriptions and linting belong to the deployment.
+#
+# See docs/guides/security.md ("External vs internal deployment") and docs/reference/configuration.md.

@@ -102,6 +102,50 @@ class ShiguchiAutoConfigurationTest {
     }
 
     @Test
+    @DisplayName("GIVEN a GatewayPolicy bean WHEN the context refreshes SHOULD run it in the enforcer")
+    void GIVEN_gatewayPolicyBean_WHEN_contextRefreshes_SHOULD_runItInTheEnforcer() {
+        java.util.concurrent.atomic.AtomicBoolean ran = new java.util.concurrent.atomic.AtomicBoolean();
+        runner.withBean(
+                        dev.appiaworks.shiguchi.authz.GatewayPolicy.class,
+                        () -> request -> reactor.core.publisher.Mono.fromRunnable(() -> ran.set(true)))
+                .run(context -> {
+                    var enforcer = context.getBean(dev.appiaworks.shiguchi.gateway.GatewayAuthorizationEnforcer.class);
+                    var route = dev.appiaworks.shiguchi.routing.RouteDefinition.builder(
+                                    "svc.pkg.Service",
+                                    "Method",
+                                    io.grpc.MethodDescriptor.MethodType.UNARY,
+                                    "localhost:50051")
+                            .httpBinding("GET", "/v1/test")
+                            .build();
+                    enforcer.enforce(route).block();
+                    assertThat(ran).isTrue();
+                });
+    }
+
+    @Test
+    @DisplayName("GIVEN no rate-limit rules WHEN the context refreshes SHOULD NOT register the rules policy")
+    void GIVEN_noRateLimitRules_WHEN_contextRefreshes_SHOULD_notRegisterRulesPolicy() {
+        runner.run(context ->
+                assertThat(context).doesNotHaveBean(dev.appiaworks.shiguchi.ratelimit.RateLimitRulesPolicy.class));
+    }
+
+    @Test
+    @DisplayName("GIVEN rate-limit rules WHEN the context refreshes SHOULD register the rules policy from properties")
+    void GIVEN_rateLimitRules_WHEN_contextRefreshes_SHOULD_registerRulesPolicy() {
+        runner.withPropertyValues(
+                        "shiguchi.rate-limit.rules[0].match=acme.Orders/*",
+                        "shiguchi.rate-limit.rules[0].key=ip",
+                        "shiguchi.rate-limit.rules[0].burst-capacity=3")
+                .run(context -> {
+                    assertThat(context).hasSingleBean(dev.appiaworks.shiguchi.ratelimit.RateLimitRulesPolicy.class);
+                    assertThat(context.getBean(GatewayProperties.class)
+                                    .getRateLimit()
+                                    .getRules())
+                            .hasSize(1);
+                });
+    }
+
+    @Test
     @DisplayName("GIVEN no user beans WHEN the context refreshes SHOULD register a ScopeGatewayAuthorizer")
     void GIVEN_noUserBeans_WHEN_contextRefreshes_SHOULD_registerScopeGatewayAuthorizer() {
         runner.run(context -> {

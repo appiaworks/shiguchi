@@ -250,6 +250,11 @@ public class StaticRouteLoader implements ServiceLoader {
             log.debug("Method {}/{} hidden by include/exclude-methods filters", sd.getFullName(), md.getName());
             return;
         }
+        if (!svcDef.isExposedByTags(MethodTags.of(md), properties.getExposure().getExposeTags())) {
+            log.debug("Method {}/{} hidden by shiguchi.exposure tags", sd.getFullName(), md.getName());
+            ctx.hideMethod(sd.getFullName(), md.getName());
+            return;
+        }
 
         boolean globalRest = properties.getRest().isEnabled();
         boolean globalGraphQl = properties.getGraphql().isEnabled();

@@ -242,8 +242,11 @@ out. `services[].cache` rules are REST only and play no part here.
 **The key** is the document text, the operation name, the variables in canonical form (the order
 of their fields does not matter) and, by default, the caller: the authenticated principal's name,
 or `anonymous`. `vary-by-principal: false` shares entries between callers, for schemas whose
-answers are the same for everyone. A root field whose method declares `auth_scopes` is keyed per
-caller whatever the setting. A response is stored only when it has data and no errors; one with
+answers are the same for everyone. A root field whose method declares `auth_scopes` or `authz` rules is
+keyed per caller whatever the setting, and so is every field while a custom `GatewayAuthorizer` or any
+`GatewayPolicy` bean is present: a hit is served before those run, so a shared entry would skip them for
+the second caller. (REST needs no such rule: its cache is read after authorization.) A hit for the same
+caller still skips the authorizer and policies until the entry expires. A response is stored only when it has data and no errors; one with
 errors is returned and forgotten.
 
 **Invalidation.** A mutation always runs, then evicts every entry built from the gRPC services
@@ -262,5 +265,6 @@ carries `Age`. The counter `shiguchi.graphql.response.cache` is tagged `result` 
 or `miss`.
 
 Unlike the DataLoader cache (`data-loader.cache.<Type>`), which keeps single entities by id across
-requests, this keeps the whole response of a query. The two compose: a miss here still benefits
+requests (shared by all callers, so only for types that are the same for everyone; the parent field
+was authorized before it loads), this keeps the whole response of a query. The two compose: a miss here still benefits
 from warm loaders.

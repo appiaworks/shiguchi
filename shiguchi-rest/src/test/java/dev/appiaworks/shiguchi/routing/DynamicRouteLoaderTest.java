@@ -941,4 +941,28 @@ class DynamicRouteLoaderTest {
         assertThat(ctx.getRoutes()).hasSize(1);
         assertThat(ctx.getRoutes().get(0).getAuthScopes()).containsExactly("docs.read");
     }
+
+    @Test
+    @DisplayName("GIVEN a descriptor set whose method declares tags WHEN buildContext SHOULD put the tags on the route")
+    void GIVEN_pbFileWithTags_WHEN_buildContext_SHOULD_keepTagsOnRoute(@TempDir Path tempDir) throws Exception {
+        // Arrange
+        MethodRule schema =
+                MethodRule.newBuilder().addTags("pii").addTags("financial").build();
+        Path pbFile = writeAnnotatedDescriptorSet(tempDir, "dev.example.DocService", schema);
+
+        ServiceDefinition svcDef = pbFileServiceDef("docs", pbFile.toString());
+        DynamicRouteLoader loader = buildLoader(
+                propsWith(svcDef),
+                new GrpcRouteRegistry(),
+                mock(ManagedChannel.class),
+                Optional.empty(),
+                noopMergeResolver());
+
+        // Act
+        ServiceEndpointContext ctx = loader.buildContext(svcDef);
+
+        // Assert
+        assertThat(ctx.getRoutes()).hasSize(1);
+        assertThat(ctx.getRoutes().get(0).getTags()).containsExactly("pii", "financial");
+    }
 }

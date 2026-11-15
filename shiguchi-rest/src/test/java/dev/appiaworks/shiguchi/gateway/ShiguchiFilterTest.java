@@ -71,7 +71,7 @@ class ShiguchiFilterTest {
 
         // Mock the enforcer to allow the request
         GatewayAuthorizationEnforcer authEnforcer = mock(GatewayAuthorizationEnforcer.class);
-        when(authEnforcer.enforce(any(), any(), any())).thenReturn(Mono.empty());
+        when(authEnforcer.enforce(any(), any(), any(), any(), any())).thenReturn(Mono.empty());
 
         // Create filter with mocks
         GrpcPathMatcher pathMatcher = new GrpcPathMatcher();
@@ -145,7 +145,8 @@ class ShiguchiFilterTest {
 
         // Mock enforcer to deny access
         GatewayAuthorizationEnforcer authEnforcer = mock(GatewayAuthorizationEnforcer.class);
-        when(authEnforcer.enforce(any(), any(), any())).thenReturn(Mono.error(new AccessDeniedException("Forbidden")));
+        when(authEnforcer.enforce(any(), any(), any(), any(), any()))
+                .thenReturn(Mono.error(new AccessDeniedException("Forbidden")));
 
         // Mock errorRenderer
         GatewayErrorRenderer errorRenderer = mock(GatewayErrorRenderer.class);
@@ -194,6 +195,64 @@ class ShiguchiFilterTest {
     }
 
     @Test
+    @DisplayName("GIVEN a policy throttles WHEN filter called SHOULD respond 429 with Retry-After rounded up")
+    void given_policyThrottles_when_filter_should_respond429WithRetryAfter() {
+        GrpcRouteRegistry registry = new GrpcRouteRegistry();
+        ServiceDefinition svcDef = new ServiceDefinition();
+        svcDef.setName("inventory");
+        svcDef.setBaseUrl("http://inventory:8080");
+        ServiceEndpointContext ctx = new ServiceEndpointContext(svcDef, null);
+        ctx.addRoute(RouteDefinition.builder("inventory", "getItem", MethodDescriptor.MethodType.UNARY, "")
+                .httpUpstream("http://inventory:8080")
+                .httpBinding("GET", "/items/{sku}")
+                .build());
+        registry.registerContext(ctx);
+
+        GatewayProperties props = new GatewayProperties();
+        RestConfig rest = new RestConfig();
+        PaginationConfig pagination = new PaginationConfig();
+        pagination.setNextPageTokenHeader("X-Next-Page-Token");
+        pagination.setTotalCountHeader("X-Total-Count");
+        rest.setPagination(pagination);
+        props.setRest(rest);
+
+        GatewayAuthorizationEnforcer authEnforcer = mock(GatewayAuthorizationEnforcer.class);
+        when(authEnforcer.enforce(any(), any(), any(), any(), any()))
+                .thenReturn(Mono.error(
+                        new dev.appiaworks.shiguchi.authz.ThrottledException(java.time.Duration.ofMillis(1200))));
+
+        GatewayErrorRenderer errorRenderer = mock(GatewayErrorRenderer.class);
+        when(errorRenderer.render(any(), any(), any())).thenReturn("Throttled".getBytes());
+        when(errorRenderer.render(any(), any(), any(GatewayErrorDetails.class), any()))
+                .thenReturn("Throttled".getBytes());
+        when(errorRenderer.contentType()).thenReturn(org.springframework.http.MediaType.APPLICATION_JSON);
+
+        ShiguchiFilter filter = new ShiguchiFilter(
+                registry,
+                new GrpcPathMatcher(),
+                mock(ReactiveGrpcDispatcher.class),
+                mock(GrpcMetadataPopulator.class),
+                authEnforcer,
+                mock(GrpcStatusMapper.class),
+                mock(GrpcResponsePaginationExtractor.class),
+                errorRenderer,
+                mock(MergeDispatcher.class),
+                mock(GrpcRequestBuilder.class),
+                mock(SerdeSelector.class),
+                props);
+
+        ServerWebExchange exchange = MockServerWebExchange.from(
+                MockServerHttpRequest.get("/items/42").build());
+        var chain = (org.springframework.cloud.gateway.filter.GatewayFilterChain)
+                (ex) -> Mono.error(new AssertionError("Chain should not be invoked when throttled"));
+
+        filter.filter(exchange, chain).block();
+
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+        assertThat(exchange.getResponse().getHeaders().getFirst("Retry-After")).isEqualTo("2");
+    }
+
+    @Test
     @DisplayName(
             "GIVEN a route registered under a path prefix and a request already rewritten by StripPrefix "
                     + "WHEN filter called SHOULD resolve the route from the original request URL and authorize with its path variables")
@@ -216,7 +275,7 @@ class ShiguchiFilterTest {
         props.setRest(rest);
 
         GatewayAuthorizationEnforcer authEnforcer = mock(GatewayAuthorizationEnforcer.class);
-        when(authEnforcer.enforce(any(), any(), any())).thenReturn(Mono.empty());
+        when(authEnforcer.enforce(any(), any(), any(), any(), any())).thenReturn(Mono.empty());
         ReactiveGrpcDispatcher dispatcher = mock(ReactiveGrpcDispatcher.class);
 
         ShiguchiFilter filter = new ShiguchiFilter(
@@ -258,7 +317,7 @@ class ShiguchiFilterTest {
         @SuppressWarnings("unchecked")
         org.mockito.ArgumentCaptor<java.util.Map<String, Object>> args =
                 org.mockito.ArgumentCaptor.forClass(java.util.Map.class);
-        verify(authEnforcer).enforce(any(), args.capture(), org.mockito.ArgumentMatchers.isNull());
+        verify(authEnforcer).enforce(any(), args.capture(), org.mockito.ArgumentMatchers.isNull(), any(), any());
         assertThat(args.getValue()).containsEntry("sku", "42");
         verify(dispatcher, never()).dispatch(any(), any(), any(), any(), any(), any());
     }

@@ -33,6 +33,11 @@ message MethodRule {
   //
   // All rules must pass for the call to proceed.
   repeated AuthzRule authz = 3;
+
+  // Free-form labels on the method (e.g. "pii", "financial"). Facts only: the gateway does
+  // nothing with them itself. They are carried on the route for a policy hook or
+  // GatewayAuthorizer to consume, and are inert when nothing does -- same contract as `authz`.
+  repeated string tags = 4;
 }
 
 // One object-level authorization requirement: the caller must hold `relation` on the object

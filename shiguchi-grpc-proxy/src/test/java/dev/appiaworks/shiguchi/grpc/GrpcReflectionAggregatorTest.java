@@ -694,4 +694,90 @@ class GrpcReflectionAggregatorTest {
             // No-op for tests
         }
     }
+
+    private ServerReflectionResponse reflect(ServerReflectionRequest request) {
+        TestResponseObserver responseObserver = new TestResponseObserver();
+        aggregator.serverReflectionInfo(responseObserver).onNext(request);
+        assertThat(responseObserver.responses).hasSize(1);
+        return responseObserver.responses.get(0);
+    }
+
+    private void registerGreetingWithHiddenMethod() {
+        ServiceEndpointContext ctx = buildContext(
+                "backend-1",
+                "dev.example.GreetingService",
+                testServiceDescriptor,
+                unchecked_buildTestFileDescriptorSet());
+        ctx.hideMethod("dev.example.GreetingService", "SayHello");
+        registry.registerContext(ctx);
+    }
+
+    @Test
+    @DisplayName("GIVEN a service whose only method is hidden WHEN LIST_SERVICES SHOULD not list the service")
+    void GIVEN_hiddenOnlyMethod_WHEN_listServices_SHOULD_omitService() {
+        registerGreetingWithHiddenMethod();
+
+        ServerReflectionResponse response = reflect(ServerReflectionRequest.newBuilder()
+                .setHost("localhost")
+                .setListServices("")
+                .build());
+
+        assertThat(response.getListServicesResponse().getServiceList()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("GIVEN a hidden method WHEN FILE_CONTAINING_SYMBOL asks for its service or its message "
+            + "SHOULD answer NOT_FOUND and not leak the type names")
+    void GIVEN_hiddenMethod_WHEN_symbolRequested_SHOULD_answerNotFound() {
+        registerGreetingWithHiddenMethod();
+
+        for (String symbol : List.of("dev.example.GreetingService", "dev.example.HelloRequest")) {
+            ServerReflectionResponse response = reflect(ServerReflectionRequest.newBuilder()
+                    .setHost("localhost")
+                    .setFileContainingSymbol(symbol)
+                    .build());
+            assertThat(response.hasErrorResponse()).as(symbol).isTrue();
+            assertThat(response.getErrorResponse().getErrorCode()).isEqualTo(io.grpc.Status.Code.NOT_FOUND.value());
+        }
+    }
+
+    @Test
+    @DisplayName("GIVEN two methods and one hidden WHEN the view is built SHOULD keep the exposed method and "
+            + "its types and drop the hidden method's types")
+    void GIVEN_oneHiddenOfTwoMethods_WHEN_viewBuilt_SHOULD_pruneOnlyHiddenTypes() {
+        FileDescriptorProto file = FileDescriptorProto.newBuilder()
+                .setName("two.proto")
+                .setPackage("p")
+                .setSyntax("proto3")
+                .addMessageType(DescriptorProto.newBuilder().setName("PubReq"))
+                .addMessageType(DescriptorProto.newBuilder().setName("PubRes"))
+                .addMessageType(DescriptorProto.newBuilder()
+                        .setName("SecretReq")
+                        .addField(FieldDescriptorProto.newBuilder()
+                                .setName("inner")
+                                .setNumber(1)
+                                .setType(FieldDescriptorProto.Type.TYPE_MESSAGE)
+                                .setTypeName(".p.SecretInner")))
+                .addMessageType(DescriptorProto.newBuilder().setName("SecretInner"))
+                .addService(com.google.protobuf.DescriptorProtos.ServiceDescriptorProto.newBuilder()
+                        .setName("S")
+                        .addMethod(com.google.protobuf.DescriptorProtos.MethodDescriptorProto.newBuilder()
+                                .setName("Pub")
+                                .setInputType(".p.PubReq")
+                                .setOutputType(".p.PubRes"))
+                        .addMethod(com.google.protobuf.DescriptorProtos.MethodDescriptorProto.newBuilder()
+                                .setName("Secret")
+                                .setInputType(".p.SecretReq")
+                                .setOutputType(".p.PubRes")))
+                .build();
+
+        HiddenReflectionView view = HiddenReflectionView.of(
+                FileDescriptorSet.newBuilder().addFile(file).build(), java.util.Set.of("p.S/Secret"));
+
+        assertThat(view.services()).containsExactly("p.S");
+        assertThat(view.types()).containsExactlyInAnyOrder("p.PubReq", "p.PubRes");
+        assertThat(view.files().get(0).getService(0).getMethodList())
+                .extracting(com.google.protobuf.DescriptorProtos.MethodDescriptorProto::getName)
+                .containsExactly("Pub");
+    }
 }

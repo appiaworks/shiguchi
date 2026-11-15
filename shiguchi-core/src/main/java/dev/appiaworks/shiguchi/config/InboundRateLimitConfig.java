@@ -43,6 +43,52 @@ public class InboundRateLimitConfig {
 
     private RedisConfig redis = new RedisConfig();
 
+    /**
+     * Per-method or per-tag limits, enforced by a {@code GatewayPolicy} after authorization (so
+     * on every surface, including the gRPC proxy in {@code ENFORCE} mode). Independent of
+     * {@link #enabled}; empty (default) creates no policy. Every matching rule applies.
+     */
+    private List<Rule> rules = new ArrayList<>();
+
+    /**
+     * What a {@link #rules} rule does when its limiter errors or is unavailable (the backend is
+     * unreachable, a custom limiter throws): {@link BackendError#ALLOW} (default, fail open, like
+     * {@code redis.fail-open}) lets the request through and logs a warning; {@link BackendError#DENY}
+     * refuses it with 429 {@code RESOURCE_EXHAUSTED} and {@code Retry-After: 1}.
+     */
+    private BackendError rulesOnBackendError = BackendError.ALLOW;
+
+    /** Outcome of a rule whose limiter fails. */
+    public enum BackendError {
+        /** Fail open: allow the request. */
+        ALLOW,
+        /** Fail closed: throttle the request. */
+        DENY
+    }
+
+    /**
+     * One rule of {@link #rules}: which methods it covers ({@link #match} and/or {@link #tag},
+     * both when both are set), who gets a bucket ({@link #key}) and the bucket itself.
+     */
+    @Data
+    @NoArgsConstructor
+    public static class Rule {
+        /** Names the rule's buckets and log lines; defaults to {@code rule-<index>}. Must be unique. */
+        private String id;
+        /** Glob on the full method name ({@code acme.Orders/*}); {@code *} any run, {@code ?} one character. */
+        private String match;
+        /** A route tag the method must carry (exact). */
+        private String tag;
+        /** {@code principal} (default, the client IP when anonymous), {@code ip} or {@code claim:<name>}. */
+        private String key = "principal";
+        /** Tokens per second; unset takes {@code shiguchi.rate-limit.replenish-rate}. */
+        private Double replenishRate;
+        /** Bucket size; unset takes {@code shiguchi.rate-limit.burst-capacity}. */
+        private Integer burstCapacity;
+        /** Tokens one request costs. */
+        private int cost = 1;
+    }
+
     public enum Backend {
         /** Buckets in a Caffeine cache in this gateway; each replica limits on its own. */
         MEMORY,

@@ -109,6 +109,7 @@ Usage:
 | `auth_scopes` | `repeated string` | OAuth2/JWT scope names enforced before dispatch (empty = no check). |
 | `cache_ttl_seconds` | `int32` | Adds Cache-Control: max-age=N to REST responses, and is the TTL of the GraphQL response cache (shiguchi.graphql.response-cache) for queries whose root fields all resolve to a method with one. |
 | `authz` | `repeated AuthzRule` | Object-level authorization rules enforced before dispatch (empty = no object check). Unlike auth_scopes -- which asks "may this caller call this method?" -- these ask "may this caller act on THIS object?". The gateway itself does not evaluate them: they are carried on the route for a GatewayAuthorizer implementation (OpenFGA, OPA, Cedar, ...) to consume. When no authorizer consumes them they are inert, so the same .proto works unchanged behind a gateway with no policy engine wired. All rules must pass for the call to proceed. |
+| `tags` | `repeated string` | Free-form labels on the method (e.g. "pii", "financial"). Facts only: the gateway does nothing with them itself. They are carried on the route for a policy hook or GatewayAuthorizer to consume, and are inert when nothing does -- same contract as `authz`. |
 
 ### `AuthzRule`
 

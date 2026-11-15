@@ -113,6 +113,19 @@ class GrpcGraphQlExceptionHandlerTest {
     }
 
     @Test
+    @DisplayName("GIVEN a throttled request WHEN handled SHOULD answer RESOURCE_EXHAUSTED with the retry delay")
+    void given_throttledException_when_handled_should_answerResourceExhausted() throws Exception {
+        GraphQLError error = single(
+                new GrpcGraphQlExceptionHandler(mock(DataFetcherExceptionHandler.class)),
+                new dev.appiaworks.shiguchi.authz.ThrottledException(java.time.Duration.ofMillis(2500)));
+
+        assertThat(error.getExtensions())
+                .containsEntry("code", "RESOURCE_EXHAUSTED")
+                .containsEntry("grpcCode", "RESOURCE_EXHAUSTED")
+                .containsEntry("retryAfterSeconds", 3L);
+    }
+
+    @Test
     @DisplayName("GIVEN a status without description WHEN handled SHOULD use the code name as the message")
     void given_statusWithoutDescription_when_handled_should_useCodeAsMessage() throws Exception {
         GraphQLError error = single(

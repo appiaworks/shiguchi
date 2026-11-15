@@ -81,6 +81,9 @@ public class ServiceEndpointContext {
     private final Map<com.google.protobuf.Descriptors.Descriptor, AbstractDynamicSerializer> serializerCache =
             new ConcurrentHashMap<>();
 
+    // "ServiceFqn/methodName" of methods the tag allowlist (shiguchi.exposure) hides; set during the build
+    private final java.util.Set<String> hiddenMethods = ConcurrentHashMap.newKeySet();
+
     // Routes registered from this service's proto annotations
     private final List<RouteDefinition> routes = new ArrayList<>();
 
@@ -187,6 +190,34 @@ public class ServiceEndpointContext {
 
     public Optional<MethodDescriptor> lookupMethod(String serviceFqn, String methodName) {
         return Optional.ofNullable(methodByKey.get(serviceFqn + "/" + methodName));
+    }
+
+    /** Marks a method as hidden by the tag allowlist. Build-time only. */
+    public void hideMethod(String serviceFqn, String methodName) {
+        hiddenMethods.add(serviceFqn + "/" + methodName);
+    }
+
+    /**
+     * True when the tag allowlist hides this method. A hidden method has no route on any surface
+     * and must answer like an unknown one (404, UNIMPLEMENTED).
+     */
+    public boolean isMethodHidden(String serviceFqn, String methodName) {
+        return !hiddenMethods.isEmpty() && hiddenMethods.contains(serviceFqn + "/" + methodName);
+    }
+
+    /** True when at least one method is hidden by the tag allowlist. */
+    public boolean hasHiddenMethods() {
+        return !hiddenMethods.isEmpty();
+    }
+
+    /** The methods the tag allowlist hides, as {@code ServiceFqn/methodName}. */
+    public java.util.Set<String> getHiddenMethods() {
+        return java.util.Set.copyOf(hiddenMethods);
+    }
+
+    /** Passes the service's include/exclude filters and is not hidden by the tag allowlist. */
+    public boolean isMethodExposed(String serviceFqn, String methodName) {
+        return config.isMethodExposed(serviceFqn, methodName) && !isMethodHidden(serviceFqn, methodName);
     }
 
     public Optional<AbstractDynamicSerializer> serializerFor(com.google.protobuf.Descriptors.Descriptor descriptor) {

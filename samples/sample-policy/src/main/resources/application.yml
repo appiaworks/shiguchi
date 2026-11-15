@@ -1,0 +1,36 @@
+server:
+  port: 8080
+
+sample:
+  backend-port: 8081
+  policy:
+    rules-file: policy-rules.yml   # relative to the working directory
+    reload-interval: 2s
+
+shiguchi:
+  services:
+    # A legacy REST service. The tags are facts about each operation; nothing in the gateway acts
+    # on them except the policy bean in this sample (and `shiguchi.exposure.expose-tags`).
+    - name: inventory
+      mode: REST_DOWNSTREAM
+      openapi-url: http://localhost:${sample.backend-port}/v3/api-docs
+      path-prefix: /inv
+      operation-tags:
+        getItem: [external]
+        createItem: [external]
+        listItems: [external, expensive]
+        deleteItem: [internal]
+
+  security:
+    mode: AUTHENTICATED
+
+  openapi:
+    enabled: true
+  graphql:
+    enabled: false
+  grpc:
+    enabled: false
+  ui:
+    enabled: false
+  refresh:
+    enabled: false

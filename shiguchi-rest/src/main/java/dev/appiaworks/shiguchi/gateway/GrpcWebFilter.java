@@ -175,7 +175,7 @@ public class GrpcWebFilter implements WebFilter {
 
         ServiceEndpointContext ctx = registry.contextByServiceFqn(service).orElse(null);
         var md = ctx == null ? null : ctx.lookupMethod(service, methodName).orElse(null);
-        if (md == null || !ctx.getConfig().isMethodExposed(service, methodName)) {
+        if (md == null || !ctx.isMethodExposed(service, methodName)) {
             return trailersOnly(
                     exchange,
                     text,
@@ -225,7 +225,12 @@ public class GrpcWebFilter implements WebFilter {
 
         return requestMessage
                 .flatMap(message -> authEnforcer
-                        .enforce(route, Map.of(), null)
+                        .enforce(
+                                route,
+                                Map.of(),
+                                null,
+                                exchange.getRequest().getHeaders().asMultiValueMap(),
+                                dev.appiaworks.shiguchi.authz.AuthorizationRequest.Surface.GRPC_WEB)
                         .then(metadataPopulator
                                 .build(exchange.getRequest(), route)
                                 .defaultIfEmpty(new Metadata()))
@@ -274,6 +279,9 @@ public class GrpcWebFilter implements WebFilter {
                 .onErrorResume(
                         AccessDeniedException.class,
                         ex -> trailersOnly(exchange, text, Status.PERMISSION_DENIED.withDescription(ex.getMessage())))
+                .onErrorResume(
+                        dev.appiaworks.shiguchi.authz.ThrottledException.class,
+                        ex -> trailersOnly(exchange, text, Status.RESOURCE_EXHAUSTED.withDescription(ex.getMessage())))
                 .onErrorResume(
                         io.grpc.StatusRuntimeException.class,
                         ex -> trailersOnly(exchange, text, ex.getStatus(), ex.getTrailers()))

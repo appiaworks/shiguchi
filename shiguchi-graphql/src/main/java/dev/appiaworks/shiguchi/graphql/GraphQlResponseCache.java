@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BooleanSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,6 +107,7 @@ class GraphQlResponseCache implements SchemaReloadListener {
     private final GraphQlConfig.ResponseCacheConfig config;
     private final GrpcRouteRegistry registry;
     private final Clock clock;
+    private final BooleanSupplier callerDecisions;
     private final Cache<String, Entry> entries;
     private final Cache<String, Map<String, OperationShape>> shapes;
     private final Map<Outcome, Counter> counters = new EnumMap<>(Outcome.class);
@@ -117,6 +119,21 @@ class GraphQlResponseCache implements SchemaReloadListener {
 
     GraphQlResponseCache(
             GraphQlConfig.ResponseCacheConfig config, GrpcRouteRegistry registry, MeterRegistry meters, Clock clock) {
+        this(config, registry, meters, clock, () -> false);
+    }
+
+    /**
+     * @param callerDecisions true while a custom {@code GatewayAuthorizer} or any
+     *     {@code GatewayPolicy} bean is active: every entry is then keyed per caller, whatever the
+     *     route declares, since a hit is served before those run
+     */
+    GraphQlResponseCache(
+            GraphQlConfig.ResponseCacheConfig config,
+            GrpcRouteRegistry registry,
+            MeterRegistry meters,
+            Clock clock,
+            BooleanSupplier callerDecisions) {
+        this.callerDecisions = callerDecisions;
         this.config = config;
         this.registry = registry;
         this.clock = clock;
@@ -165,7 +182,9 @@ class GraphQlResponseCache implements SchemaReloadListener {
             return new Plan(shape.type(), null, Set.of(), false, true);
         }
         Set<String> services = new LinkedHashSet<>();
-        boolean perCaller = config.isVaryByPrincipal();
+        // A custom authorizer or any policy decides per caller on routes with no scopes or rules
+        // too (tags only, or nothing): a shared entry would skip them for the second principal.
+        boolean perCaller = config.isVaryByPrincipal() || callerDecisions.getAsBoolean();
         boolean cacheable = !shape.rootFields().isEmpty();
         int ttl = Integer.MAX_VALUE;
         for (String field : shape.rootFields()) {
@@ -178,7 +197,9 @@ class GraphQlResponseCache implements SchemaReloadListener {
                 services.add(route.getFullServiceName());
                 if (route.getCacheTtlSeconds() <= 0) cacheable = false;
                 else ttl = Math.min(ttl, route.getCacheTtlSeconds());
-                if (!route.getAuthScopes().isEmpty()) perCaller = true;
+                // Scopes and authz rules both decide per caller: a shared entry would serve a hit
+                // without the authorizer ever running for the second principal.
+                if (!route.getAuthScopes().isEmpty() || !route.getAuthzRules().isEmpty()) perCaller = true;
             }
         }
         Duration duration = cacheable && ttl != Integer.MAX_VALUE ? Duration.ofSeconds(ttl) : null;

@@ -281,9 +281,17 @@ public class RestDownstreamRouteLoader implements ServiceLoader {
             }
             OpenApiToDescriptor.Method method = methods.get(op.operationId());
             String methodName = method != null ? method.name() : op.operationId();
+            if (!svcDef.isExposedByTags(
+                    svcDef.getOperationTags().getOrDefault(op.operationId(), List.of()),
+                    properties.getExposure().getExposeTags())) {
+                hidden++;
+                ctx.hideMethod(serviceFqn, methodName);
+                continue;
+            }
             var builder = RouteDefinition.builder(serviceFqn, methodName, MethodDescriptor.MethodType.UNARY, baseUrl)
                     .httpUpstream(baseUrl)
                     .authScopes(resolveScopes(svcDef, op))
+                    .tags(svcDef.getOperationTags().getOrDefault(op.operationId(), List.of()))
                     .upstreamTimeout(svcDef.effectiveHttpTimeout(op.operationId(), properties.getClient()));
             if (restEnabled) {
                 builder.httpBinding(op.httpMethod(), prefix + op.path());

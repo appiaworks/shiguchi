@@ -60,4 +60,7 @@ public class GatewayProperties {
 
     /** Routes built from a Spring Cloud registry's service list. */
     private DiscoveryConfig discovery = new DiscoveryConfig();
+
+    /** Which methods exist at all, by tag (allowlist). */
+    private ExposureConfig exposure = new ExposureConfig();
 }
