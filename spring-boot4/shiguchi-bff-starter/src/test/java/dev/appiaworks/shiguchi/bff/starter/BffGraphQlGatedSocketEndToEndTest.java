@@ -122,6 +122,18 @@ class BffGraphQlGatedSocketEndToEndTest {
     }
 
     @Test
+    @DisplayName(
+            "GIVEN a gated surface WHEN the handshake carries a valid bearer header SHOULD run operations as that caller")
+    void given_gated_surface_when_bearer_on_handshake_should_run_as_caller() {
+        String bearer = STUB.accessToken("carol");
+        try (GraphQlSocket socket = new GraphQlSocket(h -> h.setBearerAuth(bearer), "")) {
+            socket.query("1", ECHO);
+
+            assertThat(socket.awaitResult("1")).endsWith("|carol");
+        }
+    }
+
+    @Test
     @DisplayName("GIVEN a gated surface WHEN connection_init carries a bad bearer SHOULD close the socket")
     void given_gated_surface_when_bad_bearer_should_close_socket() {
         try (GraphQlSocket socket =
