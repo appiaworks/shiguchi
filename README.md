@@ -162,7 +162,7 @@ Requires **JDK 21+** (generated serde tiers on 25+). Add the starter (Spring Boo
 
 ```kotlin
 dependencies {
-    implementation("io.github.appiaworks:shiguchi-spring-boot4-starter:0.24.0")
+    implementation("io.github.appiaworks:shiguchi-spring-boot4-starter:0.25.0")
 }
 ```
 
