@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- GraphQL subscriptions from a browser on a gated surface: with `shiguchi.security.surfaces.graphql.require-auth` (or mode `AUTHENTICATED`) the WebSocket upgrade returned 401 before `connection_init` could carry the bearer token, so the console's GraphiQL could not subscribe. The upgrade is now let through and the socket is gated: operations on an unauthenticated socket are refused with an `unauthenticated` error, a valid `connection_init` bearer authenticates it, an invalid one closes it. Plain HTTP stays gated.
+
 ## [0.24.0] - 2026-11-15
 
 ### Changed

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import dev.appiaworks.shiguchi.config.GatewayProperties;
 import java.net.URI;
 import java.time.Instant;
 import java.util.HashMap;
@@ -59,9 +60,15 @@ class ConnectionInitAuthInterceptorTest {
     }
 
     private ConnectionInitAuthInterceptor interceptor(ReactiveJwtDecoder decoder) {
+        return interceptor(decoder, false);
+    }
+
+    private ConnectionInitAuthInterceptor interceptor(ReactiveJwtDecoder decoder, boolean requireAuth) {
+        GatewayProperties properties = new GatewayProperties();
+        properties.getSecurity().getSurfaces().getGraphql().setRequireAuth(requireAuth);
         ObjectProvider<ReactiveJwtAuthenticationConverter> reactive = provider(null);
         ObjectProvider<Converter<Jwt, ? extends Mono<? extends AbstractAuthenticationToken>>> any = provider(null);
-        return new ConnectionInitAuthInterceptor(provider(decoder), reactive, any);
+        return new ConnectionInitAuthInterceptor(provider(decoder), reactive, any, properties);
     }
 
     private WebSocketGraphQlRequest request() {
@@ -143,5 +150,51 @@ class ConnectionInitAuthInterceptorTest {
                 .verifyComplete();
 
         assertThat(callerSeenByChain(interceptor)).isNull();
+    }
+
+    private WebGraphQlResponse runUnderGate(ConnectionInitAuthInterceptor interceptor, Authentication handshake) {
+        WebGraphQlResponse ok = mock(WebGraphQlResponse.class);
+        WebGraphQlInterceptor.Chain chain = r -> Mono.just(ok);
+        Mono<WebGraphQlResponse> run = interceptor.intercept(request(), chain);
+        if (handshake != null) {
+            run = run.contextWrite(ReactiveSecurityContextHolder.withAuthentication(handshake));
+        }
+        return run.block();
+    }
+
+    @Test
+    @DisplayName("GIVEN a gated surface WHEN an anonymous socket runs an operation THEN it is refused")
+    void GIVEN_gated_surface_WHEN_anonymous_socket_SHOULD_refuse() {
+        WebGraphQlResponse response = runUnderGate(interceptor(decoder, true), null);
+
+        assertThat(response.getErrors()).hasSize(1);
+        assertThat(response.getErrors().get(0).getExtensions()).containsEntry("code", "unauthenticated");
+    }
+
+    @Test
+    @DisplayName("GIVEN a gated surface WHEN connection_init authenticated the socket THEN operations run")
+    void GIVEN_gated_surface_WHEN_connection_init_authenticated_SHOULD_run() {
+        ConnectionInitAuthInterceptor interceptor = interceptor(decoder, true);
+        StepVerifier.create(interceptor.handleConnectionInitialization(session, Map.of("Authorization", "Bearer good")))
+                .verifyComplete();
+
+        assertThat(callerSeenByChain(interceptor).getName()).isEqualTo("alice");
+    }
+
+    @Test
+    @DisplayName("GIVEN a gated surface WHEN the handshake authenticated the caller THEN operations run")
+    void GIVEN_gated_surface_WHEN_handshake_authenticated_SHOULD_run() {
+        Authentication handshake =
+                new org.springframework.security.authentication.TestingAuthenticationToken("bob", "n/a", "ROLE_USER");
+
+        WebGraphQlResponse response = runUnderGate(interceptor(decoder, true), handshake);
+
+        assertThat(response.getErrors()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("GIVEN an open surface WHEN an anonymous socket runs an operation THEN it runs")
+    void GIVEN_open_surface_WHEN_anonymous_socket_SHOULD_run() {
+        assertThat(runUnderGate(interceptor(decoder, false), null).getErrors()).isEmpty();
     }
 }

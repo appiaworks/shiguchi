@@ -1,6 +1,11 @@
 package dev.appiaworks.shiguchi.graphql;
 
+import dev.appiaworks.shiguchi.config.GatewayProperties;
+import dev.appiaworks.shiguchi.config.SecurityConfig;
 import dev.appiaworks.shiguchi.security.JwtPrincipalConverter;
+import graphql.ExecutionResult;
+import graphql.ExecutionResultImpl;
+import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -12,9 +17,12 @@ import org.springframework.graphql.server.WebGraphQlResponse;
 import org.springframework.graphql.server.WebSocketGraphQlInterceptor;
 import org.springframework.graphql.server.WebSocketGraphQlRequest;
 import org.springframework.graphql.server.WebSocketSessionInfo;
+import org.springframework.graphql.support.DefaultExecutionGraphQlResponse;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
@@ -32,8 +40,14 @@ import reactor.core.publisher.Mono;
  *
  * <p>A token the decoder rejects closes the connection. A payload without an {@code Authorization}
  * entry changes nothing: the socket keeps whoever the handshake authenticated (a cookie or
- * header caller) or stays anonymous. Without a {@code ReactiveJwtDecoder} the payload is ignored.
- * Only bearer tokens are read from the payload.
+ * header caller). Without a {@code ReactiveJwtDecoder} the payload is ignored. Only bearer tokens
+ * are read from the payload.
+ *
+ * <p>When the GraphQL surface requires authentication ({@code shiguchi.security.surfaces.graphql.require-auth}
+ * or mode {@code AUTHENTICATED}), the security chain lets the WebSocket upgrade through without a
+ * caller, since a browser cannot authenticate it, and this interceptor is the gate: an operation on a
+ * socket that neither the handshake nor {@code connection_init} authenticated is refused with an
+ * {@code unauthenticated} error. On an open surface a socket without a credential stays anonymous.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -45,14 +59,19 @@ public class ConnectionInitAuthInterceptor implements WebSocketGraphQlIntercepto
 
     private final ReactiveJwtDecoder decoder;
     private final Converter<Jwt, ? extends Mono<? extends AbstractAuthenticationToken>> converter;
+    private final boolean requireAuth;
 
     public ConnectionInitAuthInterceptor(
             ObjectProvider<ReactiveJwtDecoder> decoders,
             ObjectProvider<ReactiveJwtAuthenticationConverter> reactiveConverters,
-            ObjectProvider<Converter<Jwt, ? extends Mono<? extends AbstractAuthenticationToken>>> converters) {
+            ObjectProvider<Converter<Jwt, ? extends Mono<? extends AbstractAuthenticationToken>>> converters,
+            GatewayProperties properties) {
         this.decoder = decoders.getIfAvailable();
         // The HTTP chain resolves the same converter, so both name the caller the same way.
         this.converter = JwtPrincipalConverter.resolve(reactiveConverters, converters);
+        SecurityConfig security = properties.getSecurity();
+        this.requireAuth =
+                security.getSurfaces().getGraphql().effective(security.getMode() == SecurityConfig.Mode.AUTHENTICATED);
     }
 
     @Override
@@ -80,7 +99,22 @@ public class ConnectionInitAuthInterceptor implements WebSocketGraphQlIntercepto
                 && socket.getSessionInfo().getAttributes().get(ATTRIBUTE) instanceof Authentication auth) {
             return chain.next(request).contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth));
         }
+        if (requireAuth && request instanceof WebSocketGraphQlRequest) {
+            // The handshake caller (cookie or header), if any, is in the security context.
+            return ReactiveSecurityContextHolder.getContext()
+                    .mapNotNull(SecurityContext::getAuthentication)
+                    .filter(a -> a.isAuthenticated() && !(a instanceof AnonymousAuthenticationToken))
+                    .flatMap(a -> chain.next(request))
+                    .switchIfEmpty(Mono.defer(() -> Mono.just(refused(request))));
+        }
         return chain.next(request);
+    }
+
+    private static WebGraphQlResponse refused(WebGraphQlRequest request) {
+        ExecutionResult result = ExecutionResultImpl.newExecutionResult()
+                .errors(List.of(GraphQlSessionEnded.error("authentication required")))
+                .build();
+        return new WebGraphQlResponse(new DefaultExecutionGraphQlResponse(request.toExecutionInput(), result));
     }
 
     private static String bearerToken(Map<String, Object> payload) {
