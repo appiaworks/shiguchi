@@ -62,7 +62,7 @@ A method has `name`, `fullServiceName`, `methodType` (`UNARY`, `SERVER_STREAMING
 `string`, `int32`, `message`, `enum`, `bytes`, `bool` ...), `label` (`optional`, `repeated` or `map`), `typeName`
 (fully qualified, for message and enum fields), nested `fields` (inlined up to a depth limit), `enumValues`
 (`name`, `number`), `oneofName`, `mapEntry`, `wellKnownType` (for example `TIMESTAMP`, `DURATION`, `FIELD_MASK`,
-`STRUCT`, `ANY`) and `hasPresence` (message, oneof member or proto3 `optional`: unset differs from the default).
+`STRUCT`, `ANY`) and `hasPresence` (message, oneof member or proto3 `optional`: unset differs from the default), `required` (annotated required) and `resolvesTypes` (the GraphQL type names from `(shiguchi.field).resolves_type`; empty when the field is not an ID reference).
 
 Method visibility follows `services[].include-methods` / `exclude-methods`, and the schema works with every
 discovery mode (`DYNAMIC`, `STATIC`, `PB_FILE`).

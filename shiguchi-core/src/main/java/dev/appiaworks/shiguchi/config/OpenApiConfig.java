@@ -19,6 +19,13 @@ public class OpenApiConfig {
     private boolean enabled = true;
 
     /**
+     * Serve one OpenAPI document per backend and let Swagger UI switch between them ("All services"
+     * plus one entry per backend). Applies only with two or more backends, and never overrides
+     * {@code springdoc.swagger-ui.urls} set by the application.
+     */
+    private boolean groupByBackend = true;
+
+    /**
      * Named security schemes to advertise in the OpenAPI spec.
      * Keys become the securityScheme IDs used in Swagger UI's Authorize dialog.
      *

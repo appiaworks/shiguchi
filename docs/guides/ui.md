@@ -66,9 +66,13 @@ Working top to bottom:
   (`id : int64`), so you never need the `.proto` file open. Its **OUTPUT SCHEMA** tab shows the response message the same way. Note the proto3 JSON rules:
   int64 accepts a number or a string, field names accept camelCase or snake_case.
 
-  In the schema panel, a red `!` after a type marks a field annotated as required
-  (`google.api.field_behavior = REQUIRED`, or `buf.validate` `required` / `string.min_len > 0`);
-  proto3 itself has no required fields, so this comes from the annotation only. Hover a type or marker
+  In the schema panel, a field annotated as required
+  (`google.api.field_behavior = REQUIRED`, or `buf.validate` `required` / `string.min_len > 0`)
+  gets a red bar, a bold name and a **required** pill; proto3 itself has no required fields, so this comes from
+  the annotation only. Other fields carry no marker (a proto3 `optional` field notes it in the type's tooltip).
+  Tick **Required only** to hide everything except required fields and the messages that contain one. An ID field
+  annotated `(shiguchi.field).resolves_type` shows a **→ Type** chip after its type; click it to open that
+  type's fields under the row (the type must appear in some discovered method's schema). Hover a type or marker
   for an explanation, hover a row and click **copy** to copy its path (`items[].id`), and use
   **Expand all** / **Collapse all** to open or close every nested message and enum.
 
@@ -139,6 +143,11 @@ The console links to the gateway's sibling surfaces for the same services:
 proto messages:
 
 ![Swagger UI showing GET /v1/books of the sample library catalogue, with its pageSize, pageToken and sort parameters](../images/swagger-ui.png)
+
+With many services, each one is a sorted tag and every operation carries a summary. With two or more
+backends the top bar has a document dropdown ("All services" plus one entry per backend); turn it off with
+`shiguchi.openapi.group-by-backend=false`. Springdoc's `springdoc.swagger-ui.doc-expansion: none` and
+`filter: true` keep a long list collapsed and searchable. See the [OpenAPI reference](../reference/openapi.md).
 
 **GraphQL / GraphiQL** (`/graphiql`, from `shiguchi-graphql-*-starter`) — methods become
 queries/mutations (from `(shiguchi.graphql)` annotations, or convention-named like

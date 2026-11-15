@@ -23,6 +23,8 @@ public class OpenApiCache implements dev.appiaworks.shiguchi.routing.SchemaReloa
     private final GatewayOpenApiBuilder builder;
     private volatile String cachedJson;
     private volatile String cachedYaml;
+    private final java.util.concurrent.ConcurrentMap<String, String> backendJson =
+            new java.util.concurrent.ConcurrentHashMap<>();
 
     public OpenApiCache(GatewayOpenApiBuilder builder) {
         this.builder = builder;
@@ -47,6 +49,25 @@ public class OpenApiCache implements dev.appiaworks.shiguchi.routing.SchemaReloa
         return cachedYaml;
     }
 
+    /**
+     * The serialized document for one backend, decorated (security) by {@code decorate}; null when the
+     * backend is unknown. Dropped on reload like the main document.
+     */
+    public String backendJson(String backend, java.util.function.UnaryOperator<OpenAPI> decorate) {
+        String cached = backendJson.get(backend);
+        if (cached != null) return cached;
+        OpenAPI spec = builder.getBackendSpec(backend);
+        if (spec == null) return null;
+        try {
+            String json = toJson(decorate.apply(spec));
+            backendJson.put(backend, json);
+            return json;
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            log.error("Failed to serialize OpenAPI spec for backend {}", backend, e);
+            return "{}";
+        }
+    }
+
     /** Rebuilds the spec from the registry and drops the serialized copies. */
     @Override
     public void onSchemaReloaded() {
@@ -58,6 +79,7 @@ public class OpenApiCache implements dev.appiaworks.shiguchi.routing.SchemaReloa
     public void invalidate() {
         cachedJson = null;
         cachedYaml = null;
+        backendJson.clear();
         log.info("OpenAPI cache invalidated; will rebuild on next request");
     }
 

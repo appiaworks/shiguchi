@@ -315,6 +315,24 @@ class GrpcUiSchemaBuilderTest {
         assertThat(field(input, "plain").required()).isFalse();
     }
 
+    @Test
+    @DisplayName("GIVEN a field annotated resolves_type WHEN building the schema SHOULD list the target types")
+    void given_resolvesType_when_building_should_listTargetTypes() throws Exception {
+        GrpcUiSchemaDto.MessageSchema input = inputOf(requiredFile("schema.resolves"));
+
+        assertThat(field(input, "author_id").resolvesTypes()).containsExactly("Author", "AuthorRef");
+        assertThat(field(input, "plain").resolvesTypes()).isEmpty();
+    }
+
+    /** (shiguchi.field) = { resolves_type: ... } : extension 50101, resolves_type is field 9. */
+    private static FieldOptions resolvesOptions(String... types) {
+        UnknownFieldSet.Field.Builder names = UnknownFieldSet.Field.newBuilder();
+        for (String t : types) names.addLengthDelimited(ByteString.copyFromUtf8(t));
+        UnknownFieldSet rule =
+                UnknownFieldSet.newBuilder().addField(9, names.build()).build();
+        return options(50101, bytes(rule.toByteString()));
+    }
+
     private static UnknownFieldSet.Field varint(long v) {
         return UnknownFieldSet.Field.newBuilder().addVarint(v).build();
     }
@@ -354,6 +372,7 @@ class GrpcUiSchemaBuilderTest {
                 .addField(scalar("buf_min_len_zero", 5, str).toBuilder().setOptions(bufOptions(minLenRules(0))))
                 .addField(scalar("behavior_optional", 6, str).toBuilder().setOptions(options(1052, varint(1))))
                 .addField(scalar("plain", 7, str))
+                .addField(scalar("author_id", 8, str).toBuilder().setOptions(resolvesOptions("Author", "AuthorRef")))
                 .build();
         DescriptorProto response =
                 DescriptorProto.newBuilder().setName("GetResponse").build();

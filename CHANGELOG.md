@@ -7,8 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Console schema panel: required fields are highlighted (red bar, bold name, **required** pill) and the per-field "optional" label is gone; a **Required only** toggle hides the rest. An ID field with `(shiguchi.field).resolves_type` shows a **→ Type** chip that opens the target type's fields in place. `/api/schema` fields gain `resolvesTypes`.
+
+### Fixed
+
+- GraphiQL page: the access token is now refreshed 60 s before it expires (refresh-token grant, then client credentials), as in the console. The **Authorize** button turns amber with "Session expired – Authorize" once the token has expired and could not be renewed, instead of staying "Authorized ✓", and the sign-in panel opens when a refresh fails. A query answered with 401 is retried once with a freshly renewed token. Silent refresh no longer depends on the "remember" box: the client id of the current sign-in is kept in memory.
+- Swagger UI: the Authorize dialog now pre-fills the configured `client-id` per `oauth2` scheme, however many schemes there are (a plugin added to `swagger-initializer.js`; previously the id was seeded only with a single scheme). An authorization-code flow with a `client-id` turns PKCE on unless `springdoc.swagger-ui.oauth.use-pkce-with-authorization-code-grant` is set.
+- OpenAPI: one startup warning when `security-schemes` is set but `global-security` is empty, since "Try it out" then sends no token.
+
 ### Added
 
+- OpenAPI: Swagger UI is easier to navigate with many services. Services are sorted top-level tags with descriptions, every operation has a summary (proto comment, else the method name in words), and with two or more backends a dropdown switches between "All services" and one document per backend (`/v3/api-docs/backends/{name}`, only that backend's schemas). `shiguchi.openapi.group-by-backend=false` turns the dropdown off; `springdoc.swagger-ui.urls` set by the application is kept.
 - BFF: `upstream-token-mode: EXCHANGE` (RFC 8693) trades the session's access token for a narrower per-service token at the provider's token endpoint (`exchange.targets`, `exchange.default-target`, `exchange.extra-parameters`). Results are cached per session in process; a refused or failed exchange fails the call and never relays the broad token. `UpstreamCredentialSource` gains a default `authorization(request, authentication, route)`.
 
 ## [0.23.0] - 2026-11-14

@@ -147,6 +147,51 @@ class GatewayOpenApiBuilderTest {
      * Creates a gRPC context with a simple FileDescriptor containing Book and GetBookRequest messages
      * and a GetBook route.
      */
+    @Test
+    @DisplayName(
+            "GIVEN a gRPC and a downstream backend WHEN built SHOULD keep one document per backend with only its own paths and schemas")
+    void given_twoBackends_when_build_should_splitPathsAndSchemasPerBackend() {
+        when(registry.allContexts()).thenReturn(List.of(createGrpcContext(), createDownstreamContext()));
+        GatewayOpenApiBuilder builder = new GatewayOpenApiBuilder(registry, createProperties(true), converter);
+
+        builder.build();
+
+        assertThat(builder.backendNames()).containsExactly("books", "inventory");
+        OpenAPI books = builder.getBackendSpec("books");
+        assertThat(books.getPaths()).containsOnlyKeys("/v1/books/{id}");
+        assertThat(books.getComponents().getSchemas()).containsKey("Book").doesNotContainKey("inventory.Item");
+        OpenAPI inventory = builder.getBackendSpec("inventory");
+        assertThat(inventory.getPaths()).containsKey("/inv/items").doesNotContainKey("/v1/books/{id}");
+        assertThat(inventory.getComponents().getSchemas())
+                .containsKey("inventory.Item")
+                .doesNotContainKey("Book");
+        assertThat(builder.getBackendSpec("unknown")).isNull();
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a service without proto comments WHEN built SHOULD sort top-level tags, describe them and summarise operations")
+    void given_serviceWithoutComments_when_build_should_describeTagsAndSummariseOperations() {
+        when(registry.allContexts()).thenReturn(List.of(createGrpcContext()));
+        GatewayOpenApiBuilder builder = new GatewayOpenApiBuilder(registry, createProperties(true), converter);
+
+        builder.build();
+        OpenAPI spec = builder.getSpec();
+
+        assertThat(spec.getTags()).hasSize(1);
+        assertThat(spec.getTags().get(0).getDescription()).contains("com.example.BookService", "books");
+        assertThat(spec.getPaths().get("/v1/books/{id}").getGet().getSummary()).isEqualTo("Get book");
+    }
+
+    @Test
+    @DisplayName("GIVEN CamelCase method names WHEN humanised SHOULD read as a sentence")
+    void given_methodNames_when_humanised_should_readAsSentence() {
+        assertThat(GatewayOpenApiBuilder.humanise("ListCorporationProjects")).isEqualTo("List corporation projects");
+        assertThat(GatewayOpenApiBuilder.humanise("GetHTTPStatus")).isEqualTo("Get http status");
+        assertThat(GatewayOpenApiBuilder.humanise("")).isEmpty();
+        assertThat(GatewayOpenApiBuilder.humanise(null)).isEmpty();
+    }
+
     private ServiceEndpointContext createGrpcContext() {
         // Build Book message (output)
         DescriptorProtos.DescriptorProto bookMsg = DescriptorProtos.DescriptorProto.newBuilder()

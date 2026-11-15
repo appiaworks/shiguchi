@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useGrpcUiStore } from '../store/useGrpcUiStore'
 import type { GatewayUiLinks } from '../types/schema'
+import { setSessionClientId } from '../store/sessionSecrets'
 import { authFetch } from './authFetch'
 
 const links = (authProviders: GatewayUiLinks['authProviders']): GatewayUiLinks => ({
@@ -40,5 +41,73 @@ describe('authFetch', () => {
     await authFetch('/graphql', { method: 'POST' })
     expect(sentHeaders().get('x-api-key')).toBe('k1')
     expect(sentHeaders().get('authorization')).toBeNull()
+  })
+
+  describe('401 handling', () => {
+    const oauthLinks = links([
+      {
+        id: 'kc', type: 'oauth2',
+        authorizationCode: { authorizationUrl: 'https://idp/auth', tokenUrl: 'https://idp/token', scopes: {} },
+      } as never,
+    ])
+    const signedIn = () =>
+      useGrpcUiStore.setState({
+        globalAuthToken: 'old', globalTokenExpiry: Date.now() + 5_000, globalRefreshToken: 'r1',
+        globalProviderId: 'kc', links: oauthLinks, providerDefaults: { kc: { clientId: 'swagger' } } as never,
+      })
+
+    it('GIVEN a 401 and a refresh token WHEN fetching SHOULD refresh once and retry with the new token', async () => {
+      signedIn()
+      const calls: string[] = []
+      vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
+        if (url === 'https://idp/token') {
+          calls.push('token')
+          return Promise.resolve(new Response(JSON.stringify({ access_token: 'new', expires_in: 300, refresh_token: 'r2' })))
+        }
+        const auth = new Headers(init?.headers).get('authorization')
+        calls.push(auth ?? 'none')
+        return Promise.resolve(new Response('{}', { status: auth === 'Bearer new' ? 200 : 401 }))
+      }))
+      const res = await authFetch('/graphql', { method: 'POST', body: '{}' })
+      expect(res.status).toBe(200)
+      expect(calls).toEqual(['Bearer old', 'token', 'Bearer new'])
+      expect(useGrpcUiStore.getState().globalAuthToken).toBe('new')
+    })
+
+    it('GIVEN a client id known only for this session WHEN a 401 arrives SHOULD still refresh', async () => {
+      signedIn()
+      useGrpcUiStore.setState({ providerDefaults: {} })
+      setSessionClientId('kc', 'swagger')
+      const bodies: string[] = []
+      vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
+        if (url === 'https://idp/token') {
+          bodies.push(String(init?.body))
+          return Promise.resolve(new Response(JSON.stringify({ access_token: 'new', expires_in: 300 })))
+        }
+        return Promise.resolve(new Response('{}', { status: new Headers(init?.headers).get('authorization') === 'Bearer new' ? 200 : 401 }))
+      }))
+      const res = await authFetch('/graphql', { method: 'POST', body: '{}' })
+      expect(res.status).toBe(200)
+      expect(bodies[0]).toContain('client_id=swagger')
+    })
+
+    it('GIVEN a 401 and a failing refresh WHEN fetching SHOULD return the 401 without retrying', async () => {
+      signedIn()
+      const f = vi.fn((url: string) =>
+        Promise.resolve(new Response('{}', { status: url === 'https://idp/token' ? 400 : 401 })))
+      vi.stubGlobal('fetch', f)
+      const res = await authFetch('/graphql', { method: 'POST', body: '{}' })
+      expect(res.status).toBe(401)
+      expect(f).toHaveBeenCalledTimes(2) // request + token attempt, no retry
+    })
+
+    it('GIVEN a 401 on a manual bearer token WHEN fetching SHOULD not try to refresh', async () => {
+      useGrpcUiStore.setState({ globalAuthToken: 'abc', globalTokenExpiry: null, globalProviderId: null, links: null })
+      const f = vi.fn(() => Promise.resolve(new Response('{}', { status: 401 })))
+      vi.stubGlobal('fetch', f)
+      const res = await authFetch('/graphql', { method: 'POST', body: '{}' })
+      expect(res.status).toBe(401)
+      expect(f).toHaveBeenCalledTimes(1)
+    })
   })
 })
