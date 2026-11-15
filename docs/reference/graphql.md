@@ -254,7 +254,9 @@ over WebSocket (`graphql-transport-ws`) only when `spring.graphql.websocket.path
 test uses `/graphql/ws`); there is no default path. `GraphQlContributor` beans (the push module) can add
 Subscription fields and types. When the `graphql` surface requires authentication the upgrade itself is
 open and the socket is gated: send `{"Authorization": "Bearer <jwt>"}` in `connection_init`, or operations
-are refused as `unauthenticated`.
+are refused as `unauthenticated`. The validated `connection_init` bearer is also sent to the backend as
+`authorization`, like an HTTP request's own header, unless an `UpstreamCredentialSource` bean (the BFF, a
+token exchange) supplies the upstream credential.
 
 ### Batching
 

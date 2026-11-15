@@ -53,7 +53,24 @@ final class GraphQlMetadata {
                             md.put(PRINCIPAL_KEY, principal);
                             return md;
                         });
-        return GraphQlRequestContext.within(graphQlContext, metadata);
+        return GraphQlRequestContext.within(
+                graphQlContext, metadata.map(md -> withSocketToken(graphQlContext, populator, md)));
+    }
+
+    /**
+     * An operation on a WebSocket authenticated by its {@code connection_init} bearer has no
+     * Authorization header to copy: sends that validated token, unless a credential source owns the
+     * upstream credential.
+     */
+    private static Metadata withSocketToken(
+            GraphQLContext graphQlContext, GrpcMetadataPopulator populator, Metadata md) {
+        if (populator.hasCredentialSource() || md.containsKey(AUTHORIZATION_KEY)) return md;
+        if (graphQlContext != null
+                && graphQlContext.get(ConnectionInitAuthInterceptor.TOKEN_CONTEXT_KEY) instanceof String token
+                && !token.isBlank()) {
+            md.put(AUTHORIZATION_KEY, "Bearer " + token);
+        }
+        return md;
     }
 
     /** The inbound request headers of {@code graphQlContext}'s operation; empty when there is no exchange. */

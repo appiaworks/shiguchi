@@ -107,6 +107,41 @@ class ConnectionInitAuthInterceptorTest {
     }
 
     @Test
+    @DisplayName(
+            "GIVEN a bearer token in connection_init WHEN operations run THEN the token reaches the operation context")
+    void GIVEN_bearer_in_payload_WHEN_operation_runs_SHOULD_carry_the_token_in_the_context() {
+        ConnectionInitAuthInterceptor interceptor = interceptor(decoder);
+        StepVerifier.create(interceptor.handleConnectionInitialization(session, Map.of("Authorization", "Bearer good")))
+                .verifyComplete();
+
+        WebSocketGraphQlRequest request = request();
+        interceptor
+                .intercept(request, r -> Mono.just(mock(WebGraphQlResponse.class)))
+                .block();
+
+        assertThat(request.toExecutionInput()
+                        .getGraphQLContext()
+                        .<String>get(ConnectionInitAuthInterceptor.TOKEN_CONTEXT_KEY))
+                .isEqualTo("good");
+    }
+
+    @Test
+    @DisplayName("GIVEN no credential in connection_init WHEN operations run THEN the context carries no token")
+    void GIVEN_no_credential_WHEN_operation_runs_SHOULD_carry_no_token() {
+        ConnectionInitAuthInterceptor interceptor = interceptor(decoder);
+
+        WebSocketGraphQlRequest request = request();
+        interceptor
+                .intercept(request, r -> Mono.just(mock(WebGraphQlResponse.class)))
+                .block();
+
+        assertThat(request.toExecutionInput()
+                        .getGraphQLContext()
+                        .hasKey(ConnectionInitAuthInterceptor.TOKEN_CONTEXT_KEY))
+                .isFalse();
+    }
+
+    @Test
     @DisplayName("GIVEN a lower-case header name WHEN connecting THEN the token is still read")
     void GIVEN_lowercase_key_WHEN_connecting_SHOULD_read_token() {
         ConnectionInitAuthInterceptor interceptor = interceptor(decoder);

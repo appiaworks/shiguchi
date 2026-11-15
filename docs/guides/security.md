@@ -48,7 +48,7 @@ A gated `graphql` surface lets the WebSocket upgrade through without a caller, b
 cannot put an `Authorization` header on it, and gates the socket instead: a bearer token in the
 `connection_init` payload (or a cookie or header the upgrade carried) authenticates it, a bad token
 closes it, and an operation on a socket nothing authenticated is refused with an `unauthenticated`
-error.
+error. The validated token is also sent to the backend as `authorization`, as an HTTP request's own header is, unless an `UpstreamCredentialSource` bean (the BFF, a token exchange) supplies the upstream credential.
 
 Whatever the mode, the `gateway-refresh` actuator endpoint always requires authentication — it
 re-reads every backend's schema — and so do the writes of `gateway-traffic`, which move calls
