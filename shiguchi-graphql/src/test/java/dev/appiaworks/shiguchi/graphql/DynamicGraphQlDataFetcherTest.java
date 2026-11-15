@@ -53,7 +53,7 @@ class DynamicGraphQlDataFetcherTest {
         grpcDispatcher = mock(ReactiveGrpcDispatcher.class);
         httpDispatcher = mock(HttpUpstreamDispatcher.class);
         authEnforcer = mock(GatewayAuthorizationEnforcer.class);
-        when(authEnforcer.enforce(any(), any(), any())).thenReturn(Mono.empty());
+        when(authEnforcer.enforce(any(), any(), any(), any(), any())).thenReturn(Mono.empty());
         // A REST_DOWNSTREAM context: no channel, no descriptors registered for the lookup.
         ctx = new ServiceEndpointContext(new ServiceDefinition(), null);
     }
@@ -212,7 +212,7 @@ class DynamicGraphQlDataFetcherTest {
                 .httpUpstream("http://inventory:8081")
                 .build();
         register(r);
-        when(authEnforcer.enforce(any(), any(), any()))
+        when(authEnforcer.enforce(any(), any(), any(), any(), any()))
                 .thenReturn(Mono.error(new SecurityException("missing scope inventory.secret")));
 
         Object result = fetcher(httpDispatcher).get(env("getSecret", Map.of()));

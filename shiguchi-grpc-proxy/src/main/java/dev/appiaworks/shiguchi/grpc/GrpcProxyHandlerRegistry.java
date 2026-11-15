@@ -35,8 +35,9 @@ import org.springframework.stereotype.Component;
  * (request(1)) are propagated in both directions to avoid unbounded buffering.
  *
  * Inbound Metadata is forwarded to the downstream call — authorization tokens, correlation IDs
- * and any custom headers — except {@code x-principal}, which is always {@code anonymous}: this
- * listener authenticates nobody, so a caller must not be able to name its own principal.
+ * and any custom headers — except {@code x-principal}, which is {@code anonymous} unless the proxy runs in
+ * ENFORCE mode, where it is the authenticated caller. In PASSTHROUGH this listener authenticates
+ * nobody, so a caller must not be able to name its own principal.
  *
  * Registered as fallbackHandlerRegistry on the gRPC server so it handles all
  * methods not explicitly registered (i.e., everything except the reflection service).
@@ -81,6 +82,11 @@ public class GrpcProxyHandlerRegistry extends HandlerRegistry {
         }
 
         MethodDescriptor md = ctx.lookupMethod(serviceFqn, methodName).orElse(null);
+        // A method hidden by shiguchi.exposure answers like one that does not exist (UNIMPLEMENTED).
+        if (md != null && ctx.isMethodHidden(serviceFqn, methodName)) {
+            log.debug("Method hidden by exposure tags: {}/{}", serviceFqn, methodName);
+            return null;
+        }
         if (md == null) {
             log.debug("No method found: {}/{}", serviceFqn, methodName);
             return null;
@@ -145,7 +151,10 @@ public class GrpcProxyHandlerRegistry extends HandlerRegistry {
         Metadata outboundHeaders = new Metadata();
         outboundHeaders.merge(inboundHeaders);
         outboundHeaders.removeAll(PRINCIPAL_KEY);
-        outboundHeaders.put(PRINCIPAL_KEY, "anonymous");
+        // In ENFORCE mode the interceptor has authenticated the caller and put the name on the call's
+        // context; otherwise nobody was authenticated.
+        String principal = GrpcProxyServerInterceptor.PRINCIPAL.get();
+        outboundHeaders.put(PRINCIPAL_KEY, principal != null ? principal : "anonymous");
 
         clientCall.start(
                 new ClientCall.Listener<>() {
@@ -171,6 +180,22 @@ public class GrpcProxyHandlerRegistry extends HandlerRegistry {
 
         clientCall.request(1); // prime downstream flow control
         serverCall.request(1); // prime inbound flow control
+
+        if (principal != null) {
+            // The token expired: end the call with UNAUTHENTICATED and stop the backend call too.
+            io.grpc.Context.current()
+                    .addListener(
+                            expired -> {
+                                if (expired.cancellationCause() == GrpcProxyServerInterceptor.TOKEN_EXPIRED
+                                        && serverCallClosed.compareAndSet(false, true)) {
+                                    clientCall.cancel("token expired", null);
+                                    serverCall.close(
+                                            Status.UNAUTHENTICATED.withDescription("The bearer token expired"),
+                                            new Metadata());
+                                }
+                            },
+                            Runnable::run);
+        }
 
         return new ServerCall.Listener<>() {
             @Override

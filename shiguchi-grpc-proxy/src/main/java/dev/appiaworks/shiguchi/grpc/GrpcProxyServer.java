@@ -96,6 +96,9 @@ public class GrpcProxyServer implements SmartLifecycle {
                     .addService(reflectionAggregator)
                     .intercept(serverInterceptor);
             for (GatewayHostedService hosted : hostedServices) builder.addService(hosted);
+            serverInterceptor.hostedServices(hostedServices.stream()
+                    .map(h -> h.bindService().getServiceDescriptor().getName())
+                    .collect(java.util.stream.Collectors.toSet()));
             server = builder.build().start();
             running = true;
             log.info(

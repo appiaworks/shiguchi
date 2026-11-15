@@ -136,6 +136,8 @@ spring:
 | `shiguchi.grpc.port` | `9090` | Proxy listen port |
 | `shiguchi.grpc.rate-limit.enabled` | `false` | Per-method token-bucket rate limiting on the proxy |
 | `shiguchi.grpc.rate-limit.requests-per-second` | `100.0` | Bucket rate |
+| `shiguchi.grpc.security.mode` | `PASSTHROUGH` | `PASSTHROUGH` authenticates nobody and forwards `authorization` to the backend. `ENFORCE` requires a valid bearer token (the REST surface's `ReactiveJwtDecoder`), runs the `GatewayAuthorizer` and `GatewayPolicy` chain on empty arguments, sends the verified principal as `x-principal`, closes streams at token expiry, and denies methods with `authz` rules. Without a decoder, startup fails. Guide: [security.md](../guides/security.md#the-pass-through-grpc-proxy) |
+| `shiguchi.grpc.security.decision-timeout` | `5s` | ENFORCE only: upper bound on token decoding and the authorization decision for one call; past it the call fails `UNAVAILABLE` |
 | `shiguchi.client.keep-alive-time` | `30s` | Interval between HTTP/2 keepalive pings on outbound channels (detects half-open connections through LBs/NATs) |
 | `shiguchi.client.keep-alive-timeout` | `5s` | Wait for a ping ack before declaring the connection dead |
 | `shiguchi.client.keep-alive-without-calls` | `false` | Ping idle channels too — enable only when backends permit it (`GOAWAY: too_many_pings` risk) |
@@ -156,6 +158,7 @@ spring:
 | `shiguchi.rest.coalesce-requests` | `false` | Identical concurrent `GET`s of a unary route (same cache key, caller identity included) share one backend call. See [caching.md](../guides/caching.md#request-coalescing) |
 | `shiguchi.rest.resource-etags` | `false` | AIP-154: a response's `etag` field becomes the `ETag` header (304 on a matching `If-None-Match`), `If-Match` fills the request's `etag` (or `<body>.etag`), and the backend's `ABORTED` / `FAILED_PRECONDITION` to such a request becomes 412. See [caching.md](../guides/caching.md#resource-etags-aip-154) |
 | `shiguchi.rest.compression.enabled` / `min-size` / `mime-types` | `false` / `1KB` / `[application/json, text/*]` | Gateway-side gzip of unary REST bodies the caller's `Accept-Encoding` allows, with a representation-specific `ETag` (`"x-gzip"`) and the gzip form kept in cached entries. Prefer it to `server.compression`, under which hash tags go out weak. See [caching.md](../guides/caching.md#compression) |
+| `shiguchi.exposure.expose-tags` | `[]` (everything exposed) | Allowlist of method tags. When set, a method exists only if its `tags` contain a listed tag (exact, case-sensitive); untagged methods are hidden, so a typo hides rather than leaks. Hidden methods answer 404 (REST), `UNIMPLEMENTED` (gRPC-Web, gRPC proxy) and are absent from GraphQL, OpenAPI, reflection and the routes report. Re-evaluated on schema refresh. See [External vs internal deployment](../guides/security.md#external-vs-internal-deployment) |
 | `shiguchi.rate-limit.enabled` | `false` | Per-caller token-bucket limiting of REST and GraphQL requests (429 `RESOURCE_EXHAUSTED` + `Retry-After`); the full key list is in [rate-limiting.md](../guides/rate-limiting.md) |
 | `shiguchi.rate-limit.backend` | `MEMORY` | `MEMORY` (per instance) or `REDIS` (shared across instances, needs `spring-boot-starter-data-redis-reactive`) |
 | `shiguchi.rate-limit.replenish-rate` | `100` | Tokens per second |
@@ -163,6 +166,11 @@ spring:
 | `shiguchi.rate-limit.key` | `PRINCIPAL_OR_IP` | Who gets a bucket: `PRINCIPAL_OR_IP`, `PRINCIPAL`, `IP` (first `client-ip-header` hop, else socket peer) |
 | `shiguchi.rate-limit.paths` / `exclude-paths` | `[]` | Ant patterns; empty `paths` = every gateway route and the GraphQL endpoint, actuator never |
 | `shiguchi.rate-limit.redis.key-prefix` / `fail-open` | `shiguchi:rate-limit:` / `true` | Redis key prefix; allow or refuse when Redis is unreachable |
+| `shiguchi.rate-limit.rules-on-backend-error` | `ALLOW` | What a rule does when its limiter errors: `ALLOW` (fail open, logged) or `DENY` (429, `Retry-After: 1`) |
+| `shiguchi.rate-limit.rules[].id` | `rule-<index>` | Unique id of a rule-based limit (a `GatewayPolicy`, independent of `enabled`); namespaces its buckets |
+| `shiguchi.rate-limit.rules[].match` / `tag` | none | Method glob on `<Service>/<Method>` and/or exact route tag; at least one. All matching rules apply, the strictest denies |
+| `shiguchi.rate-limit.rules[].key` | `principal` | `principal` (IP when anonymous), `ip` or `claim:<name>` |
+| `shiguchi.rate-limit.rules[].replenish-rate` / `burst-capacity` / `cost` | global values / `1` | Per-rule tokens per second, bucket size, tokens one call takes; see [rate-limiting.md](../guides/rate-limiting.md#rules-per-method-tag-principal-or-claim) |
 | `shiguchi.cursus.enabled` | `false` | Server-to-client messaging over SSE, WebSocket and gRPC (experimental): `<path>/subscribe`, `<path>/ws`, `<path>/publish`, `<path>/topics/{topic}`, `<path>/v1/*`; every key is in [push.md](../guides/cursus/configuration.md#configuration) |
 | `shiguchi.cursus.broker` / `store` | `MEMORY` | `MEMORY` (per instance), `REDIS` (shared across instances, needs `spring-boot-starter-data-redis-reactive`; `redis.key-prefix` defaults to `shiguchi:cursus:`) or `POSTGRES` (shared, needs `spring-boot-starter-data-r2dbc` + `r2dbc-postgresql` and `spring.r2dbc.*`); `store` also takes `JDBC` (shared, any SQL database through a `DataSource`, needs `spring-jdbc` and a driver; `broker: JDBC` polls the JDBC store's table every `jdbc.poll-interval`, so it needs `store: JDBC`) |
 | `shiguchi.cursus.postgres.*` | `push_event` / `shiguchi_cursus` / `true` / `1m` / `16` / `7900` | `table`, `channel`, `create-schema`, `sweep-interval`, `trim-every`, `notify-max-bytes` |
@@ -341,6 +349,7 @@ bean; define your own bean of that name and the gateway's backs off — call
 | `cache[].methods` / `ttl` / `visibility` / `shared-max-age` / `stale-while-revalidate` / `server-cache` | — / `0` / `AUTO` / — / — / inherit | HTTP caching rules for this service's REST routes, first match wins over the proto `cache_ttl_seconds`: method globs, `max-age` (`0` = uncacheable), `AUTO`/`PRIVATE`/`PUBLIC`, `s-maxage`, `stale-while-revalidate`, and whether the response cache keeps them (null = `rest.response-cache.enabled`). See [caching.md](../guides/caching.md#http-caching-headers) |
 | `include-methods` | `[]` (all) | Glob patterns of methods to expose, matched against `pkg.Service/Method` (a pattern without `/` matches the method name alone) |
 | `exclude-methods` | `[]` | Glob patterns of methods to hide from all surfaces (REST, GraphQL, OpenAPI, UI). Exclusion wins over inclusion. Does **not** filter the pass-through gRPC proxy |
+| `expose-tags` | inherit `shiguchi.exposure.expose-tags` | Per-service override of the exposure allowlist. A non-empty list replaces the global one for this service; an empty list inherits it |
 | `path-prefix` | — | Prefix for all HTTP routes of this service (e.g. `/ref`) |
 | `auto-mapping` | inherit | Per-service override of `rest.auto-mapping` |
 | `static-metadata` | `{}` | gRPC headers attached to every outbound call |
@@ -358,6 +367,7 @@ bean; define your own bean of that name and the gateway's backs off — call
 | `base-url` | scheme+authority of `openapi-url` | `REST_DOWNSTREAM`: where requests are proxied to. Falls back to `http://host:port` when neither is set |
 | `inherit-security` | `false` | `REST_DOWNSTREAM`: copy the backend's `securitySchemes` and per-operation `security` into the merged spec. Off by default: the gateway's own `openapi.security-schemes` describe how callers authenticate |
 | `operation-scopes` | `{}` | `REST_DOWNSTREAM`: required scopes per `operationId`, e.g. `{ getItem: [inventory.read] }`. Wins over an `x-gateway-auth-scopes` extension on the operation |
+| `operation-tags` | `{}` | `REST_DOWNSTREAM`: tags per `operationId`, e.g. `{ getItem: [pii] }`. Carried on the route (`RouteDefinition.getTags()`) as facts for a policy hook or authorizer; inert unless something reads them. Same as `tags` in `(shiguchi.method)` |
 | `operation-timeouts` | `{}` | `REST_DOWNSTREAM`: timeout per `operationId`, e.g. `{ slowReport: 2m }`; values must be positive. Resolution, most specific first: this entry, then a positive `deadline`, then a positive `client.default-deadline`, then `client.http-timeout`. A key matching no `operationId` logs a warning at load |
 | `openapi-fetch-timeout` | `10s` | `REST_DOWNSTREAM`: timeout for fetching the document |
 | `graphql-type-prefix` | — | `REST_DOWNSTREAM`: prefix for GraphQL type names derived from the document's schemas (`Shop` turns `Item` into `ShopItem`). Use it when two services define the same schema name |

@@ -19,4 +19,7 @@ public class GrpcConfig {
     private int port = 9090;
 
     private RateLimitConfig rateLimit = new RateLimitConfig();
+
+    /** Whether the proxy authenticates callers; pass-through by default. */
+    private GrpcSecurityConfig security = new GrpcSecurityConfig();
 }

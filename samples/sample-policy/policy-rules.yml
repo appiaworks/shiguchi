@@ -1,0 +1,21 @@
+# Edit this file while the gateway runs: it is re-read within a couple of seconds. A file that
+# does not parse, or has an unknown rule type, is ignored and the previous rules stay in force.
+rules:
+  # Tag as a fact, rule as code: methods tagged `internal` need the `admin` scope.
+  - id: internal-needs-admin
+    type: require-authority
+    tag: internal
+    authority: SCOPE_admin
+
+  # Callers holding the `readonly` scope may only call routes that are safe to repeat
+  # (RouteDefinition.isRetryable(): declared idempotent, or a GET).
+  - id: readonly-no-writes
+    type: deny-unsafe
+    authority: SCOPE_readonly
+
+  # Methods tagged `expensive`: at most 2 calls per 60 s across all callers.
+  - id: expensive-throttle
+    type: throttle
+    tag: expensive
+    max: 2
+    per-seconds: 60

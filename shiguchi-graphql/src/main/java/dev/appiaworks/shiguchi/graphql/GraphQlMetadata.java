@@ -56,6 +56,14 @@ final class GraphQlMetadata {
         return GraphQlRequestContext.within(graphQlContext, metadata);
     }
 
+    /** The inbound request headers of {@code graphQlContext}'s operation; empty when there is no exchange. */
+    static java.util.Map<String, java.util.List<String>> requestHeaders(GraphQLContext graphQlContext) {
+        ServerWebExchange exchange = exchange(graphQlContext);
+        return exchange == null
+                ? java.util.Map.of()
+                : exchange.getRequest().getHeaders().asMultiValueMap();
+    }
+
     private static ServerWebExchange exchange(GraphQLContext graphQlContext) {
         try {
             return graphQlContext == null ? null : graphQlContext.get(ServerWebExchange.class);

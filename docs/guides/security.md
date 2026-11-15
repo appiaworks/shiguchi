@@ -191,6 +191,44 @@ contract, the non-blocking rule, and a composed example are in
 [`sample-opa-authz`](../../samples/sample-opa-authz) are the two shapes a policy engine usually
 takes.
 
+Methods can also carry `tags` (`(shiguchi.method).tags`, or `operation-tags` for `REST_DOWNSTREAM`): free-form labels such as `pii`. They are facts on the route (`RouteDefinition.getTags()`, listed in the routes report) and do nothing unless your `GatewayAuthorizer` or another hook reads them.
+
+### Policies
+
+A `GatewayPolicy` bean adds a check **after** the authorizer, without replacing it. The scope check
+(or your own `GatewayAuthorizer`) runs first; when it allows, every `GatewayPolicy` bean runs in
+`@Order` order and all must pass. With no policy beans nothing changes.
+
+```java
+@Bean
+@Order(10)
+GatewayPolicy tenantQuota(Quotas quotas) {
+    return request -> {
+        if (request.route().getTags().contains("pii") && !quotas.tryAcquire(request)) {
+            return Mono.error(new ThrottledException(Duration.ofSeconds(2)));
+        }
+        return Mono.empty();
+    };
+}
+```
+
+- Complete empty to allow. Signal `AccessDeniedException` to deny: HTTP 403, `PERMISSION_DENIED`.
+- Signal `ThrottledException(Duration)` to throttle: REST answers 429 with a `Retry-After` header
+  (whole seconds, rounded up, at least 1), gRPC-Web answers `RESOURCE_EXHAUSTED`, GraphQL returns an
+  error with `extensions.code` `RESOURCE_EXHAUSTED` and `retryAfterSeconds`.
+- Any other error, or a `null` return, denies and logs a warning: the chain fails closed.
+- The policy gets the same `AuthorizationRequest` as the authorizer, now also with `headers()`
+  (case-insensitive, read-only, `authorization` and `cookie` removed) and `surface()` (`REST`,
+  `GRPC_WEB`, `GRAPHQL`). The old constructor and `of(...)` factories still work and leave both unset.
+- Both types are `EXPERIMENTAL`.
+
+Cache note: a GraphQL root field whose method declares `authz` rules or `auth_scopes` is keyed per
+caller in the response cache. A field without either may be served from one shared entry, which
+skips the authorizer, so a policy cannot rely on running for every hit on such a field.
+
+Sample: `samples/sample-policy` implements a `GatewayPolicy` backed by a rules file that reloads
+while the application runs (a bad edit keeps the previous rules).
+
 Whatever the authorizer decides, the backend still sees the caller (next section) and should
 make its own decision. The gateway sees the request, not the data about to be returned.
 
@@ -485,12 +523,84 @@ above, which is the smallest one that permits the probes and gates everything el
 ## The pass-through gRPC proxy
 
 The native gRPC port (`shiguchi.grpc.enabled`) is a different listener and is **not** behind
-the HTTP security chain. It forwards every call's metadata to the backend, including
+the HTTP security chain. `shiguchi.grpc.security.mode` picks what it does about callers.
+
+**`PASSTHROUGH` (default).** The proxy forwards every call's metadata to the backend, including
 `authorization`, and enforces only its per-method rate limit. The one exception is
 `x-principal`: the proxy authenticates nobody, so it drops any `x-principal` the caller sent and
-sets `anonymous`, and a backend that trusts that key never sees a caller-chosen name. A backend reached through the proxy
-authenticates the token itself — the proxy's job is to let it. Expose the port only where that is
+sets `anonymous`, and a backend that trusts that key never sees a caller-chosen name. A backend
+reached through the proxy authenticates the token itself. Expose the port only where that is
 acceptable, and prefer the HTTP surfaces for untrusted callers.
+
+**`ENFORCE`.** The proxy authenticates and authorizes each call before it reaches the backend:
+
+```yaml
+shiguchi:
+  grpc:
+    enabled: true
+    security:
+      mode: ENFORCE
+      decision-timeout: 5s
+```
+
+- **Bearer only.** The `authorization: Bearer ...` metadata is decoded with the same
+  `ReactiveJwtDecoder` and JWT converter as the REST surface. Cookie sessions are not accepted
+  on this port. A missing or invalid token answers `UNAUTHENTICATED`.
+- **Same checks as REST.** `auth_scopes`, the `GatewayAuthorizer` and every `GatewayPolicy` run with
+  surface `GRPC` and **empty arguments**, because the proxy does not decode messages. A denial
+  answers `PERMISSION_DENIED`; a `ThrottledException` answers `RESOURCE_EXHAUSTED` with a
+  `retry-after` trailer.
+- **`authz` rules deny.** A method that declares `(shiguchi.method).authz` rules is refused with
+  `PERMISSION_DENIED`: resolving the rule's object id needs the decoded request, which this path
+  never has, and allowing the call without the check would bypass it. Use REST, GraphQL or
+  gRPC-Web for those methods.
+- **Real `x-principal`.** The backend receives the authenticated name as `x-principal`. A value
+  the client sent is never forwarded.
+- **Streams end with the token.** A call whose token expires while it is open closes with
+  `UNAUTHENTICATED` and the backend call is cancelled.
+- **Hidden methods** (`expose-tags`) stay `UNIMPLEMENTED` and are answered before any
+  authentication, so they cannot be told apart from methods that do not exist.
+- **Hosted services are not guarded.** Services the gateway serves itself on this port (for
+  example the push service) keep their own authentication.
+- **Fails closed at startup.** `ENFORCE` without a `ReactiveJwtDecoder` (set
+  `spring.security.oauth2.resourceserver.jwt.issuer-uri` or `jwk-set-uri`) refuses to start.
+  `decision-timeout` bounds decoding and the decision; past it the call answers `UNAVAILABLE`.
+
+A method the registry does not know gets authentication only. The decision runs on the call
+thread, so a slow `GatewayAuthorizer` ties up a gRPC executor thread for up to `decision-timeout`.
+
+## External vs internal deployment
+
+Run two instances of one image, one per audience, instead of one process serving both.
+
+- **External instance.** Set `shiguchi.exposure.expose-tags: [external]` and tag the methods
+  callers outside may use (`tags: "external"` in the method rule, or `operation-tags` for
+  `REST_DOWNSTREAM`). Only those methods exist: a hidden method answers 404 on REST, `UNIMPLEMENTED`
+  on gRPC-Web and the gRPC proxy, and is absent from GraphQL, OpenAPI, reflection and the routes
+  report, so a direct call to it fails the same way as a call to a method that was never defined.
+  Turn off the UI, the console, push admin verbs and actuator, or move them to a private
+  management port.
+- **Internal instance.** No `expose-tags`, on a private network only.
+
+```yaml
+shiguchi:
+  exposure:
+    expose-tags: [external]
+  services:
+    - name: orders
+      expose-tags: [external, partner]   # per-service override
+```
+
+The list is an allowlist: unset or empty exposes everything, and once set, an untagged method is
+hidden. Matching is exact and case-sensitive, so a typo hides a method instead of leaking it.
+The set is re-evaluated on every schema refresh. A per-service empty list inherits the global one.
+
+`samples/sample-policy` runs both instances from one build (`--spring.profiles.active=external`
+for the external one).
+
+Tags cover only methods defined in protos. They do not cover non-proto admin surfaces (UI,
+push admin, actuator), the merge routes or the UI console's own gRPC calls: switch those off or
+keep them on a private port.
 
 ## Before you ship
 
@@ -500,6 +610,8 @@ acceptable, and prefer the HTTP surfaces for untrusted callers.
 - The console is off, or gated. `gateway-refresh` is exposed only if someone needs it.
 - Routes that must not be anonymous declare `auth_scopes`; routes that act on a specific
   object declare `authz` and a policy answers it.
+- If the native gRPC port is reachable by anyone you do not trust, `shiguchi.grpc.security.mode` is
+  `ENFORCE` (bearer only) or the port is closed to them; the default `PASSTHROUGH` authenticates nobody.
 - Health probes work — try one without a token.
 - Rate limiting is on ([rate-limiting.md](rate-limiting.md)), GraphQL depth and cost are
   bounded (and `shiguchi.graphql.introspection` is `AUTHENTICATED`), and `management.endpoints.web.exposure.include` is short.

@@ -101,4 +101,21 @@ class GatewayConfigValidationTest {
                             .isSameAs(mine);
                 });
     }
+
+    @Test
+    @DisplayName("GIVEN shiguchi.exposure.expose-tags and a per-service override WHEN the context starts "
+            + "SHOULD bind both lists")
+    void given_exposeTags_when_contextStarts_should_bindGlobalAndServiceLists() {
+        runner.withPropertyValues(
+                        "shiguchi.exposure.expose-tags=external,partner",
+                        "shiguchi.services[0].name=orders",
+                        "shiguchi.services[0].discovery-name=orders",
+                        "shiguchi.services[0].expose-tags=internal")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    GatewayProperties props = context.getBean(GatewayProperties.class);
+                    assertThat(props.getExposure().getExposeTags()).containsExactly("external", "partner");
+                    assertThat(props.getServices().get(0).getExposeTags()).containsExactly("internal");
+                });
+    }
 }

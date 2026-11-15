@@ -25,6 +25,7 @@ public final class ProtoAccessRules {
     public static RouteDefinition.Builder apply(RouteDefinition.Builder builder, MethodDescriptor md) {
         MethodRule annotation = md.getOptions().getExtension(MethodProto.method);
         if (!annotation.getAuthScopesList().isEmpty()) builder.authScopes(annotation.getAuthScopesList());
+        if (!annotation.getTagsList().isEmpty()) builder.tags(annotation.getTagsList());
         if (annotation.getCacheTtlSeconds() > 0) builder.cacheTtlSeconds(annotation.getCacheTtlSeconds());
         if (!annotation.getAuthzList().isEmpty()) builder.authzRules(toAuthzRules(annotation, md));
         return builder;

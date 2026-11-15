@@ -1,7 +1,12 @@
 package dev.appiaworks.shiguchi.authz;
 
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 import org.springframework.security.core.Authentication;
 
 /**
@@ -29,12 +34,53 @@ import org.springframework.security.core.Authentication;
  *     by a token whose {@code isAuthenticated()} returns false rather than by null
  * @param arguments normalised request inputs, never null (empty when there are none)
  * @param body raw REST request body, or null on non-REST surfaces
+ * @param headers the request headers, case-insensitive and read-only, with {@code authorization}
+ *     and {@code cookie} removed; empty when the surface supplies none
+ * @param surface the surface the request arrived on, or null when the caller did not say
  */
 public record AuthorizationRequest(
-        RouteDefinition route, Authentication authentication, Map<String, Object> arguments, String body) {
+        RouteDefinition route,
+        Authentication authentication,
+        Map<String, Object> arguments,
+        String body,
+        Map<String, List<String>> headers,
+        Surface surface) {
+
+    /** The surface a request arrived on. */
+    public enum Surface {
+        REST,
+        GRPC_WEB,
+        GRAPHQL,
+        GRPC
+    }
+
+    /** Headers never exposed to authorizers or policies. */
+    private static final Set<String> REDACTED = Set.of("authorization", "cookie");
 
     public AuthorizationRequest {
         arguments = arguments != null ? Map.copyOf(arguments) : Map.of();
+        headers = redact(headers);
+    }
+
+    /** Compatibility constructor: no headers, surface unknown ({@code null}). */
+    public AuthorizationRequest(
+            RouteDefinition route, Authentication authentication, Map<String, Object> arguments, String body) {
+        this(route, authentication, arguments, body, Map.of(), null);
+    }
+
+    /**
+     * A read-only, case-insensitive copy of {@code headers} without {@code authorization} and
+     * {@code cookie}.
+     */
+    private static Map<String, List<String>> redact(Map<String, List<String>> headers) {
+        if (headers == null || headers.isEmpty()) return Collections.emptyMap();
+        Map<String, List<String>> copy = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        headers.forEach((name, values) -> {
+            if (name != null && !REDACTED.contains(name.toLowerCase(Locale.ROOT))) {
+                copy.put(name, values == null ? List.of() : List.copyOf(values));
+            }
+        });
+        return Collections.unmodifiableMap(copy);
     }
 
     /** Convenience factory for surfaces that carry no body (GraphQL). */

@@ -14,6 +14,7 @@ import io.grpc.stub.StreamObserver;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
@@ -35,6 +36,10 @@ public class GrpcReflectionAggregator extends ServerReflectionGrpc.ServerReflect
     private static final int STATUS_UNIMPLEMENTED = io.grpc.Status.Code.UNIMPLEMENTED.value();
 
     private final GrpcRouteRegistry registry;
+
+    /** What reflection may show of a context with methods hidden by {@code shiguchi.exposure}. */
+    private final Map<ServiceEndpointContext, HiddenReflectionView> hiddenViews =
+            java.util.Collections.synchronizedMap(new WeakHashMap<>());
 
     public GrpcReflectionAggregator(GrpcRouteRegistry registry) {
         this.registry = registry;
@@ -76,7 +81,7 @@ public class GrpcReflectionAggregator extends ServerReflectionGrpc.ServerReflect
 
     private ServerReflectionResponse handleListServices(ServerReflectionRequest request) {
         List<ServiceResponse> services = registry.allContexts().stream()
-                .flatMap(ctx -> ctx.getServiceByFqn().keySet().stream())
+                .flatMap(ctx -> visibleServices(ctx).stream())
                 .distinct()
                 .map(fqn -> ServiceResponse.newBuilder().setName(fqn).build())
                 .collect(Collectors.toList());
@@ -95,12 +100,17 @@ public class GrpcReflectionAggregator extends ServerReflectionGrpc.ServerReflect
         for (ServiceEndpointContext ctx : registry.allContexts()) {
             if (ctx.getRawDescriptorSet() == null) continue;
 
-            boolean found = ctx.getServiceByFqn().containsKey(symbol)
-                    || ctx.getFileDescriptors().values().stream()
-                            .anyMatch(fd -> fd.getMessageTypes().stream()
-                                            .anyMatch(mt -> mt.getFullName().equals(symbol))
-                                    || fd.getEnumTypes().stream()
-                                            .anyMatch(et -> et.getFullName().equals(symbol)));
+            HiddenReflectionView view = hiddenView(ctx);
+            boolean found = view != null
+                    ? view.services().contains(symbol) || view.types().contains(symbol)
+                    : ctx.getServiceByFqn().containsKey(symbol)
+                            || ctx.getFileDescriptors().values().stream()
+                                    .anyMatch(fd -> fd.getMessageTypes().stream()
+                                                    .anyMatch(mt ->
+                                                            mt.getFullName().equals(symbol))
+                                            || fd.getEnumTypes().stream()
+                                                    .anyMatch(et ->
+                                                            et.getFullName().equals(symbol)));
 
             if (found) {
                 return fileDescriptorSetResponse(request, ctx);
@@ -131,7 +141,7 @@ public class GrpcReflectionAggregator extends ServerReflectionGrpc.ServerReflect
             ServerReflectionRequest request, ServiceEndpointContext ctx) {
 
         FileDescriptorResponse.Builder builder = FileDescriptorResponse.newBuilder();
-        for (FileDescriptorProto fdp : ctx.getRawDescriptorSet().getFileList()) {
+        for (FileDescriptorProto fdp : visibleFiles(ctx)) {
             builder.addFileDescriptorProto(fdp.toByteString());
         }
         return ServerReflectionResponse.newBuilder()
@@ -146,12 +156,29 @@ public class GrpcReflectionAggregator extends ServerReflectionGrpc.ServerReflect
         Map<String, FileDescriptorProto> result = new LinkedHashMap<>();
         for (ServiceEndpointContext ctx : registry.allContexts()) {
             if (ctx.getRawDescriptorSet() != null) {
-                for (FileDescriptorProto fdp : ctx.getRawDescriptorSet().getFileList()) {
+                for (FileDescriptorProto fdp : visibleFiles(ctx)) {
                     result.putIfAbsent(fdp.getName(), fdp);
                 }
             }
         }
         return result;
+    }
+
+    private java.util.Collection<String> visibleServices(ServiceEndpointContext ctx) {
+        HiddenReflectionView view = hiddenView(ctx);
+        return view != null ? view.services() : ctx.getServiceByFqn().keySet();
+    }
+
+    private List<FileDescriptorProto> visibleFiles(ServiceEndpointContext ctx) {
+        HiddenReflectionView view = hiddenView(ctx);
+        return view != null ? view.files() : ctx.getRawDescriptorSet().getFileList();
+    }
+
+    /** The filtered view of a context, or null when nothing in it is hidden. */
+    private HiddenReflectionView hiddenView(ServiceEndpointContext ctx) {
+        if (!ctx.hasHiddenMethods() || ctx.getRawDescriptorSet() == null) return null;
+        return hiddenViews.computeIfAbsent(
+                ctx, c -> HiddenReflectionView.of(c.getRawDescriptorSet(), c.getHiddenMethods()));
     }
 
     private static ServerReflectionResponse errorResponse(ServerReflectionRequest request, int code, String message) {

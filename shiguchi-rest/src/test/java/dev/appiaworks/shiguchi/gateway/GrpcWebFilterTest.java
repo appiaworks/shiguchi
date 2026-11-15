@@ -1,11 +1,24 @@
 package dev.appiaworks.shiguchi.gateway;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import dev.appiaworks.shiguchi.config.GatewayProperties;
+import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
+import dev.appiaworks.shiguchi.routing.ServiceEndpointContext;
 import java.time.Duration;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
+import org.springframework.mock.web.server.MockServerWebExchange;
+import org.springframework.web.server.WebFilterChain;
+import reactor.core.publisher.Mono;
 
 /**
  * Unit tests for gRPC-Web static helper methods in {@link GrpcWebFilter}.
@@ -177,5 +190,70 @@ class GrpcWebFilterTest {
         boolean isGrpcWeb = GrpcWebFilter.isGrpcWeb(null);
 
         assertThat(isGrpcWeb).isFalse();
+    }
+
+    private static MockServerWebExchange grpcWebCall(String path) {
+        return MockServerWebExchange.from(MockServerHttpRequest.post(path)
+                .contentType(MediaType.parseMediaType("application/grpc-web+proto"))
+                .body(new String(new char[] {0, 0, 0, 0, 0})));
+    }
+
+    @Test
+    @DisplayName("GIVEN a method hidden by expose-tags WHEN called over gRPC-Web SHOULD answer UNIMPLEMENTED "
+            + "and never reach the next filter")
+    void GIVEN_hiddenMethod_WHEN_calledOverGrpcWeb_SHOULD_answerUnimplemented() {
+        // Arrange
+        GrpcRouteRegistry registry = mock(GrpcRouteRegistry.class);
+        ServiceEndpointContext ctx = mock(ServiceEndpointContext.class);
+        when(registry.contextByServiceFqn("pkg.Svc")).thenReturn(Optional.of(ctx));
+        when(ctx.lookupMethod("pkg.Svc", "Secret"))
+                .thenReturn(Optional.of(mock(com.google.protobuf.Descriptors.MethodDescriptor.class)));
+        when(ctx.isMethodExposed("pkg.Svc", "Secret")).thenReturn(false);
+        GrpcWebFilter filter = new GrpcWebFilter(
+                registry,
+                mock(GrpcMetadataPopulator.class),
+                mock(GatewayAuthorizationEnforcer.class),
+                new GatewayProperties());
+        WebFilterChain chain = mock(WebFilterChain.class);
+        MockServerWebExchange exchange = grpcWebCall("/pkg.Svc/Secret");
+
+        // Act
+        filter.filter(exchange, chain).block();
+
+        // Assert
+        assertThat(exchange.getResponse().getHeaders().getFirst("grpc-status"))
+                .isEqualTo(Integer.toString(io.grpc.Status.Code.UNIMPLEMENTED.value()));
+        verify(chain, never()).filter(any());
+    }
+
+    @Test
+    @DisplayName("GIVEN a policy that throttles WHEN a gRPC-Web call is authorized SHOULD answer RESOURCE_EXHAUSTED")
+    void GIVEN_throttledCall_WHEN_calledOverGrpcWeb_SHOULD_answerResourceExhausted() {
+        // Arrange
+        GrpcRouteRegistry registry = mock(GrpcRouteRegistry.class);
+        ServiceEndpointContext ctx = mock(ServiceEndpointContext.class);
+        var md = mock(com.google.protobuf.Descriptors.MethodDescriptor.class);
+        var config = new dev.appiaworks.shiguchi.config.ServiceDefinition();
+        config.setName("svc");
+        when(registry.contextByServiceFqn("pkg.Svc")).thenReturn(Optional.of(ctx));
+        when(ctx.lookupMethod("pkg.Svc", "Slow")).thenReturn(Optional.of(md));
+        when(ctx.isMethodExposed("pkg.Svc", "Slow")).thenReturn(true);
+        when(ctx.getConfig()).thenReturn(config);
+        when(registry.findBySourceMethod("svc", "pkg.Svc", "Slow"))
+                .thenReturn(Optional.of(mock(dev.appiaworks.shiguchi.routing.RouteDefinition.class)));
+        GatewayAuthorizationEnforcer enforcer = mock(GatewayAuthorizationEnforcer.class);
+        when(enforcer.enforce(any(), any(), any(), any(), any()))
+                .thenReturn(Mono.error(new dev.appiaworks.shiguchi.authz.ThrottledException(Duration.ofSeconds(3))));
+        GrpcMetadataPopulator populator = mock(GrpcMetadataPopulator.class);
+        when(populator.build(any(), any())).thenReturn(Mono.empty());
+        GrpcWebFilter filter = new GrpcWebFilter(registry, populator, enforcer, new GatewayProperties());
+        MockServerWebExchange exchange = grpcWebCall("/pkg.Svc/Slow");
+
+        // Act
+        filter.filter(exchange, mock(WebFilterChain.class)).block();
+
+        // Assert
+        assertThat(exchange.getResponse().getHeaders().getFirst("grpc-status"))
+                .isEqualTo(Integer.toString(io.grpc.Status.Code.RESOURCE_EXHAUSTED.value()));
     }
 }

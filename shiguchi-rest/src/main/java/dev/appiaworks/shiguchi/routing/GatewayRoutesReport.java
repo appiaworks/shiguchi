@@ -181,6 +181,7 @@ public class GatewayRoutesReport {
         }
         if (route.isMerge()) described.put("merge", true);
         if (!route.getAuthScopes().isEmpty()) described.put("scopes", route.getAuthScopes());
+        if (!route.getTags().isEmpty()) described.put("tags", route.getTags());
         // Only when the proto actually said something: an "UNKNOWN" on every row is noise.
         if (route.getIdempotencyLevel() != RouteDefinition.IdempotencyLevel.IDEMPOTENCY_UNKNOWN) {
             described.put("idempotency", route.getIdempotencyLevel().name());

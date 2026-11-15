@@ -1,5 +1,6 @@
 package dev.appiaworks.shiguchi.gateway;
 
+import dev.appiaworks.shiguchi.authz.ThrottledException;
 import dev.appiaworks.shiguchi.rest.GrpcPathMatcher;
 import dev.appiaworks.shiguchi.rest.GrpcRequestBuilder;
 import dev.appiaworks.shiguchi.rest.GrpcResponsePaginationExtractor;
@@ -298,9 +299,15 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
         // not read here — consuming it would leave nothing for the proxy to forward.
         if (route.isPassthrough()) {
             return authEnforcer
-                    .enforce(route, authArguments(pathVars, queryParams), null)
+                    .enforce(
+                            route,
+                            authArguments(pathVars, queryParams),
+                            null,
+                            exchange.getRequest().getHeaders().asMultiValueMap(),
+                            dev.appiaworks.shiguchi.authz.AuthorizationRequest.Surface.REST)
                     .then(chain.filter(exchange))
-                    .onErrorResume(AccessDeniedException.class, ex -> writeAccessDeniedResponse(exchange, ex));
+                    .onErrorResume(AccessDeniedException.class, ex -> writeAccessDeniedResponse(exchange, ex))
+                    .onErrorResume(ThrottledException.class, ex -> writeThrottledResponse(exchange, ex));
         }
 
         Mono<Void> rejected = rejectUnknownQueryParameters(exchange, route, ctx);
@@ -446,7 +453,12 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
         return readBody(exchange)
                 .map(bytes -> new String(bytes, StandardCharsets.UTF_8))
                 .flatMap(body -> authEnforcer
-                        .enforce(route, authArguments(pathVars, queryParams), body)
+                        .enforce(
+                                route,
+                                authArguments(pathVars, queryParams),
+                                body,
+                                exchange.getRequest().getHeaders().asMultiValueMap(),
+                                dev.appiaworks.shiguchi.authz.AuthorizationRequest.Surface.REST)
                         .then(metadataPopulator.build(exchange.getRequest(), route))
                         .flatMap(metadata -> {
                             if (route.isMerge()) {
@@ -472,7 +484,8 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
                         })
                         // also what the credential source raised while the metadata was built
                         .onErrorResume(StatusRuntimeException.class, ex -> writeErrorResponse(exchange, ctx, ex))
-                        .onErrorResume(AccessDeniedException.class, ex -> writeAccessDeniedResponse(exchange, ex)))
+                        .onErrorResume(AccessDeniedException.class, ex -> writeAccessDeniedResponse(exchange, ex))
+                        .onErrorResume(ThrottledException.class, ex -> writeThrottledResponse(exchange, ex)))
                 .onErrorResume(PayloadTooLargeException.class, ex -> writePayloadTooLarge(exchange, ex));
     }
 
@@ -500,13 +513,19 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
         Flux<String> lines = ndjsonLines(exchange);
 
         return authEnforcer
-                .enforce(route, authArguments(pathVars, queryParams), null)
+                .enforce(
+                        route,
+                        authArguments(pathVars, queryParams),
+                        null,
+                        exchange.getRequest().getHeaders().asMultiValueMap(),
+                        dev.appiaworks.shiguchi.authz.AuthorizationRequest.Surface.REST)
                 .then(metadataPopulator.build(exchange.getRequest(), route))
                 .flatMap(metadata -> dispatcher
                         .dispatchClientStreaming(route, ctx, pathVars, queryParams, lines, metadata)
                         .flatMap(response -> send(exchange, route, ctx, renderJson(ctx, response), null)))
                 .onErrorResume(StatusRuntimeException.class, ex -> writeErrorResponse(exchange, ctx, ex))
                 .onErrorResume(AccessDeniedException.class, ex -> writeAccessDeniedResponse(exchange, ex))
+                .onErrorResume(ThrottledException.class, ex -> writeThrottledResponse(exchange, ex))
                 .onErrorResume(PayloadTooLargeException.class, ex -> writePayloadTooLarge(exchange, ex));
     }
 
@@ -792,7 +811,12 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
                     }
                     RestBodyCodec responseCodec = negotiated.responseCodec();
                     return authEnforcer
-                            .enforce(route, authArguments(pathVars, queryParams), bodyForAuth)
+                            .enforce(
+                                    route,
+                                    authArguments(pathVars, queryParams),
+                                    bodyForAuth,
+                                    exchange.getRequest().getHeaders().asMultiValueMap(),
+                                    dev.appiaworks.shiguchi.authz.AuthorizationRequest.Surface.REST)
                             .then(metadataPopulator.build(exchange.getRequest(), route))
                             .flatMap(metadata -> sendUnary(
                                     exchange,
@@ -819,7 +843,8 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
                                                     ex.getStatus(),
                                                     errorDetails(ctx, ex))
                                             : writeErrorResponse(exchange, ctx, ex))
-                            .onErrorResume(AccessDeniedException.class, ex -> writeAccessDeniedResponse(exchange, ex));
+                            .onErrorResume(AccessDeniedException.class, ex -> writeAccessDeniedResponse(exchange, ex))
+                            .onErrorResume(ThrottledException.class, ex -> writeThrottledResponse(exchange, ex));
                 })
                 .onErrorResume(PayloadTooLargeException.class, ex -> writePayloadTooLarge(exchange, ex));
     }
@@ -880,7 +905,12 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
                                 io.grpc.Status.INVALID_ARGUMENT.withDescription("Request body: " + e.getMessage()));
                     }
                     return authEnforcer
-                            .enforce(route, authArguments(pathVars, queryParams), bodyForAuth)
+                            .enforce(
+                                    route,
+                                    authArguments(pathVars, queryParams),
+                                    bodyForAuth,
+                                    exchange.getRequest().getHeaders().asMultiValueMap(),
+                                    dev.appiaworks.shiguchi.authz.AuthorizationRequest.Surface.REST)
                             .then(metadataPopulator.build(exchange.getRequest(), route))
                             .flatMap(metadata -> sendUnary(
                                     exchange,
@@ -903,7 +933,8 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
                                                 }
                                             })))
                             .onErrorResume(StatusRuntimeException.class, ex -> writeErrorResponse(exchange, ctx, ex))
-                            .onErrorResume(AccessDeniedException.class, ex -> writeAccessDeniedResponse(exchange, ex));
+                            .onErrorResume(AccessDeniedException.class, ex -> writeAccessDeniedResponse(exchange, ex))
+                            .onErrorResume(ThrottledException.class, ex -> writeThrottledResponse(exchange, ex));
                 })
                 .onErrorResume(PayloadTooLargeException.class, ex -> writePayloadTooLarge(exchange, ex));
     }
@@ -959,7 +990,12 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
                                 io.grpc.Status.INVALID_ARGUMENT.withDescription("Request body: " + e.getMessage()));
                     }
                     return authEnforcer
-                            .enforce(route, authArguments(pathVars, queryParams), bodyForAuth)
+                            .enforce(
+                                    route,
+                                    authArguments(pathVars, queryParams),
+                                    bodyForAuth,
+                                    exchange.getRequest().getHeaders().asMultiValueMap(),
+                                    dev.appiaworks.shiguchi.authz.AuthorizationRequest.Surface.REST)
                             .then(metadataPopulator.build(exchange.getRequest(), route))
                             .flatMap(metadata -> endSignal()
                                     .flatMap(end -> writeHttpBodyStream(
@@ -972,7 +1008,8 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
                                     ex -> exchange.getResponse().isCommitted()
                                             ? Mono.error(ex)
                                             : writeErrorResponse(exchange, ctx, ex))
-                            .onErrorResume(AccessDeniedException.class, ex -> writeAccessDeniedResponse(exchange, ex));
+                            .onErrorResume(AccessDeniedException.class, ex -> writeAccessDeniedResponse(exchange, ex))
+                            .onErrorResume(ThrottledException.class, ex -> writeThrottledResponse(exchange, ex));
                 })
                 .onErrorResume(PayloadTooLargeException.class, ex -> writePayloadTooLarge(exchange, ex));
     }
@@ -1055,7 +1092,12 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
                         : HttpBodySupport.withBody(base, route.getHttpBody(), type, chunk));
         boolean rawOut = HttpBodySupport.rawResponse(md.getOutputType(), route.getHttpResponseBody());
         return authEnforcer
-                .enforce(route, authArguments(pathVars, queryParams), null)
+                .enforce(
+                        route,
+                        authArguments(pathVars, queryParams),
+                        null,
+                        exchange.getRequest().getHeaders().asMultiValueMap(),
+                        dev.appiaworks.shiguchi.authz.AuthorizationRequest.Surface.REST)
                 .then(metadataPopulator.build(exchange.getRequest(), route))
                 .flatMap(metadata -> dispatcher.dispatchClientStreamingRequest(route, ctx, messages, metadata))
                 .flatMap(message -> {
@@ -1068,7 +1110,8 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
                     return send(exchange, route, ctx, rendered, null);
                 })
                 .onErrorResume(StatusRuntimeException.class, ex -> writeErrorResponse(exchange, ctx, ex))
-                .onErrorResume(AccessDeniedException.class, ex -> writeAccessDeniedResponse(exchange, ex));
+                .onErrorResume(AccessDeniedException.class, ex -> writeAccessDeniedResponse(exchange, ex))
+                .onErrorResume(ThrottledException.class, ex -> writeThrottledResponse(exchange, ex));
     }
 
     /** The request with path and query arguments bound, before the raw body is placed in it. */
@@ -2022,6 +2065,12 @@ public class ShiguchiFilter implements GlobalFilter, Ordered, org.springframewor
                 .setReason(RESPONSE_TOO_LARGE)
                 .setDomain(ERROR_DOMAIN)
                 .build())));
+    }
+
+    private Mono<Void> writeThrottledResponse(ServerWebExchange exchange, ThrottledException ex) {
+        exchange.getResponse().getHeaders().set(HttpHeaders.RETRY_AFTER, String.valueOf(ex.retryAfterSeconds()));
+        io.grpc.Status throttled = io.grpc.Status.RESOURCE_EXHAUSTED.withDescription(ex.getMessage());
+        return writeRenderedError(exchange, HttpStatus.TOO_MANY_REQUESTS, throttled);
     }
 
     private Mono<Void> writeAccessDeniedResponse(ServerWebExchange exchange, AccessDeniedException ex) {

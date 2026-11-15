@@ -90,6 +90,22 @@ class ProtoAccessRulesTest {
         // Assert
         assertThat(route.getAuthScopes()).isEmpty();
         assertThat(route.getAuthzRules()).isEmpty();
+        assertThat(route.getTags()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("GIVEN an annotation declaring tags WHEN apply is called SHOULD put exactly those tags on the route")
+    void GIVEN_annotationWithTags_WHEN_apply_SHOULD_putTagsOnRoute() throws Exception {
+        // Arrange
+        MethodRule schema =
+                MethodRule.newBuilder().addTags("pii").addTags("financial").build();
+        MethodDescriptor md = methodWithSchema(schema);
+
+        // Act
+        RouteDefinition route = ProtoAccessRules.apply(newRouteBuilder(), md).build();
+
+        // Assert
+        assertThat(route.getTags()).containsExactly("pii", "financial");
     }
 
     @Test

@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import dev.appiaworks.shiguchi.config.GraphQlConfig;
 import dev.appiaworks.shiguchi.graphql.GraphQlResponseCache.Outcome;
+import dev.appiaworks.shiguchi.routing.AuthzRuleDefinition;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
 import dev.appiaworks.shiguchi.routing.RouteDefinition.GraphQlOperationType;
@@ -339,6 +340,57 @@ class GraphQlResponseCacheInterceptorTest {
 
         assertThat(executions).hasValue(2);
         assertThat(cacheStatus(bob)).startsWith("shiguchi; fwd=miss");
+    }
+
+    @Test
+    @DisplayName("GIVEN vary-by-principal off WHEN the method carries authz rules SHOULD still key per caller")
+    void given_vary_by_principal_off_when_method_has_authz_rules_should_key_per_caller() {
+        config.setVaryByPrincipal(false);
+        when(registry.findByGraphQlName("item"))
+                .thenReturn(List.of(RouteDefinition.builder(STORE, "GetItem", MethodDescriptor.MethodType.UNARY, "h:1")
+                        .graphQl("item", GraphQlOperationType.QUERY)
+                        .cacheTtlSeconds(30)
+                        .authzRules(List.of(new AuthzRuleDefinition("item", "viewer", "id")))
+                        .build()));
+        rebuild();
+
+        run(chain, http(ITEM_QUERY, Map.of("id", "1")), "alice");
+        WebGraphQlResponse bob = run(chain, http(ITEM_QUERY, Map.of("id", "1")), "bob");
+
+        assertThat(executions).hasValue(2);
+        assertThat(cacheStatus(bob)).startsWith("shiguchi; fwd=miss");
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN vary-by-principal off and a policy or custom authorizer active WHEN a second caller asks SHOULD NOT get the first caller's entry")
+    void given_vary_by_principal_off_and_caller_decisions_when_second_caller_should_not_share_entry() {
+        config.setVaryByPrincipal(false);
+        cache = new GraphQlResponseCache(config, registry, meters, clock, () -> true);
+        interceptor = new GraphQlResponseCacheInterceptor(cache);
+
+        run(chain, http(ITEM_QUERY, Map.of("id", "1")), "alice");
+        WebGraphQlResponse bob = run(chain, http(ITEM_QUERY, Map.of("id", "1")), "bob");
+        WebGraphQlResponse bobAgain = run(chain, http(ITEM_QUERY, Map.of("id", "1")), "bob");
+
+        assertThat(executions).hasValue(2);
+        assertThat(cacheStatus(bob)).startsWith("shiguchi; fwd=miss");
+        assertThat(cacheStatus(bobAgain)).isEqualTo("shiguchi; hit");
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN vary-by-principal off and no policy or custom authorizer WHEN two callers ask SHOULD still share")
+    void given_vary_by_principal_off_and_no_caller_decisions_when_two_callers_should_share_entry() {
+        config.setVaryByPrincipal(false);
+        cache = new GraphQlResponseCache(config, registry, meters, clock, () -> false);
+        interceptor = new GraphQlResponseCacheInterceptor(cache);
+
+        run(chain, http(ITEM_QUERY, Map.of("id", "1")), "alice");
+        WebGraphQlResponse bob = run(chain, http(ITEM_QUERY, Map.of("id", "1")), "bob");
+
+        assertThat(executions).hasValue(1);
+        assertThat(cacheStatus(bob)).isEqualTo("shiguchi; hit");
     }
 
     @Test

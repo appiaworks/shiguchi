@@ -2,6 +2,7 @@ package dev.appiaworks.shiguchi.graphql;
 
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.MethodDescriptor;
+import dev.appiaworks.shiguchi.authz.AuthorizationRequest;
 import dev.appiaworks.shiguchi.gateway.GatewayAuthorizationEnforcer;
 import dev.appiaworks.shiguchi.gateway.GrpcMetadataPopulator;
 import dev.appiaworks.shiguchi.rest.ReactiveGrpcDispatcher;
@@ -146,7 +147,12 @@ public class DynamicGraphQlDataFetcher implements DataFetcher<Object> {
             return GraphQlRequestContext.within(
                             env.getGraphQlContext(),
                             authEnforcer
-                                    .enforce(route, finalArgs, null)
+                                    .enforce(
+                                            route,
+                                            finalArgs,
+                                            null,
+                                            GraphQlMetadata.requestHeaders(env.getGraphQlContext()),
+                                            AuthorizationRequest.Surface.GRAPHQL)
                                     .then(buildMetadataFromEnv(env, route))
                                     .flatMap(metadata ->
                                             mergeDispatcher.dispatchToMaps(route, finalArgs, metadata, projection)))
@@ -164,7 +170,12 @@ public class DynamicGraphQlDataFetcher implements DataFetcher<Object> {
             Flux<Object> flux = GraphQlRequestContext.within(
                             env.getGraphQlContext(),
                             authEnforcer
-                                    .enforce(route, finalArgs, null)
+                                    .enforce(
+                                            route,
+                                            finalArgs,
+                                            null,
+                                            GraphQlMetadata.requestHeaders(env.getGraphQlContext()),
+                                            AuthorizationRequest.Surface.GRAPHQL)
                                     .then(buildMetadataFromEnv(env, route))
                                     .flatMapMany(metadata -> dispatcher.dispatchStreamingToMap(
                                             route, ctx, finalArgs, metadata, projection)))
@@ -193,7 +204,12 @@ public class DynamicGraphQlDataFetcher implements DataFetcher<Object> {
         return GraphQlRequestContext.within(
                         env.getGraphQlContext(),
                         authEnforcer
-                                .enforce(route, finalArgs, null)
+                                .enforce(
+                                        route,
+                                        finalArgs,
+                                        null,
+                                        GraphQlMetadata.requestHeaders(env.getGraphQlContext()),
+                                        AuthorizationRequest.Surface.GRAPHQL)
                                 .then(buildMetadataFromEnv(env, route))
                                 .flatMap(metadata -> route.isPassthrough()
                                         ? httpDispatch(route, ctx, finalArgs, metadata, projection)

@@ -3,6 +3,7 @@ package dev.appiaworks.shiguchi.graphql;
 import com.netflix.graphql.dgs.exceptions.DefaultDataFetcherExceptionHandler;
 import com.netflix.graphql.types.errors.ErrorType;
 import com.netflix.graphql.types.errors.TypedGraphQLError;
+import dev.appiaworks.shiguchi.authz.ThrottledException;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.GraphQlConfig;
 import dev.appiaworks.shiguchi.gateway.GatewayErrorDetails;
@@ -87,6 +88,16 @@ public class GrpcGraphQlExceptionHandler implements DataFetcherExceptionHandler 
                         backend.getDetails(),
                         nativeFormat);
             }
+            if (t instanceof ThrottledException throttled) {
+                return build(
+                        parameters,
+                        Status.RESOURCE_EXHAUSTED.withDescription(throttled.getMessage()),
+                        null,
+                        null,
+                        GatewayErrorDetails.none(),
+                        nativeFormat,
+                        Map.of("code", "RESOURCE_EXHAUSTED", "retryAfterSeconds", throttled.retryAfterSeconds()));
+            }
             if (t instanceof StatusRuntimeException sre) {
                 return build(
                         parameters, sre.getStatus(), null, null, GatewayErrorDetails.from(sre, null), nativeFormat);
@@ -108,6 +119,17 @@ public class GrpcGraphQlExceptionHandler implements DataFetcherExceptionHandler 
             String method,
             GatewayErrorDetails details,
             boolean nativeFormat) {
+        return build(parameters, status, service, method, details, nativeFormat, Map.of());
+    }
+
+    private static GraphQLError build(
+            DataFetcherExceptionHandlerParameters parameters,
+            Status status,
+            String service,
+            String method,
+            GatewayErrorDetails details,
+            boolean nativeFormat,
+            Map<String, Object> extra) {
         Map<String, Object> extensions = new LinkedHashMap<>();
         extensions.put("grpcCode", status.getCode().name());
         if (service != null) extensions.put("service", service);
@@ -132,6 +154,7 @@ public class GrpcGraphQlExceptionHandler implements DataFetcherExceptionHandler 
         } else if (!details.isEmpty()) {
             extensions.put("details", details.asJson());
         }
+        extensions.putAll(extra);
         String message = status.getDescription() != null
                 ? status.getDescription()
                 : status.getCode().name();

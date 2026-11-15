@@ -172,6 +172,28 @@ class GatewayRoutesReportTest {
     }
 
     @Test
+    @DisplayName("GIVEN a route with tags WHEN reporting SHOULD include them, and omit the field when there are none")
+    void given_taggedRoute_when_reporting_should_includeTags() {
+        var svc = configure("catalog");
+        var tagged = RouteDefinition.builder("shop.Catalog", "GetItem", MethodType.UNARY, "")
+                .httpBinding("GET", "/v1/items/{id}")
+                .tags(List.of("pii"))
+                .build();
+        var untagged = restRoute("ListItems", "GET", "/v1/items");
+        load(svc, tagged, untagged);
+
+        var rows = routes(services(report.report()).get(0));
+        assertThat(rows)
+                .filteredOn(r -> "shop.Catalog/GetItem".equals(r.get("method")))
+                .singleElement()
+                .satisfies(r -> assertThat(r).containsEntry("tags", List.of("pii")));
+        assertThat(rows)
+                .filteredOn(r -> "shop.Catalog/ListItems".equals(r.get("method")))
+                .singleElement()
+                .satisfies(r -> assertThat(r).doesNotContainKey("tags"));
+    }
+
+    @Test
     @DisplayName(
             "GIVEN a route whose proto declared no idempotency WHEN reporting SHOULD omit the field rather than print UNKNOWN on every row")
     void given_undeclaredIdempotency_when_reporting_should_omitIt() {

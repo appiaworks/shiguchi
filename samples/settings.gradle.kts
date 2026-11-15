@@ -39,6 +39,7 @@ include(
     "sample-grpc-ui-servlet",
     "sample-openfga-authz",
     "sample-opa-authz",
+    "sample-policy",
     "sample-merge-gateway",
     "sample-jpa-backend",
     "sample-rest-downstream",
