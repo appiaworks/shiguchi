@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- GraphiQL page: the access token is now refreshed 60 s before it expires (refresh-token grant, then client credentials), as in the console. The **Authorize** button turns amber with "Session expired – Authorize" once the token has expired and could not be renewed, instead of staying "Authorized ✓", and the sign-in panel opens when a refresh fails. A query answered with 401 is retried once with a freshly renewed token.
+- GraphiQL page: the access token is now refreshed 60 s before it expires (refresh-token grant, then client credentials), as in the console. The **Authorize** button turns amber with "Session expired – Authorize" once the token has expired and could not be renewed, instead of staying "Authorized ✓", and the sign-in panel opens when a refresh fails. A query answered with 401 is retried once with a freshly renewed token. Silent refresh no longer depends on the "remember" box: the client id of the current sign-in is kept in memory.
 - Swagger UI: the Authorize dialog now pre-fills the configured `client-id` per `oauth2` scheme, however many schemes there are (a plugin added to `swagger-initializer.js`; previously the id was seeded only with a single scheme). An authorization-code flow with a `client-id` turns PKCE on unless `springdoc.swagger-ui.oauth.use-pkce-with-authorization-code-grant` is set.
 - OpenAPI: one startup warning when `security-schemes` is set but `global-security` is empty, since "Try it out" then sends no token.
 

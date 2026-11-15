@@ -10,7 +10,7 @@ import './graphiql.css'
 import { buildAuthHeaders, fetchConfig } from '../api/grpcUiApi'
 import { GlobalAuthPanel } from '../components/GlobalAuthPanel'
 import { useGrpcUiStore } from '../store/useGrpcUiStore'
-import { getSessionSecret } from '../store/sessionSecrets'
+import { getSessionClientId, getSessionSecret } from '../store/sessionSecrets'
 import { useTokenAutoRefresh } from '../hooks/useTokenAutoRefresh'
 import { authFetch } from './authFetch'
 
@@ -35,7 +35,7 @@ function Page() {
       expiry,
       refreshToken,
       providerId,
-      clientId: providerId ? providerDefaults[providerId]?.clientId : undefined,
+      clientId: providerId ? (providerDefaults[providerId]?.clientId ?? getSessionClientId(providerId)) : undefined,
       clientSecret: providerId ? getSessionSecret(providerId) : undefined,
     },
     {

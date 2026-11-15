@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchClientCredentialsToken } from '../api/grpcUiApi'
-import { setSessionSecret } from '../store/sessionSecrets'
+import { setSessionClientId, setSessionSecret } from '../store/sessionSecrets'
 import { useGrpcUiStore } from '../store/useGrpcUiStore'
 import { oauthCallbackUrl } from '../api/baseUrl'
 import type { AuthProviderDto } from '../types/schema'
@@ -98,6 +98,7 @@ export function GlobalAuthPanel({ onClose }: { onClose: () => void }) {
           const token = data['access_token'] as string
           const expiresIn = (data['expires_in'] as number | undefined) ?? 3600
           const rt = (data['refresh_token'] as string | undefined) ?? null
+          if (globalProviderId) setSessionClientId(globalProviderId, clientId)
           setGlobalAuthToken(token, Date.now() + expiresIn * 1000, rt)
           if (rememberClientId && globalProviderId) setProviderDefault(globalProviderId, { clientId })
           setError(null)
@@ -136,6 +137,7 @@ export function GlobalAuthPanel({ onClose }: { onClose: () => void }) {
     const scopes = Object.keys(activeProvider.clientCredentials?.scopes ?? {})
     try {
       const tok = await fetchClientCredentialsToken(activeProvider.id, clientId, clientSecret, scopes)
+      setSessionClientId(activeProvider.id, clientId)
       setGlobalAuthToken(tok.accessToken, Date.now() + tok.expiresIn * 1000, null)
       if (clientSecret) setSessionSecret(activeProvider.id, clientSecret)
       if (rememberClientId && globalProviderId) setProviderDefault(globalProviderId, { clientId })

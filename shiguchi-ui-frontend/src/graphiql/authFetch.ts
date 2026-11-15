@@ -1,6 +1,6 @@
 import { buildAuthHeaders } from '../api/grpcUiApi'
 import { refreshStoredToken, type RefreshedToken } from '../lib/refreshStoredToken'
-import { getSessionSecret } from '../store/sessionSecrets'
+import { getSessionClientId, getSessionSecret } from '../store/sessionSecrets'
 import { useGrpcUiStore } from '../store/useGrpcUiStore'
 
 let inFlight: Promise<RefreshedToken | null> | null = null
@@ -17,7 +17,7 @@ function refreshOnce(): Promise<RefreshedToken | null> {
         expiry: s.globalTokenExpiry,
         refreshToken: s.globalRefreshToken,
         providerId: id,
-        clientId: id ? s.providerDefaults[id]?.clientId : undefined,
+        clientId: id ? (s.providerDefaults[id]?.clientId ?? getSessionClientId(id)) : undefined,
         clientSecret: id ? getSessionSecret(id) : undefined,
       },
       s.links?.authProviders ?? [],

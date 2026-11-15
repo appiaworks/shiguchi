@@ -8,7 +8,7 @@ import { PushPanel } from './components/PushPanel'
 import { ServiceTree } from './components/ServiceTree'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useTokenAutoRefresh } from './hooks/useTokenAutoRefresh'
-import { getSessionSecret } from './store/sessionSecrets'
+import { getSessionClientId, getSessionSecret } from './store/sessionSecrets'
 import { useGrpcUiStore } from './store/useGrpcUiStore'
 
 export default function App() {
@@ -46,7 +46,7 @@ export default function App() {
       expiry: globalTokenExpiry,
       refreshToken: globalRefreshToken,
       providerId: globalProviderId,
-      clientId: globalProviderId ? (providerDefaults[globalProviderId]?.clientId) : undefined,
+      clientId: globalProviderId ? (providerDefaults[globalProviderId]?.clientId ?? getSessionClientId(globalProviderId)) : undefined,
       clientSecret: globalProviderId ? getSessionSecret(globalProviderId) : undefined,
     },
     {

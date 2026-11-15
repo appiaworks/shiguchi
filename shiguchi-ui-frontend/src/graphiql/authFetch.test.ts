@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useGrpcUiStore } from '../store/useGrpcUiStore'
 import type { GatewayUiLinks } from '../types/schema'
+import { setSessionClientId } from '../store/sessionSecrets'
 import { authFetch } from './authFetch'
 
 const links = (authProviders: GatewayUiLinks['authProviders']): GatewayUiLinks => ({
@@ -71,6 +72,23 @@ describe('authFetch', () => {
       expect(res.status).toBe(200)
       expect(calls).toEqual(['Bearer old', 'token', 'Bearer new'])
       expect(useGrpcUiStore.getState().globalAuthToken).toBe('new')
+    })
+
+    it('GIVEN a client id known only for this session WHEN a 401 arrives SHOULD still refresh', async () => {
+      signedIn()
+      useGrpcUiStore.setState({ providerDefaults: {} })
+      setSessionClientId('kc', 'swagger')
+      const bodies: string[] = []
+      vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
+        if (url === 'https://idp/token') {
+          bodies.push(String(init?.body))
+          return Promise.resolve(new Response(JSON.stringify({ access_token: 'new', expires_in: 300 })))
+        }
+        return Promise.resolve(new Response('{}', { status: new Headers(init?.headers).get('authorization') === 'Bearer new' ? 200 : 401 }))
+      }))
+      const res = await authFetch('/graphql', { method: 'POST', body: '{}' })
+      expect(res.status).toBe(200)
+      expect(bodies[0]).toContain('client_id=swagger')
     })
 
     it('GIVEN a 401 and a failing refresh WHEN fetching SHOULD return the 401 without retrying', async () => {
