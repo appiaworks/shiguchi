@@ -43,6 +43,11 @@ import reactor.core.publisher.Mono;
  * header caller). Without a {@code ReactiveJwtDecoder} the payload is ignored. Only bearer tokens
  * are read from the payload.
  *
+ * <p>The validated token also goes upstream as the call's {@code authorization}, as an HTTP
+ * request's own header does, so a backend that checks the JWT itself accepts the subscription. It
+ * is not sent where an {@code UpstreamCredentialSource} bean exists (the BFF, a token exchange):
+ * that source decides the upstream credential, and a browser token must not replace an exchanged one.
+ *
  * <p>When the GraphQL surface requires authentication ({@code shiguchi.security.surfaces.graphql.require-auth}
  * or mode {@code AUTHENTICATED}), the security chain lets the WebSocket upgrade through without a
  * caller, since a browser cannot authenticate it, and this interceptor is the gate: an operation on a
@@ -55,6 +60,11 @@ import reactor.core.publisher.Mono;
 public class ConnectionInitAuthInterceptor implements WebSocketGraphQlInterceptor {
 
     static final String ATTRIBUTE = ConnectionInitAuthInterceptor.class.getName() + ".AUTHENTICATION";
+    static final String TOKEN_ATTRIBUTE = ConnectionInitAuthInterceptor.class.getName() + ".TOKEN";
+
+    /** GraphQL-context key under which an operation carries its socket's bearer token. */
+    static final String TOKEN_CONTEXT_KEY = ConnectionInitAuthInterceptor.class.getName() + ".TOKEN";
+
     private static final String BEARER = "bearer ";
 
     private final ReactiveJwtDecoder decoder;
@@ -89,7 +99,10 @@ public class ConnectionInitAuthInterceptor implements WebSocketGraphQlIntercepto
                 .onErrorMap(
                         e -> !(e instanceof InvalidBearerTokenException),
                         e -> new InvalidBearerTokenException("The token was not accepted", e))
-                .doOnNext(auth -> sessionInfo.getAttributes().put(ATTRIBUTE, auth))
+                .doOnNext(auth -> {
+                    sessionInfo.getAttributes().put(ATTRIBUTE, auth);
+                    sessionInfo.getAttributes().put(TOKEN_ATTRIBUTE, token);
+                })
                 .then(Mono.empty());
     }
 
@@ -97,6 +110,12 @@ public class ConnectionInitAuthInterceptor implements WebSocketGraphQlIntercepto
     public Mono<WebGraphQlResponse> intercept(WebGraphQlRequest request, Chain chain) {
         if (request instanceof WebSocketGraphQlRequest socket
                 && socket.getSessionInfo().getAttributes().get(ATTRIBUTE) instanceof Authentication auth) {
+            if (socket.getSessionInfo().getAttributes().get(TOKEN_ATTRIBUTE) instanceof String token) {
+                socket.configureExecutionInput((input, builder) -> {
+                    input.getGraphQLContext().put(TOKEN_CONTEXT_KEY, token);
+                    return input;
+                });
+            }
             return chain.next(request).contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth));
         }
         if (requireAuth && request instanceof WebSocketGraphQlRequest) {

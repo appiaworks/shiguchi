@@ -159,6 +159,16 @@ public class GrpcMetadataPopulator {
         return name.equals("x-principal") || name.equals("authorization");
     }
 
+    /**
+     * Whether an {@link UpstreamCredentialSource} bean decides the upstream {@code authorization}
+     * for callers without an {@code Authorization} header. Where one does (a BFF session, a token
+     * exchange), a credential the caller supplied some other way is not forwarded in its place.
+     */
+    @ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.26.0")
+    public boolean hasCredentialSource() {
+        return credentialSource != null;
+    }
+
     /** Builds metadata from an HTTP request â€” used by ShiguchiFilter (REST path). */
     public Mono<Metadata> build(ServerHttpRequest request) {
         return build(request, null);

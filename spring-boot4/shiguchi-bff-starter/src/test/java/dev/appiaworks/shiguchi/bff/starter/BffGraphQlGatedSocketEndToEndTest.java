@@ -117,7 +117,8 @@ class BffGraphQlGatedSocketEndToEndTest {
                 new GraphQlSocket(h -> {}, ",\"payload\":{\"Authorization\":\"Bearer " + bearer + "\"}")) {
             socket.query("1", ECHO);
 
-            assertThat(socket.awaitResult("1")).endsWith("|bob");
+            // The BFF owns the upstream credential: the browser token is not sent in its place.
+            assertThat(socket.awaitResult("1")).isEqualTo("|bob");
         }
     }
 
