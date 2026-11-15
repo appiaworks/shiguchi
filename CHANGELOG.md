@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-11-15
+
 ### Changed
 
 - Console schema panel: required fields are highlighted (red bar, bold name, **required** pill) and the per-field "optional" label is gone; a **Required only** toggle hides the rest. An ID field with `(shiguchi.field).resolves_type` shows a **→ Type** chip that opens the target type's fields in place. `/api/schema` fields gain `resolvesTypes`.
