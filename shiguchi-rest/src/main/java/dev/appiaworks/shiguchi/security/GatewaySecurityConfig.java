@@ -232,6 +232,11 @@ public class GatewaySecurityConfig implements org.springframework.context.Enviro
             // After the always-gated actuator writes, so a customizer cannot reopen them.
             customizers.forEach(c -> c.authorize(authz));
             rule(authz, uiAuth, uiPaths);
+            if (graphqlAuth) {
+                // A browser cannot put a header on a WebSocket, so the upgrade carries no bearer token:
+                // let it through and gate the socket's operations (ConnectionInitAuthInterceptor).
+                authz.matchers(graphqlUpgrade(graphqlPaths, environment)).permitAll();
+            }
             rule(authz, graphqlAuth, graphqlPaths);
             rule(authz, openapiAuth, openapiPaths);
             if (restAuth) {
@@ -283,6 +288,23 @@ public class GatewaySecurityConfig implements org.springframework.context.Enviro
 
         customizers.forEach(c -> c.customize(http));
         return http.build();
+    }
+
+    /** A WebSocket upgrade (GET with {@code Upgrade: websocket}) on the GraphQL path or the configured socket path. */
+    private static org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher graphqlUpgrade(
+            String[] graphqlPaths, org.springframework.core.env.Environment env) {
+        java.util.List<String> paths = new java.util.ArrayList<>(java.util.List.of(graphqlPaths));
+        String ws = env == null ? null : env.getProperty("spring.graphql.websocket.path");
+        if (ws != null && !ws.isBlank() && !paths.contains(ws.trim())) paths.add(ws.trim());
+        var path = org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers.pathMatchers(
+                org.springframework.http.HttpMethod.GET, paths.toArray(String[]::new));
+        return exchange -> path.matches(exchange).flatMap(m -> {
+            String upgrade = exchange.getRequest().getHeaders().getUpgrade();
+            return m.isMatch() && upgrade != null && upgrade.equalsIgnoreCase("websocket")
+                    ? org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher.MatchResult.match()
+                    : org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher.MatchResult
+                            .notMatch();
+        });
     }
 
     private static void rule(ServerHttpSecurity.AuthorizeExchangeSpec authz, boolean requireAuth, String... patterns) {

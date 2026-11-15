@@ -252,7 +252,9 @@ and each instance reacts to the event itself (the result is not relayed).
 Methods with `(shiguchi.graphql).type = SUBSCRIPTION` emit one item per stream message. They are served
 over WebSocket (`graphql-transport-ws`) only when `spring.graphql.websocket.path` is set (the end-to-end
 test uses `/graphql/ws`); there is no default path. `GraphQlContributor` beans (the push module) can add
-Subscription fields and types.
+Subscription fields and types. When the `graphql` surface requires authentication the upgrade itself is
+open and the socket is gated: send `{"Authorization": "Bearer <jwt>"}` in `connection_init`, or operations
+are refused as `unauthenticated`.
 
 ### Batching
 

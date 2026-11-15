@@ -44,6 +44,12 @@ mode's default in either direction: `ui` (`<ui.path>/**`, `/graphiql`), `openapi
 transcoded routes). `shiguchi.ui.require-auth` is an older alias of `surfaces.ui.require-auth`
 and still works.
 
+A gated `graphql` surface lets the WebSocket upgrade through without a caller, because a browser
+cannot put an `Authorization` header on it, and gates the socket instead: a bearer token in the
+`connection_init` payload (or a cookie or header the upgrade carried) authenticates it, a bad token
+closes it, and an operation on a socket nothing authenticated is refused with an `unauthenticated`
+error.
+
 Whatever the mode, the `gateway-refresh` actuator endpoint always requires authentication — it
 re-reads every backend's schema — and so do the writes of `gateway-traffic`, which move calls
 between backend versions. That means they only work once a JWT decoder is configured; under
