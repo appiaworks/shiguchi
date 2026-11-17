@@ -374,7 +374,10 @@ shiguchi:
 
 The pinned endpoint's loader is registered under the plain type name, so `resolves_type` fields and Federation
 `_entities` both use it. The other endpoint's loader is not registered; the gateway logs that at INFO. A pin that
-names an endpoint with no `loader_for` for the type fails startup, which catches a misspelt name.
+names an endpoint with no `loader_for` for the type fails startup, which catches a misspelt name. That includes an
+endpoint that is not loaded yet: pinning a type to a `DYNAMIC` service (or any endpoint) whose loader is not there
+when the gateway starts fails startup, so pin only endpoints that are present at boot. After startup the same
+mistake is logged at ERROR and the running gateway stays up.
 
 The pin decides the loader only. It does not change which endpoint serves a Query field: a `customers` query on the
 other endpoint keeps working. The loader's cache key does not include the endpoint either.

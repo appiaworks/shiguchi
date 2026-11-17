@@ -272,7 +272,11 @@ token exchange) supplies the upstream credential.
 `shiguchi.graphql.batch.max-operations` (0 = off). A POST whose JSON body is an array runs each
 element through the full interceptor chain in order, and answers with an array of results in the same
 order. Limits, introspection and the cost budget apply per operation; the batch is charged the sum.
-Each operation has its own DataLoader registry. A batch over the maximum, an empty batch, invalid
+Each operation has its own DataLoader registry, so relationship loads batch within one operation and
+never across the array: N operations that each select `authors { books { title } }` make N loader calls,
+not one. Keep array operations for independent queries and write a single query for a list with
+nested relationships. Each operation is costed on its own (a one-to-many list field under a list
+multiplies by the parent list's size) and the batch is charged the sum. A batch over the maximum, an empty batch, invalid
 JSON or a non-object element gets 400; a body over 256 KiB times the maximum gets 413. `Retry-After`
 is the largest among the results.
 

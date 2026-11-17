@@ -32,6 +32,27 @@ Things that look like switches but are not worth touching:
 - `GraphQlLoggingFilter` returns straight to the chain unless its logger is at TRACE.
 - Selection depth and complexity limits only add an instrumentation when configured.
 
+## Relationship batching
+
+Relationship fields (`resolves_type`, `resolves_many`, Federation `_entities`) go through one
+batching pipeline: de-duplicate the keys, optional cross-request cache, split by `max-batch-size`
+with at most `max-concurrent-batches` calls in flight. Compared with the code before the pipeline
+(JMH, same machine, error bars apply):
+
+- **No regression on the other legs.** Single query -0.8%, `graphql_list_100` -1.8%,
+  `rest_list_100` +0.9% (gRPC backend) and +1.3% (HTTP backend), `rest_single` -0.2%, Federation
+  gRPC batch with 100 keys -1.5%. All inside the noise of a run.
+- **`graphql_nested_100` is 12.7% faster** (same-session A/B; an earlier full run measured about
+  35%): a list of 100 with a nested relationship now batches the nested level into one
+  upstream call instead of one per parent.
+- **One-to-many (`group_by`) against one call per parent.** At 1 ms of backend latency the
+  grouped loader is only 1.26x faster on wall time for 100 parents with 10 children each, and 1.17x
+  for 1000 parents with 10 children. The benchmark stub's per-parent delays overlap, so the
+  per-parent version is not as slow as a real backend with limited concurrency would make it. The
+  gain that holds regardless of the stub is upstream load: 1 backend call against 1000, and about
+  half the allocation. Expect the wall-clock gap to grow with backend latency and with how few
+  calls the backend can serve at once, and measure it on your own backend.
+
 ## Measuring
 
 - `shiguchi-benchmarks` holds the JMH benchmarks; the GraphQL ones are `GatewayGraphQlBenchmark`

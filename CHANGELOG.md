@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- A failed relationship (DataLoader) batch now reports a GraphQL error on each field waiting on it, with `extensions.grpcCode` (and `httpStatus`, `type`, `endpoint` for a REST loader). Before, the keys silently resolved to null. `shiguchi.graphql.data-loader.on-error: "NULL"` restores that (quote it in YAML: a bare `NULL` is YAML's null and leaves the default). A failed chunk no longer fails the other chunks of the same load, and more than 20 failed keys of one loader in a request are summarised in one error. A GraphQL response that carries errors is no longer stored by the response cache.
+- A load split by `data-loader.max-batch-size` now runs at most `data-loader.max-concurrent-batches` (default 4, `0` = all at once) chunks at a time. One gRPC batch call is bounded by the new `data-loader.timeout` (default 10 s). REST loaders gain `max-batch-size` and `max-concurrency` (default 16).
+- Startup fails when two endpoints declare a `loader_for` for the same GraphQL type, naming the type, both endpoints and the key to set. Pick the owner with `shiguchi.graphql.data-loader.types.<Type>.endpoint`. Before, one of them silently won.
+
+### Added
+- One-to-many loaders: `group_by` on a `loader_for` method and `(shiguchi.field).resolves_many` (`type`, `field`, `loader`) on the parent's key field add a list field (`authors { books { title } }`) served by one batched call for all parents, however many there are. It is its own DataLoader (`<Type>#by:<field>`), never cached and not used by `_entities`. See [GraphQL annotations](docs/guides/graphql-annotations.md#one-to-many-fields).
+- `shiguchi.graphql.data-loader.max-children-per-key` (default `0`, off): a parent key with more children than the cap fails instead of answering them.
+- `shiguchi.graphql.data-loader.types.<Type>.endpoint` pins which endpoint's loader serves a type declared by several. A pin naming an endpoint with no `loader_for` for the type fails startup. A reload or late-loaded service that brings a conflicting loader is rejected (the current owner stays), logged at ERROR, and counted by `shiguchi.graphql.loader.conflicts` (tag `type`).
+
 ### Fixed
 - `shiguchi.graphql.federation.enabled=true` no longer fails startup with `type _Any not found in schema`. The federation types and the `_service`/`_entities` fields now come from the Apollo federation transformer through a `DgsFederationResolver`, and entities are tagged with their `__typename` so the `_Entity` union resolves.
 - GraphQL subscriptions authenticated by a `connection_init` bearer now send that token to the backend as the call's `authorization`, as an HTTP request's own `Authorization` header already is, so a backend that validates the JWT itself accepts them. Not sent when an `UpstreamCredentialSource` bean exists (the BFF, a token exchange): that source decides the upstream credential. New `GrpcMetadataPopulator.hasCredentialSource()` (EXPERIMENTAL).
