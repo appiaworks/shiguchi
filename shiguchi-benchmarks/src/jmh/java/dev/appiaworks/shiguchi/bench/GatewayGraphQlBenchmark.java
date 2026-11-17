@@ -98,8 +98,9 @@ import reactor.netty.http.server.HttpServer;
  *       with {@code backend=http}: a {@code REST_DOWNSTREAM} type has no relationship field (the
  *       schema links {@code customer_id} to {@code Customer} through the proto
  *       {@code resolves_type} option, which an OpenAPI-derived descriptor cannot carry;
- *       {@code rest-batch-loaders[]} feed Federation {@code _entities} only), so these two throw
- *       {@link UnsupportedOperationException}; run them with {@code -p backend=grpc}.
+ *       {@code rest-batch-loaders[]} feed Federation {@code _entities} only), so these legs
+ *       return an empty string without a request under {@code http} (keeps a full-class run
+ *       alive); their http scores are meaningless, ignore them and use {@code -p backend=grpc}.
  *   <li>{@code graphql_nested_1000}, {@code graphql_nested_10000} — the same shape at the sizes the
  *       batching work is judged on. {@code distinctCustomers} sets how many different customers
  *       the orders point at (default 100, as in the other nested legs); {@code maxBatchSize}
@@ -431,12 +432,20 @@ public class GatewayGraphQlBenchmark {
                             + "org.springframework.boot.actuate.autoconfigure.logging.otlp.OtlpLoggingAutoConfiguration,"
                             + "org.springframework.boot.actuate.autoconfigure.metrics.export.otlp.OtlpMetricsExportAutoConfiguration");
         }
+        // per_parent_1000x10 posts 1000 aliased root fields (~16 000 tokens); graphql-java's default
+        // parser cap is 15 000 and rejects it. Bench-JVM only, raised well past any leg's query.
+        graphql.parser.ParserOptions.setDefaultOperationParserOptions(
+                graphql.parser.ParserOptions.getDefaultOperationParserOptions().transform(b -> b.maxTokens(1_000_000)));
         gateway = new SpringApplicationBuilder(GatewayApp.class)
                 .web(WebApplicationType.REACTIVE)
                 .properties(properties.toArray(String[]::new))
                 .run();
         int port = Integer.parseInt(gateway.getEnvironment().getRequiredProperty("local.server.port"));
-        client = WebClient.create("http://localhost:" + port);
+        // Client side only: large legs (has_many_1000x10, nested_10000) exceed the 256 KiB default buffer.
+        client = WebClient.builder()
+                .baseUrl("http://localhost:" + port)
+                .codecs(c -> c.defaultCodecs().maxInMemorySize(64 * 1024 * 1024))
+                .build();
 
         // Warm the connections and verify every leg answers what it should.
         if (http) {
@@ -890,68 +899,81 @@ public class GatewayGraphQlBenchmark {
 
     @Benchmark
     public String graphql_nested_10() {
-        requireNested();
+        if (http) {
+            return "";
+        }
         return post("/graphql", gqlNested10);
     }
 
     @Benchmark
     public String graphql_nested_100() {
-        requireNested();
+        if (http) {
+            return "";
+        }
         return post("/graphql", gqlNested100);
     }
 
     @Benchmark
     public String graphql_nested_1000() {
-        requireNested();
+        if (http) {
+            return "";
+        }
         return post("/graphql", gqlNested1000);
     }
 
     @Benchmark
     public String graphql_nested_10000() {
-        requireNested();
+        if (http) {
+            return "";
+        }
         return post("/graphql", gqlNested10000);
     }
 
     @Benchmark
     public String graphql_two_level_100() {
-        requireNested();
+        if (http) {
+            return "";
+        }
         return post("/graphql", gqlTwoLevel100);
     }
 
     @Benchmark
     public String graphql_two_level_1000() {
-        requireNested();
+        if (http) {
+            return "";
+        }
         return post("/graphql", gqlTwoLevel1000);
     }
 
     @Benchmark
     public String graphql_has_many_100x10() {
-        requireNested();
+        if (http) {
+            return "";
+        }
         return post("/graphql", gqlHasMany100);
     }
 
     @Benchmark
     public String graphql_has_many_1000x10() {
-        requireNested();
+        if (http) {
+            return "";
+        }
         return post("/graphql", gqlHasMany1000);
     }
 
     @Benchmark
     public String graphql_per_parent_100x10() {
-        requireNested();
+        if (http) {
+            return "";
+        }
         return post("/graphql", gqlPerParent100);
     }
 
     @Benchmark
     public String graphql_per_parent_1000x10() {
-        requireNested();
-        return post("/graphql", gqlPerParent1000);
-    }
-
-    private void requireNested() {
         if (http) {
-            throw new UnsupportedOperationException(
-                    "a REST_DOWNSTREAM type has no relationship field; run the nested and has-many legs with -p backend=grpc");
+            return "";
         }
+        return post("/graphql", gqlPerParent1000);
     }
 }
