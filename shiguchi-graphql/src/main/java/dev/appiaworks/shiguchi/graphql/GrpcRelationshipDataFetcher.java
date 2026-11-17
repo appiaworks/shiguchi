@@ -4,8 +4,6 @@ import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import org.dataloader.DataLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,10 +29,8 @@ public class GrpcRelationshipDataFetcher implements DataFetcher<CompletableFutur
 
     private static final Logger log = LoggerFactory.getLogger(GrpcRelationshipDataFetcher.class);
 
-    /** Seconds to wait for a DataLoader dispatch before giving up and returning null. */
-    private static final long LOADER_TIMEOUT_SECONDS = 10;
-
     private final String idFieldJsonName; // camelCase name of the ID field in the parent Map
+
     private final String resolvedTypeName; // DataLoader name (the GraphQL type name)
 
     public GrpcRelationshipDataFetcher(String idFieldJsonName, String resolvedTypeName) {
@@ -68,25 +64,15 @@ public class GrpcRelationshipDataFetcher implements DataFetcher<CompletableFutur
         String idStr = String.valueOf(id);
         log.debug("[Relationship] Scheduling DataLoader load: type={} id={}", resolvedTypeName, idStr);
 
-        return loader.load(idStr)
-                .orTimeout(LOADER_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                .exceptionally(t -> {
-                    if (t instanceof TimeoutException) {
-                        log.warn(
-                                "[Relationship] DataLoader dispatch timed out after {}s for type='{}' id={}. "
-                                        + "DataLoaderDispatcherInstrumentation may not be active or the batch "
-                                        + "gRPC service is unreachable. Returning null.",
-                                LOADER_TIMEOUT_SECONDS,
-                                resolvedTypeName,
-                                idStr);
-                    } else {
-                        log.warn(
-                                "[Relationship] DataLoader load failed for type='{}' id={}: {}",
-                                resolvedTypeName,
-                                idStr,
-                                t.getMessage());
-                    }
-                    return null;
-                });
+        // The batch call's own timeout (data-loader.timeout, REST timeout-seconds) bounds the wait:
+        // a timed-out batch fails every key it carried, and each resolves to null here.
+        return loader.load(idStr).exceptionally(t -> {
+            log.warn(
+                    "[Relationship] DataLoader load failed for type='{}' id={}: {}",
+                    resolvedTypeName,
+                    idStr,
+                    t.getMessage());
+            return null;
+        });
     }
 }

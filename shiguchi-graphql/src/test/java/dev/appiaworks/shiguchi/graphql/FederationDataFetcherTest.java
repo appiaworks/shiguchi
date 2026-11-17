@@ -315,4 +315,78 @@ class FederationDataFetcherTest {
         assertThat(result.get()).hasSize(1);
         assertThat(result.get().get(0)).isNull();
     }
+
+    // ---------------------------------------------------------------------------
+    // fetchEntities() through the batch pipeline
+    // ---------------------------------------------------------------------------
+
+    private FederationDataFetcher fetcherWith(dev.appiaworks.shiguchi.config.DataLoaderConfig config) {
+        BatchLoaderPipeline pipeline =
+                new BatchLoaderPipeline(loaderRegistrar, (RestBatchDataLoaderRegistrar) null, config);
+        return new FederationDataFetcher(schemaBuilder, pipeline, null);
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN the same entity represented twice WHEN fetchEntities runs THEN the loader gets the id once and both slots fill")
+    void GIVEN_duplicateRepresentations_WHEN_fetchEntities_SHOULD_loadIdOnce() throws Exception {
+        Map<String, Object> rep = Map.of("__typename", "Book", "id", "34");
+        Map<String, Object> entity = Map.of("id", "34", "name", "Tritanium");
+        when(env.getArgument("representations")).thenReturn(List.of(rep, rep));
+        when(schemaBuilder.getFederationKeys()).thenReturn(Map.of("Book", "id"));
+        when(loaderRegistrar.getLoaders()).thenReturn(Map.of("Book", loaderForBook));
+        when(loaderForBook.loadMapped(eq(List.of("34")), any(Metadata.class)))
+                .thenReturn(Mono.just(Map.of("34", entity)));
+
+        List<Object> result = fetcherWith(new dev.appiaworks.shiguchi.config.DataLoaderConfig())
+                .fetchEntities(env)
+                .get();
+
+        assertThat(result).containsExactly(entity, entity);
+    }
+
+    @Test
+    @DisplayName("GIVEN max-batch-size 1 WHEN two entities are resolved THEN the loader is called once per id")
+    void GIVEN_maxBatchSize1_WHEN_fetchEntities_SHOULD_chunkTheLoaderCalls() throws Exception {
+        Map<String, Object> rep1 = Map.of("__typename", "Book", "id", "34");
+        Map<String, Object> rep2 = Map.of("__typename", "Book", "id", "35");
+        Map<String, Object> entity1 = Map.of("id", "34");
+        Map<String, Object> entity2 = Map.of("id", "35");
+        when(env.getArgument("representations")).thenReturn(List.of(rep1, rep2));
+        when(schemaBuilder.getFederationKeys()).thenReturn(Map.of("Book", "id"));
+        when(loaderRegistrar.getLoaders()).thenReturn(Map.of("Book", loaderForBook));
+        when(loaderForBook.loadMapped(eq(List.of("34")), any(Metadata.class)))
+                .thenReturn(Mono.just(Map.of("34", entity1)));
+        when(loaderForBook.loadMapped(eq(List.of("35")), any(Metadata.class)))
+                .thenReturn(Mono.just(Map.of("35", entity2)));
+        dev.appiaworks.shiguchi.config.DataLoaderConfig config = new dev.appiaworks.shiguchi.config.DataLoaderConfig();
+        config.setMaxBatchSize(1);
+
+        List<Object> result = fetcherWith(config).fetchEntities(env).get();
+
+        assertThat(result).containsExactly(entity1, entity2);
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a cache entry for the type WHEN the same entity is resolved twice THEN the loader is called once")
+    void GIVEN_cacheEntry_WHEN_fetchEntitiesTwice_SHOULD_loadOnce() throws Exception {
+        Map<String, Object> rep = Map.of("__typename", "Book", "id", "34");
+        Map<String, Object> entity = Map.of("id", "34", "name", "Tritanium");
+        when(env.getArgument("representations")).thenReturn(List.of(rep));
+        when(schemaBuilder.getFederationKeys()).thenReturn(Map.of("Book", "id"));
+        when(loaderRegistrar.getLoaders()).thenReturn(Map.of("Book", loaderForBook));
+        when(loaderForBook.loadMapped(eq(List.of("34")), any(Metadata.class)))
+                .thenReturn(Mono.just(Map.of("34", entity)));
+        dev.appiaworks.shiguchi.config.DataLoaderConfig config = new dev.appiaworks.shiguchi.config.DataLoaderConfig();
+        config.getCache().put("Book", new dev.appiaworks.shiguchi.config.DataLoaderConfig.TypeCache());
+        FederationDataFetcher cached = fetcherWith(config);
+
+        List<Object> first = cached.fetchEntities(env).get();
+        List<Object> second = cached.fetchEntities(env).get();
+
+        assertThat(first).containsExactly(entity);
+        assertThat(second).containsExactly(entity);
+        org.mockito.Mockito.verify(loaderForBook, org.mockito.Mockito.times(1)).loadMapped(any(), any(Metadata.class));
+    }
 }

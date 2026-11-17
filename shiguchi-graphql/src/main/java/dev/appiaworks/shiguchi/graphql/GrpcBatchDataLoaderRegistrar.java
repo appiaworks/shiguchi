@@ -3,11 +3,14 @@ package dev.appiaworks.shiguchi.graphql;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.MethodDescriptor;
+import dev.appiaworks.shiguchi.config.DataLoaderConfig;
+import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.proto.GraphQlProto;
 import dev.appiaworks.shiguchi.rest.ReactiveGrpcDispatcher;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
 import jakarta.annotation.PostConstruct;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -15,7 +18,9 @@ import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
 
 /**
@@ -29,6 +34,7 @@ import org.springframework.stereotype.Component;
  * service loaded late, a refresh swapped a schema): {@link GrpcDataLoaderRegistryFactory} rescans
  * on each schema reload. A route that did not change keeps its loader.
  */
+@DependsOn({"dynamicRouteLoader", "staticRouteLoader", "restDownstreamRouteLoader"})
 @Component
 @ConditionalOnProperty(prefix = "shiguchi.graphql", name = "enabled", matchIfMissing = true)
 public class GrpcBatchDataLoaderRegistrar {
@@ -38,10 +44,22 @@ public class GrpcBatchDataLoaderRegistrar {
     private final ReactiveGrpcDispatcher dispatcher;
     private final Map<String, BatchLoader> loadersByType = Collections.synchronizedMap(new LinkedHashMap<>());
     private final Map<String, RouteDefinition> routesByType = new HashMap<>();
+    private final Duration timeout;
 
     public GrpcBatchDataLoaderRegistrar(GrpcRouteRegistry registry, ReactiveGrpcDispatcher dispatcher) {
+        this(registry, dispatcher, new DataLoaderConfig().getTimeout());
+    }
+
+    @Autowired
+    public GrpcBatchDataLoaderRegistrar(
+            GrpcRouteRegistry registry, ReactiveGrpcDispatcher dispatcher, GatewayProperties properties) {
+        this(registry, dispatcher, properties.getGraphql().getDataLoader().getTimeout());
+    }
+
+    GrpcBatchDataLoaderRegistrar(GrpcRouteRegistry registry, ReactiveGrpcDispatcher dispatcher, Duration timeout) {
         this.registry = registry;
         this.dispatcher = dispatcher;
+        this.timeout = timeout;
     }
 
     /**
@@ -98,8 +116,8 @@ public class GrpcBatchDataLoaderRegistrar {
         String entityKeyJsonName = detectEntityKeyField(methodDescriptor, route.getLoaderResultField())
                 .orElse("id");
 
-        var loader =
-                new GrpcBatchLoader(route, ctx, dispatcher, batchKeyJsonName, batchResultJsonName, entityKeyJsonName);
+        var loader = new GrpcBatchLoader(
+                route, ctx, dispatcher, batchKeyJsonName, batchResultJsonName, entityKeyJsonName, timeout);
 
         log.debug(
                 "Registered batch loader for type {} (route: {}, entity key: {})",

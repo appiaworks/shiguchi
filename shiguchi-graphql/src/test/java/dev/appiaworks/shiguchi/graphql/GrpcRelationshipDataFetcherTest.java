@@ -120,7 +120,7 @@ class GrpcRelationshipDataFetcherTest {
     @DisplayName(
             "Given the DataLoader future fails with a TimeoutException, when get called, should complete with null (the timeout branch of exceptionally)")
     void given_loaderFutureFailsWithTimeoutException_when_get_should_completeWithNull() throws Exception {
-        // Arrange — simulates what the fetcher's own orTimeout(10s) would produce, without
+        // Arrange — simulates what a timed-out batch call (data-loader.timeout) produces, without
         // actually waiting out the real timeout window in this test.
         GrpcRelationshipDataFetcher fetcher = new GrpcRelationshipDataFetcher("authorId", "Author");
         DataFetchingEnvironment env = envWithSource(Map.of("authorId", "42"));

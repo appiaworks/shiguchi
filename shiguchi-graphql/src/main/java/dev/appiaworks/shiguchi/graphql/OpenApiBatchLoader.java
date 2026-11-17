@@ -3,10 +3,10 @@ package dev.appiaworks.shiguchi.graphql;
 import dev.appiaworks.shiguchi.config.RestBatchLoaderConfig;
 import io.grpc.Metadata;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -27,6 +27,10 @@ import tools.jackson.databind.ObjectMapper;
  *   <li><b>Parallel</b>: N concurrent GETs to {@code baseUrl + endpoint} with {@code {id}}
  *       template substituted per key. Results are merged into the output map.</li>
  * </ul>
+ *
+ * <p>{@code max-batch-size} splits the batch strategy's ids over several requests, and
+ * {@code max-concurrency} bounds how many requests (those, or the parallel strategy's single GETs)
+ * run at once.
  *
  * <p>The Authorization header from gRPC {@link Metadata} is forwarded as an HTTP header
  * when present so REST services receive the same bearer token.
@@ -59,12 +63,38 @@ public class OpenApiBatchLoader implements BatchLoader {
                 config.getType(),
                 config.getEndpoint());
 
-        return config.isBatchEndpoint() ? loadBatch(keys, metadata) : loadParallel(keys, metadata);
+        return config.isBatchEndpoint() ? loadBatches(keys, metadata) : loadParallel(keys, metadata);
+    }
+
+    /** At most {@code max-concurrency} requests at a time; 0 = all at once. */
+    private int concurrency() {
+        return config.getMaxConcurrency() <= 0 ? Integer.MAX_VALUE : config.getMaxConcurrency();
     }
 
     // -------------------------------------------------------------------------
     // Batch strategy: GET /endpoint?idsParam=id1,id2,id3
     // -------------------------------------------------------------------------
+
+    private Mono<Map<String, Map<String, Object>>> loadBatches(List<String> keys, Metadata metadata) {
+        // The ids travel comma-joined, so an id with a comma would read as two ids on the other side
+        // (percent-encoding it changes nothing: the server decodes it back to a comma first).
+        List<String> usable = new ArrayList<>(keys.size());
+        for (String key : keys) {
+            if (key.indexOf(',') >= 0) {
+                log.warn(
+                        "[OpenApiBatchLoader] Skipping id with a comma for type={}: the batch strategy"
+                                + " cannot carry it (use batch-endpoint: false)",
+                        config.getType());
+            } else {
+                usable.add(key);
+            }
+        }
+        if (usable.isEmpty()) return Mono.just(new LinkedHashMap<>());
+        int size = config.getMaxBatchSize();
+        if (size <= 0 || usable.size() <= size) return loadBatch(usable, metadata);
+        return BatchLoaderPipeline.chunked(
+                usable, size, config.getMaxConcurrency(), chunk -> loadBatch(chunk, metadata));
+    }
 
     private Mono<Map<String, Map<String, Object>>> loadBatch(List<String> keys, Metadata metadata) {
         String idsValue = String.join(",", keys);
@@ -133,29 +163,31 @@ public class OpenApiBatchLoader implements BatchLoader {
     // -------------------------------------------------------------------------
 
     private Mono<Map<String, Map<String, Object>>> loadParallel(List<String> keys, Metadata metadata) {
-        List<Mono<Map.Entry<String, Map<String, Object>>>> singles = keys.stream()
-                .map(id -> loadSingle(id, metadata)
-                        .map(entity -> Map.entry(id, entity))
-                        .onErrorResume(ex -> {
-                            log.warn(
-                                    "[OpenApiBatchLoader] Single GET failed for type={} id={}: {}",
-                                    config.getType(),
-                                    id,
-                                    ex.getMessage());
-                            return Mono.empty();
-                        }))
-                .collect(Collectors.toList());
-
-        return Flux.merge(singles)
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a, LinkedHashMap::new));
+        return Flux.fromIterable(keys)
+                .flatMap(
+                        id -> loadSingle(id, metadata)
+                                .map(entity -> Map.entry(id, entity))
+                                .onErrorResume(ex -> {
+                                    log.warn(
+                                            "[OpenApiBatchLoader] Single GET failed for type={} id={}: {}",
+                                            config.getType(),
+                                            id,
+                                            ex.getMessage());
+                                    return Mono.empty();
+                                }),
+                        concurrency())
+                .collect(
+                        () -> new LinkedHashMap<String, Map<String, Object>>(),
+                        (map, entry) -> map.putIfAbsent(entry.getKey(), entry.getValue()))
+                .<Map<String, Map<String, Object>>>map(map -> map);
     }
 
     private Mono<Map<String, Object>> loadSingle(String id, Metadata metadata) {
-        String path = config.getEndpoint().replace("{id}", id);
         String authHeader = extractAuth(metadata);
+        // Template expansion encodes the id, so "a/b?c" stays one path segment and cannot add a query.
         return webClient
                 .get()
-                .uri(path)
+                .uri(config.getEndpoint(), Map.of("id", id))
                 .headers(h -> {
                     if (authHeader != null) h.set(AUTHORIZATION, authHeader);
                 })

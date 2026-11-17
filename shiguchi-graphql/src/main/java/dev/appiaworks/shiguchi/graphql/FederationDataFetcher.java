@@ -1,5 +1,6 @@
 package dev.appiaworks.shiguchi.graphql;
 
+import dev.appiaworks.shiguchi.config.DataLoaderConfig;
 import dev.appiaworks.shiguchi.gateway.GrpcMetadataPopulator;
 import graphql.schema.DataFetchingEnvironment;
 import io.grpc.Metadata;
@@ -23,16 +24,16 @@ import reactor.core.publisher.Mono;
  *
  * _entities protocol (Federation v1/v2):
  *   Each representation is a JSON object with at least __typename and the @key field(s).
- *   Representations are grouped by __typename, dispatched via the matching BatchLoader
- *   (either gRPC or REST), then reassembled in the original input order (null for unresolved entries).
+ *   Representations are grouped by __typename, dispatched through the {@link BatchLoaderPipeline}
+ *   (de-duplicated, cached and split like every other batch load; the loader is gRPC or REST),
+ *   then reassembled in the original input order (null for unresolved entries).
  */
 public class FederationDataFetcher {
 
     private static final Logger log = LoggerFactory.getLogger(FederationDataFetcher.class);
 
     private final GraphQlSchemaBuilder schemaBuilder;
-    private final GrpcBatchDataLoaderRegistrar loaderRegistrar;
-    private final RestBatchDataLoaderRegistrar restLoaderRegistrar;
+    private final BatchLoaderPipeline pipeline;
     private final GrpcMetadataPopulator metadataPopulator;
 
     public FederationDataFetcher(GraphQlSchemaBuilder schemaBuilder, GrpcBatchDataLoaderRegistrar loaderRegistrar) {
@@ -52,18 +53,18 @@ public class FederationDataFetcher {
             GrpcBatchDataLoaderRegistrar loaderRegistrar,
             RestBatchDataLoaderRegistrar restLoaderRegistrar,
             GrpcMetadataPopulator metadataPopulator) {
-        this.schemaBuilder = schemaBuilder;
-        this.loaderRegistrar = loaderRegistrar;
-        this.restLoaderRegistrar = restLoaderRegistrar;
-        this.metadataPopulator = metadataPopulator;
+        this(
+                schemaBuilder,
+                new BatchLoaderPipeline(loaderRegistrar, restLoaderRegistrar, new DataLoaderConfig()),
+                metadataPopulator);
     }
 
-    private Map<String, BatchLoader> allLoaders() {
-        Map<String, BatchLoader> combined = new LinkedHashMap<>(loaderRegistrar.getLoaders());
-        if (restLoaderRegistrar != null) {
-            combined.putAll(restLoaderRegistrar.getLoaders());
-        }
-        return combined;
+    /** The entity loads go through the shared pipeline: de-duplicated, cached and split as configured. */
+    FederationDataFetcher(
+            GraphQlSchemaBuilder schemaBuilder, BatchLoaderPipeline pipeline, GrpcMetadataPopulator metadataPopulator) {
+        this.schemaBuilder = schemaBuilder;
+        this.pipeline = pipeline;
+        this.metadataPopulator = metadataPopulator;
     }
 
     /** Data fetcher for Query._service — returns { sdl: "..." }. */
@@ -125,8 +126,7 @@ public class FederationDataFetcher {
             List<Integer> indices = entry.getValue();
             List<String> ids = idsByType.get(typeName);
 
-            BatchLoader loader = allLoaders().get(typeName);
-            if (loader == null) {
+            if (!pipeline.has(typeName)) {
                 log.warn(
                         "[Federation] No batch loader for type '{}'; {} representations will be null",
                         typeName,
@@ -135,7 +135,7 @@ public class FederationDataFetcher {
             }
 
             CompletableFuture<Void> f = GraphQlRequestContext.within(
-                            env.getGraphQlContext(), metadata.flatMap(md -> loader.loadMapped(ids, md)))
+                            env.getGraphQlContext(), metadata.flatMap(md -> pipeline.load(typeName, ids, md)))
                     .toFuture()
                     .thenAccept(entityMap -> {
                         for (int j = 0; j < indices.size(); j++) {

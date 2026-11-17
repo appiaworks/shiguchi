@@ -324,5 +324,7 @@ All under `shiguchi.graphql`. See [configuration.md](configuration.md).
 | `response-cache.stale-while-revalidate` | `PT0S` |
 | `response-cache.vary-by-principal` | `true` |
 | `data-loader.max-batch-size` | `0` (unlimited) |
+| `data-loader.max-concurrent-batches` | `4` (0 = all at once) |
+| `data-loader.timeout` | `PT10S` |
 | `data-loader.cache.<TypeName>.ttl` / `.max-size` | `PT1H` / `10000` (cache map empty by default) |
 | `compat-options` | empty; only value `graphql-1079` |

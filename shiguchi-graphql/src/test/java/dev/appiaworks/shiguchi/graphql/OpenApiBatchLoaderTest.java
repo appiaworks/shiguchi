@@ -330,4 +330,71 @@ class OpenApiBatchLoaderTest {
             return requests;
         }
     }
+
+    // -------------------------------------------------------------------------
+    // Concurrency bound, batch split, id encoding
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName(
+            "Given max-concurrency 2 on the parallel strategy, when six ids load, should never run more than two GETs at once")
+    void given_maxConcurrency2_when_sixIdsLoaded_should_boundInFlightGets() {
+        java.util.concurrent.atomic.AtomicInteger inFlight = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicInteger maxInFlight = new java.util.concurrent.atomic.AtomicInteger();
+        WebClient client = clientWith(req -> {
+            maxInFlight.accumulateAndGet(inFlight.incrementAndGet(), Math::max);
+            return mockResponse(200, "{\"id\":\"x\"}")
+                    .delayElement(java.time.Duration.ofMillis(50))
+                    .doOnNext(r -> inFlight.decrementAndGet());
+        });
+        RestBatchLoaderConfig cfg = parallelConfig("/products/{id}");
+        cfg.setMaxConcurrency(2);
+        OpenApiBatchLoader loader = new OpenApiBatchLoader(client, cfg, objectMapper);
+
+        loader.loadMapped(List.of("1", "2", "3", "4", "5", "6"), new Metadata()).block();
+
+        assertThat(maxInFlight.get()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("Given max-batch-size 2 on the batch strategy, when five ids load, should send three requests")
+    void given_maxBatchSize2_when_fiveIdsLoaded_should_sendThreeRequests() {
+        CapturingClient cc = capturingClient(200, "[]");
+        RestBatchLoaderConfig cfg = batchConfig("/products");
+        cfg.setMaxBatchSize(2);
+        OpenApiBatchLoader loader = new OpenApiBatchLoader(cc.webClient(), cfg, objectMapper);
+
+        loader.loadMapped(List.of("1", "2", "3", "4", "5"), new Metadata()).block();
+
+        assertThat(cc.requests()).hasSize(3);
+    }
+
+    @Test
+    @DisplayName(
+            "Given an id with a slash and a question mark, when loaded by the parallel strategy, should encode it as one path segment")
+    void given_idWithSlashAndQuestionMark_when_loadedInParallel_should_encodePathSegment() {
+        CapturingClient cc = capturingClient(200, "{\"id\":\"a/b?c\"}");
+        OpenApiBatchLoader loader =
+                new OpenApiBatchLoader(cc.webClient(), parallelConfig("/categories/{id}"), objectMapper);
+
+        loader.loadMapped(List.of("a/b?c"), new Metadata()).block();
+
+        assertThat(cc.requests()).hasSize(1);
+        URI uri = cc.requests().get(0).url();
+        assertThat(uri.getRawPath()).isEqualTo("/categories/a%2Fb%3Fc");
+        assertThat(uri.getRawQuery()).isNull();
+    }
+
+    @Test
+    @DisplayName(
+            "Given an id with a comma, when loaded by the batch strategy, should skip it and send only the usable ids")
+    void given_idWithComma_when_loadedByBatchStrategy_should_skipIt() {
+        CapturingClient cc = capturingClient(200, "[]");
+        OpenApiBatchLoader loader = new OpenApiBatchLoader(cc.webClient(), batchConfig("/products"), objectMapper);
+
+        loader.loadMapped(List.of("a,b", "c"), new Metadata()).block();
+
+        assertThat(cc.requests()).hasSize(1);
+        assertThat(cc.requests().get(0).url().getRawQuery()).isEqualTo("ids=c");
+    }
 }

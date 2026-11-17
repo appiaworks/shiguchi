@@ -4,17 +4,13 @@ import dev.appiaworks.protobuf.extras.serde.JsonFactories;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.RestBatchLoaderConfig;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
-import dev.appiaworks.shiguchi.gateway.GrpcMetadataPopulator;
 import jakarta.annotation.PostConstruct;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.graphql.execution.BatchLoaderRegistry;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import tools.jackson.databind.DeserializationFeature;
@@ -26,12 +22,9 @@ import tools.jackson.databind.json.JsonMapper;
  * Scans REST_DOWNSTREAM service definitions at startup and registers an
  * {@link OpenApiBatchLoader} for each declared {@link RestBatchLoaderConfig} entry.
  *
- * <p>These loaders participate in:
- * <ul>
- *   <li>DGS {@link BatchLoaderRegistry} (so GraphQL field resolvers using DataLoader work).</li>
- *   <li>Apollo Federation {@code _entities} resolution via {@link GrpcBatchDataLoaderRegistrar},
- *       which merges REST loaders into its combined loader map.</li>
- * </ul>
+ * <p>It only builds the loaders. {@link BatchLoaderPipeline} runs them, for both the GraphQL
+ * field DataLoaders ({@link GrpcDataLoaderRegistryFactory} registers them with Spring GraphQL) and
+ * Apollo Federation {@code _entities} resolution.
  *
  * <p>The service base URL is derived from {@code host:port} on the {@link ServiceDefinition}.
  * If {@code openapiUrl} is set, the host/port are inferred from it — otherwise the
@@ -44,7 +37,6 @@ public class RestBatchDataLoaderRegistrar {
     private static final Logger log = LoggerFactory.getLogger(RestBatchDataLoaderRegistrar.class);
 
     private final GatewayProperties properties;
-    private final BatchLoaderRegistry batchLoaderRegistry;
     // Jackson 3 sorts properties alphabetically and rejects trailing tokens by default; Jackson 2 did
     // neither, so both stay off. The factory carries Jackson 2's read limits and number handling.
     private final ObjectMapper objectMapper = JsonMapper.builder(JsonFactories.create())
@@ -53,22 +45,10 @@ public class RestBatchDataLoaderRegistrar {
             .build();
 
     private final Map<String, BatchLoader> loadersByType = Collections.synchronizedMap(new LinkedHashMap<>());
+    private final Map<String, RestBatchLoaderConfig> configsByType = Collections.synchronizedMap(new LinkedHashMap<>());
 
-    private final GrpcMetadataPopulator metadataPopulator;
-
-    /** As the constructor Spring uses, without a populator: only the inbound Authorization header is relayed. */
-    public RestBatchDataLoaderRegistrar(GatewayProperties properties, BatchLoaderRegistry batchLoaderRegistry) {
-        this(properties, batchLoaderRegistry, null);
-    }
-
-    @Autowired
-    public RestBatchDataLoaderRegistrar(
-            GatewayProperties properties,
-            BatchLoaderRegistry batchLoaderRegistry,
-            GrpcMetadataPopulator metadataPopulator) {
+    public RestBatchDataLoaderRegistrar(GatewayProperties properties) {
         this.properties = properties;
-        this.batchLoaderRegistry = batchLoaderRegistry;
-        this.metadataPopulator = metadataPopulator;
     }
 
     @PostConstruct
@@ -89,12 +69,7 @@ public class RestBatchDataLoaderRegistrar {
                 }
                 OpenApiBatchLoader loader = new OpenApiBatchLoader(webClient, cfg, objectMapper);
                 loadersByType.put(cfg.getType(), loader);
-
-                batchLoaderRegistry
-                        .<String, Map<String, Object>>forName(cfg.getType())
-                        .registerMappedBatchLoader(
-                                (keys, env) -> GraphQlMetadata.build(env.getContext(), metadataPopulator)
-                                        .flatMap(metadata -> loader.loadMapped(new ArrayList<>(keys), metadata)));
+                configsByType.put(cfg.getType(), cfg);
 
                 log.debug(
                         "[RestBatchLoaderRegistrar] Registered REST batch loader: type={} baseUrl={} endpoint={}",
@@ -114,6 +89,11 @@ public class RestBatchDataLoaderRegistrar {
 
     public Map<String, BatchLoader> getLoaders() {
         return Collections.unmodifiableMap(loadersByType);
+    }
+
+    /** The declaring {@link RestBatchLoaderConfig} per type. */
+    Map<String, RestBatchLoaderConfig> getConfigs() {
+        return Collections.unmodifiableMap(configsByType);
     }
 
     /** Same base URL the proxy routes use: {@code base-url}, else the authority of {@code openapi-url}, else host:port. */

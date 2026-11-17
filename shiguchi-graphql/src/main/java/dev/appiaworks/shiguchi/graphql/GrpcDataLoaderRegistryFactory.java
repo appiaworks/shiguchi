@@ -8,9 +8,9 @@ import dev.appiaworks.shiguchi.routing.SchemaReloadListener;
 import dev.appiaworks.shiguchi.routing.ServiceLoadStatus;
 import graphql.GraphQLContext;
 import jakarta.annotation.PostConstruct;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
@@ -23,7 +23,6 @@ import org.springframework.core.annotation.Order;
 import org.springframework.graphql.execution.BatchLoaderRegistry;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
-import reactor.core.publisher.Mono;
 
 /**
  * Registers a per-request {@link org.dataloader.DataLoader} for each gRPC batch route
@@ -40,9 +39,10 @@ import reactor.core.publisher.Mono;
  * fetcher calls and REST: the caller's principal, its Authorization (or the credential source's),
  * forward-headers and tracing.
  *
- * <p>{@code shiguchi.graphql.data-loader.max-batch-size} splits large batches, and a
- * {@code shiguchi.graphql.data-loader.cache.<Type>} entry wraps that type's loader in a
- * {@link CachingBatchLoader} shared by all requests.
+ * <p>It registers every type the {@link BatchLoaderPipeline} knows, gRPC and REST alike, and each
+ * registration calls the pipeline: {@code shiguchi.graphql.data-loader.max-batch-size} splits large
+ * batches there (not in the DataLoader), and a {@code shiguchi.graphql.data-loader.cache.<Type>}
+ * entry wraps that type's loader in a {@link CachingBatchLoader} shared by all requests.
  *
  * <p>Services loaded after startup: on every schema reload (a deferred service loaded, a refresh
  * swapped a schema) the registrar rescans and the types it did not have before are registered.
@@ -64,17 +64,14 @@ public class GrpcDataLoaderRegistryFactory implements SchemaReloadListener {
 
     private final BatchLoaderRegistry batchLoaderRegistry;
     private final GrpcBatchDataLoaderRegistrar registrar;
+    private final BatchLoaderPipeline pipeline;
     private final DataLoaderConfig config;
     private final GrpcMetadataPopulator metadataPopulator;
 
     private final Set<String> registeredTypes = ConcurrentHashMap.newKeySet();
-    private final Map<String, CachedLoader> cachingLoaders = new ConcurrentHashMap<>();
     private final Set<String> reportedCacheTypes = ConcurrentHashMap.newKeySet();
     private Supplier<List<String>> pendingServices = List::of;
     private boolean started;
-
-    /** A type's caching wrapper, kept for as long as the loader it wraps is the current one. */
-    private record CachedLoader(BatchLoader delegate, BatchLoader caching) {}
 
     public GrpcDataLoaderRegistryFactory(
             BatchLoaderRegistry batchLoaderRegistry, GrpcBatchDataLoaderRegistrar registrar) {
@@ -89,13 +86,22 @@ public class GrpcDataLoaderRegistryFactory implements SchemaReloadListener {
         this(batchLoaderRegistry, registrar, properties, null);
     }
 
-    @Autowired
     public GrpcDataLoaderRegistryFactory(
             BatchLoaderRegistry batchLoaderRegistry,
             GrpcBatchDataLoaderRegistrar registrar,
             GatewayProperties properties,
             GrpcMetadataPopulator metadataPopulator) {
         this(batchLoaderRegistry, registrar, properties.getGraphql().getDataLoader(), metadataPopulator);
+    }
+
+    @Autowired
+    GrpcDataLoaderRegistryFactory(
+            BatchLoaderRegistry batchLoaderRegistry,
+            GrpcBatchDataLoaderRegistrar registrar,
+            BatchLoaderPipeline pipeline,
+            GatewayProperties properties,
+            GrpcMetadataPopulator metadataPopulator) {
+        this(batchLoaderRegistry, registrar, pipeline, properties.getGraphql().getDataLoader(), metadataPopulator);
     }
 
     GrpcDataLoaderRegistryFactory(
@@ -108,8 +114,38 @@ public class GrpcDataLoaderRegistryFactory implements SchemaReloadListener {
             GrpcBatchDataLoaderRegistrar registrar,
             DataLoaderConfig config,
             GrpcMetadataPopulator metadataPopulator) {
+        this(
+                batchLoaderRegistry,
+                registrar,
+                new BatchLoaderPipeline(registrar, (RestBatchDataLoaderRegistrar) null, config),
+                config,
+                metadataPopulator);
+    }
+
+    /** With a REST registrar: its types register too, through the same pipeline. */
+    GrpcDataLoaderRegistryFactory(
+            BatchLoaderRegistry batchLoaderRegistry,
+            GrpcBatchDataLoaderRegistrar registrar,
+            Optional<RestBatchDataLoaderRegistrar> restRegistrar,
+            DataLoaderConfig config,
+            GrpcMetadataPopulator metadataPopulator) {
+        this(
+                batchLoaderRegistry,
+                registrar,
+                new BatchLoaderPipeline(registrar, restRegistrar.orElse(null), config),
+                config,
+                metadataPopulator);
+    }
+
+    GrpcDataLoaderRegistryFactory(
+            BatchLoaderRegistry batchLoaderRegistry,
+            GrpcBatchDataLoaderRegistrar registrar,
+            BatchLoaderPipeline pipeline,
+            DataLoaderConfig config,
+            GrpcMetadataPopulator metadataPopulator) {
         this.batchLoaderRegistry = batchLoaderRegistry;
         this.registrar = registrar;
+        this.pipeline = pipeline;
         this.config = config;
         this.metadataPopulator = metadataPopulator;
     }
@@ -129,7 +165,7 @@ public class GrpcDataLoaderRegistryFactory implements SchemaReloadListener {
         reportUnmatchedCacheEntries();
 
         int added = 0;
-        for (String typeName : List.copyOf(registrar.getLoaders().keySet())) {
+        for (String typeName : List.copyOf(pipeline.types())) {
             if (!registeredTypes.add(typeName)) continue;
             added++;
             DataLoaderConfig.TypeCache cacheConfig = config.getCache().get(typeName);
@@ -142,17 +178,8 @@ public class GrpcDataLoaderRegistryFactory implements SchemaReloadListener {
             }
             batchLoaderRegistry
                     .<String, Map<String, Object>>forName(typeName)
-                    .withOptions(options -> {
-                        if (config.getMaxBatchSize() > 0) {
-                            options.setMaxBatchSize(config.getMaxBatchSize());
-                        }
-                    })
-                    .registerMappedBatchLoader((keys, env) -> {
-                        BatchLoader loader = currentLoader(typeName);
-                        if (loader == null) return Mono.just(Map.of());
-                        return GraphQlMetadata.build(env.getContext(), metadataPopulator)
-                                .flatMap(metadata -> loader.loadMapped(new ArrayList<>(keys), metadata));
-                    });
+                    .registerMappedBatchLoader((keys, env) -> GraphQlMetadata.build(env.getContext(), metadataPopulator)
+                            .flatMap(metadata -> pipeline.load(typeName, keys, metadata)));
             log.debug("Registered DataLoader for type: {}", typeName);
         }
         if (added > 0 || !started) {
@@ -168,28 +195,14 @@ public class GrpcDataLoaderRegistryFactory implements SchemaReloadListener {
         registerLoaders();
     }
 
-    /** The type's loader as of now, wrapped in its cache when one is configured; null once the type is gone. */
-    private BatchLoader currentLoader(String typeName) {
-        BatchLoader registered = registrar.getLoaders().get(typeName);
-        if (registered == null) return null;
-        DataLoaderConfig.TypeCache cacheConfig = config.getCache().get(typeName);
-        if (cacheConfig == null) return registered;
-        return cachingLoaders
-                .compute(
-                        typeName,
-                        (type, cached) -> cached != null && cached.delegate() == registered
-                                ? cached
-                                : new CachedLoader(registered, new CachingBatchLoader(registered, cacheConfig)))
-                .caching();
-    }
-
     /**
      * A cache entry whose type no loader provides is reported once: as waiting while some
      * service has not loaded (it may bring the type), as ignored once every service has.
      */
     private void reportUnmatchedCacheEntries() {
+        Set<String> known = pipeline.types();
         List<String> unmatched = config.getCache().keySet().stream()
-                .filter(type -> !registrar.getLoaders().containsKey(type))
+                .filter(type -> !known.contains(type))
                 .toList();
         if (unmatched.isEmpty()) return;
         List<String> pending = pendingServices.get();

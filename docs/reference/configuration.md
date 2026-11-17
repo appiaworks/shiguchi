@@ -111,6 +111,8 @@ spring:
 | `shiguchi.graphql.persisted-queries.enabled` / `max-entries` / `expire-after-access` | `false` / `1000` / `1h` | Apollo automatic persisted queries: clients send the query's SHA-256 in `extensions.persistedQuery`, the text only once; emptied on schema reload. Leave `dgs.graphql.apq.enabled` off with it |
 | `shiguchi.graphql.response-cache.enabled` / `max-entries` / `stale-while-revalidate` / `vary-by-principal` | `false` / `2000` / `0s` / `true` | Answer a repeated query from memory for the smallest `cache_ttl_seconds` of the methods behind its root fields, keyed by document, operation, variables and (by default) caller. A mutation evicts the entries of its services, a schema reload empties the cache. `Cache-Status` and `Age` on every answered query. See [caching.md](../guides/caching.md#graphql-response-cache) |
 | `shiguchi.graphql.data-loader.max-batch-size` | `0` (unlimited) | Split a type's DataLoader batch into calls of at most this many ids |
+| `shiguchi.graphql.data-loader.max-concurrent-batches` | `4` | How many of a type's split batch calls run at once; `0` = all at once |
+| `shiguchi.graphql.data-loader.timeout` | `10s` | Timeout of one gRPC batch call; past it the call fails and its keys resolve to null |
 | `shiguchi.graphql.data-loader.cache.<Type>.ttl` | `1h` | Opt-in cross-request cache for the DataLoader of `<Type>` (the `loader_for` name): loaded entities are served for this long without calling the backend. Keyed by id only, whoever asks (the caller's identity is not part of the key), so list only types whose entities are the same for every caller. A type served by a `DYNAMIC` service that loads after startup picks up its cache when the service loads |
 | `shiguchi.graphql.data-loader.cache.<Type>.max-size` | `10000` | Most entities of `<Type>` kept in that cache |
 | `shiguchi.openapi.enabled` | `true` | OpenAPI 3 spec + Swagger UI |
@@ -388,7 +390,7 @@ bean; define your own bean of that name and the gateway's backs off — call
 | `shiguchi.avro.schema-endpoint` | `/avro/schemas` | `GET <endpoint>/{proto full name or fingerprint}` serves the derived Avro schema |
 | `shiguchi.avro.uint64-as` | `LONG` | How `uint64` / `fixed64` map into derived Avro schemas: `LONG` (wraps above 2^63) or `STRING` |
 | `shiguchi.merge.*` | — | Cross-backend merge routes (`max-sources`, `window-multiplier`, `routes[]`) — documented in [merging.md](../guides/merging.md) |
-| `rest-batch-loaders[]` | `[]` | `REST_DOWNSTREAM`: endpoints that resolve GraphQL types by id (`type`, `endpoint`, `ids-param`, `key-field`, `result-field`, `batch-endpoint`, `timeout-seconds`) |
+| `rest-batch-loaders[]` | `[]` | `REST_DOWNSTREAM`: endpoints that resolve GraphQL types by id (`type`, `endpoint`, `ids-param`, `key-field`, `result-field`, `batch-endpoint`, `timeout-seconds`, `max-batch-size` (0 = the global `data-loader.max-batch-size`), `max-concurrency` (default 16, 0 = unbounded)) |
 
 ## Conventions (no annotation needed)
 

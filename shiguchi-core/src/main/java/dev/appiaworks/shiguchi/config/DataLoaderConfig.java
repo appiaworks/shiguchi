@@ -22,6 +22,15 @@ public class DataLoaderConfig {
     /** Largest number of ids sent in one batch call; larger batches are split. {@code 0} = unlimited. */
     private int maxBatchSize = 0;
 
+    /**
+     * Most batch calls of one load that run at the same time once {@link #maxBatchSize} has split it.
+     * {@code 0} = unbounded.
+     */
+    private int maxConcurrentBatches = 4;
+
+    /** How long one gRPC batch call may take before it fails and its keys resolve to null. */
+    private Duration timeout = Duration.ofSeconds(10);
+
     /** Cross-request entity cache per GraphQL type name (the {@code loader_for} value). Empty by default. */
     private Map<String, TypeCache> cache = new LinkedHashMap<>();
 

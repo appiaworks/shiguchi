@@ -264,23 +264,66 @@ class GrpcDataLoaderRegistryFactoryTest {
 
     @Test
     @DisplayName(
-            "Given DataLoaderConfig has maxBatchSize, when registerLoaders runs, should register the loader with config options applied")
-    void given_dataLoaderConfigWithMaxBatchSize_when_registerLoaders_should_registerLoaderWithConfig() {
+            "Given DataLoaderConfig has maxBatchSize, when the registered callback runs with more keys, should split the call in the pipeline")
+    void given_dataLoaderConfigWithMaxBatchSize_when_callbackRuns_should_splitCallInPipeline() {
         // Arrange
         RecordingBatchLoaderRegistry registry = new RecordingBatchLoaderRegistry();
         GrpcBatchDataLoaderRegistrar registrar = mock(GrpcBatchDataLoaderRegistrar.class);
-        RecordingBatchLoader loader = new RecordingBatchLoader();
+        List<Integer> callSizes = new java.util.concurrent.CopyOnWriteArrayList<>();
+        BatchLoader loader = (keys, metadata) -> {
+            callSizes.add(keys.size());
+            return Mono.just(Map.of());
+        };
         when(registrar.getLoaders()).thenReturn(Map.of("Book", loader));
 
         DataLoaderConfig config = new DataLoaderConfig();
-        config.setMaxBatchSize(50);
+        config.setMaxBatchSize(2);
         GrpcDataLoaderRegistryFactory factory = new GrpcDataLoaderRegistryFactory(registry, registrar, config);
 
         // Act
         factory.registerLoaders();
 
-        // Assert: loader is registered (withOptions is called internally)
+        registry.registered
+                .get("Book")
+                .apply(
+                        new java.util.LinkedHashSet<>(List.of("1", "2", "3", "4", "5")),
+                        envWithGraphQlContext(GraphQLContext.newContext().build()))
+                .block();
+
+        // Assert
         assertThat(registry.registered).containsKey("Book");
+        assertThat(callSizes).containsExactlyInAnyOrder(2, 2, 1);
+    }
+
+    @Test
+    @DisplayName(
+            "Given a type loaded by both gRPC and REST, when registerLoaders runs on a real registry, should register one loader answered by gRPC")
+    void given_typeInGrpcAndRest_when_registerLoadersOnRealRegistry_should_registerOneLoaderAnsweredByGrpc()
+            throws Exception {
+        // Arrange
+        GatewayBatchLoaderRegistry registry = new GatewayBatchLoaderRegistry();
+        RecordingBatchLoader grpc = new RecordingBatchLoader();
+        grpc.toReturn = Mono.just(Map.of("1", Map.of("title", "from-grpc")));
+        RecordingBatchLoader rest = new RecordingBatchLoader();
+        GrpcBatchDataLoaderRegistrar grpcRegistrar = mock(GrpcBatchDataLoaderRegistrar.class);
+        when(grpcRegistrar.getLoaders()).thenReturn(Map.of("Book", grpc));
+        RestBatchDataLoaderRegistrar restRegistrar = mock(RestBatchDataLoaderRegistrar.class);
+        when(restRegistrar.getLoaders()).thenReturn(Map.of("Book", rest, "Tag", rest));
+        GrpcDataLoaderRegistryFactory factory = new GrpcDataLoaderRegistryFactory(
+                registry, grpcRegistrar, java.util.Optional.of(restRegistrar), new DataLoaderConfig(), null);
+
+        // Act
+        factory.registerLoaders();
+        org.dataloader.DataLoaderRegistry dataLoaders = new org.dataloader.DataLoaderRegistry();
+        registry.registerDataLoaders(dataLoaders, GraphQLContext.newContext().build());
+        org.dataloader.DataLoader<String, Map<String, Object>> book = dataLoaders.getDataLoader("Book");
+        java.util.concurrent.CompletableFuture<Map<String, Object>> loaded = book.load("1");
+        book.dispatch();
+
+        // Assert
+        assertThat(dataLoaders.getKeys()).containsExactlyInAnyOrder("Book", "Tag");
+        assertThat(loaded.get(5, java.util.concurrent.TimeUnit.SECONDS)).containsEntry("title", "from-grpc");
+        assertThat(rest.lastKeys).isNull();
     }
 
     @Test
