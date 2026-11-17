@@ -283,6 +283,10 @@ is the largest among the results.
 (`type _Service { sdl: String! }`); `Query._entities(representations: [_Any!]!): [_Entity]!`; and
 `union _Entity` over keyed types. Keys come from `(shiguchi.type).keys`, else the field with
 `batch_key`. `_entities` resolves by the first single-field key; composite keys are published only.
+The federation types and fields (`_Any`, `_Service`, `_Entity`, `_service`, `_entities`) are added by the
+Apollo federation transformer that DGS applies; the gateway supplies the `_entities` fetcher and the
+`__typename` resolution. `_service { sdl }` returns the subgraph SDL without the federation directives,
+as that transformer prints it. Needs at least one keyed type.
 
 ### Introspection
 

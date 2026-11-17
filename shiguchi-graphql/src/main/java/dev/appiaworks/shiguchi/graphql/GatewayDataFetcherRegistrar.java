@@ -7,7 +7,6 @@ import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
 import graphql.language.ObjectTypeDefinition;
-import graphql.schema.DataFetcher;
 import graphql.schema.FieldCoordinates;
 import graphql.schema.GraphQLCodeRegistry;
 import graphql.schema.idl.TypeDefinitionRegistry;
@@ -39,9 +38,6 @@ public class GatewayDataFetcherRegistrar {
     private final DynamicGraphQlDataFetcher dataFetcher;
     private final GatewayProperties gatewayProperties;
     private final GraphQlSchemaBuilder schemaBuilder;
-
-    @Autowired(required = false)
-    private FederationDataFetcher federationDataFetcher;
 
     /** Beans that add fields of their own (the push module's subscription fields); optional. */
     @Autowired(required = false)
@@ -118,15 +114,6 @@ public class GatewayDataFetcherRegistrar {
                     rel.loaderName());
         }
         if (relCount > 0) log.info("Registered {} GraphQL relationship resolvers", relCount);
-
-        // Federation: wire _service and _entities fetchers
-        if (gatewayProperties.getGraphql().getFederation().isEnabled() && federationDataFetcher != null) {
-            codeRegistryBuilder.dataFetcher(FieldCoordinates.coordinates("Query", "_service"), (DataFetcher<?>)
-                    federationDataFetcher::fetchService);
-            codeRegistryBuilder.dataFetcher(FieldCoordinates.coordinates("Query", "_entities"), (DataFetcher<?>)
-                    federationDataFetcher::fetchEntities);
-            log.info("Registered Federation data fetchers (_service, _entities)");
-        }
 
         return codeRegistryBuilder;
     }

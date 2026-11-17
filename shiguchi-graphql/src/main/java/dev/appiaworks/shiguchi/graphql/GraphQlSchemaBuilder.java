@@ -370,7 +370,7 @@ public class GraphQlSchemaBuilder {
                 .distinct()
                 .forEach(name -> sb.append("scalar ").append(name).append('\n'));
         if (federation) {
-            sb.append("scalar _Any\n");
+            // _Any, _Service, _Entity and Query._service/_entities come from the Apollo transformer DGS applies
             sb.append("scalar _FieldSet\n");
             sb.append("\n");
             sb.append("directive @key(fields: _FieldSet!, resolvable: Boolean) repeatable on OBJECT | INTERFACE\n");
@@ -393,22 +393,7 @@ public class GraphQlSchemaBuilder {
         sb.append("type Query {\n");
         if (!queries.isEmpty()) sb.append(queries);
         else sb.append("  _placeholder: Boolean\n");
-        if (federation) {
-            sb.append("  _service: _Service!\n");
-            sb.append("  _entities(representations: [_Any!]!): [_Entity]!\n");
-        }
         sb.append("}\n\n");
-
-        if (federation) {
-            // _Service type (returns the SDL for the router)
-            sb.append("type _Service {\n  sdl: String!\n}\n\n");
-            // _Entity union over all types that have @key
-            if (!federationKeys.isEmpty()) {
-                sb.append("union _Entity = ")
-                        .append(String.join(" | ", federationKeys.keySet()))
-                        .append("\n\n");
-            }
-        }
 
         if (!mutations.isEmpty())
             sb.append("type Mutation {\n").append(mutations).append("}\n\n");

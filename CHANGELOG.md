@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `shiguchi.graphql.federation.enabled=true` no longer fails startup with `type _Any not found in schema`. The federation types and the `_service`/`_entities` fields now come from the Apollo federation transformer through a `DgsFederationResolver`, and entities are tagged with their `__typename` so the `_Entity` union resolves.
 - GraphQL subscriptions authenticated by a `connection_init` bearer now send that token to the backend as the call's `authorization`, as an HTTP request's own `Authorization` header already is, so a backend that validates the JWT itself accepts them. Not sent when an `UpstreamCredentialSource` bean exists (the BFF, a token exchange): that source decides the upstream credential. New `GrpcMetadataPopulator.hasCredentialSource()` (EXPERIMENTAL).
 
 ## [0.25.0] - 2026-11-15
