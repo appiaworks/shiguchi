@@ -195,7 +195,7 @@ public class GrpcRouteRegistry {
      * two deployments of identical config could route the same path to different backends. Sorting
      * makes "first claim wins" mean something a reader can predict from the config alone.
      */
-    private List<ServiceEndpointContext> contextsInStableOrder() {
+    public List<ServiceEndpointContext> contextsInStableOrder() {
         List<ServiceEndpointContext> contexts = new ArrayList<>(contextByServiceName.values());
         contexts.sort(java.util.Comparator.comparing(ctx -> ctx.getConfig().getName()));
         return contexts;

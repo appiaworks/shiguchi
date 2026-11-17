@@ -41,6 +41,12 @@ public class DataLoaderConfig {
      */
     private OnError onError = OnError.ERROR;
 
+    /**
+     * Per GraphQL type settings (the {@code loader_for} name). Today only the pin that decides which
+     * endpoint's loader a type uses when several endpoints declare one. Empty by default.
+     */
+    private Map<String, TypeConfig> types = new LinkedHashMap<>();
+
     public OnError getOnError() {
         return onError == null ? OnError.ERROR : onError;
     }
@@ -51,6 +57,17 @@ public class DataLoaderConfig {
         ERROR,
         /** The relationship fields it failed resolve to null, with no error. */
         NULL
+    }
+
+    @Data
+    @NoArgsConstructor
+    public static class TypeConfig {
+        /**
+         * The service endpoint (its configured name) whose loader serves this type when more than one
+         * endpoint declares a {@code loader_for} for it. It decides the loader only, not which endpoint
+         * serves the Query field. Blank = no pin.
+         */
+        private String endpoint;
     }
 
     @Data

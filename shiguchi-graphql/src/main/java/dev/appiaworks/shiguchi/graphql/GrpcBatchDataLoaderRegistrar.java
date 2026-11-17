@@ -9,15 +9,21 @@ import dev.appiaworks.shiguchi.proto.GraphQlProto;
 import dev.appiaworks.shiguchi.rest.ReactiveGrpcDispatcher;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
+import dev.appiaworks.shiguchi.routing.ServiceEndpointContext;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.DependsOn;
@@ -45,50 +51,93 @@ public class GrpcBatchDataLoaderRegistrar {
     private final Map<String, BatchLoader> loadersByType = Collections.synchronizedMap(new LinkedHashMap<>());
     private final Map<String, RouteDefinition> routesByType = new HashMap<>();
     private final Duration timeout;
+    private final Map<String, String> ownersByType = new HashMap<>();
+    private final Set<String> reportedConflicts = new HashSet<>();
+    private final DataLoaderConfig config;
+    private final MeterRegistry meters;
+    private boolean started;
 
     public GrpcBatchDataLoaderRegistrar(GrpcRouteRegistry registry, ReactiveGrpcDispatcher dispatcher) {
-        this(registry, dispatcher, new DataLoaderConfig().getTimeout());
+        this(registry, dispatcher, new DataLoaderConfig(), null);
+    }
+
+    public GrpcBatchDataLoaderRegistrar(
+            GrpcRouteRegistry registry, ReactiveGrpcDispatcher dispatcher, GatewayProperties properties) {
+        this(registry, dispatcher, properties.getGraphql().getDataLoader(), null);
     }
 
     @Autowired
     public GrpcBatchDataLoaderRegistrar(
-            GrpcRouteRegistry registry, ReactiveGrpcDispatcher dispatcher, GatewayProperties properties) {
-        this(registry, dispatcher, properties.getGraphql().getDataLoader().getTimeout());
+            GrpcRouteRegistry registry,
+            ReactiveGrpcDispatcher dispatcher,
+            GatewayProperties properties,
+            ObjectProvider<MeterRegistry> meters) {
+        this(registry, dispatcher, properties.getGraphql().getDataLoader(), meters.getIfAvailable());
     }
 
-    GrpcBatchDataLoaderRegistrar(GrpcRouteRegistry registry, ReactiveGrpcDispatcher dispatcher, Duration timeout) {
+    GrpcBatchDataLoaderRegistrar(
+            GrpcRouteRegistry registry,
+            ReactiveGrpcDispatcher dispatcher,
+            DataLoaderConfig config,
+            MeterRegistry meters) {
         this.registry = registry;
         this.dispatcher = dispatcher;
-        this.timeout = timeout;
+        this.config = config;
+        this.timeout = config.getTimeout();
+        this.meters = meters;
     }
 
     /**
      * Rebuilds the loaders from the routes registered now. Safe to call again: a type whose route
      * is unchanged keeps its loader, a changed route gets a new one, a route gone drops its type.
+     *
+     * <p>A type's loader belongs to one endpoint (the service's configured name). When several
+     * endpoints declare a loader for the same type, {@code shiguchi.graphql.data-loader.types.<Type>.endpoint}
+     * picks the owner. Without the pin the first scan (startup) throws; a later scan (a reload, a
+     * late-loaded service) rejects the conflicting new loader, keeps the existing owner, logs an
+     * error and counts it in {@code shiguchi.graphql.loader.conflicts}.
      */
     @PostConstruct
     synchronized void scan() {
         log.debug("Scanning routes for batch loaders...");
 
+        // type -> endpoint name -> that endpoint's loader route. The registry's contexts hold one
+        // service each, so a transient old+new overlap while a service is replaced collapses here.
+        Map<String, Map<String, RouteDefinition>> candidates = new LinkedHashMap<>();
+        for (ServiceEndpointContext ctx : registry.contextsInStableOrder()) {
+            String endpoint = ctx.getConfig().getName();
+            for (RouteDefinition route : ctx.getRoutes()) {
+                if (!route.isLoader()) continue;
+                candidates
+                        .computeIfAbsent(route.getLoaderFor(), t -> new LinkedHashMap<>())
+                        .putIfAbsent(endpoint, route);
+            }
+        }
+
         Map<String, BatchLoader> found = new LinkedHashMap<>();
         Map<String, RouteDefinition> foundRoutes = new HashMap<>();
-        for (RouteDefinition route : registry.allRoutes()) {
-            if (!route.isLoader()) {
-                continue;
-            }
-
+        Map<String, String> foundOwners = new HashMap<>();
+        Set<String> conflictsNow = new HashSet<>();
+        for (Map.Entry<String, Map<String, RouteDefinition>> entry : candidates.entrySet()) {
+            String type = entry.getKey();
+            Map<String, RouteDefinition> byEndpoint = entry.getValue();
+            String owner = chooseOwner(type, byEndpoint, conflictsNow);
+            if (owner == null) continue;
+            RouteDefinition route = byEndpoint.get(owner);
             try {
-                BatchLoader loader = routesByType.get(route.getLoaderFor()) == route
-                        ? loadersByType.get(route.getLoaderFor())
+                BatchLoader loader = routesByType.get(type) == route && owner.equals(ownersByType.get(type))
+                        ? loadersByType.get(type)
                         : createBatchLoader(route);
                 if (loader != null) {
-                    found.put(route.getLoaderFor(), loader);
-                    foundRoutes.put(route.getLoaderFor(), route);
+                    found.put(type, loader);
+                    foundRoutes.put(type, route);
+                    foundOwners.put(type, owner);
                 }
             } catch (Exception ex) {
                 log.warn("Failed to register batch loader for route {}", route.getGraphQlName(), ex);
             }
         }
+        checkPins(candidates);
 
         synchronized (loadersByType) {
             loadersByType.clear();
@@ -96,8 +145,82 @@ public class GrpcBatchDataLoaderRegistrar {
         }
         routesByType.clear();
         routesByType.putAll(foundRoutes);
+        ownersByType.clear();
+        ownersByType.putAll(foundOwners);
+        reportedConflicts.retainAll(conflictsNow);
+        started = true;
 
         log.info("Registered {} batch loaders for GraphQL types: {}", found.size(), found.keySet());
+    }
+
+    /** The endpoint whose loader serves {@code type}, or null when none (a rejected conflict). */
+    private String chooseOwner(String type, Map<String, RouteDefinition> byEndpoint, Set<String> conflictsNow) {
+        String pin = pinFor(type);
+        if (pin != null && byEndpoint.containsKey(pin)) {
+            byEndpoint.keySet().stream()
+                    .filter(e -> !e.equals(pin))
+                    .forEach(e -> log.info(
+                            "Type {}: the loader of endpoint {} is not used, the pin selects endpoint {}",
+                            type,
+                            e,
+                            pin));
+            return pin;
+        }
+        if (pin != null) {
+            // A pin whose endpoint has no loader: checkPins reports it, and the type has no owner
+            return null;
+        }
+        if (byEndpoint.size() == 1) {
+            return byEndpoint.keySet().iterator().next();
+        }
+        String message = "GraphQL type " + type + " has a loader_for from several endpoints "
+                + byEndpoint.keySet() + "; set shiguchi.graphql.data-loader.types." + type
+                + ".endpoint to the one that owns the loader";
+        if (!started) {
+            throw new IllegalStateException(message);
+        }
+        String existing = ownersByType.get(type);
+        String key = type + "@" + byEndpoint.keySet();
+        conflictsNow.add(key);
+        if (reportedConflicts.add(key)) {
+            log.error("{}; the new loader is rejected{}", message, existing == null ? "" : ", " + existing + " stays");
+            if (meters != null) {
+                Counter.builder("shiguchi.graphql.loader.conflicts")
+                        .description("Loaders rejected because another endpoint already owns the type")
+                        .tag("type", type)
+                        .register(meters)
+                        .increment();
+            }
+        }
+        return existing != null && byEndpoint.containsKey(existing) ? existing : null;
+    }
+
+    /** A pin naming an endpoint without a loader for its type is a typo: startup fails, a reload logs it. */
+    private void checkPins(Map<String, Map<String, RouteDefinition>> candidates) {
+        for (Map.Entry<String, DataLoaderConfig.TypeConfig> entry :
+                config.getTypes().entrySet()) {
+            String type = entry.getKey();
+            String pin = pinFor(type);
+            if (pin == null) continue;
+            Map<String, RouteDefinition> byEndpoint = candidates.get(type);
+            if (byEndpoint != null && byEndpoint.containsKey(pin)) continue;
+            String message = "shiguchi.graphql.data-loader.types." + type + ".endpoint is " + pin
+                    + ", but that endpoint has no loader_for " + type;
+            if (!started) throw new IllegalStateException(message);
+            log.error(message);
+        }
+    }
+
+    private String pinFor(String type) {
+        DataLoaderConfig.TypeConfig typeConfig = config.getTypes().get(type);
+        if (typeConfig == null || typeConfig.getEndpoint() == null) return null;
+        String pin = typeConfig.getEndpoint().trim();
+        return pin.isEmpty() ? null : pin;
+    }
+
+    /** The endpoint that owns the loader of {@code type}, or empty when the type has no loader. */
+    synchronized Optional<String> ownerOf(String type) {
+        return Optional.ofNullable(ownersByType.get(type));
     }
 
     private BatchLoader createBatchLoader(RouteDefinition route) {

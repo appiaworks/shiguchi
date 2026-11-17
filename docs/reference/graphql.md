@@ -337,4 +337,7 @@ All under `shiguchi.graphql`. See [configuration.md](configuration.md).
 | `data-loader.timeout` | `PT10S` |
 | `data-loader.on-error` | `ERROR` (`NULL` resolves a failed key to null without an error; quote it in YAML) |
 | `data-loader.cache.<TypeName>.ttl` / `.max-size` | `PT1H` / `10000` (cache map empty by default) |
+| `data-loader.types.<TypeName>.endpoint` | none; names the endpoint whose loader serves the type when several declare one (loader only, not the Query field) |
 | `compat-options` | empty; only value `graphql-1079` |
+
+Counter `loader.conflicts` in the `shiguchi.graphql` meter namespace (tag `type`): a reload or late-loaded service brought a `loader_for` that conflicts with the type's current owner and was rejected. See [Several backends serve the same type](../guides/graphql-annotations.md#several-backends-serve-the-same-type).

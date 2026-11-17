@@ -302,6 +302,32 @@ All three pieces are needed for `resolves_type` to resolve:
 - a `batch_key` field on the target type's message (the loader keys its results by it; without one it falls back to a field named `id`),
 - no existing field on the referencing message with the derived resolver name (`author_id` → `author`).
 
+### Several backends serve the same type
+
+A type's loader belongs to one endpoint. If two endpoints each declare a `loader_for` for the same type, the
+gateway does not guess: startup fails with a message naming the type, both endpoints and the key to set.
+Pick the owner in YAML:
+
+```yaml
+shiguchi:
+  graphql:
+    data-loader:
+      types:
+        Customer:
+          endpoint: customers-east   # the configured name of the owning service
+```
+
+The pinned endpoint's loader is registered under the plain type name, so `resolves_type` fields and Federation
+`_entities` both use it. The other endpoint's loader is not registered; the gateway logs that at INFO. A pin that
+names an endpoint with no `loader_for` for the type fails startup, which catches a misspelt name.
+
+The pin decides the loader only. It does not change which endpoint serves a Query field: a `customers` query on the
+other endpoint keeps working. The loader's cache key does not include the endpoint either.
+
+If a reload (a refreshed descriptor, a late-loaded service) brings a loader that conflicts with the one already
+serving a type, the gateway keeps the existing owner, rejects the new loader, logs an ERROR naming both endpoints
+and increments the `shiguchi.graphql.loader.conflicts` counter (tag `type`). It does not fail the running gateway.
+
 
 ## Protos written for other gateways
 
