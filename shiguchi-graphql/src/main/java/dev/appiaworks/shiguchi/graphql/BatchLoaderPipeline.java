@@ -96,6 +96,23 @@ class BatchLoaderPipeline {
         return layer(type, raw).loadMapped(distinct(keys), metadata);
     }
 
+    /**
+     * As {@link #load}, but a failure is reported per key instead of failing the whole load: the
+     * keys of a failed chunk fail, the other chunks' entities still come back. A type whose loader
+     * is gone (a refresh dropped its service after the DataLoader was registered) fails its keys
+     * with an {@link IllegalStateException} rather than resolving them to null silently.
+     */
+    Mono<BatchOutcome> loadOutcome(String type, Collection<String> keys, Metadata metadata) {
+        if (keys.isEmpty()) return Mono.just(BatchOutcome.EMPTY);
+        List<String> distinct = distinct(keys);
+        BatchLoader raw = rawLoader(type);
+        if (raw == null) {
+            return Mono.just(BatchOutcome.failed(
+                    distinct, new IllegalStateException("No batch loader is available for type " + type)));
+        }
+        return BatchOutcome.of(layer(type, raw), distinct, metadata);
+    }
+
     private BatchLoader rawLoader(String type) {
         BatchLoader grpc = grpcRegistrar.getLoaders().get(type);
         if (restRegistrar == null) return grpc;
@@ -110,11 +127,11 @@ class BatchLoaderPipeline {
         DataLoaderConfig.TypeCache cacheConfig = config.getCache().get(type);
         return layers.compute(type, (t, current) -> {
                     if (current != null && current.raw() == raw) return current;
-                    BatchLoader chunking = (keys, md) -> chunked(
+                    BatchOutcome.Loader chunking = (keys, md) -> chunkedOutcome(
                             keys,
                             chunkSize(type),
                             config.getMaxConcurrentBatches(),
-                            chunk -> raw.loadMapped(chunk, md));
+                            chunk -> BatchOutcome.of(raw, chunk, md));
                     BatchLoader loader = cacheConfig == null ? chunking : new CachingBatchLoader(chunking, cacheConfig);
                     return new Layered(raw, loader);
                 })
@@ -133,6 +150,24 @@ class BatchLoaderPipeline {
     /** The keys without repeats, in first-seen order; one copy, and none of the work when they are a set already. */
     static List<String> distinct(Collection<String> keys) {
         return keys instanceof Set<String> ? new ArrayList<>(keys) : new ArrayList<>(new LinkedHashSet<>(keys));
+    }
+
+    /**
+     * As {@link #chunked}, but a chunk that fails fails only its own keys: the other chunks' entities
+     * are kept. {@code call} reports a failure in its outcome; one it throws or errors with is
+     * turned into a failure of that chunk's keys.
+     */
+    static Mono<BatchOutcome> chunkedOutcome(
+            List<String> keys, int size, int concurrency, Function<List<String>, Mono<BatchOutcome>> call) {
+        Function<List<String>, Mono<BatchOutcome>> safe = chunk ->
+                Mono.defer(() -> call.apply(chunk)).onErrorResume(e -> Mono.just(BatchOutcome.failed(chunk, e)));
+        if (size <= 0 || keys.size() <= size) return safe.apply(keys);
+        List<List<String>> chunks = new ArrayList<>((keys.size() + size - 1) / size);
+        for (int from = 0; from < keys.size(); from += size) {
+            chunks.add(keys.subList(from, Math.min(from + size, keys.size())));
+        }
+        int inFlight = concurrency <= 0 ? Integer.MAX_VALUE : concurrency;
+        return Flux.fromIterable(chunks).flatMap(safe, inFlight).reduce(BatchOutcome.EMPTY, BatchOutcome::merge);
     }
 
     /**

@@ -485,4 +485,43 @@ class GrpcDataLoaderRegistryFactoryTest {
         assertThat(replacement.lastKeys).containsExactly("34");
         assertThat(original.lastKeys).isNull();
     }
+
+    @Test
+    @DisplayName(
+            "Given more failed keys than the per-request cap, when the callback runs, should list 20 errors, one summary and suppress the rest")
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void given_moreFailuresThanCap_when_callbackRuns_should_summariseTheRest() {
+        // Arrange
+        RecordingBatchLoaderRegistry registry = new RecordingBatchLoaderRegistry();
+        GrpcBatchDataLoaderRegistrar registrar = mock(GrpcBatchDataLoaderRegistrar.class);
+        java.util.List<String> keys = new java.util.ArrayList<>();
+        for (int i = 0; i < 25; i++) keys.add("k" + i);
+        BatchOutcome.Loader loader =
+                (ks, md) -> Mono.just(BatchOutcome.failed(ks, new IllegalStateException("backend down")));
+        when(registrar.getLoaders()).thenReturn(Map.of("Book", loader));
+        GrpcDataLoaderRegistryFactory factory = new GrpcDataLoaderRegistryFactory(registry, registrar);
+        factory.registerLoaders();
+        BatchLoaderEnvironment env =
+                envWithGraphQlContext(GraphQLContext.newContext().build());
+
+        // Act
+        Map<String, Object> result = (Map) registry.registered
+                .get("Book")
+                .apply(new java.util.LinkedHashSet<>(keys), env)
+                .block();
+
+        // Assert
+        assertThat(result).hasSize(25);
+        assertThat(result.values().stream().filter(v -> v instanceof IllegalStateException))
+                .hasSize(20);
+        assertThat(result.values().stream().filter(v -> v instanceof BatchFailureSummary))
+                .hasSize(1);
+        assertThat(result.values().stream().filter(v -> v == BatchFailureSummary.SUPPRESSED))
+                .hasSize(4);
+        BatchFailureSummary summary = (BatchFailureSummary) result.values().stream()
+                .filter(v -> v instanceof BatchFailureSummary)
+                .findFirst()
+                .orElseThrow();
+        assertThat(summary.omitted()).isEqualTo(4);
+    }
 }

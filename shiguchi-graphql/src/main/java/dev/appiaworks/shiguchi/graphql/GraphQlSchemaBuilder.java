@@ -76,6 +76,9 @@ public class GraphQlSchemaBuilder {
     /** Scratch map filled while an SDL is generated; guarded by {@link #generateSdlWithKeys()}. */
     private final Map<String, Integer> collectingCosts = new LinkedHashMap<>();
 
+    private final List<Relationship> collectingRelationships = new ArrayList<>();
+    private volatile List<Relationship> relationships = List.of();
+
     private volatile List<GraphQlContributor> contributors = List.of();
 
     public GraphQlSchemaBuilder(
@@ -105,6 +108,7 @@ public class GraphQlSchemaBuilder {
         this.generatedSdl = result.sdl();
         this.lastFederationKeys = result.federationKeys();
         this.fieldCosts = result.fieldCosts();
+        this.relationships = result.relationships();
         log.info("Generated GraphQL SDL ({} chars)", generatedSdl.length());
         log.debug("GraphQL SDL:\n{}", generatedSdl);
     }
@@ -114,6 +118,7 @@ public class GraphQlSchemaBuilder {
         this.generatedSdl = result.sdl();
         this.lastFederationKeys = result.federationKeys();
         this.fieldCosts = result.fieldCosts();
+        this.relationships = result.relationships();
         log.info("Rebuilt GraphQL SDL ({} chars)", generatedSdl.length());
     }
 
@@ -134,14 +139,41 @@ public class GraphQlSchemaBuilder {
         return fieldCosts;
     }
 
-    private record SdlResult(String sdl, Map<String, String> federationKeys, Map<String, Integer> fieldCosts) {}
+    /**
+     * The relationships of the current schema: each {@code resolves_type} companion field the SDL
+     * got, from the same build as {@link #getGeneratedSdl()}. {@link GatewayDataFetcherRegistrar}
+     * wires a {@link GrpcRelationshipDataFetcher} for each, on nested types too.
+     */
+    public List<Relationship> getRelationships() {
+        return relationships;
+    }
+
+    /**
+     * A companion field of an object type that resolves a reference through a DataLoader.
+     *
+     * @param parentType the GraphQL type that declares the field
+     * @param fieldName the companion field's name in the schema
+     * @param idJsonName the key of the id in the parent's data (the proto field's JSON name)
+     * @param resolvedType the GraphQL type it resolves to, and the DataLoader's name
+     */
+    public record Relationship(String parentType, String fieldName, String idJsonName, String resolvedType) {}
+
+    private record SdlResult(
+            String sdl,
+            Map<String, String> federationKeys,
+            Map<String, Integer> fieldCosts,
+            List<Relationship> relationships) {}
 
     private synchronized SdlResult generateSdlWithKeys() {
         Map<String, String> federationKeys = isFederationEnabled() ? new LinkedHashMap<>() : null;
         collectingCosts.clear();
+        collectingRelationships.clear();
         String sdl = generateSdl(federationKeys);
         return new SdlResult(
-                sdl, federationKeys != null ? Map.copyOf(federationKeys) : Map.of(), Map.copyOf(collectingCosts));
+                sdl,
+                federationKeys != null ? Map.copyOf(federationKeys) : Map.of(),
+                Map.copyOf(collectingCosts),
+                List.copyOf(collectingRelationships));
     }
 
     // -------------------------------------------------------------------------
@@ -633,6 +665,8 @@ public class GraphQlSchemaBuilder {
                 if (resolvesTypes.size() == 1) {
                     String resolverName =
                             jsonName.endsWith("Id") ? jsonName.substring(0, jsonName.length() - 2) : jsonName;
+                    collectingRelationships.add(
+                            new Relationship(typeName, resolverName, jsonName, resolvesTypes.get(0)));
                     sb.append("  ")
                             .append(resolverName)
                             .append(": ")
@@ -643,6 +677,7 @@ public class GraphQlSchemaBuilder {
                     for (String resolvedType : resolvesTypes) {
                         String stripped = resolvedType.substring(prefix.length());
                         String resolverName = Character.toLowerCase(stripped.charAt(0)) + stripped.substring(1);
+                        collectingRelationships.add(new Relationship(typeName, resolverName, jsonName, resolvedType));
                         sb.append("  ")
                                 .append(resolverName)
                                 .append(": ")

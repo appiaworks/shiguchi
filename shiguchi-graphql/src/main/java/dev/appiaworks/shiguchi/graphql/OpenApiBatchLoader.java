@@ -10,6 +10,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import tools.jackson.core.type.TypeReference;
@@ -35,7 +36,7 @@ import tools.jackson.databind.ObjectMapper;
  * <p>The Authorization header from gRPC {@link Metadata} is forwarded as an HTTP header
  * when present so REST services receive the same bearer token.
  */
-public class OpenApiBatchLoader implements BatchLoader {
+public class OpenApiBatchLoader implements BatchOutcome.Loader {
 
     private static final Logger log = LoggerFactory.getLogger(OpenApiBatchLoader.class);
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
@@ -52,10 +53,14 @@ public class OpenApiBatchLoader implements BatchLoader {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * A failed request fails the keys it carried, not the ones other requests loaded (see
+     * {@link BatchOutcome}); through {@link #loadMapped} any failure fails the whole load.
+     */
     @Override
-    public Mono<Map<String, Map<String, Object>>> loadMapped(List<String> keys, Metadata metadata) {
+    public Mono<BatchOutcome> loadOutcome(List<String> keys, Metadata metadata) {
         if (keys == null || keys.isEmpty()) {
-            return Mono.just(Map.of());
+            return Mono.just(BatchOutcome.EMPTY);
         }
         log.debug(
                 "[OpenApiBatchLoader] Loading {} keys for type={} via {}",
@@ -75,7 +80,7 @@ public class OpenApiBatchLoader implements BatchLoader {
     // Batch strategy: GET /endpoint?idsParam=id1,id2,id3
     // -------------------------------------------------------------------------
 
-    private Mono<Map<String, Map<String, Object>>> loadBatches(List<String> keys, Metadata metadata) {
+    private Mono<BatchOutcome> loadBatches(List<String> keys, Metadata metadata) {
         // The ids travel comma-joined, so an id with a comma would read as two ids on the other side
         // (percent-encoding it changes nothing: the server decodes it back to a comma first).
         List<String> usable = new ArrayList<>(keys.size());
@@ -89,14 +94,12 @@ public class OpenApiBatchLoader implements BatchLoader {
                 usable.add(key);
             }
         }
-        if (usable.isEmpty()) return Mono.just(new LinkedHashMap<>());
-        int size = config.getMaxBatchSize();
-        if (size <= 0 || usable.size() <= size) return loadBatch(usable, metadata);
-        return BatchLoaderPipeline.chunked(
-                usable, size, config.getMaxConcurrency(), chunk -> loadBatch(chunk, metadata));
+        if (usable.isEmpty()) return Mono.just(BatchOutcome.EMPTY);
+        return BatchLoaderPipeline.chunkedOutcome(
+                usable, config.getMaxBatchSize(), config.getMaxConcurrency(), chunk -> loadBatch(chunk, metadata));
     }
 
-    private Mono<Map<String, Map<String, Object>>> loadBatch(List<String> keys, Metadata metadata) {
+    private Mono<BatchOutcome> loadBatch(List<String> keys, Metadata metadata) {
         String idsValue = String.join(",", keys);
         String authHeader = extractAuth(metadata);
         return webClient
@@ -111,10 +114,19 @@ public class OpenApiBatchLoader implements BatchLoader {
                 .retrieve()
                 .bodyToMono(String.class)
                 .timeout(Duration.ofSeconds(config.getTimeoutSeconds()))
-                .map(body -> parseBatchResponse(body, keys))
+                .map(body -> BatchOutcome.ok(parseBatchResponse(body, keys)))
                 .doOnError(ex -> log.warn(
                         "[OpenApiBatchLoader] Batch request failed for type={}: {}", config.getType(), ex.getMessage()))
-                .onErrorReturn(new LinkedHashMap<>());
+                .onErrorMap(ex -> RestBackendException.of(ex, config.getType(), config.getEndpoint()));
+    }
+
+    private RestBackendException unreadable(Exception cause, String what) {
+        return new RestBackendException(
+                200,
+                config.getType(),
+                config.getEndpoint(),
+                "REST " + config.getType() + " " + config.getEndpoint() + " answered " + what,
+                cause);
     }
 
     @SuppressWarnings("unchecked")
@@ -125,11 +137,7 @@ public class OpenApiBatchLoader implements BatchLoader {
                 Map<String, Object> wrapper = objectMapper.readValue(body, MAP_TYPE);
                 Object raw = wrapper.get(config.getResultField());
                 if (!(raw instanceof List)) {
-                    log.warn(
-                            "[OpenApiBatchLoader] resultField '{}' not a list in response for type={}",
-                            config.getResultField(),
-                            config.getType());
-                    return new LinkedHashMap<>();
+                    throw unreadable(null, "without a list at resultField '" + config.getResultField() + "'");
                 }
                 items = (List<Map<String, Object>>) raw;
             } else {
@@ -149,12 +157,10 @@ public class OpenApiBatchLoader implements BatchLoader {
                     requestedKeys.size(),
                     config.getType());
             return result;
+        } catch (RestBackendException ex) {
+            throw ex;
         } catch (Exception ex) {
-            log.warn(
-                    "[OpenApiBatchLoader] Failed to parse batch response for type={}: {}",
-                    config.getType(),
-                    ex.getMessage());
-            return new LinkedHashMap<>();
+            throw unreadable(ex, "a body that is not a JSON list of entities");
         }
     }
 
@@ -162,24 +168,32 @@ public class OpenApiBatchLoader implements BatchLoader {
     // Parallel strategy: N concurrent GETs to endpoint with {id} substituted
     // -------------------------------------------------------------------------
 
-    private Mono<Map<String, Map<String, Object>>> loadParallel(List<String> keys, Metadata metadata) {
+    /** A 404 for an id means that id does not exist (absent, no error); any other failure fails that id only. */
+    private Mono<BatchOutcome> loadParallel(List<String> keys, Metadata metadata) {
         return Flux.fromIterable(keys)
                 .flatMap(
                         id -> loadSingle(id, metadata)
-                                .map(entity -> Map.entry(id, entity))
+                                .map(entity -> BatchOutcome.ok(Map.of(id, entity)))
+                                .onErrorResume(WebClientResponseException.NotFound.class, ex -> {
+                                    log.debug(
+                                            "[OpenApiBatchLoader] 404 for type={} id={}: absent", config.getType(), id);
+                                    return Mono.just(BatchOutcome.EMPTY);
+                                })
                                 .onErrorResume(ex -> {
                                     log.warn(
                                             "[OpenApiBatchLoader] Single GET failed for type={} id={}: {}",
                                             config.getType(),
                                             id,
                                             ex.getMessage());
-                                    return Mono.empty();
+                                    return Mono.just(BatchOutcome.failed(
+                                            List.of(id),
+                                            RestBackendException.of(ex, config.getType(), config.getEndpoint())));
                                 }),
                         concurrency())
-                .collect(
-                        () -> new LinkedHashMap<String, Map<String, Object>>(),
-                        (map, entry) -> map.putIfAbsent(entry.getKey(), entry.getValue()))
-                .<Map<String, Map<String, Object>>>map(map -> map);
+                .collect(() -> new BatchOutcome(new LinkedHashMap<>(), new LinkedHashMap<>()), (all, one) -> {
+                    one.entities().forEach(all.entities()::putIfAbsent);
+                    all.failures().putAll(one.failures());
+                });
     }
 
     private Mono<Map<String, Object>> loadSingle(String id, Metadata metadata) {
@@ -198,12 +212,7 @@ public class OpenApiBatchLoader implements BatchLoader {
                     try {
                         return objectMapper.readValue(body, MAP_TYPE);
                     } catch (Exception ex) {
-                        log.warn(
-                                "[OpenApiBatchLoader] Failed to parse single response for type={} id={}: {}",
-                                config.getType(),
-                                id,
-                                ex.getMessage());
-                        return new LinkedHashMap<String, Object>();
+                        throw unreadable(ex, "a body that is not a JSON object");
                     }
                 });
     }

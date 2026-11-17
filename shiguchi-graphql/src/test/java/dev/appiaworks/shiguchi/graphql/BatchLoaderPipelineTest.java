@@ -1,6 +1,7 @@
 package dev.appiaworks.shiguchi.graphql;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -183,5 +184,44 @@ class BatchLoaderPipelineTest {
         assertThat(pipeline.types()).containsExactlyInAnyOrder("Book", "Tag");
         assertThat(grpc.calls).hasSize(1);
         assertThat(rest.calls).containsExactly(List.of("7"));
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN one of three chunks fails WHEN loaded as an outcome THEN the other chunks' entities and that chunk's keys as failures are returned")
+    void GIVEN_oneChunkFails_WHEN_loadedAsOutcome_SHOULD_isolateTheFailure() {
+        BatchLoader loader = (keys, metadata) ->
+                keys.contains("k2") ? Mono.error(new IllegalStateException("chunk down")) : Mono.just(echo(keys));
+        GrpcBatchDataLoaderRegistrar registrar = mock(GrpcBatchDataLoaderRegistrar.class);
+        when(registrar.getLoaders()).thenReturn(Map.of("Book", loader));
+        DataLoaderConfig config = new DataLoaderConfig();
+        config.setMaxBatchSize(2);
+        BatchLoaderPipeline pipeline = new BatchLoaderPipeline(registrar, (RestBatchDataLoaderRegistrar) null, config);
+
+        BatchOutcome outcome =
+                pipeline.loadOutcome("Book", keys(5), new Metadata()).block();
+
+        assertThat(outcome.entities()).containsOnlyKeys("k0", "k1", "k4");
+        assertThat(outcome.failures()).containsOnlyKeys("k2", "k3");
+        assertThat(outcome.failures().get("k2")).hasMessage("chunk down");
+    }
+
+    @Test
+    @DisplayName("GIVEN a chunk fails WHEN loaded strictly THEN the load fails")
+    void GIVEN_oneChunkFails_WHEN_loadedStrictly_SHOULD_fail() {
+        BatchLoader loader = (keys, metadata) -> Mono.error(new IllegalStateException("down"));
+        GrpcBatchDataLoaderRegistrar registrar = mock(GrpcBatchDataLoaderRegistrar.class);
+        when(registrar.getLoaders()).thenReturn(Map.of("Book", loader));
+        BatchLoaderPipeline pipeline =
+                new BatchLoaderPipeline(registrar, (RestBatchDataLoaderRegistrar) null, new DataLoaderConfig());
+
+        assertThatThrownBy(() -> pipeline.load("Book", keys(2), new Metadata()).block())
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    private static Map<String, Map<String, Object>> echo(List<String> keys) {
+        Map<String, Map<String, Object>> result = new LinkedHashMap<>();
+        for (String key : keys) result.put(key, Map.of("id", key));
+        return result;
     }
 }

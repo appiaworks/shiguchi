@@ -126,6 +126,15 @@ the default DGS handler. The message is the status description, else the status 
 | `details` | yes (proto3 JSON with `@type`, if non-empty) | non-BadRequest details only | |
 | `fieldErrors` | no | yes, for a `BadRequest` | `[{field, message, rule?}]` |
 
+Failures of a relationship (DataLoader) batch use the same shape, with these extra keys:
+
+| Key | When | Value |
+| --- | --- | --- |
+| `httpStatus`, `type`, `endpoint` | the loader is a REST (OpenAPI) one | upstream HTTP status (when there was a response), failure type, the endpoint called; `grpcCode` is derived from them |
+| `omittedFailures`, `loadedType` | more than 20 keys of one loader failed in a request | the count of failures not listed and the loaded GraphQL type; the message gets the suffix `(and N more <Type> loads failed; not listed)` |
+
+The cap is applied per batch: once a loader has 20 listed errors in a request, each later batch of that loader adds one summary error that counts only that batch's omitted keys. The fields of the omitted keys resolve to null. `data-loader.on-error: "NULL"` turns these errors off.
+
 `fieldErrors[].field` is the GraphQL argument path: snake_case becomes camelCase, prefixed with
 `input.` when the field has an `input` argument and the path does not start with a declared
 argument. `rule` is the violation reason and is omitted when empty.
@@ -326,5 +335,6 @@ All under `shiguchi.graphql`. See [configuration.md](configuration.md).
 | `data-loader.max-batch-size` | `0` (unlimited) |
 | `data-loader.max-concurrent-batches` | `4` (0 = all at once) |
 | `data-loader.timeout` | `PT10S` |
+| `data-loader.on-error` | `ERROR` (`NULL` resolves a failed key to null without an error; quote it in YAML) |
 | `data-loader.cache.<TypeName>.ttl` / `.max-size` | `PT1H` / `10000` (cache map empty by default) |
 | `compat-options` | empty; only value `graphql-1079` |

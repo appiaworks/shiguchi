@@ -115,7 +115,7 @@ class GraphQlResponseCacheInterceptor implements WebGraphQlInterceptor {
 
     /** Stores a response with data and no errors; anything else is never cached. */
     private boolean store(String key, Plan plan, WebGraphQlResponse response) {
-        if (!response.isValid()) {
+        if (!response.isValid() || !response.getErrors().isEmpty()) {
             return false;
         }
         cache.store(key, response.getExecutionResult(), plan.services(), plan.ttl());

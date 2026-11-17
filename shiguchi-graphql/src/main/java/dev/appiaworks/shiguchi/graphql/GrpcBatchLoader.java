@@ -44,7 +44,7 @@ public class GrpcBatchLoader implements BatchLoader {
         this(route, ctx, dispatcher, batchKeyJsonName, batchResultJsonName, entityKeyJsonName, Duration.ofSeconds(10));
     }
 
-    /** {@code timeout} bounds one batch call; past it the call fails and its keys resolve to null. */
+    /** {@code timeout} bounds one batch call; past it the call fails with a {@code TimeoutException}. */
     public GrpcBatchLoader(
             RouteDefinition route,
             ServiceEndpointContext ctx,
@@ -79,6 +79,7 @@ public class GrpcBatchLoader implements BatchLoader {
                         log.debug("[BatchLoader] Got {} results for route={}", items.size(), route.getGraphQlName());
                         return byEntityKey(items);
                     })
+                    .onErrorMap(io.grpc.StatusRuntimeException.class, this::backendError)
                     .doOnError(ex -> log.warn(
                             "[BatchLoader] Batch load failed for route={}: {}",
                             route.getGraphQlName(),
@@ -98,8 +99,15 @@ public class GrpcBatchLoader implements BatchLoader {
                     log.debug("[BatchLoader] Got {} results for route={}", items.size(), route.getGraphQlName());
                     return byEntityKey(items);
                 })
+                .onErrorMap(io.grpc.StatusRuntimeException.class, this::backendError)
                 .doOnError(ex -> log.warn(
                         "[BatchLoader] Batch load failed for route={}: {}", route.getGraphQlName(), ex.getMessage()));
+    }
+
+    /** A gRPC failure with the service and method it came from, so the error a client sees names its backend. */
+    private GrpcBackendException backendError(io.grpc.StatusRuntimeException failure) {
+        return new GrpcBackendException(
+                route.getFullServiceName(), route.getMethodName(), failure, ctx == null ? null : ctx.getTypeRegistry());
     }
 
     /** The items by their key field, the first of a repeated key winning. */

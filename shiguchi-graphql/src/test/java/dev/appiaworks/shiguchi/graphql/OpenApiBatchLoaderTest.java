@@ -185,25 +185,29 @@ class OpenApiBatchLoaderTest {
     }
 
     @Test
-    @DisplayName("Given batch strategy, when server returns HTTP 500, should return empty map")
-    void given_batchStrategy_when_serverReturns500_should_returnEmptyMap() {
+    @DisplayName("Given batch strategy, when server returns HTTP 500, should fail the load with a RestBackendException")
+    void given_batchStrategy_when_serverReturns500_should_failTheLoad() {
         WebClient client = fixedResponseClient(500, "Internal Server Error");
         OpenApiBatchLoader loader = new OpenApiBatchLoader(client, batchConfig("/products"), objectMapper);
 
         StepVerifier.create(loader.loadMapped(List.of("1"), new Metadata()))
-                .assertNext(result -> assertThat(result).isEmpty())
-                .verifyComplete();
+                .expectErrorSatisfies(e -> {
+                    assertThat(e).isInstanceOf(RestBackendException.class);
+                    assertThat(((RestBackendException) e).getHttpStatus()).isEqualTo(500);
+                    assertThat(((RestBackendException) e).grpcCode()).isEqualTo(io.grpc.Status.Code.INTERNAL);
+                })
+                .verify();
     }
 
     @Test
-    @DisplayName("Given batch strategy, when server returns malformed JSON, should return empty map")
-    void given_batchStrategy_when_malformedJson_should_returnEmptyMap() {
+    @DisplayName("Given batch strategy, when server returns malformed JSON, should fail the load")
+    void given_batchStrategy_when_malformedJson_should_failTheLoad() {
         WebClient client = fixedResponseClient(200, "{ not valid json }");
         OpenApiBatchLoader loader = new OpenApiBatchLoader(client, batchConfig("/products"), objectMapper);
 
         StepVerifier.create(loader.loadMapped(List.of("1"), new Metadata()))
-                .assertNext(result -> assertThat(result).isEmpty())
-                .verifyComplete();
+                .expectError(RestBackendException.class)
+                .verify();
     }
 
     // -------------------------------------------------------------------------
@@ -256,24 +260,52 @@ class OpenApiBatchLoaderTest {
         assertThat(captured).hasSize(2);
     }
 
-    @Test
-    @DisplayName(
-            "Given parallel strategy, when one GET returns 500, should omit that key and return only successful entities")
-    void given_parallelStrategy_when_oneRequestFails_should_omitFailedKeyAndReturnRest() {
-        ExchangeFunction fn = request -> {
-            String path = request.url().getPath();
-            if (path.endsWith("/good")) {
+    private static ExchangeFunction goodThen(int otherStatus) {
+        return request -> {
+            if (request.url().getPath().endsWith("/good")) {
                 return mockResponse(200, "{\"id\":\"good\",\"name\":\"OK\"}");
             }
-            return mockResponse(500, "Error");
+            return mockResponse(otherStatus, "Error");
         };
-        WebClient client = clientWith(fn);
-        OpenApiBatchLoader loader = new OpenApiBatchLoader(client, parallelConfig("/products/{id}"), objectMapper);
+    }
+
+    @Test
+    @DisplayName(
+            "Given parallel strategy, when one GET returns 500, should fail only that key and keep the successful entity")
+    void given_parallelStrategy_when_oneRequestFails_should_failOnlyThatKey() {
+        OpenApiBatchLoader loader =
+                new OpenApiBatchLoader(clientWith(goodThen(500)), parallelConfig("/products/{id}"), objectMapper);
+
+        StepVerifier.create(loader.loadOutcome(List.of("good", "bad"), new Metadata()))
+                .assertNext(outcome -> {
+                    assertThat(outcome.entities()).containsOnlyKeys("good");
+                    assertThat(outcome.failures()).containsOnlyKeys("bad");
+                    assertThat(outcome.failures().get("bad")).isInstanceOf(RestBackendException.class);
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    @DisplayName("Given parallel strategy, when one GET returns 500, should fail the strict load")
+    void given_parallelStrategy_when_oneRequestFails_should_failTheStrictLoad() {
+        OpenApiBatchLoader loader =
+                new OpenApiBatchLoader(clientWith(goodThen(500)), parallelConfig("/products/{id}"), objectMapper);
 
         StepVerifier.create(loader.loadMapped(List.of("good", "bad"), new Metadata()))
-                .assertNext(result -> {
-                    assertThat(result).containsOnlyKeys("good");
-                    assertThat(result).doesNotContainKey("bad");
+                .expectError(RestBackendException.class)
+                .verify();
+    }
+
+    @Test
+    @DisplayName("Given parallel strategy, when a GET returns 404, should omit that key without an error")
+    void given_parallelStrategy_when_requestReturns404_should_omitKeyWithoutError() {
+        OpenApiBatchLoader loader =
+                new OpenApiBatchLoader(clientWith(goodThen(404)), parallelConfig("/products/{id}"), objectMapper);
+
+        StepVerifier.create(loader.loadOutcome(List.of("good", "gone"), new Metadata()))
+                .assertNext(outcome -> {
+                    assertThat(outcome.entities()).containsOnlyKeys("good");
+                    assertThat(outcome.failures()).isEmpty();
                 })
                 .verifyComplete();
     }

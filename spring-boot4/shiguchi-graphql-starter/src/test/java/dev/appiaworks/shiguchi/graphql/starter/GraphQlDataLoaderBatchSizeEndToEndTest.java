@@ -31,6 +31,7 @@ import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
 import io.grpc.ServerInterceptors;
 import io.grpc.ServerServiceDefinition;
+import io.grpc.Status;
 import io.grpc.stub.ServerCalls;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -84,6 +85,9 @@ class GraphQlDataLoaderBatchSizeEndToEndTest {
     /** The metadata each backend method last received, by full method name. */
     private static final Map<String, Metadata> SEEN = new ConcurrentHashMap<>();
 
+    /** Ids whose batch call the backend fails with UNAVAILABLE; "*" fails every batch. */
+    private static final java.util.Set<String> FAILING = ConcurrentHashMap.newKeySet();
+
     private static final Server BACKEND = startBackend();
     private static final Path PB_FILE = writeDescriptorSet();
 
@@ -112,6 +116,7 @@ class GraphQlDataLoaderBatchSizeEndToEndTest {
         client = WebClient.create("http://localhost:" + environment.getRequiredProperty("local.server.port"));
         BATCH_CALLS.clear();
         SEEN.clear();
+        FAILING.clear();
     }
 
     private Struct graphql(String query) throws Exception {
@@ -148,6 +153,74 @@ class GraphQlDataLoaderBatchSizeEndToEndTest {
                     .isEqualTo("Customer cust-" + (i + 1));
         }
         assertThat(BATCH_CALLS).extracting(List::size).containsExactlyInAnyOrder(2, 2, 1);
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN the customers batch is UNAVAILABLE WHEN the query selects each order's customer SHOULD answer the orders fast with a grpcCode UNAVAILABLE error and a null customer")
+    void given_batchUnavailable_when_customersSelected_should_surfaceTheErrorAndKeepTheOrders() throws Exception {
+        FAILING.add("*");
+
+        long start = System.nanoTime();
+        Struct response = graphql("{ orders(count: 3) { items { id customer { id name } } } }");
+        long millis = (System.nanoTime() - start) / 1_000_000;
+
+        assertThat(response.containsFields("errors")).as(response.toString()).isTrue();
+        List<Value> errors = response.getFieldsOrThrow("errors").getListValue().getValuesList();
+        assertThat(errors).isNotEmpty();
+        for (Value error : errors) {
+            assertThat(error.getStructValue()
+                            .getFieldsOrThrow("extensions")
+                            .getStructValue()
+                            .getFieldsOrThrow("grpcCode")
+                            .getStringValue())
+                    .isEqualTo("UNAVAILABLE");
+        }
+        List<Value> items = response.getFieldsOrThrow("data")
+                .getStructValue()
+                .getFieldsOrThrow("orders")
+                .getStructValue()
+                .getFieldsOrThrow("items")
+                .getListValue()
+                .getValuesList();
+        assertThat(items).hasSize(3);
+        for (Value item : items) {
+            assertThat(item.getStructValue().getFieldsOrThrow("id").getStringValue())
+                    .startsWith("order-");
+            assertThat(item.getStructValue().getFieldsOrThrow("customer").hasNullValue())
+                    .isTrue();
+        }
+        assertThat(millis).as("the failure must not wait for a timeout").isLessThan(10_000);
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN one of three chunks fails WHEN five customers are selected SHOULD error only the two customers of that chunk and resolve the other three")
+    void given_oneChunkFails_when_fiveCustomersSelected_should_isolateTheFailure() throws Exception {
+        FAILING.add("cust-3");
+
+        Struct response = graphql("{ orders(count: 5) { items { id customer { id name } } } }");
+
+        List<Value> errors = response.getFieldsOrThrow("errors").getListValue().getValuesList();
+        assertThat(errors).as(response.toString()).hasSize(2);
+        List<Value> items = response.getFieldsOrThrow("data")
+                .getStructValue()
+                .getFieldsOrThrow("orders")
+                .getStructValue()
+                .getFieldsOrThrow("items")
+                .getListValue()
+                .getValuesList();
+        assertThat(items).hasSize(5);
+        List<String> failedChunk = BATCH_CALLS.stream()
+                .filter(call -> call.contains("cust-3"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(failedChunk).hasSize(2);
+        for (int i = 0; i < 5; i++) {
+            Value customer = items.get(i).getStructValue().getFieldsOrThrow("customer");
+            boolean inFailedChunk = failedChunk.contains("cust-" + (i + 1));
+            assertThat(customer.hasNullValue()).as("customer %d", i + 1).isEqualTo(inFailedChunk);
+        }
     }
 
     // ------------------------------------------------------------------ fixtures
@@ -305,6 +378,11 @@ class GraphQlDataLoaderBatchSizeEndToEndTest {
                     @SuppressWarnings("unchecked")
                     List<String> ids = (List<String>) request.getField(GET_CUSTOMERS_REQUEST.findFieldByName("ids"));
                     BATCH_CALLS.add(List.copyOf(ids));
+                    if (FAILING.contains("*") || ids.stream().anyMatch(FAILING::contains)) {
+                        observer.onError(
+                                Status.UNAVAILABLE.withDescription("shop down").asRuntimeException());
+                        return;
+                    }
                     DynamicMessage.Builder reply = DynamicMessage.newBuilder(CUSTOMERS);
                     for (String id : ids) reply.addRepeatedField(CUSTOMERS.findFieldByName("items"), customer(id));
                     observer.onNext(reply.build());

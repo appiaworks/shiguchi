@@ -297,6 +297,28 @@ class GraphQlResponseCacheInterceptorTest {
     }
 
     @Test
+    @DisplayName("GIVEN a partial response (data plus errors) WHEN the query is repeated SHOULD not have been cached")
+    void given_partial_response_when_repeated_should_not_cache() {
+        WebGraphQlInterceptor.Chain partialChain = request -> Mono.fromSupplier(() -> {
+            executions.incrementAndGet();
+            return new WebGraphQlResponse(new DefaultExecutionGraphQlResponse(
+                    request.toExecutionInput(),
+                    ExecutionResultImpl.newExecutionResult()
+                            .data(Map.of("item", Map.of("id", "1", "name", "partial")))
+                            .addError(GraphqlErrorBuilder.newError()
+                                    .message("UNAVAILABLE")
+                                    .build())
+                            .build()));
+        });
+
+        run(partialChain, http(ITEM_QUERY, Map.of("id", "1")), "alice");
+        run(partialChain, http(ITEM_QUERY, Map.of("id", "1")), "alice");
+
+        assertThat(executions).hasValue(2);
+        assertThat(cache.size()).isZero();
+    }
+
+    @Test
     @DisplayName("GIVEN vary-by-principal WHEN two callers send the same query SHOULD each get their own entry")
     void given_vary_by_principal_when_two_callers_should_have_own_entries() {
         run(chain, http(ITEM_QUERY, Map.of("id", "1")), "alice");

@@ -8,11 +8,13 @@ import dev.appiaworks.shiguchi.routing.SchemaReloadListener;
 import dev.appiaworks.shiguchi.routing.ServiceLoadStatus;
 import graphql.GraphQLContext;
 import jakarta.annotation.PostConstruct;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +53,13 @@ import org.springframework.web.server.ServerWebExchange;
  * yet is only reported as waiting while services are still loading; the warning that it is ignored
  * comes once every service has loaded.
  *
+ * <p>Failures: a batch whose backend call fails (error, timeout, a chunk of a split batch) fails only
+ * its own keys, as a partial result when the loader reports one. Under {@code data-loader.on-error: ERROR}
+ * (default) each failed key completes exceptionally and the response gets an error for it; under {@code
+ * NULL} they resolve to null. At most {@value #MAX_ERRORS_PER_LOADER} failed keys per loader and request
+ * get an error of their own; past that, each batch adds one {@link BatchFailureSummary} for its remaining
+ * keys and the others resolve to null.
+ *
  * <p>It runs before the other schema reload listeners, {@link GatewaySchemaProvider} among them:
  * the other way round, a request served by the rebuilt schema before the loaders were registered
  * resolved the new relationships to null.
@@ -61,6 +70,11 @@ import org.springframework.web.server.ServerWebExchange;
 public class GrpcDataLoaderRegistryFactory implements SchemaReloadListener {
 
     private static final Logger log = LoggerFactory.getLogger(GrpcDataLoaderRegistryFactory.class);
+
+    /** Failed keys per loader and request that get an error of their own; the rest are summarised. */
+    static final int MAX_ERRORS_PER_LOADER = 20;
+
+    private static final String ERROR_COUNTER_KEY = "shiguchi.dataloader.failed.";
 
     private final BatchLoaderRegistry batchLoaderRegistry;
     private final GrpcBatchDataLoaderRegistrar registrar;
@@ -176,16 +190,63 @@ public class GrpcDataLoaderRegistryFactory implements SchemaReloadListener {
                         cacheConfig.getTtl(),
                         cacheConfig.getMaxSize());
             }
-            batchLoaderRegistry
-                    .<String, Map<String, Object>>forName(typeName)
-                    .registerMappedBatchLoader((keys, env) -> GraphQlMetadata.build(env.getContext(), metadataPopulator)
-                            .flatMap(metadata -> pipeline.load(typeName, keys, metadata)));
+            batchLoaderRegistry.<String, Object>forName(typeName).registerMappedBatchLoader((keys, env) -> {
+                GraphQLContext context = env.getContext();
+                return GraphQlMetadata.build(context, metadataPopulator)
+                        .flatMap(metadata -> pipeline.loadOutcome(typeName, keys, metadata))
+                        .map(outcome -> resolve(typeName, outcome, context));
+            });
             log.debug("Registered DataLoader for type: {}", typeName);
         }
         if (added > 0 || !started) {
             log.info("Registered {} DataLoaders with Spring GraphQL BatchLoaderRegistry", added);
         }
         started = true;
+    }
+
+    /**
+     * The DataLoader's result map: the entities, plus each failed key as the failure itself (the
+     * DataLoader completes such a key exceptionally) under {@code on-error: ERROR}, or nothing
+     * under {@code NULL}. Per request and loader at most {@value #MAX_ERRORS_PER_LOADER} failed
+     * keys carry their own error; the first one past that carries a {@link BatchFailureSummary}
+     * with the count of the rest of its batch, and the others resolve to null.
+     */
+    private Map<String, Object> resolve(String typeName, BatchOutcome outcome, GraphQLContext context) {
+        Map<String, Object> result = new LinkedHashMap<>(outcome.entities());
+        if (!outcome.hasFailures()) return result;
+        if (config.getOnError() == DataLoaderConfig.OnError.NULL) {
+            log.warn(
+                    "[DataLoader] {} keys of type {} failed and resolve to null (on-error: NULL): {}",
+                    outcome.failures().size(),
+                    typeName,
+                    outcome.failures().values().iterator().next().getMessage());
+            return result;
+        }
+        AtomicInteger counter = errorCounter(context, typeName);
+        int overCap = Math.max(0, counter.get() + outcome.failures().size() - MAX_ERRORS_PER_LOADER);
+        overCap = Math.min(overCap, outcome.failures().size());
+        int listed = outcome.failures().size() - overCap;
+        boolean summarised = false;
+        int index = 0;
+        for (Map.Entry<String, Throwable> failure : outcome.failures().entrySet()) {
+            if (index++ < listed) {
+                result.put(failure.getKey(), failure.getValue());
+            } else if (!summarised) {
+                summarised = true;
+                result.put(failure.getKey(), new BatchFailureSummary(typeName, overCap - 1, failure.getValue()));
+            } else {
+                result.put(failure.getKey(), BatchFailureSummary.SUPPRESSED);
+            }
+        }
+        counter.addAndGet(outcome.failures().size());
+        return result;
+    }
+
+    private static AtomicInteger errorCounter(GraphQLContext context, String typeName) {
+        if (context != null) {
+            return context.computeIfAbsent(ERROR_COUNTER_KEY + typeName, k -> new AtomicInteger());
+        }
+        return new AtomicInteger();
     }
 
     /** Rescans the routes and registers the batch-loaded types a newly loaded service brought. */

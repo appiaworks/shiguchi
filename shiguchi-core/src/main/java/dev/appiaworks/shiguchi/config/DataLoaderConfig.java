@@ -28,11 +28,30 @@ public class DataLoaderConfig {
      */
     private int maxConcurrentBatches = 4;
 
-    /** How long one gRPC batch call may take before it fails and its keys resolve to null. */
+    /** How long one gRPC batch call may take before it fails; see {@link #onError} for what its keys then resolve to. */
     private Duration timeout = Duration.ofSeconds(10);
 
     /** Cross-request entity cache per GraphQL type name (the {@code loader_for} value). Empty by default. */
     private Map<String, TypeCache> cache = new LinkedHashMap<>();
+
+    /**
+     * What a failed batch load does to the fields waiting on it: {@link OnError#ERROR} (the default)
+     * reports a GraphQL error on each of them, {@link OnError#NULL} resolves them to null without one.
+     * In YAML quote the value ({@code "NULL"}): a bare {@code NULL} is YAML's null literal and leaves the default.
+     */
+    private OnError onError = OnError.ERROR;
+
+    public OnError getOnError() {
+        return onError == null ? OnError.ERROR : onError;
+    }
+
+    /** How a failed batch load shows in the response. */
+    public enum OnError {
+        /** The relationship fields it failed resolve to null and carry a typed error. */
+        ERROR,
+        /** The relationship fields it failed resolve to null, with no error. */
+        NULL
+    }
 
     @Data
     @NoArgsConstructor

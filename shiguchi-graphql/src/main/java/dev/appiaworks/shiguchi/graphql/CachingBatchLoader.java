@@ -18,7 +18,7 @@ import reactor.core.publisher.Mono;
  * entities are the same for every caller. Ids the backend did not return are not cached, and a
  * failed batch caches nothing.
  */
-public class CachingBatchLoader implements BatchLoader {
+public class CachingBatchLoader implements BatchOutcome.Loader {
 
     private final BatchLoader delegate;
     private final Cache<String, Map<String, Object>> cache;
@@ -38,6 +38,15 @@ public class CachingBatchLoader implements BatchLoader {
 
     @Override
     public Mono<Map<String, Map<String, Object>>> loadMapped(List<String> keys, Metadata metadata) {
+        return loadOutcome(keys, metadata).flatMap(BatchOutcome::strict);
+    }
+
+    /**
+     * Cached entities plus what the delegate loads for the rest. Only entities are cached: an id
+     * the backend did not return, and one whose load failed, are asked for again next time.
+     */
+    @Override
+    public Mono<BatchOutcome> loadOutcome(List<String> keys, Metadata metadata) {
         Map<String, Map<String, Object>> hits = new LinkedHashMap<>();
         List<String> misses = new ArrayList<>();
         for (String key : keys) {
@@ -49,13 +58,13 @@ public class CachingBatchLoader implements BatchLoader {
             }
         }
         if (misses.isEmpty()) {
-            return Mono.just(hits);
+            return Mono.just(BatchOutcome.ok(hits));
         }
-        return delegate.loadMapped(misses, metadata).map(loaded -> {
-            cache.putAll(loaded);
+        return BatchOutcome.of(delegate, misses, metadata).map(loaded -> {
+            cache.putAll(loaded.entities());
             Map<String, Map<String, Object>> result = new LinkedHashMap<>(hits);
-            result.putAll(loaded);
-            return result;
+            result.putAll(loaded.entities());
+            return new BatchOutcome(result, loaded.failures());
         });
     }
 }

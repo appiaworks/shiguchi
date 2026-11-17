@@ -283,8 +283,18 @@ type Book {
 ```
 
 Queries selecting `books { author { name } }` batch all author ids into one
-`GetAuthorsByIds` call per request (DGS DataLoader), and the selection set is pushed down
-as a `read_mask` when the request message has one.
+`GetAuthorsByIds` call per request (DGS DataLoader). The `read_mask` pushdown of the selection set applies to
+query and mutation fields, not to a loader batch: the batch asks for whole entities. The same holds for a
+relationship inside a nested message, and for a chain (order, customer, region): each loader makes one call
+per level of the query.
+
+When a batch call fails (backend error, timeout), every key in it fails: the field is null and the response
+carries an error with `extensions.grpcCode`, `service` and `method`, while the rest of the response is intact. A split
+batch (see `data-loader.max-batch-size`) fails only the chunk that failed. A key the backend does not return
+is null without an error. Per request and loader at most 20 keys carry their own error; the next one carries a
+single error with `extensions.omittedFailures` (the count of the rest of its batch) and the other failed keys of
+that batch are null. Set `shiguchi.graphql.data-loader.on-error: "NULL"` to resolve failed keys to null with
+only a log warning, as releases before this setting did (quote it: a bare `NULL` is a YAML null).
 
 All three pieces are needed for `resolves_type` to resolve:
 
