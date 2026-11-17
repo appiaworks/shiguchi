@@ -37,6 +37,7 @@ Settings that apply to every surface (scopes, caching, object-level authorizatio
 | `directives` | `repeated string` | Raw SDL directives appended verbatim to the GraphQL field, e.g. '@tag(name: "internal")'. The gateway does not validate directive names or arguments; the composition layer does. |
 | `live` | `bool` | Live queries (`query ... @live`): set to false to keep this method out of them. A query that selects such a field runs once, like an ordinary query. Unset: the method may be live. |
 | `invalidated_by` | `repeated string` | Cursus topic patterns (same syntax as the push topics) whose events change this method's result. An event on one of them re-runs the live queries that select the field. |
+| `group_by` | `string` | Makes the loader one-to-many (loader_for must be set): the JSON/proto name of the field on the loader's result entity that holds the parent key, e.g. `author_id` on a Book. The loader maps each requested key to the list of result entities whose group_by field equals it (upstream order kept; a key with no children maps to an empty list). loader_ids_field stays the repeated key field of the request and loader_result_field the repeated entity field of the response. A grouped loader is its own DataLoader, `<Type>#by:<field>`, apart from the type's by-id loader. Reached through (shiguchi.field).resolves_many on the parent's id field. Example: loader_for: "Book", loader_ids_field: "author_ids", group_by: "author_id" |
 
 #### `Op` (enum)
 
@@ -74,6 +75,17 @@ Usage: string author_id = 3 [(shiguchi.field) = { resolves_type: "Author" }];
 | `requires` | `string` | Federation: emit @requires(fields: "..."). A selection set, validated when the schema is built. |
 | `provides` | `string` | Federation: emit @provides(fields: "..."). A selection set, validated when the schema is built. |
 | `directives` | `repeated string` | Raw SDL directives appended verbatim to the field, e.g. '@tag(name: "internal")'. Not validated by the gateway. |
+| `resolves_many` | `ResolvesMany` | Declares this field is the key of a one-to-many relationship: the gateway adds a list field to the parent type holding the child entities whose group_by field equals this field's value. Unlike resolves_type the list field's name is explicit (an `id` field has no name to derive). The list is nullable with non-null items (`[Book!]`); a parent with no children gets `[]`. Example: int64 id = 1 [(shiguchi.field) = { resolves_many: { type: "Book", field: "books", loader: "author_id" } }]; |
+
+### `ResolvesMany`
+
+One-to-many reference declared on a parent's key field. See FieldRule.resolves_many.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `type` | `string` | The GraphQL type of the children, e.g. "Book". |
+| `field` | `string` | Name of the list field to add to the parent type, e.g. "books". |
+| `loader` | `string` | The group_by of the grouped loader (GraphQlRule.group_by) that serves the list, e.g. "author_id". |
 
 ### `TypeRule`
 

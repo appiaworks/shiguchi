@@ -109,13 +109,13 @@ public class GatewayDataFetcherRegistrar {
             }
             codeRegistryBuilder.dataFetcher(
                     FieldCoordinates.coordinates(rel.parentType(), rel.fieldName()),
-                    new GrpcRelationshipDataFetcher(rel.idJsonName(), rel.resolvedType(), onError));
+                    new GrpcRelationshipDataFetcher(rel.idJsonName(), rel.loaderName(), onError, rel.many()));
             relCount++;
             log.debug(
                     "Registered relationship resolver: {}.{} -> DataLoader[{}]",
                     rel.parentType(),
                     rel.fieldName(),
-                    rel.resolvedType());
+                    rel.loaderName());
         }
         if (relCount > 0) log.info("Registered {} GraphQL relationship resolvers", relCount);
 

@@ -48,9 +48,27 @@ public class GrpcRelationshipDataFetcher implements DataFetcher<CompletableFutur
 
     public GrpcRelationshipDataFetcher(
             String idFieldJsonName, String resolvedTypeName, DataLoaderConfig.OnError onError) {
+        this(idFieldJsonName, resolvedTypeName, onError, false);
+    }
+
+    /**
+     * @param many a {@code resolves_many} field: {@code resolvedTypeName} is the one-to-many
+     *     loader's name and the value a list of children. A parent without children (or without an
+     *     id) gets {@code []}, never null; a failed batch errors the field under ERROR and gives
+     *     {@code []} under NULL.
+     */
+    public GrpcRelationshipDataFetcher(
+            String idFieldJsonName, String resolvedTypeName, DataLoaderConfig.OnError onError, boolean many) {
         this.idFieldJsonName = idFieldJsonName;
         this.resolvedTypeName = resolvedTypeName;
         this.onError = onError == null ? DataLoaderConfig.OnError.ERROR : onError;
+        this.many = many;
+    }
+
+    private final boolean many;
+
+    private Object none() {
+        return many ? java.util.List.of() : null;
     }
 
     @Override
@@ -58,12 +76,12 @@ public class GrpcRelationshipDataFetcher implements DataFetcher<CompletableFutur
     public CompletableFuture<Object> get(DataFetchingEnvironment env) {
         Object source = env.getSource();
         if (!(source instanceof Map<?, ?> sourceMap)) {
-            return CompletableFuture.completedFuture(null);
+            return CompletableFuture.completedFuture(none());
         }
 
         Object id = sourceMap.get(idFieldJsonName);
         if (id == null) {
-            return CompletableFuture.completedFuture(null);
+            return CompletableFuture.completedFuture(none());
         }
 
         DataLoader<String, Object> loader = env.getDataLoader(resolvedTypeName);
@@ -83,14 +101,17 @@ public class GrpcRelationshipDataFetcher implements DataFetcher<CompletableFutur
         // A failed key is not swallowed here: its exception reaches GrpcGraphQlExceptionHandler, so
         // the response carries an error (grpcCode, service, method) and the field is null.
         return loader.load(idStr).handle((value, failure) -> {
-            if (failure == null) return value == BatchFailureSummary.SUPPRESSED ? null : value;
+            if (failure == null) {
+                if (value == BatchFailureSummary.SUPPRESSED) return none();
+                return value == null ? none() : value;
+            }
             if (onError == DataLoaderConfig.OnError.NULL) {
                 log.warn(
                         "[Relationship] DataLoader load failed for type='{}' id={}: {}",
                         resolvedTypeName,
                         idStr,
                         failure.getMessage());
-                return null;
+                return none();
             }
             throw failure instanceof CompletionException completion ? completion : new CompletionException(failure);
         });

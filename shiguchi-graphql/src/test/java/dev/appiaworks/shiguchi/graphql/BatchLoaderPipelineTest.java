@@ -224,4 +224,45 @@ class BatchLoaderPipelineTest {
         for (String key : keys) result.put(key, Map.of("id", key));
         return result;
     }
+
+    @Test
+    @DisplayName(
+            "GIVEN 120 distinct keys, duplicates and max-batch-size 50 WHEN loaded grouped SHOULD make three calls")
+    void GIVEN_120Keys_WHEN_loadedGrouped_SHOULD_makeThreeChunkedCallsWithDistinctKeys() {
+        List<List<String>> calls = new CopyOnWriteArrayList<>();
+        GroupedOutcome.Loader grouped = (ks, md) -> {
+            calls.add(List.copyOf(ks));
+            Map<String, List<Map<String, Object>>> groups = new LinkedHashMap<>();
+            for (String k : ks) groups.put(k, List.of());
+            return Mono.just(new GroupedOutcome(groups, Map.of()));
+        };
+        GrpcBatchDataLoaderRegistrar registrar = mock(GrpcBatchDataLoaderRegistrar.class);
+        when(registrar.getGroupedLoaders()).thenReturn(Map.of("Book#by:authorId", grouped));
+        DataLoaderConfig config = new DataLoaderConfig();
+        config.setMaxBatchSize(50);
+        BatchLoaderPipeline pipeline = new BatchLoaderPipeline(registrar, (RestBatchDataLoaderRegistrar) null, config);
+        List<String> all = new ArrayList<>(keys(120));
+        all.addAll(keys(10));
+
+        GroupedOutcome outcome =
+                pipeline.loadGrouped("Book#by:authorId", all, new Metadata()).block();
+
+        assertThat(calls).extracting(List::size).containsExactlyInAnyOrder(50, 50, 20);
+        assertThat(outcome.groups()).hasSize(120);
+    }
+
+    @Test
+    @DisplayName("GIVEN no grouped loader of that name WHEN loaded grouped SHOULD fail every key")
+    void GIVEN_noGroupedLoader_WHEN_loadedGrouped_SHOULD_failEveryKey() {
+        GrpcBatchDataLoaderRegistrar registrar = mock(GrpcBatchDataLoaderRegistrar.class);
+        when(registrar.getGroupedLoaders()).thenReturn(Map.of());
+        BatchLoaderPipeline pipeline =
+                new BatchLoaderPipeline(registrar, (RestBatchDataLoaderRegistrar) null, new DataLoaderConfig());
+
+        GroupedOutcome outcome = pipeline.loadGrouped("Book#by:authorId", List.of("a", "b"), new Metadata())
+                .block();
+
+        assertThat(outcome.failures()).containsOnlyKeys("a", "b");
+        assertThat(outcome.groups()).isEmpty();
+    }
 }

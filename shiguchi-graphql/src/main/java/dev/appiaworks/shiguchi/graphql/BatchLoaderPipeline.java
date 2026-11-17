@@ -13,6 +13,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -113,6 +115,38 @@ class BatchLoaderPipeline {
         return BatchOutcome.of(layer(type, raw), distinct, metadata);
     }
 
+    /**
+     * The one-to-many loaders by name ({@code Type#by:field}), gRPC only. Apart from {@link #types()}
+     * on purpose: a grouped loader has no entities by id, so {@code _entities} and the caches never see it.
+     */
+    Set<String> groupedNames() {
+        return new LinkedHashSet<>(grpcRegistrar.getGroupedLoaders().keySet());
+    }
+
+    boolean hasGrouped(String name) {
+        return grpcRegistrar.getGroupedLoaders().containsKey(name);
+    }
+
+    /**
+     * Loads the children of {@code keys} (parent ids) from the grouped loader {@code name}: de-duplicated,
+     * chunked by {@code max-batch-size} with bounded concurrency like a by-id load, never cached. A
+     * failed chunk fails only its own keys; a loader that is gone fails them all.
+     */
+    Mono<GroupedOutcome> loadGrouped(String name, Collection<String> keys, Metadata metadata) {
+        if (keys.isEmpty()) return Mono.just(GroupedOutcome.EMPTY);
+        List<String> distinct = distinct(keys);
+        GroupedOutcome.Loader raw = grpcRegistrar.getGroupedLoaders().get(name);
+        if (raw == null) {
+            return Mono.just(GroupedOutcome.failed(
+                    distinct, new IllegalStateException("No batch loader is available for " + name)));
+        }
+        return chunkedGrouped(
+                distinct,
+                config.getMaxBatchSize(),
+                config.getMaxConcurrentBatches(),
+                chunk -> GroupedOutcome.of(raw, chunk, metadata));
+    }
+
     private BatchLoader rawLoader(String type) {
         BatchLoader grpc = grpcRegistrar.getLoaders().get(type);
         if (restRegistrar == null) return grpc;
@@ -159,15 +193,35 @@ class BatchLoaderPipeline {
      */
     static Mono<BatchOutcome> chunkedOutcome(
             List<String> keys, int size, int concurrency, Function<List<String>, Mono<BatchOutcome>> call) {
-        Function<List<String>, Mono<BatchOutcome>> safe = chunk ->
-                Mono.defer(() -> call.apply(chunk)).onErrorResume(e -> Mono.just(BatchOutcome.failed(chunk, e)));
+        return chunkedWith(
+                keys, size, concurrency, call, BatchOutcome::failed, BatchOutcome.EMPTY, BatchOutcome::merge);
+    }
+
+    /** As {@link #chunkedOutcome}, for the one-to-many loaders' {@link GroupedOutcome}. */
+    static Mono<GroupedOutcome> chunkedGrouped(
+            List<String> keys, int size, int concurrency, Function<List<String>, Mono<GroupedOutcome>> call) {
+        return chunkedWith(
+                keys, size, concurrency, call, GroupedOutcome::failed, GroupedOutcome.EMPTY, GroupedOutcome::merge);
+    }
+
+    /** The chunking and bounded concurrency both outcome kinds share. */
+    private static <O> Mono<O> chunkedWith(
+            List<String> keys,
+            int size,
+            int concurrency,
+            Function<List<String>, Mono<O>> call,
+            BiFunction<List<String>, Throwable, O> failed,
+            O empty,
+            BinaryOperator<O> merge) {
+        Function<List<String>, Mono<O>> safe =
+                chunk -> Mono.defer(() -> call.apply(chunk)).onErrorResume(e -> Mono.just(failed.apply(chunk, e)));
         if (size <= 0 || keys.size() <= size) return safe.apply(keys);
         List<List<String>> chunks = new ArrayList<>((keys.size() + size - 1) / size);
         for (int from = 0; from < keys.size(); from += size) {
             chunks.add(keys.subList(from, Math.min(from + size, keys.size())));
         }
         int inFlight = concurrency <= 0 ? Integer.MAX_VALUE : concurrency;
-        return Flux.fromIterable(chunks).flatMap(safe, inFlight).reduce(BatchOutcome.EMPTY, BatchOutcome::merge);
+        return Flux.fromIterable(chunks).flatMap(safe, inFlight).reduce(empty, merge);
     }
 
     /**

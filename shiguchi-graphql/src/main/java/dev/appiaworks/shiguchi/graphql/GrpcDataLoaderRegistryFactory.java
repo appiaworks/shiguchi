@@ -198,6 +198,18 @@ public class GrpcDataLoaderRegistryFactory implements SchemaReloadListener {
             });
             log.debug("Registered DataLoader for type: {}", typeName);
         }
+        // One-to-many loaders (Type#by:field): each its own DataLoader, never cached
+        for (String name : List.copyOf(pipeline.groupedNames())) {
+            if (!registeredTypes.add(name)) continue;
+            added++;
+            batchLoaderRegistry.<String, Object>forName(name).registerMappedBatchLoader((keys, env) -> {
+                GraphQLContext context = env.getContext();
+                return GraphQlMetadata.build(context, metadataPopulator)
+                        .flatMap(metadata -> pipeline.loadGrouped(name, keys, metadata))
+                        .map(outcome -> resolve(name, outcome, context));
+            });
+            log.debug("Registered one-to-many DataLoader: {}", name);
+        }
         if (added > 0 || !started) {
             log.info("Registered {} DataLoaders with Spring GraphQL BatchLoaderRegistry", added);
         }
@@ -212,23 +224,33 @@ public class GrpcDataLoaderRegistryFactory implements SchemaReloadListener {
      * with the count of the rest of its batch, and the others resolve to null.
      */
     private Map<String, Object> resolve(String typeName, BatchOutcome outcome, GraphQLContext context) {
-        Map<String, Object> result = new LinkedHashMap<>(outcome.entities());
-        if (!outcome.hasFailures()) return result;
+        return resolve(typeName, outcome.entities(), outcome.failures(), context);
+    }
+
+    /** As the by-id resolve, for a one-to-many load: the value of a key is its list of children. */
+    private Map<String, Object> resolve(String name, GroupedOutcome outcome, GraphQLContext context) {
+        return resolve(name, outcome.groups(), outcome.failures(), context);
+    }
+
+    private Map<String, Object> resolve(
+            String typeName, Map<String, ?> values, Map<String, Throwable> failures, GraphQLContext context) {
+        Map<String, Object> result = new LinkedHashMap<>(values);
+        if (failures.isEmpty()) return result;
         if (config.getOnError() == DataLoaderConfig.OnError.NULL) {
             log.warn(
                     "[DataLoader] {} keys of type {} failed and resolve to null (on-error: NULL): {}",
-                    outcome.failures().size(),
+                    failures.size(),
                     typeName,
-                    outcome.failures().values().iterator().next().getMessage());
+                    failures.values().iterator().next().getMessage());
             return result;
         }
         AtomicInteger counter = errorCounter(context, typeName);
-        int overCap = Math.max(0, counter.get() + outcome.failures().size() - MAX_ERRORS_PER_LOADER);
-        overCap = Math.min(overCap, outcome.failures().size());
-        int listed = outcome.failures().size() - overCap;
+        int overCap = Math.max(0, counter.get() + failures.size() - MAX_ERRORS_PER_LOADER);
+        overCap = Math.min(overCap, failures.size());
+        int listed = failures.size() - overCap;
         boolean summarised = false;
         int index = 0;
-        for (Map.Entry<String, Throwable> failure : outcome.failures().entrySet()) {
+        for (Map.Entry<String, Throwable> failure : failures.entrySet()) {
             if (index++ < listed) {
                 result.put(failure.getKey(), failure.getValue());
             } else if (!summarised) {
@@ -238,7 +260,7 @@ public class GrpcDataLoaderRegistryFactory implements SchemaReloadListener {
                 result.put(failure.getKey(), BatchFailureSummary.SUPPRESSED);
             }
         }
-        counter.addAndGet(outcome.failures().size());
+        counter.addAndGet(failures.size());
         return result;
     }
 

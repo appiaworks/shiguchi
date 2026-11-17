@@ -176,4 +176,59 @@ class GrpcRelationshipDataFetcherTest {
 
         assertThat(fetcher.get(env).get()).isNull();
     }
+
+    private static GrpcRelationshipDataFetcher manyFetcher(DataLoaderConfig.OnError onError) {
+        return new GrpcRelationshipDataFetcher("id", "Book#by:authorId", onError, true);
+    }
+
+    @Test
+    @DisplayName("GIVEN a one-to-many field and a source without the id WHEN fetched SHOULD return an empty list")
+    void GIVEN_manyField_WHEN_idMissing_SHOULD_returnEmptyList() throws Exception {
+        assertThat(manyFetcher(DataLoaderConfig.OnError.ERROR)
+                        .get(envWithSource(Map.of()))
+                        .get())
+                .isEqualTo(java.util.List.of());
+    }
+
+    @Test
+    @DisplayName("GIVEN a one-to-many field and a parent without children WHEN fetched SHOULD return [] not null")
+    void GIVEN_manyField_WHEN_loaderYieldsNull_SHOULD_returnEmptyList() throws Exception {
+        DataFetchingEnvironment env = envWithSource(Map.of("id", "42"));
+        @SuppressWarnings("unchecked")
+        DataLoader<String, Object> loader = mock(DataLoader.class);
+        when(loader.load(eq("42"))).thenReturn(CompletableFuture.completedFuture(null));
+        when(env.<String, Object>getDataLoader("Book#by:authorId")).thenReturn(loader);
+
+        assertThat(manyFetcher(DataLoaderConfig.OnError.ERROR).get(env).get()).isEqualTo(java.util.List.of());
+    }
+
+    @Test
+    @DisplayName("GIVEN a one-to-many field and on-error ERROR WHEN the batch failed SHOULD error the field")
+    void GIVEN_manyFieldErrorMode_WHEN_batchFails_SHOULD_errorTheField() {
+        DataFetchingEnvironment env = envWithSource(Map.of("id", "42"));
+        @SuppressWarnings("unchecked")
+        DataLoader<String, Object> loader = mock(DataLoader.class);
+        CompletableFuture<Object> failing = new CompletableFuture<>();
+        failing.completeExceptionally(new RuntimeException("backend down"));
+        when(loader.load(eq("42"))).thenReturn(failing);
+        when(env.<String, Object>getDataLoader("Book#by:authorId")).thenReturn(loader);
+
+        assertThatThrownBy(() ->
+                        manyFetcher(DataLoaderConfig.OnError.ERROR).get(env).get())
+                .hasMessageContaining("backend down");
+    }
+
+    @Test
+    @DisplayName("GIVEN a one-to-many field and on-error NULL WHEN the batch failed SHOULD return []")
+    void GIVEN_manyFieldNullMode_WHEN_batchFails_SHOULD_returnEmptyList() throws Exception {
+        DataFetchingEnvironment env = envWithSource(Map.of("id", "42"));
+        @SuppressWarnings("unchecked")
+        DataLoader<String, Object> loader = mock(DataLoader.class);
+        CompletableFuture<Object> failing = new CompletableFuture<>();
+        failing.completeExceptionally(new RuntimeException("backend down"));
+        when(loader.load(eq("42"))).thenReturn(failing);
+        when(env.<String, Object>getDataLoader("Book#by:authorId")).thenReturn(loader);
+
+        assertThat(manyFetcher(DataLoaderConfig.OnError.NULL).get(env).get()).isEqualTo(java.util.List.of());
+    }
 }

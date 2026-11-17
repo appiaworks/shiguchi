@@ -12,6 +12,7 @@ import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
 import dev.appiaworks.shiguchi.proto.FieldRule;
 import dev.appiaworks.shiguchi.proto.GraphQlProto;
+import dev.appiaworks.shiguchi.proto.ResolvesMany;
 import dev.appiaworks.shiguchi.proto.TypeRule;
 import dev.appiaworks.shiguchi.reflection.GraphQlOptionReader;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
@@ -154,9 +155,28 @@ public class GraphQlSchemaBuilder {
      * @param parentType the GraphQL type that declares the field
      * @param fieldName the companion field's name in the schema
      * @param idJsonName the key of the id in the parent's data (the proto field's JSON name)
-     * @param resolvedType the GraphQL type it resolves to, and the DataLoader's name
+     * @param resolvedType the GraphQL type it resolves to (one, or a list of them when {@code groupBy} is set)
+     * @param groupBy empty for a {@code resolves_type} reference (one entity by id); for a
+     *     {@code resolves_many} field the {@code group_by} of the one-to-many loader that serves its list
      */
-    public record Relationship(String parentType, String fieldName, String idJsonName, String resolvedType) {}
+    public record Relationship(
+            String parentType, String fieldName, String idJsonName, String resolvedType, String groupBy) {
+
+        /** A reference to one entity, resolved by id. */
+        public Relationship(String parentType, String fieldName, String idJsonName, String resolvedType) {
+            this(parentType, fieldName, idJsonName, resolvedType, "");
+        }
+
+        /** Whether the field is a list of children ({@code resolves_many}), decided here from the parent's descriptor. */
+        public boolean many() {
+            return groupBy != null && !groupBy.isEmpty();
+        }
+
+        /** The DataLoader that serves it: the type's by-id loader, or its one-to-many loader for the group field. */
+        public String loaderName() {
+            return many() ? GrpcBatchDataLoaderRegistrar.groupedName(resolvedType, groupBy) : resolvedType;
+        }
+    }
 
     private record SdlResult(
             String sdl,
@@ -684,6 +704,34 @@ public class GraphQlSchemaBuilder {
                                 .append(resolvedType)
                                 .append("\n");
                     }
+                }
+            }
+
+            // Companion list field for resolves_many: nullable [Child!], never [Child!]!, so a failed
+            // batch can still null the field instead of failing the parent
+            if (ann != null && ann.hasResolvesMany()) {
+                ResolvesMany many = ann.getResolvesMany();
+                if (many.getType().isEmpty() || many.getLoader().isEmpty()) {
+                    log.warn(
+                            "resolves_many on {}.{} needs a type and a loader (the group_by of the one-to-many loader); skipped",
+                            typeName,
+                            field.getName());
+                } else {
+                    String listName = many.getField().isEmpty()
+                            ? Character.toLowerCase(many.getType().charAt(0))
+                                    + many.getType().substring(1) + "s"
+                            : many.getField();
+                    collectingRelationships.add(new Relationship(
+                            typeName,
+                            listName,
+                            field.getJsonName(),
+                            many.getType(),
+                            GrpcBatchDataLoaderRegistrar.snakeToCamel(many.getLoader())));
+                    sb.append("  ")
+                            .append(listName)
+                            .append(": [")
+                            .append(many.getType())
+                            .append("!]\n");
                 }
             }
         }

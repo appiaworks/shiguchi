@@ -3,11 +3,18 @@ package dev.appiaworks.shiguchi.bench;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.Descriptors.ServiceDescriptor;
 import com.google.protobuf.util.JsonFormat;
+import dev.appiaworks.shiguchi.bench.proto.BooksByAuthorsRequest;
+import dev.appiaworks.shiguchi.bench.proto.BooksOfRequest;
 import dev.appiaworks.shiguchi.bench.proto.Customer;
 import dev.appiaworks.shiguchi.bench.proto.Customers;
 import dev.appiaworks.shiguchi.bench.proto.GetCustomersRequest;
 import dev.appiaworks.shiguchi.bench.proto.GetShopOrderRequest;
+import dev.appiaworks.shiguchi.bench.proto.ListShopAuthorsRequest;
 import dev.appiaworks.shiguchi.bench.proto.ListShopOrdersRequest;
+import dev.appiaworks.shiguchi.bench.proto.ShopAuthor;
+import dev.appiaworks.shiguchi.bench.proto.ShopAuthors;
+import dev.appiaworks.shiguchi.bench.proto.ShopBook;
+import dev.appiaworks.shiguchi.bench.proto.ShopBooks;
 import dev.appiaworks.shiguchi.bench.proto.ShopItem;
 import dev.appiaworks.shiguchi.bench.proto.ShopOrder;
 import dev.appiaworks.shiguchi.bench.proto.ShopOrders;
@@ -83,6 +90,13 @@ import reactor.netty.http.server.HttpServer;
  *       {@code resolves_type} option, which an OpenAPI-derived descriptor cannot carry;
  *       {@code rest-batch-loaders[]} feed Federation {@code _entities} only), so these two throw
  *       {@link UnsupportedOperationException}; run them with {@code -p backend=grpc}.
+ *   <li>{@code graphql_has_many_AxB} — A authors each selecting their B books through a grouped
+ *       loader ({@code group_by}): one list hop plus one batch hop of A keys, whatever A is.
+ *   <li>{@code graphql_per_parent_AxB} — the same data with one upstream call per author: the
+ *       authors, then one {@code booksOf(authorId)} field per author in the same document (a
+ *       resolver never reads its parent, so the per-parent calls are aliased root fields). The
+ *       difference to {@code graphql_has_many_AxB} is what the grouped loader saves. Only with
+ *       {@code backend=grpc}.
  * </ul>
  */
 @State(Scope.Benchmark)
@@ -98,6 +112,9 @@ public class GatewayGraphQlBenchmark {
     static class GatewayApp {}
 
     private static final int CUSTOMERS = 100;
+
+    /** Books per author in the one-to-many legs. */
+    private static final int BOOKS_PER_AUTHOR = 10;
 
     private static final String GQL_ORDER_FIELDS = "id name active score items { sku qty price }";
 
@@ -142,6 +159,10 @@ public class GatewayGraphQlBenchmark {
     private String gqlList100;
     private String gqlNested10;
     private String gqlNested100;
+    private String gqlHasMany100;
+    private String gqlHasMany1000;
+    private String gqlPerParent100;
+    private String gqlPerParent1000;
     private DisposableServer httpStub;
     /** Precomputed stub responses by request shape (order id, count, customer ids). */
     private final java.util.Map<String, byte[]> stubBodies = new ConcurrentHashMap<>();
@@ -180,6 +201,33 @@ public class GatewayGraphQlBenchmark {
                     ShopItem.newBuilder().setSku("SKU-" + n + "-" + i).setQty(i).setPrice(9.99 * i));
         }
         return b.build();
+    }
+
+    static ShopBook book(String authorId, int k) {
+        return ShopBook.newBuilder()
+                .setId("book-" + authorId + "-" + k)
+                .setAuthorId(authorId)
+                .setTitle("Title " + authorId + "-" + k)
+                .setPages(100 + k)
+                .build();
+    }
+
+    /** The has-many query: authors with their books through the grouped loader. */
+    static String hasManyQuery(int authors) {
+        return query("{ authors(count: " + authors + ") { items { id name books { id title pages } } } }");
+    }
+
+    /** The same data with one upstream books call per author: aliased booksOf root fields. */
+    static String perParentQuery(int authors) {
+        StringBuilder sb = new StringBuilder("{ authors(count: " + authors + ") { items { id name } }");
+        for (int n = 1; n <= authors; n++) {
+            sb.append(" b")
+                    .append(n)
+                    .append(": booksOf(authorId: \\\"author-")
+                    .append(n)
+                    .append("\\\") { items { id title pages } }");
+        }
+        return query(sb.append(" }").toString());
     }
 
     static Customer customer(String id) {
@@ -295,6 +343,12 @@ public class GatewayGraphQlBenchmark {
             expect(post("/graphql", gqlList100), "\"benchmark-order-100\"");
             expect(post("/graphql", gqlNested10), "\"customer\":{\"id\":\"cust-10\"");
             expect(post("/graphql", gqlNested100), "\"customer\":{\"id\":\"cust-100\"");
+            gqlHasMany100 = hasManyQuery(100);
+            gqlHasMany1000 = hasManyQuery(1000);
+            gqlPerParent100 = perParentQuery(100);
+            gqlPerParent1000 = perParentQuery(1000);
+            expect(post("/graphql", gqlHasMany100), "\"title\":\"Title author-100-" + BOOKS_PER_AUTHOR + "\"");
+            expect(post("/graphql", gqlPerParent100), "\"title\":\"Title author-100-" + BOOKS_PER_AUTHOR + "\"");
         }
     }
 
@@ -306,11 +360,23 @@ public class GatewayGraphQlBenchmark {
                 unary("bench.Shop/List", ListShopOrdersRequest.getDefaultInstance(), ShopOrders.getDefaultInstance());
         var customers = unary(
                 "bench.Shop/GetCustomers", GetCustomersRequest.getDefaultInstance(), Customers.getDefaultInstance());
+        var listAuthors = unary(
+                "bench.Shop/ListAuthors",
+                ListShopAuthorsRequest.getDefaultInstance(),
+                ShopAuthors.getDefaultInstance());
+        var booksByAuthors = unary(
+                "bench.Shop/BooksByAuthors",
+                BooksByAuthorsRequest.getDefaultInstance(),
+                ShopBooks.getDefaultInstance());
+        var booksOf = unary("bench.Shop/BooksOf", BooksOfRequest.getDefaultInstance(), ShopBooks.getDefaultInstance());
         var serviceDescriptor = io.grpc.ServiceDescriptor.newBuilder("bench.Shop")
                 .setSchemaDescriptor(new Schema(file, file.findServiceByName("Shop")))
                 .addMethod(get)
                 .addMethod(list)
                 .addMethod(customers)
+                .addMethod(listAuthors)
+                .addMethod(booksByAuthors)
+                .addMethod(booksOf)
                 .build();
         ServerServiceDefinition service = ServerServiceDefinition.builder(serviceDescriptor)
                 .addMethod(get, ServerCalls.asyncUnaryCall((req, obs) -> {
@@ -327,6 +393,28 @@ public class GatewayGraphQlBenchmark {
                 .addMethod(customers, ServerCalls.asyncUnaryCall((req, obs) -> {
                     Customers.Builder b = Customers.newBuilder();
                     for (String id : req.getIdsList()) b.addItems(customer(id));
+                    obs.onNext(b.build());
+                    obs.onCompleted();
+                }))
+                .addMethod(listAuthors, ServerCalls.asyncUnaryCall((req, obs) -> {
+                    ShopAuthors.Builder b = ShopAuthors.newBuilder();
+                    for (int n = 1; n <= req.getCount(); n++) {
+                        b.addItems(ShopAuthor.newBuilder().setId("author-" + n).setName("Author " + n));
+                    }
+                    obs.onNext(b.build());
+                    obs.onCompleted();
+                }))
+                .addMethod(booksByAuthors, ServerCalls.asyncUnaryCall((req, obs) -> {
+                    ShopBooks.Builder b = ShopBooks.newBuilder();
+                    for (String id : req.getAuthorIdsList()) {
+                        for (int k = 1; k <= BOOKS_PER_AUTHOR; k++) b.addItems(book(id, k));
+                    }
+                    obs.onNext(b.build());
+                    obs.onCompleted();
+                }))
+                .addMethod(booksOf, ServerCalls.asyncUnaryCall((req, obs) -> {
+                    ShopBooks.Builder b = ShopBooks.newBuilder();
+                    for (int k = 1; k <= BOOKS_PER_AUTHOR; k++) b.addItems(book(req.getAuthorId(), k));
                     obs.onNext(b.build());
                     obs.onCompleted();
                 }))
@@ -595,10 +683,34 @@ public class GatewayGraphQlBenchmark {
         return post("/graphql", gqlNested100);
     }
 
+    @Benchmark
+    public String graphql_has_many_100x10() {
+        requireNested();
+        return post("/graphql", gqlHasMany100);
+    }
+
+    @Benchmark
+    public String graphql_has_many_1000x10() {
+        requireNested();
+        return post("/graphql", gqlHasMany1000);
+    }
+
+    @Benchmark
+    public String graphql_per_parent_100x10() {
+        requireNested();
+        return post("/graphql", gqlPerParent100);
+    }
+
+    @Benchmark
+    public String graphql_per_parent_1000x10() {
+        requireNested();
+        return post("/graphql", gqlPerParent1000);
+    }
+
     private void requireNested() {
         if (http) {
             throw new UnsupportedOperationException(
-                    "a REST_DOWNSTREAM type has no relationship field; run graphql_nested_* with -p backend=grpc");
+                    "a REST_DOWNSTREAM type has no relationship field; run the nested and has-many legs with -p backend=grpc");
         }
     }
 }

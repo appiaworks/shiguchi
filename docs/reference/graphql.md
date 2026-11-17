@@ -334,6 +334,7 @@ All under `shiguchi.graphql`. See [configuration.md](configuration.md).
 | `response-cache.vary-by-principal` | `true` |
 | `data-loader.max-batch-size` | `0` (unlimited) |
 | `data-loader.max-concurrent-batches` | `4` (0 = all at once) |
+| `data-loader.max-children-per-key` | `0` (unlimited; a one-to-many key over it fails) |
 | `data-loader.timeout` | `PT10S` |
 | `data-loader.on-error` | `ERROR` (`NULL` resolves a failed key to null without an error; quote it in YAML) |
 | `data-loader.cache.<TypeName>.ttl` / `.max-size` | `PT1H` / `10000` (cache map empty by default) |

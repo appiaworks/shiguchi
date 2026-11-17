@@ -49,6 +49,8 @@ public class GrpcBatchDataLoaderRegistrar {
     private final GrpcRouteRegistry registry;
     private final ReactiveGrpcDispatcher dispatcher;
     private final Map<String, BatchLoader> loadersByType = Collections.synchronizedMap(new LinkedHashMap<>());
+    private final Map<String, GroupedOutcome.Loader> groupedLoaders =
+            Collections.synchronizedMap(new LinkedHashMap<>());
     private final Map<String, RouteDefinition> routesByType = new HashMap<>();
     private final Duration timeout;
     private final Map<String, String> ownersByType = new HashMap<>();
@@ -109,12 +111,13 @@ public class GrpcBatchDataLoaderRegistrar {
             for (RouteDefinition route : ctx.getRoutes()) {
                 if (!route.isLoader()) continue;
                 candidates
-                        .computeIfAbsent(route.getLoaderFor(), t -> new LinkedHashMap<>())
+                        .computeIfAbsent(loaderName(route), t -> new LinkedHashMap<>())
                         .putIfAbsent(endpoint, route);
             }
         }
 
         Map<String, BatchLoader> found = new LinkedHashMap<>();
+        Map<String, GroupedOutcome.Loader> foundGrouped = new LinkedHashMap<>();
         Map<String, RouteDefinition> foundRoutes = new HashMap<>();
         Map<String, String> foundOwners = new HashMap<>();
         Set<String> conflictsNow = new HashSet<>();
@@ -124,10 +127,24 @@ public class GrpcBatchDataLoaderRegistrar {
             String owner = chooseOwner(type, byEndpoint, conflictsNow);
             if (owner == null) continue;
             RouteDefinition route = byEndpoint.get(owner);
+            boolean unchanged = routesByType.get(type) == route && owner.equals(ownersByType.get(type));
+            if (route.isGroupedLoader()) {
+                if (!checkGrouped(type, route)) continue;
+                try {
+                    GroupedOutcome.Loader loader =
+                            unchanged ? groupedLoaders.get(type) : createGroupedLoader(type, route);
+                    if (loader != null) {
+                        foundGrouped.put(type, loader);
+                        foundRoutes.put(type, route);
+                        foundOwners.put(type, owner);
+                    }
+                } catch (Exception ex) {
+                    log.warn("Failed to register grouped batch loader for route {}", route.getGraphQlName(), ex);
+                }
+                continue;
+            }
             try {
-                BatchLoader loader = routesByType.get(type) == route && owner.equals(ownersByType.get(type))
-                        ? loadersByType.get(type)
-                        : createBatchLoader(route);
+                BatchLoader loader = unchanged ? loadersByType.get(type) : createBatchLoader(route);
                 if (loader != null) {
                     found.put(type, loader);
                     foundRoutes.put(type, route);
@@ -138,10 +155,15 @@ public class GrpcBatchDataLoaderRegistrar {
             }
         }
         checkPins(candidates);
+        checkGroupedCaches(candidates);
 
         synchronized (loadersByType) {
             loadersByType.clear();
             loadersByType.putAll(found);
+        }
+        synchronized (groupedLoaders) {
+            groupedLoaders.clear();
+            groupedLoaders.putAll(foundGrouped);
         }
         routesByType.clear();
         routesByType.putAll(foundRoutes);
@@ -151,6 +173,72 @@ public class GrpcBatchDataLoaderRegistrar {
         started = true;
 
         log.info("Registered {} batch loaders for GraphQL types: {}", found.size(), found.keySet());
+        if (!foundGrouped.isEmpty()) {
+            log.info("Registered {} one-to-many batch loaders: {}", foundGrouped.size(), foundGrouped.keySet());
+        }
+    }
+
+    /**
+     * The name a loader is known by: the type for a by-id loader, {@code Type#by:groupField} (the
+     * group field in its JSON spelling) for a one-to-many one. It keys the ownership, the pins and
+     * the DataLoader, so a type's by-id loader and its grouped loaders never collide.
+     */
+    static String loaderName(RouteDefinition route) {
+        return route.isGroupedLoader()
+                ? groupedName(route.getLoaderFor(), route.getLoaderGroupBy())
+                : route.getLoaderFor();
+    }
+
+    /** {@code Type#by:groupField}, the group field in its JSON (camelCase) spelling. */
+    static String groupedName(String type, String groupBy) {
+        return type + "#by:" + snakeToCamel(groupBy);
+    }
+
+    /**
+     * A one-to-many loader whose {@code group_by} names no field of its result entity could never
+     * group anything: startup fails, a reload logs it and leaves the loader out.
+     */
+    private boolean checkGrouped(String name, RouteDefinition route) {
+        String problem = groupedProblem(route);
+        if (problem == null) return true;
+        String message = "Loader " + name + " (route " + route.getGraphQlName() + "): " + problem;
+        if (!started) throw new IllegalStateException(message);
+        log.error(message);
+        return false;
+    }
+
+    private String groupedProblem(RouteDefinition route) {
+        var ctx = registry.contextFor(route);
+        var method = ctx == null
+                ? Optional.<MethodDescriptor>empty()
+                : ctx.lookupMethod(route.getFullServiceName(), route.getMethodName());
+        if (method.isEmpty()) return null; // reported as a missing method when the loader is created
+        Optional<Descriptor> entity = entityDescriptor(method.get(), route.getLoaderResultField());
+        if (entity.isEmpty()) return null;
+        String groupBy = route.getLoaderGroupBy();
+        String camel = snakeToCamel(groupBy);
+        for (FieldDescriptor field : entity.get().getFields()) {
+            if (field.getName().equals(groupBy) || field.getJsonName().equals(camel)) return null;
+        }
+        return "group_by '" + groupBy + "' is not a field of " + entity.get().getFullName()
+                + ", the entity the loader returns";
+    }
+
+    /**
+     * A cache entry naming a one-to-many loader ({@code data-loader.cache."Book#by:authorId"}) can
+     * not work: its results are lists per parent, loaded for the request that asks, with no entity
+     * id to key a cache by. Startup fails, a reload logs it.
+     */
+    private void checkGroupedCaches(Map<String, Map<String, RouteDefinition>> candidates) {
+        for (String name : config.getCache().keySet()) {
+            Map<String, RouteDefinition> byEndpoint = candidates.get(name);
+            if (byEndpoint == null || byEndpoint.values().stream().noneMatch(RouteDefinition::isGroupedLoader))
+                continue;
+            String message = "shiguchi.graphql.data-loader.cache." + name + " names a one-to-many loader (group_by);"
+                    + " only the by-id loader of a type can be cached";
+            if (!started) throw new IllegalStateException(message);
+            log.error(message);
+        }
     }
 
     /** The endpoint whose loader serves {@code type}, or null when none (a rejected conflict). */
@@ -250,6 +338,42 @@ public class GrpcBatchDataLoaderRegistrar {
         return loader;
     }
 
+    private GroupedOutcome.Loader createGroupedLoader(String name, RouteDefinition route) {
+        var ctx = registry.contextFor(route);
+        var methodOptional = ctx.lookupMethod(route.getFullServiceName(), route.getMethodName());
+        if (methodOptional.isEmpty()) {
+            log.warn("Could not find method descriptor for batch route {}", route.getGraphQlName());
+            return null;
+        }
+        String batchKeyJsonName = snakeToCamel(route.getLoaderIdsField());
+        String batchResultJsonName = snakeToCamel(route.getLoaderResultField());
+        // The by-id key is unused here: the items are grouped by the group_by field instead
+        var source = new GrpcBatchLoader(route, ctx, dispatcher, batchKeyJsonName, batchResultJsonName, "id", timeout);
+        log.debug("Registered one-to-many batch loader {} (route: {})", name, route.getGraphQlName());
+        return new GrpcGroupedBatchLoader(
+                source, snakeToCamel(route.getLoaderGroupBy()), config.getMaxChildrenPerKey());
+    }
+
+    /**
+     * The entity a loader returns: the repeated message field {@code resultField} of a unary
+     * response, or the response itself for a server stream.
+     */
+    private static Optional<Descriptor> entityDescriptor(MethodDescriptor method, String resultField) {
+        Descriptor output = method.getOutputType();
+        if (resultField != null && !resultField.isBlank()) {
+            String camel = snakeToCamel(resultField);
+            for (FieldDescriptor field : output.getFields()) {
+                if (field.getName().equals(resultField) || field.getJsonName().equals(camel)) {
+                    if (field.isRepeated() && field.getMessageType() != null) {
+                        return Optional.of(field.getMessageType());
+                    }
+                    break;
+                }
+            }
+        }
+        return Optional.of(output);
+    }
+
     /**
      * Detects the entity key field by looking for the field marked with batch_key = true.
      *
@@ -299,7 +423,7 @@ public class GrpcBatchDataLoaderRegistrar {
      * @param snake the snake_case string
      * @return the camelCase equivalent
      */
-    private static String snakeToCamel(String snake) {
+    static String snakeToCamel(String snake) {
         if (snake == null || snake.isBlank()) {
             return snake;
         }
@@ -328,5 +452,10 @@ public class GrpcBatchDataLoaderRegistrar {
      */
     public Map<String, BatchLoader> getLoaders() {
         return Collections.unmodifiableMap(loadersByType);
+    }
+
+    /** The one-to-many loaders keyed by name ({@code Type#by:groupField}), apart from {@link #getLoaders()}. */
+    Map<String, GroupedOutcome.Loader> getGroupedLoaders() {
+        return Collections.unmodifiableMap(groupedLoaders);
     }
 }

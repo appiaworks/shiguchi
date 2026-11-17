@@ -75,6 +75,14 @@ shiguchi:
     enabled: false        # no embedded console
 ```
 
+## One-to-many fields
+
+A parent can list its children through a grouped loader: `resolves_many` on the parent's id field plus
+`group_by` on the loader method. `authors { books { title } }` then makes one upstream call for the authors
+and one for all their books, and an author without books answers `[]`. This sample has no such pair; the
+worked Author/Book example is in
+[GraphQL annotations](../../docs/guides/graphql-annotations.md#one-to-many-fields).
+
 ## See also
 
 - [docs/guides/graphql-annotations.md](../../docs/guides/graphql-annotations.md) — `(shiguchi.graphql)`,

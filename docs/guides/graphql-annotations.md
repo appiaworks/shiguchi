@@ -103,6 +103,7 @@ rpc ListBooks(ListBooksRequest) returns (ListBooksResponse) {
 | `pluck` | Response field returned directly instead of the wrapper message |
 | `loader_for` | Declares the method as a DataLoader for the named type (batched resolution) |
 | `loader_ids_field` / `loader_result_field` | Request ids field / response items field for the loader |
+| `group_by` | Makes the loader one-to-many: the field of the result entity that holds the parent key (`author_id` on a `Book`); see [One-to-many fields](#one-to-many-fields) |
 | `cost` | Weight of this field when the operation's cost is computed (default 1); see [Query cost](#query-cost) |
 | `shareable`, `external`, `requires`, `provides` | Federation directives on the field, see [Federation](#federation) |
 | `directives` | Raw SDL directives appended to the field, see [Federation](#federation) |
@@ -124,6 +125,7 @@ string author_id = 2 [(shiguchi.field) = { id: true, resolves_type: "Author" }];
 | `default` | Default value in input types |
 | `description` / `deprecation_reason` | Doc-string / `@deprecated` |
 | `resolves_type` | This id field resolves to the named type(s): the gateway wires a DataLoader-backed nested resolver (field name derived by stripping `_id`) |
+| `resolves_many` | This id field resolves to the list of child entities whose `group_by` field equals it: a nullable `[Type!]` field backed by a grouped loader; see [One-to-many fields](#one-to-many-fields) |
 | `batch_key` | Marks the identity field used for DataLoader batch keying and federation `@key` |
 | `cost` | Weight of this field when the operation's cost is computed (default 1); see [Query cost](#query-cost) |
 
@@ -301,6 +303,59 @@ All three pieces are needed for `resolves_type` to resolve:
 - a method with `loader_for` naming the target type,
 - a `batch_key` field on the target type's message (the loader keys its results by it; without one it falls back to a field named `id`),
 - no existing field on the referencing message with the derived resolver name (`author_id` → `author`).
+
+### One-to-many fields
+
+`resolves_type` points from a child to its one parent. The other direction, an author to all their books,
+is `resolves_many` on the parent's id field, served by a loader that declares `group_by`:
+
+```protobuf
+message Author {
+  string id = 1 [(shiguchi.field) = {
+    id: true
+    resolves_many: { type: "Book" field: "books" loader: "author_id" }
+  }];
+  string name = 2;
+}
+
+message Book {
+  string id        = 1 [(shiguchi.field) = { id: true, batch_key: true }];
+  string author_id = 2;
+  string title     = 3;
+}
+
+rpc BooksByAuthors(BooksByAuthorsRequest) returns (BooksByAuthorsResponse) {
+  option (shiguchi.graphql) = {
+    name: "booksByAuthors"
+    type: QUERY
+    loader_for: "Book"
+    loader_ids_field: "author_ids"   # repeated string in the request
+    loader_result_field: "items"     # repeated Book in the response
+    group_by: "author_id"            # the Book field that holds the parent key
+  };
+}
+```
+
+yields `books: [Book!]` on `Author`, and `authors { books { title } }` costs one call for the authors plus one
+`BooksByAuthors` call for all of them, however many authors there are.
+
+- `resolves_many.type` is the child type, `loader` the `group_by` of the loader that serves it, `field` the
+  GraphQL field name (default: the decapitalised type plus `s`, `books`).
+- The loader maps each requested key to the children whose `group_by` field equals it, in the order the
+  upstream returned them. An author without children answers `[]`, not null.
+- The loader is its own DataLoader, named `Book#by:authorId`. It never replaces the type's by-id loader
+  (`loader_for: "Book"` without `group_by`), is not used by Federation `_entities` and is not cached.
+  `data-loader.cache.<name>` naming a grouped loader fails startup, as does a `group_by` that is not a field of
+  the result message.
+- Duplicate parent ids send each distinct key once, and `data-loader.max-batch-size` splits a large batch into
+  chunks like any other loader.
+- A batch failure follows `data-loader.on-error`: under `ERROR` (default) the field errors; under `NULL` it
+  resolves to `[]` with a log warning.
+- `data-loader.max-children-per-key` (default `0`, no cap) fails a key that has more children than the cap
+  instead of answering them. It protects the response, not the upstream: the batch response is already
+  decoded when the cap is applied, so size the upstream page itself for large fan-outs.
+- The list is costed like any list field (see [Query cost](#query-cost)): selecting `books` under a list
+  of `first` authors multiplies by `first` (or `default-list-size`).
 
 ### Several backends serve the same type
 

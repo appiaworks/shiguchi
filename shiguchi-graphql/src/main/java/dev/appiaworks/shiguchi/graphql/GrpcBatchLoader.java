@@ -62,8 +62,16 @@ public class GrpcBatchLoader implements BatchLoader {
         this.entityKeyJsonName = entityKeyJsonName;
     }
 
-    @SuppressWarnings("unchecked")
     public Mono<Map<String, Map<String, Object>>> loadMapped(List<String> keys, Metadata metadata) {
+        return loadItems(keys, metadata).map(this::byEntityKey);
+    }
+
+    /**
+     * The entities the batch call returned, in the order the backend sent them: the dispatch, the
+     * timeout and the error mapping shared by the by-id loader and {@link GrpcGroupedBatchLoader}.
+     */
+    @SuppressWarnings("unchecked")
+    Mono<List<Map<String, Object>>> loadItems(List<String> keys, Metadata metadata) {
         log.debug("[BatchLoader] Dispatching batch for route={} keys={}", route.getGraphQlName(), keys);
 
         // The pipeline hands over a list it owns and never touches again, so it is sent as it is.
@@ -77,7 +85,7 @@ public class GrpcBatchLoader implements BatchLoader {
                     .collectList()
                     .map(items -> {
                         log.debug("[BatchLoader] Got {} results for route={}", items.size(), route.getGraphQlName());
-                        return byEntityKey(items);
+                        return items;
                     })
                     .onErrorMap(io.grpc.StatusRuntimeException.class, this::backendError)
                     .doOnError(ex -> log.warn(
@@ -97,7 +105,7 @@ public class GrpcBatchLoader implements BatchLoader {
                     List<Map<String, Object>> items =
                             (List<Map<String, Object>>) response.getOrDefault(batchResultJsonName, List.of());
                     log.debug("[BatchLoader] Got {} results for route={}", items.size(), route.getGraphQlName());
-                    return byEntityKey(items);
+                    return items;
                 })
                 .onErrorMap(io.grpc.StatusRuntimeException.class, this::backendError)
                 .doOnError(ex -> log.warn(

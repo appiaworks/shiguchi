@@ -28,6 +28,15 @@ public class DataLoaderConfig {
      */
     private int maxConcurrentBatches = 4;
 
+    /**
+     * Most child entities one parent key may have in a one-to-many (grouped) loader ({@code group_by}).
+     * A key over the cap fails (an error on its field under {@code on-error: ERROR}). {@code 0} =
+     * unlimited. The backend's response is already decoded when the cap is checked, so it protects
+     * the GraphQL response and the gateway's heap after grouping, not the memory spent decoding the
+     * upstream response.
+     */
+    private int maxChildrenPerKey = 0;
+
     /** How long one gRPC batch call may take before it fails; see {@link #onError} for what its keys then resolve to. */
     private Duration timeout = Duration.ofSeconds(10);
 

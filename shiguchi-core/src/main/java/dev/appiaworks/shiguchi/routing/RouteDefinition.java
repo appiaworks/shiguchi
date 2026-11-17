@@ -121,6 +121,12 @@ public class RouteDefinition {
     private final String loaderResultField;
 
     /**
+     * When non-empty, the loader is one-to-many: the field of the result entity that holds the parent
+     * key (proto snake_case or JSON name), by which the entities are grouped per requested key.
+     */
+    private final String loaderGroupBy;
+
+    /**
      * When non-null, this route is served by merging several backend RPCs rather than dispatching
      * to one. Null for every ordinary route.
      */
@@ -190,6 +196,7 @@ public class RouteDefinition {
         this.loaderFor = b.loaderFor != null ? b.loaderFor : "";
         this.loaderIdsField = b.loaderIdsField != null ? b.loaderIdsField : "";
         this.loaderResultField = b.loaderResultField != null ? b.loaderResultField : "";
+        this.loaderGroupBy = b.loaderGroupBy != null ? b.loaderGroupBy : "";
         this.mergeSpec = b.mergeSpec;
     }
 
@@ -348,8 +355,18 @@ public class RouteDefinition {
         return loaderResultField;
     }
 
+    /** The result entity's field holding the parent key when this is a one-to-many loader, else empty. */
+    public String getLoaderGroupBy() {
+        return loaderGroupBy;
+    }
+
     public boolean isLoader() {
         return !loaderFor.isEmpty();
+    }
+
+    /** True for a one-to-many loader: key to a list of entities, grouped by {@link #getLoaderGroupBy()}. */
+    public boolean isGroupedLoader() {
+        return !loaderFor.isEmpty() && !loaderGroupBy.isEmpty();
     }
 
     public dev.appiaworks.shiguchi.merge.MergeSpec getMergeSpec() {
@@ -432,6 +449,7 @@ public class RouteDefinition {
         private String loaderFor;
         private String loaderIdsField;
         private String loaderResultField;
+        private String loaderGroupBy;
         private dev.appiaworks.shiguchi.merge.MergeSpec mergeSpec;
         private String upstreamUri;
         private IdempotencyLevel idempotencyLevel;
@@ -579,6 +597,12 @@ public class RouteDefinition {
             this.loaderFor = type;
             this.loaderIdsField = idsField;
             this.loaderResultField = resultField;
+            return this;
+        }
+
+        /** Makes the loader one-to-many: the result entities are grouped by this field per requested key. */
+        public Builder loaderGroupBy(String groupBy) {
+            this.loaderGroupBy = groupBy;
             return this;
         }
 

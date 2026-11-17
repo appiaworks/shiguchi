@@ -476,6 +476,7 @@ public class DynamicRouteLoader implements ServiceLoader {
                         ? inferLoaderIdsField(md.getInputType())
                         : annotation.getLoaderIdsField();
                 builder.loaderFor(annotation.getLoaderFor(), loaderIdsField, annotation.getLoaderResultField());
+                builder.loaderGroupBy(annotation.getGroupBy());
             }
 
         } else {
