@@ -1,6 +1,9 @@
 package dev.appiaworks.shiguchi.routing;
 
+import dev.appiaworks.shiguchi.config.ClientConfig;
+import dev.appiaworks.shiguchi.config.DiscoveryMetadata;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
+import dev.appiaworks.shiguchi.config.ServiceDefinition;
 import io.grpc.EquivalentAddressGroup;
 import io.grpc.NameResolver;
 import io.grpc.NameResolverProvider;
@@ -36,8 +39,11 @@ import org.springframework.stereotype.Component;
  * fails is skipped until it answers again. The instance list is re-read every
  * {@code shiguchi.client.discovery-refresh} (30 s by default) and whenever gRPC asks for a
  * refresh after a connection failure, so scale-outs and rolling restarts are followed without a
- * schema refresh or a gateway restart. An instance metadata entry {@code grpc-port} overrides the
- * registry port for services that register their HTTP port but serve gRPC on another.
+ * schema refresh or a gateway restart. An instance metadata entry {@code grpc-port} (or the aliases
+ * {@code grpc.port}, {@code grpc_port}, or a per-service {@code discovery-port-key}) overrides the
+ * registry port for services that register their HTTP port but serve gRPC on another;
+ * {@code shiguchi.client.discovery-grpc-port} ({@code PREFER}, {@code REQUIRE}, {@code IGNORE})
+ * decides how strictly.
  *
  * <p>Registered with gRPC's default {@link NameResolverRegistry} when the bean is created and
  * removed when it is destroyed; {@link GrpcChannelFactory} builds {@code discovery:///} targets
@@ -72,6 +78,7 @@ public class DiscoveryNameResolverProvider extends NameResolverProvider implemen
 
     private static final Logger log = LoggerFactory.getLogger(DiscoveryNameResolverProvider.class);
 
+    private final GatewayProperties properties;
     private final ObjectProvider<DiscoveryClient> discoveryClient;
     private final Duration refreshInterval;
     private final ScheduledExecutorService scheduler;
@@ -80,11 +87,20 @@ public class DiscoveryNameResolverProvider extends NameResolverProvider implemen
     @Autowired
     public DiscoveryNameResolverProvider(
             ObjectProvider<DiscoveryClient> discoveryClient, GatewayProperties properties) {
-        this(discoveryClient, properties.getClient().getDiscoveryRefresh(), true);
+        this(discoveryClient, properties.getClient().getDiscoveryRefresh(), true, properties);
     }
 
     DiscoveryNameResolverProvider(
             ObjectProvider<DiscoveryClient> discoveryClient, Duration refreshInterval, boolean register) {
+        this(discoveryClient, refreshInterval, register, null);
+    }
+
+    DiscoveryNameResolverProvider(
+            ObjectProvider<DiscoveryClient> discoveryClient,
+            Duration refreshInterval,
+            boolean register,
+            GatewayProperties properties) {
+        this.properties = properties;
         this.discoveryClient = discoveryClient;
         this.refreshInterval = refreshInterval;
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -181,11 +197,14 @@ public class DiscoveryNameResolverProvider extends NameResolverProvider implemen
         DiscoveryClient client = discoveryClient.getIfAvailable();
         if (client == null) return List.of();
         List<EquivalentAddressGroup> groups = new ArrayList<>();
+        String portKey = portKeyFor(serviceId);
         for (ServiceInstance instance : client.getInstances(serviceId)) {
             Map<String, String> metadata =
                     instance.getMetadata() == null ? Map.of() : Map.copyOf(instance.getMetadata());
+            int port = grpcPort(serviceId, instance, portKey);
+            if (port < 0) continue;
             groups.add(new EquivalentAddressGroup(
-                    new InetSocketAddress(instance.getHost(), grpcPort(instance)),
+                    new InetSocketAddress(instance.getHost(), port),
                     io.grpc.Attributes.newBuilder()
                             .set(INSTANCE_METADATA, metadata)
                             .build()));
@@ -197,21 +216,68 @@ public class DiscoveryNameResolverProvider extends NameResolverProvider implemen
         return groups;
     }
 
-    static int grpcPort(ServiceInstance instance) {
-        String metaPort =
-                instance.getMetadata() == null ? null : instance.getMetadata().get("grpc-port");
-        if (metaPort != null) {
-            try {
-                return Integer.parseInt(metaPort.trim());
-            } catch (NumberFormatException e) {
-                log.warn(
-                        "Instance {} has non-numeric grpc-port metadata '{}'; using registry port {}",
-                        instance.getInstanceId(),
-                        metaPort,
-                        instance.getPort());
+    /** The per-service metadata key from {@code services[].discovery-port-key}, or {@code null}. */
+    String portKeyFor(String serviceId) {
+        if (properties == null || serviceId == null) return null;
+        for (ServiceDefinition s : properties.getServices()) {
+            if (serviceId.equals(s.getDiscoveryName())
+                    && s.getDiscoveryPortKey() != null
+                    && !s.getDiscoveryPortKey().isBlank()) {
+                return s.getDiscoveryPortKey();
             }
         }
-        return instance.getPort();
+        return null;
+    }
+
+    private ClientConfig.DiscoveryGrpcPort portMode() {
+        return properties == null
+                ? ClientConfig.DiscoveryGrpcPort.PREFER
+                : properties.getClient().getDiscoveryGrpcPort();
+    }
+
+    /** The gRPC port of an instance for a service under the configured mode; {@code -1} to skip it. */
+    int grpcPort(String serviceId, ServiceInstance instance) {
+        return grpcPort(serviceId, instance, portKeyFor(serviceId));
+    }
+
+    int grpcPort(String serviceId, ServiceInstance instance, String portKey) {
+        ClientConfig.DiscoveryGrpcPort mode = portMode();
+        if (mode == ClientConfig.DiscoveryGrpcPort.IGNORE) return instance.getPort();
+        int port = grpcPort(instance, portKey, mode == ClientConfig.DiscoveryGrpcPort.PREFER);
+        if (port < 0) {
+            log.warn(
+                    "Skipping instance {} of service '{}': no valid gRPC port metadata ({}) and"
+                            + " shiguchi.client.discovery-grpc-port is REQUIRE",
+                    instance.getInstanceId(),
+                    serviceId,
+                    metadataKeys(portKey));
+        }
+        return port;
+    }
+
+    private static String metadataKeys(String portKey) {
+        return (portKey == null || portKey.isBlank() ? "" : portKey + ", ") + DiscoveryMetadata.GRPC_PORT;
+    }
+
+    /** The metadata port when valid, else the registry port; the PREFER behaviour. */
+    static int grpcPort(ServiceInstance instance) {
+        return grpcPort(instance, null, true);
+    }
+
+    private static int grpcPort(ServiceInstance instance, String portKey, boolean fallbackToRegistryPort) {
+        Map<String, String> metadata = instance.getMetadata();
+        String raw = DiscoveryMetadata.grpcPortValue(metadata, portKey);
+        if (raw != null && DiscoveryMetadata.grpcPort(metadata, portKey).isPresent()) {
+            return DiscoveryMetadata.grpcPort(metadata, portKey).getAsInt();
+        }
+        if (raw != null) {
+            log.warn(
+                    "Instance {} has invalid gRPC port metadata '{}'{}",
+                    instance.getInstanceId(),
+                    raw,
+                    fallbackToRegistryPort ? "; using registry port " + instance.getPort() : "");
+        }
+        return fallbackToRegistryPort ? instance.getPort() : -1;
     }
 
     /** One channel's view of one service id: resolves now, then on every tick and every gRPC refresh. */
@@ -256,6 +322,15 @@ public class DiscoveryNameResolverProvider extends NameResolverProvider implemen
             try {
                 List<EquivalentAddressGroup> groups = DiscoveryNameResolverProvider.this.resolve(serviceId);
                 if (groups.isEmpty()) {
+                    if (portMode() == ClientConfig.DiscoveryGrpcPort.REQUIRE
+                            && !instances(serviceId).isEmpty()) {
+                        String msg = "no instance of service id '" + serviceId + "' publishes a valid gRPC port in"
+                                + " the metadata key " + metadataKeys(portKeyFor(serviceId))
+                                + " (shiguchi.client.discovery-grpc-port=REQUIRE)";
+                        log.warn("{}", msg);
+                        l.onError(Status.UNAVAILABLE.withDescription(msg));
+                        return;
+                    }
                     log.warn("Discovery returned no instances for service id '{}'", serviceId);
                     l.onError(Status.UNAVAILABLE.withDescription(
                             "discovery returned no instances for service id '" + serviceId + "'"));

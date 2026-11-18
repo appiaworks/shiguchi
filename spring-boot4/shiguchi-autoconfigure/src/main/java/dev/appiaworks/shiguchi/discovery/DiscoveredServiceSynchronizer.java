@@ -392,12 +392,14 @@ public class DiscoveredServiceSynchronizer {
 
     private static boolean isGrpcInstance(ServiceInstance i, String prefix) {
         String t = typeOf(i, prefix);
-        return t != null ? "grpc".equals(t) : meta(i, DiscoveryMetadata.GRPC_PORT) != null;
+        return t != null ? "grpc".equals(t) : DiscoveryMetadata.grpcPortValue(i.getMetadata()) != null;
     }
 
     private static boolean isRestInstance(ServiceInstance i, String prefix) {
         String t = typeOf(i, prefix);
-        return t != null ? "rest".equals(t) : meta(i, DiscoveryMetadata.GRPC_PORT) == null && hasOpenapiKey(i);
+        return t != null
+                ? "rest".equals(t)
+                : DiscoveryMetadata.grpcPortValue(i.getMetadata()) == null && hasOpenapiKey(i);
     }
 
     /** gRPC wins when any opted-in instance is gRPC. */

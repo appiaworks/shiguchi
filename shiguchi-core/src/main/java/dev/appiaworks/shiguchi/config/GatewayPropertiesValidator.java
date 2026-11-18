@@ -190,6 +190,9 @@ public class GatewayPropertiesValidator implements Validator {
         if (!hasTarget && !hasDiscovery && !hasHost) {
             reject(errors, p + ".host", "a gRPC backend needs one of host + port, discovery-name or target");
         }
+        if (svc.getDiscoveryPortKey() != null && svc.getDiscoveryPortKey().isBlank()) {
+            reject(errors, p + ".discoveryPortKey", "discovery-port-key must not be blank when set");
+        }
         if (hasHost && (svc.getPort() < 1 || svc.getPort() > 65535)) {
             reject(errors, p + ".port", "port must be between 1 and 65535 when host is set");
         }

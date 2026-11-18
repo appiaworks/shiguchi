@@ -41,6 +41,84 @@ public final class DiscoveryMetadata {
     /** The OpenAPI document path used when a REST service gives neither {@link #OPENAPI_URL} nor {@link #OPENAPI_PATH}. */
     public static final String DEFAULT_OPENAPI_PATH = "/v3/api-docs";
 
+    /** Spellings of {@link #GRPC_PORT} also accepted, in order, after the canonical key. */
+    public static final java.util.List<String> GRPC_PORT_ALIASES = java.util.List.of("grpc.port", "grpc_port");
+
+    /**
+     * The key Spring Cloud Kubernetes discovery gives a Service port named {@code grpc}: its
+     * {@code ports-prefix} ({@code port.} by default, {@code spring.cloud.kubernetes.discovery.metadata.ports-prefix})
+     * followed by the port name. Honoured last, after every {@link #GRPC_PORT} spelling.
+     */
+    public static final String KUBERNETES_GRPC_PORT = "port.grpc";
+
+    /**
+     * The raw gRPC port metadata value of an instance, or {@code null} when none is published.
+     * Keys are tried in order: {@code customKey} (when not blank), {@link #GRPC_PORT}, then the
+     * aliases {@code grpc.port}, {@code grpc_port} and {@code gRPC_port}; the first spelling is
+     * matched exactly, the rest ignoring case and treating {@code - . _} alike, so
+     * {@code GRPC_PORT} and {@code gRPC.port} also match. Last comes {@link #KUBERNETES_GRPC_PORT}
+     * ({@code port.grpc}, same case-insensitive matching). A blank value counts as absent.
+     */
+    public static String grpcPortValue(java.util.Map<String, String> metadata, String customKey) {
+        if (metadata == null || metadata.isEmpty()) return null;
+        if (customKey != null && !customKey.isBlank()) {
+            String v = metadata.get(customKey);
+            if (v != null && !v.isBlank()) return v;
+        }
+        String v = metadata.get(GRPC_PORT);
+        if (v != null && !v.isBlank()) return v;
+        for (String alias : GRPC_PORT_ALIASES) {
+            v = metadata.get(alias);
+            if (v != null && !v.isBlank()) return v;
+        }
+        String k8s = firstNormalized(metadata, "grpc-port");
+        if (k8s != null) return k8s;
+        v = metadata.get(KUBERNETES_GRPC_PORT);
+        if (v != null && !v.isBlank()) return v;
+        return firstNormalized(metadata, "port-grpc");
+    }
+
+    private static String firstNormalized(java.util.Map<String, String> metadata, String normalizedKey) {
+        for (java.util.Map.Entry<String, String> e : metadata.entrySet()) {
+            if (e.getKey() != null
+                    && e.getValue() != null
+                    && !e.getValue().isBlank()
+                    && normalizedKey.equals(normalize(e.getKey()))) {
+                return e.getValue();
+            }
+        }
+        return null;
+    }
+
+    /** {@link #grpcPortValue(java.util.Map, String)} with no custom key. */
+    public static String grpcPortValue(java.util.Map<String, String> metadata) {
+        return grpcPortValue(metadata, null);
+    }
+
+    /**
+     * The gRPC port an instance publishes: the {@link #grpcPortValue} parsed, or empty when none
+     * is published or it is not a number in 1..65535.
+     */
+    public static java.util.OptionalInt grpcPort(java.util.Map<String, String> metadata, String customKey) {
+        String v = grpcPortValue(metadata, customKey);
+        if (v == null) return java.util.OptionalInt.empty();
+        try {
+            int port = Integer.parseInt(v.trim());
+            return port >= 1 && port <= 65535 ? java.util.OptionalInt.of(port) : java.util.OptionalInt.empty();
+        } catch (NumberFormatException e) {
+            return java.util.OptionalInt.empty();
+        }
+    }
+
+    /** {@link #grpcPort(java.util.Map, String)} with no custom key. */
+    public static java.util.OptionalInt grpcPort(java.util.Map<String, String> metadata) {
+        return grpcPort(metadata, null);
+    }
+
+    private static String normalize(String key) {
+        return key.trim().toLowerCase(java.util.Locale.ROOT).replace('.', '-').replace('_', '-');
+    }
+
     /** The key under {@code prefix}: {@code key("shiguchi.", EXPOSE)} is {@code shiguchi.expose}. */
     public static String key(String prefix, String name) {
         return (prefix == null ? DEFAULT_PREFIX : prefix) + name;

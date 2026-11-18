@@ -60,6 +60,22 @@ public class ClientConfig {
      */
     private java.time.Duration discoveryRefresh = java.time.Duration.ofSeconds(30);
 
+    /** How a {@code discovery-name} backend's gRPC port is chosen; see {@link DiscoveryGrpcPort}. */
+    private DiscoveryGrpcPort discoveryGrpcPort = DiscoveryGrpcPort.PREFER;
+
+    /** Where the gRPC port of a discovered instance comes from. */
+    public enum DiscoveryGrpcPort {
+        /** The {@code grpc-port} metadata when present and valid, else the registry port (default). */
+        PREFER,
+        /**
+         * The metadata only: an instance without a valid gRPC port is skipped with a warning, and a
+         * service with none left is UNAVAILABLE.
+         */
+        REQUIRE,
+        /** Always the registry port; the metadata is ignored. */
+        IGNORE
+    }
+
     /**
      * Default deadline applied to every outbound <b>unary</b> call. A request that has not
      * completed within this window fails with {@code DEADLINE_EXCEEDED} (mapped to HTTP 504)

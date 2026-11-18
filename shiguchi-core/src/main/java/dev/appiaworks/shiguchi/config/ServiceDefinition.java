@@ -47,6 +47,12 @@ public class ServiceDefinition {
     private String discoveryName;
 
     /**
+     * Optional instance metadata key holding this {@code discovery-name} service's gRPC port,
+     * tried before {@code grpc-port} and its aliases. Blank is rejected at startup.
+     */
+    private String discoveryPortKey;
+
+    /**
      * A raw gRPC channel target, taking precedence over {@code host}/{@code port} and
      * {@code discovery-name}: {@code dns:///orders.ns.svc.cluster.local:9090} balances across
      * every address a headless Kubernetes Service (or any multi-A DNS name) resolves to,

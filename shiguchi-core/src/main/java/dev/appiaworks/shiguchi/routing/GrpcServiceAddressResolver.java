@@ -8,11 +8,12 @@ import java.util.Optional;
  * Resolves the network address for a service definition that uses logical addressing
  * (e.g. {@code discovery-name}) instead of a fixed {@code host}/{@code port}.
  *
- * <p>The gateway ships a Spring Cloud {@code DiscoveryClient}-backed implementation that
- * activates automatically when a {@code DiscoveryClient} bean is present. Register your own
- * bean of this type to resolve addresses from any other source (config service, DNS SRV,
- * custom registry); resolvers are consulted in {@code @Order} order and the first non-empty
- * result wins.
+ * <p>The gateway ships no implementation of this interface. With a Spring Cloud
+ * {@code DiscoveryClient} bean, a {@code discovery-name} channel is built on gRPC's own
+ * {@code discovery:///} name resolver instead and never reaches this interface. Without a
+ * {@code DiscoveryClient}, register your own bean of this type to resolve addresses from any
+ * other source (config service, DNS SRV, custom registry); resolvers are consulted in
+ * {@code @Order} order and the first non-empty result wins.
  */
 @ApiStatus(value = ApiStatus.Status.STABLE, since = "0.14.0")
 public interface GrpcServiceAddressResolver {

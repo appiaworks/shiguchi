@@ -1,1 +1,3 @@
 dev.appiaworks.shiguchi.autoconfigure.ShiguchiAutoConfiguration
+dev.appiaworks.shiguchi.discovery.client.GrpcPortRegistrationAutoConfiguration
+dev.appiaworks.shiguchi.discovery.client.ConsulGrpcPortAutoConfiguration

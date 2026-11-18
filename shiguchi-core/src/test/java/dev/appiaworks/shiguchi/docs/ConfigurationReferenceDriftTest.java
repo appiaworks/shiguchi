@@ -19,7 +19,8 @@ class ConfigurationReferenceDriftTest {
             new ConfigurationReferenceChecker(GatewayProperties.class, "shiguchi");
 
     /** Roots bound by other modules: documented here, checked by those modules' own types. */
-    private static final Set<String> OTHER_MODULES = Set.of("shiguchi.bff", "shiguchi.cursus", "shiguchi.validation");
+    private static final Set<String> OTHER_MODULES =
+            Set.of("shiguchi.bff", "shiguchi.cursus", "shiguchi.validation", "shiguchi.discovery.client");
 
     @Test
     @DisplayName("GIVEN the bound properties WHEN reading the reference SHOULD name every one of them")

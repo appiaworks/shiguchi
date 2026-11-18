@@ -75,7 +75,9 @@ spring:
 ```
 
 Backend side, `spring.cloud.consul.discovery.metadata.grpc-port: 9090` (Consul metadata
-becomes `ServiceInstance.getMetadata()`); or register the gRPC listener itself as a separate
+becomes `ServiceInstance.getMetadata()`), or let the app publish it with
+`shiguchi.discovery.client.expose-grpc-port=true` (see
+[Publishing the gRPC port from the backend](#publishing-the-grpc-port-from-the-backend)); or register the gRPC listener itself as a separate
 Consul service and point `discovery-name` at that.
 
 ### Kubernetes
@@ -89,10 +91,16 @@ implementation("org.springframework.cloud:spring-cloud-starter-kubernetes-client
 endpoints (the pods), so the gateway balances across pods rather than letting kube-proxy pick
 one per connection. The gateway's ServiceAccount needs to read `endpoints`/`endpointslices`
 and `services` in the namespaces it watches (`spring.cloud.kubernetes.discovery.namespaces`
-or `all-namespaces: true`). Port selection: a Service with one port needs nothing; with several,
-name the gRPC port and set `spring.cloud.kubernetes.discovery.primary-port-name: grpc`, or put
-`grpc-port` in the pod labels/annotations the discovery client maps to metadata
-(`spring.cloud.kubernetes.discovery.metadata.add-labels` / `add-annotations`).
+or `all-namespaces: true`). Port selection: a Service with one port needs nothing. With several,
+**name the gRPC port `grpc`** in the Service (`ports: [{name: grpc, port: 9090, targetPort: 9090}]`)
+and the gateway finds it with nothing else to configure: Spring Cloud Kubernetes copies every
+endpoint port into the instance metadata as `port.<name>` (so `port.grpc`, the pod's port number), and
+the gateway reads `port.grpc` after every `grpc-port` spelling. That copy is on by default
+(`spring.cloud.kubernetes.discovery.metadata.add-ports: true`; the prefix is
+`...metadata.ports-prefix`, default `port.`, and the gateway only knows the default). If you turned it
+off or changed the prefix, turn it back on, or put `grpc-port` in the pod labels/annotations the
+discovery client maps to metadata (`...metadata.add-labels` / `add-annotations`). You can also set
+`spring.cloud.kubernetes.discovery.primary-port-name: grpc` so the registry port itself is the gRPC one.
 
 ## Rolling deploys and versions
 
@@ -393,9 +401,106 @@ spring.cloud.discovery.client.simple.instances:
 
 Dynamic ports: for REST nothing extra is needed, because the document URL and the proxy target come
 from the host and port the registry already holds, so `server.port=0` works. gRPC reads the port from
-`grpc-port`, so it must be known before registration: give the gRPC server a fixed port, or take one
-value from the environment and use it in both places (`grpc.server.port: ${GRPC_PORT:9090}` and
-`grpc-port: "${GRPC_PORT:9090}"`).
+`grpc-port`. With Eureka or Consul the backend can publish a port that is only known after startup, see
+[Publishing the gRPC port from the backend](#publishing-the-grpc-port-from-the-backend). On Kubernetes a Service port named `grpc` is read
+with no publishing at all: give the gRPC server a fixed port, or
+take one value from the environment and use it in both places (set your server's port property and
+`grpc-port: "${GRPC_PORT:9090}"` from the same variable).
+
+### Publishing the gRPC port from the backend
+
+The gateway reads the gRPC port from the instance metadata (`grpc-port`; `grpc.port`, `grpc_port` and
+`gRPC_port` also work, case-insensitively; on Kubernetes the named Service port `port.grpc` is read last),
+and uses the registry's own port when none is published.
+`shiguchi.client.discovery-grpc-port` decides what happens when it is missing:
+
+| Value | Behaviour |
+|---|---|
+| `PREFER` (default) | Use the metadata port; fall back to the registry port when it is absent or not a number in 1..65535. |
+| `REQUIRE` | Skip an instance without a valid one (a WARN names the service and the instance). When none is left the channel reports `UNAVAILABLE` and the message names the metadata key. |
+| `IGNORE` | Always use the registry port. |
+
+A service can name another metadata key with `discovery-port-key`; it is tried first.
+
+**Eureka (automatic).** In the backend app, with `spring-cloud-netflix-eureka-client` on its classpath
+(the gateway library does not bring it), turn the publisher on:
+
+```yaml
+shiguchi:
+  discovery:
+    client:
+      expose-grpc-port: true
+```
+
+The backend then registers `grpc-port` and `shiguchi.type=grpc` next to its HTTP port. The port is the
+first of: `shiguchi.discovery.client.grpc-port`; a `GrpcServerPortSupplier` bean (`OptionalInt port()`);
+the port of an `io.grpc.Server` bean once it is started. A fixed port is in the metadata when the
+instance registers. A port that is only known later (a server on port 0) is published after
+`ApplicationReadyEvent` through `ApplicationInfoManager.registerAppMetadata`, which marks the instance
+dirty; the app then asks Eureka's client for an immediate replication, so the registry sees it at once
+and, if that request fails, on the next replication tick (`eureka.client.instance-info-replication-interval-seconds`,
+30 s by default). Gateways pick it up on their next registry read (`client.discovery-refresh`).
+The call is also available as `GrpcPortPublisher.publish(int port)` for a server you start yourself.
+The port is published once. A gRPC server that is restarted on a different port while the app keeps
+running is not noticed: call `GrpcPortPublisher.publish(newPort)` again, or the registry keeps the old port.
+
+**The port-0 window is closed by default.** Eureka would otherwise register the instance `UP` before the
+server has bound, and a gateway reading the registry in that window finds no `grpc-port` and, under
+`PREFER`, dials the HTTP port. So when the port is not known at registration, the backend registers
+`STARTING` (out of rotation), keeps Spring Cloud's health check handler from flipping it to `UP`, and
+`GrpcPortPublisher.publish` writes `grpc-port` and then moves the instance to `UP` in the same update.
+`shiguchi.discovery.client.hold-until-published` (default `true`) turns this off. If no port is
+published within `shiguchi.discovery.client.publish-timeout` (default `60s`, counted from
+`ApplicationReadyEvent`), a WARN is logged and the instance goes `UP` without `grpc-port`, so a missing
+port never keeps it out of rotation for good: set `shiguchi.discovery.client.grpc-port` or declare a
+`GrpcServerPortSupplier`. A fixed port is in the metadata at registration and is never held. Only a
+`STARTING` instance is moved to `UP`; one that is `DOWN` or `OUT_OF_SERVICE` stays so.
+
+**Recommended on the gateway: `REQUIRE`.** For services that are gRPC, set
+`shiguchi.client.discovery-grpc-port: REQUIRE`. Under `PREFER` an instance without `grpc-port` is dialled
+on its HTTP port, which speaks HTTP, not gRPC: calls fail with a confusing transport error. `REQUIRE`
+skips such an instance (a WARN names the service id and the instance) and, when none is left, the call
+fails with `UNAVAILABLE` naming the metadata key. It is the gateway's safety net next to the backend's
+hold: backends that do not hold (older versions, other registries, `hold-until-published=false`) are
+still never dialled on the wrong port.
+
+A metadata key the app already set (for example `eureka.instance.metadata-map.grpc-port`) is never
+overwritten, unless `shiguchi.discovery.client.grpc-port` is set. The INFO log line "Published gRPC
+port" shows what was written. The other keys are `metadata-key` (default `grpc-port`),
+`type-metadata` (default `true`, also writes `<metadata-prefix>type=grpc`), `update-on-bind`
+(default `true`), `hold-until-published` (default `true`) and `publish-timeout` (default `60s`).
+
+**Spring gRPC** (Spring Boot 4.1's `spring-boot-grpc-server`) is detected without configuration. Spring
+gRPC keeps its server out of the bean factory, so the library reads `spring.grpc.server.port` when it is
+above 0 (a fixed port, known before registration) and otherwise listens for the server's
+`GrpcServerStartedEvent`, which carries the bound port (`spring.grpc.server.port=0`). The late port goes
+through the same hold and publish path as any other late port. A `GrpcServerPortSupplier` bean you
+declare, or `shiguchi.discovery.client.grpc-port`, still wins.
+
+**Kubernetes (nothing to publish).** Name the Service port `grpc`; the gateway reads it from the
+instance metadata (see [Kubernetes](#kubernetes)). A pod's ports are fixed in its manifest, so there is
+no dynamic-port case and no pod-side publisher.
+
+**Consul.** With Spring Cloud Consul discovery (`spring-cloud-starter-consul-discovery`) on the
+classpath and `expose-grpc-port=true`, the library writes the port into the service meta
+(`grpc-port`, plus `<metadata-prefix>type=grpc`) through a `ConsulRegistrationCustomizer`, using the same
+`shiguchi.discovery.client.*` properties as Eureka. A port known before registration (a fixed port,
+`shiguchi.discovery.client.grpc-port`, a `GrpcServerPortSupplier`) is simply part of the first
+registration. A late port (a server bound to port 0) is published by re-registering the same service ID
+with the metadata.
+
+To keep the gateway from seeing the service without a port, a late port is registered with a critical
+health check, which the publish replaces with a passing one (`hold-until-published`; the
+`publish-timeout` releases it without a port, as with Eureka). The hold is reliable only when the
+library owns the check status: without TTL heartbeat (`spring.cloud.consul.discovery.heartbeat.enabled`
+off) and with a check registered at startup (a fixed web port and `register-health-check=true`). With
+heartbeat on, Spring Cloud keeps the check passing; with a random web port or no health check there is no
+check to hold. In those cases the library still adds the metadata and re-registers, but the service may
+be visible for a moment without `grpc-port`, and the gateway never dials a wrong port. The
+re-registration calls the Consul agent directly, so it does not schedule a second TTL heartbeat. This
+path is covered by tests with in-process fakes; it has not been validated against a live Consul agent.
+A key you set yourself (`spring.cloud.consul.discovery.metadata.grpc-port`) is never overwritten, unless
+`shiguchi.discovery.client.grpc-port` is set.
 
 ### Security and the trust boundary
 

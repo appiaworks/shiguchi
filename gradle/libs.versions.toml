@@ -4,6 +4,9 @@
 # this pairing.) Bump the two together.
 springBoot4       = "4.1.2"
 springCloudGateway4 = "5.0.4"
+# Release train for the optional Eureka client (GrpcPortRegistrationAutoConfiguration); the samples
+# import the same train.
+springCloudTrain  = "2025.1.1"
 grpc              = "1.85.1"
 grpcOpenTelemetry = "1.85.1"
 protobuf          = "4.36.2"
@@ -22,6 +25,10 @@ datafaker         = "2.7.0"
 # Spring Boot BOMs
 spring-boot4-bom          = { module = "org.springframework.boot:spring-boot-dependencies",            version.ref = "springBoot4" }
 spring-cloud-gateway4-dep = { module = "org.springframework.cloud:spring-cloud-gateway-dependencies",  version.ref = "springCloudGateway4" }
+spring-cloud-train-bom    = { module = "org.springframework.cloud:spring-cloud-dependencies",          version.ref = "springCloudTrain" }
+spring-cloud-eureka-client = { module = "org.springframework.cloud:spring-cloud-netflix-eureka-client" }
+spring-cloud-consul-discovery = { module = "org.springframework.cloud:spring-cloud-consul-discovery" }
+spring-boot-grpc-server    = { module = "org.springframework.boot:spring-boot-grpc-server" }
 dgs-platform             = { module = "com.netflix.graphql.dgs:graphql-dgs-platform-dependencies", version.ref = "dgs" }
 
 # Spring Boot
