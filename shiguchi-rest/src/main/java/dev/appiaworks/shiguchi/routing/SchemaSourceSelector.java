@@ -50,8 +50,17 @@ public final class SchemaSourceSelector {
         if (discovery == null || !discovery.isDiscoveryAvailable()) return Optional.empty();
         if (service.getDiscoveryName() == null || service.getDiscoveryName().isBlank()) return Optional.empty();
         if (!service.isTargetDerived()) return Optional.empty(); // a raw target wins over discovery-name
-        List<ServiceInstance> instances = discovery.instances(service.getDiscoveryName());
-        return select(instances, service.getVersions(), liveWeights);
+        String name = service.getDiscoveryName();
+        String portKey = service.getDiscoveryPortKey();
+        Map<ServiceInstance, Integer> ports = new java.util.IdentityHashMap<>();
+        List<ServiceInstance> usable = new ArrayList<>();
+        for (ServiceInstance i : discovery.instances(name)) {
+            int port = discovery.grpcPort(name, i, portKey);
+            if (port < 0) continue; // REQUIRE and no valid gRPC port metadata
+            ports.put(i, port);
+            usable.add(i);
+        }
+        return select(usable, service.getVersions(), liveWeights, ports::get);
     }
 
     /** {@link #select(ServiceDefinition, DiscoveryNameResolverProvider)} over a given instance list. */
@@ -61,6 +70,14 @@ public final class SchemaSourceSelector {
 
     static Optional<SchemaSource> select(
             List<ServiceInstance> instances, ServiceDefinition.VersionsConfig config, Map<String, Double> liveWeights) {
+        return select(instances, config, liveWeights, DiscoveryNameResolverProvider::grpcPort);
+    }
+
+    private static Optional<SchemaSource> select(
+            List<ServiceInstance> instances,
+            ServiceDefinition.VersionsConfig config,
+            Map<String, Double> liveWeights,
+            java.util.function.ToIntFunction<ServiceInstance> portOf) {
         if (instances == null || instances.isEmpty()) return Optional.empty();
         String key = metadataKey(config);
         Map<String, List<ServiceInstance>> byVersion = byVersion(instances, key);
@@ -69,12 +86,11 @@ public final class SchemaSourceSelector {
                 : servedVersions(byVersion.keySet(), config);
         String version = chooseVersion(served, config == null ? null : config.getSchemaFrom());
         ServiceInstance chosen = byVersion.get(version).stream()
-                .min(Comparator.comparing((ServiceInstance i) -> i.getHost())
-                        .thenComparingInt(DiscoveryNameResolverProvider::grpcPort))
+                .min(Comparator.comparing((ServiceInstance i) -> i.getHost()).thenComparingInt(portOf))
                 .orElseThrow();
         return Optional.of(new SchemaSource(
                 chosen.getHost(),
-                DiscoveryNameResolverProvider.grpcPort(chosen),
+                portOf.applyAsInt(chosen),
                 version.isEmpty() ? null : version,
                 chosen.getInstanceId()));
     }

@@ -23,7 +23,19 @@ dependencies {
     compileOnly(project(":shiguchi-openapi"))
     compileOnly(project(":shiguchi-ui"))
 
-
+    // GrpcPortRegistrationAutoConfiguration runs in a BACKEND app and only when its own Eureka
+    // client is on the classpath, so the client is never a dependency of this library.
+    compileOnly(platform(libs.spring.cloud.train.bom))
+    compileOnly(libs.spring.cloud.eureka.client)
+    testImplementation(platform(libs.spring.cloud.train.bom))
+    testImplementation(libs.spring.cloud.eureka.client)
+    // Same for the Consul publisher: the backend brings spring-cloud-consul-discovery.
+    compileOnly(libs.spring.cloud.consul.discovery)
+    testImplementation(libs.spring.cloud.consul.discovery)
+    // Spring Boot's gRPC server support (Spring gRPC 1.1+ moved its auto-configuration into Boot 4.1);
+    // optional in the backend app, never a dependency of this library.
+    compileOnly(libs.spring.boot.grpc.server)
+    testImplementation(libs.spring.boot.grpc.server)
     testImplementation(libs.grpc.inprocess)
     testImplementation(libs.spring.boot.starter.test)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

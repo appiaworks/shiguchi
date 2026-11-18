@@ -6,6 +6,9 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import dev.appiaworks.shiguchi.config.ClientConfig;
+import dev.appiaworks.shiguchi.config.GatewayProperties;
+import dev.appiaworks.shiguchi.config.ServiceDefinition;
 import io.grpc.CallOptions;
 import io.grpc.Grpc;
 import io.grpc.InsecureChannelCredentials;
@@ -203,7 +206,176 @@ class DiscoveryNameResolverProviderTest {
         }
     }
 
+    @Test
+    @DisplayName("GIVEN each alias spelling of the gRPC port metadata WHEN resolved SHOULD connect to that port")
+    void given_aliasKeys_when_resolved_should_useThePort() {
+        for (String key : List.of("grpc.port", "grpc_port", "gRPC_port", "GRPC-PORT")) {
+            ServiceInstance http = new DefaultServiceInstance(
+                    "a-http", "echo", "localhost", 1, false, Map.of(key, Integer.toString(a.getPort())));
+            when(discovery.getInstances("echo")).thenReturn(List.of(http));
+
+            assertThat(provider.resolve("echo"))
+                    .as(key)
+                    .singleElement()
+                    .extracting(
+                            g -> ((java.net.InetSocketAddress) g.getAddresses().get(0)).getPort())
+                    .isEqualTo(a.getPort());
+        }
+    }
+
+    @Test
+    @DisplayName("GIVEN the Kubernetes port.grpc key WHEN resolved SHOULD connect to it, and grpc-port still wins")
+    void given_kubernetesPortKey_when_resolved_should_useItWithLowestPrecedence() {
+        ServiceInstance k8s = new DefaultServiceInstance(
+                "k", "echo", "localhost", 1, false, Map.of("port.grpc", Integer.toString(a.getPort())));
+        when(discovery.getInstances("echo")).thenReturn(List.of(k8s));
+        assertThat(provider.resolve("echo"))
+                .singleElement()
+                .extracting(g -> ((java.net.InetSocketAddress) g.getAddresses().get(0)).getPort())
+                .isEqualTo(a.getPort());
+
+        ServiceInstance both = new DefaultServiceInstance(
+                "k",
+                "echo",
+                "localhost",
+                1,
+                false,
+                Map.of("port.grpc", Integer.toString(b.getPort()), "grpc-port", Integer.toString(a.getPort())));
+        when(discovery.getInstances("echo")).thenReturn(List.of(both));
+        assertThat(provider.resolve("echo"))
+                .singleElement()
+                .extracting(g -> ((java.net.InetSocketAddress) g.getAddresses().get(0)).getPort())
+                .isEqualTo(a.getPort());
+    }
+
+    @Test
+    @DisplayName("GIVEN REQUIRE and an invalid port.grpc WHEN resolved SHOULD skip the instance")
+    void given_requireAndInvalidKubernetesKey_when_resolved_should_skip() {
+        useProperties(p -> p.getClient().setDiscoveryGrpcPort(ClientConfig.DiscoveryGrpcPort.REQUIRE));
+        ServiceInstance ok = new DefaultServiceInstance(
+                "ok", "echo", "localhost", 1, false, Map.of("port.grpc", Integer.toString(a.getPort())));
+        ServiceInstance bad =
+                new DefaultServiceInstance("bad", "echo", "localhost", 2, false, Map.of("port.grpc", "x"));
+        when(discovery.getInstances("echo")).thenReturn(List.of(ok, bad));
+        assertThat(provider.resolve("echo"))
+                .extracting(g -> ((java.net.InetSocketAddress) g.getAddresses().get(0)).getPort())
+                .containsExactly(a.getPort());
+    }
+
+    @Test
+    @DisplayName("GIVEN REQUIRE WHEN an instance has no gRPC port metadata SHOULD skip it and keep the others")
+    void given_require_when_instanceLacksMetadata_should_skipIt() {
+        useProperties(p -> p.getClient().setDiscoveryGrpcPort(ClientConfig.DiscoveryGrpcPort.REQUIRE));
+        ServiceInstance plain = instance(1111);
+        ServiceInstance grpc = new DefaultServiceInstance(
+                "g", "echo", "localhost", 1, false, Map.of("grpc-port", Integer.toString(a.getPort())));
+        ServiceInstance bad =
+                new DefaultServiceInstance("bad", "echo", "localhost", 2222, false, Map.of("grpc-port", "nope"));
+        when(discovery.getInstances("echo")).thenReturn(List.of(plain, grpc, bad));
+
+        assertThat(provider.resolve("echo"))
+                .extracting(g -> ((java.net.InetSocketAddress) g.getAddresses().get(0)).getPort())
+                .containsExactly(a.getPort());
+    }
+
+    @Test
+    @DisplayName("GIVEN REQUIRE and mixed instances WHEN calls are made SHOULD route only to the one with metadata")
+    void given_requireMixed_when_called_should_routeOnlyToMetadataInstance() {
+        useProperties(p -> p.getClient().setDiscoveryGrpcPort(ClientConfig.DiscoveryGrpcPort.REQUIRE));
+        // The plain instance's registry port is B's real port: if it were used, B would answer.
+        ServiceInstance plain = new DefaultServiceInstance("plain-b", "echo", "localhost", b.getPort(), false);
+        ServiceInstance grpc = new DefaultServiceInstance(
+                "with-meta", "echo", "localhost", 1, false, Map.of("grpc-port", Integer.toString(a.getPort())));
+        when(discovery.getInstances("echo")).thenReturn(List.of(plain, grpc));
+
+        ch.qos.logback.classic.Logger logger =
+                (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(DiscoveryNameResolverProvider.class);
+        ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> appender =
+                new ch.qos.logback.core.read.ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            channel = channel();
+            Set<String> responders = new HashSet<>();
+            for (int i = 0; i < 8; i++) responders.add(who());
+
+            assertThat(responders).containsExactly("A");
+            assertThat(appender.list).anySatisfy(e -> {
+                assertThat(e.getLevel()).isEqualTo(ch.qos.logback.classic.Level.WARN);
+                assertThat(e.getFormattedMessage()).contains("plain-b").contains("echo");
+            });
+        } finally {
+            logger.detachAppender(appender);
+        }
+    }
+
+    @Test
+    @DisplayName("GIVEN REQUIRE WHEN no instance has gRPC port metadata SHOULD fail UNAVAILABLE naming the key")
+    void given_require_when_noneHasMetadata_should_failUnavailableNamingKey() {
+        useProperties(p -> p.getClient().setDiscoveryGrpcPort(ClientConfig.DiscoveryGrpcPort.REQUIRE));
+        when(discovery.getInstances("echo")).thenReturn(List.of(instance(a.getPort())));
+        channel = channel();
+
+        assertThatThrownBy(this::who).isInstanceOfSatisfying(StatusRuntimeException.class, e -> {
+            assertThat(e.getStatus().getCode()).isEqualTo(Status.Code.UNAVAILABLE);
+            assertThat(e.getStatus().getDescription()).contains("grpc-port").contains("echo");
+        });
+    }
+
+    @Test
+    @DisplayName("GIVEN IGNORE WHEN an instance has gRPC port metadata SHOULD still use the registry port")
+    void given_ignore_when_metadataPresent_should_useRegistryPort() {
+        useProperties(p -> p.getClient().setDiscoveryGrpcPort(ClientConfig.DiscoveryGrpcPort.IGNORE));
+        ServiceInstance http = new DefaultServiceInstance(
+                "a", "echo", "localhost", b.getPort(), false, Map.of("grpc-port", Integer.toString(a.getPort())));
+        when(discovery.getInstances("echo")).thenReturn(List.of(http));
+        channel = channel();
+
+        assertThat(who()).isEqualTo("B");
+    }
+
+    @Test
+    @DisplayName("GIVEN PREFER WHEN the metadata is not a number SHOULD fall back to the registry port")
+    void given_prefer_when_metadataInvalid_should_fallBack() {
+        ServiceInstance http = new DefaultServiceInstance(
+                "a", "echo", "localhost", a.getPort(), false, Map.of("grpc-port", "not-a-port"));
+        when(discovery.getInstances("echo")).thenReturn(List.of(http));
+        channel = channel();
+
+        assertThat(who()).isEqualTo("A");
+    }
+
+    @Test
+    @DisplayName("GIVEN a per-service discovery-port-key WHEN resolved SHOULD read that key before grpc-port")
+    void given_customKey_when_resolved_should_readItFirst() {
+        useProperties(p -> {
+            ServiceDefinition svc = new ServiceDefinition();
+            svc.setName("echo");
+            svc.setDiscoveryName("echo");
+            svc.setDiscoveryPortKey("my.rpc.port");
+            p.getServices().add(svc);
+        });
+        ServiceInstance http = new DefaultServiceInstance(
+                "a",
+                "echo",
+                "localhost",
+                1,
+                false,
+                Map.of("my.rpc.port", Integer.toString(b.getPort()), "grpc-port", Integer.toString(a.getPort())));
+        when(discovery.getInstances("echo")).thenReturn(List.of(http));
+        channel = channel();
+
+        assertThat(who()).isEqualTo("B");
+    }
+
     // ---------------------------------------------------------------- helpers
+
+    private void useProperties(java.util.function.Consumer<GatewayProperties> customizer) {
+        provider.destroy();
+        GatewayProperties props = new GatewayProperties();
+        customizer.accept(props);
+        provider = new DiscoveryNameResolverProvider(provider(discovery), Duration.ofMillis(200), true, props);
+    }
 
     private ManagedChannel channel() {
         return Grpc.newChannelBuilder(provider.targetFor("echo"), InsecureChannelCredentials.create())
