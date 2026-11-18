@@ -1,9 +1,15 @@
 package dev.appiaworks.shiguchi.graphql;
 
+import dev.appiaworks.shiguchi.config.DataLoaderConfig;
 import dev.appiaworks.shiguchi.gateway.GrpcMetadataPopulator;
+import graphql.GraphQLError;
+import graphql.GraphqlErrorBuilder;
+import graphql.execution.DataFetcherExceptionHandlerParameters;
+import graphql.execution.DataFetcherResult;
 import graphql.schema.DataFetchingEnvironment;
 import io.grpc.Metadata;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,16 +29,16 @@ import reactor.core.publisher.Mono;
  *
  * _entities protocol (Federation v1/v2):
  *   Each representation is a JSON object with at least __typename and the @key field(s).
- *   Representations are grouped by __typename, dispatched via the matching BatchLoader
- *   (either gRPC or REST), then reassembled in the original input order (null for unresolved entries).
+ *   Representations are grouped by __typename, dispatched through the {@link BatchLoaderPipeline}
+ *   (de-duplicated, cached and split like every other batch load; the loader is gRPC or REST),
+ *   then reassembled in the original input order (null for unresolved entries).
  */
 public class FederationDataFetcher {
 
     private static final Logger log = LoggerFactory.getLogger(FederationDataFetcher.class);
 
     private final GraphQlSchemaBuilder schemaBuilder;
-    private final GrpcBatchDataLoaderRegistrar loaderRegistrar;
-    private final RestBatchDataLoaderRegistrar restLoaderRegistrar;
+    private final BatchLoaderPipeline pipeline;
     private final GrpcMetadataPopulator metadataPopulator;
 
     public FederationDataFetcher(GraphQlSchemaBuilder schemaBuilder, GrpcBatchDataLoaderRegistrar loaderRegistrar) {
@@ -52,18 +58,18 @@ public class FederationDataFetcher {
             GrpcBatchDataLoaderRegistrar loaderRegistrar,
             RestBatchDataLoaderRegistrar restLoaderRegistrar,
             GrpcMetadataPopulator metadataPopulator) {
-        this.schemaBuilder = schemaBuilder;
-        this.loaderRegistrar = loaderRegistrar;
-        this.restLoaderRegistrar = restLoaderRegistrar;
-        this.metadataPopulator = metadataPopulator;
+        this(
+                schemaBuilder,
+                new BatchLoaderPipeline(loaderRegistrar, restLoaderRegistrar, new DataLoaderConfig()),
+                metadataPopulator);
     }
 
-    private Map<String, BatchLoader> allLoaders() {
-        Map<String, BatchLoader> combined = new LinkedHashMap<>(loaderRegistrar.getLoaders());
-        if (restLoaderRegistrar != null) {
-            combined.putAll(restLoaderRegistrar.getLoaders());
-        }
-        return combined;
+    /** The entity loads go through the shared pipeline: de-duplicated, cached and split as configured. */
+    FederationDataFetcher(
+            GraphQlSchemaBuilder schemaBuilder, BatchLoaderPipeline pipeline, GrpcMetadataPopulator metadataPopulator) {
+        this.schemaBuilder = schemaBuilder;
+        this.pipeline = pipeline;
+        this.metadataPopulator = metadataPopulator;
     }
 
     /** Data fetcher for Query._service — returns { sdl: "..." }. */
@@ -74,13 +80,16 @@ public class FederationDataFetcher {
     /**
      * Data fetcher for Query._entities — resolves representations to entity objects.
      *
-     * Returns CompletableFuture<List<Object>> where each element corresponds to the
-     * input representation at the same index (null when unresolvable).
+     * Returns the entities, each element corresponding to the input representation at the same
+     * index (null when unresolvable). When the loads of a type fail, that type's positions stay
+     * null and the result carries one error for the type (the first failure of its batch), so the
+     * entities of the other types still come back.
      */
-    public CompletableFuture<List<Object>> fetchEntities(DataFetchingEnvironment env) {
+    public CompletableFuture<DataFetcherResult<List<Object>>> fetchEntities(DataFetchingEnvironment env) {
         List<Map<String, Object>> representations = env.getArgument("representations");
         if (representations == null || representations.isEmpty()) {
-            return CompletableFuture.completedFuture(List.of());
+            return CompletableFuture.completedFuture(
+                    DataFetcherResult.<List<Object>>newResult().data(List.of()).build());
         }
 
         Mono<Metadata> metadata = GraphQlMetadata.build(env.getGraphQlContext(), metadataPopulator)
@@ -119,14 +128,14 @@ public class FederationDataFetcher {
         // Dispatch per type and assemble results
         Object[] results = new Object[representations.size()];
 
+        List<GraphQLError> errors = Collections.synchronizedList(new ArrayList<>());
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (Map.Entry<String, List<Integer>> entry : indicesByType.entrySet()) {
             String typeName = entry.getKey();
             List<Integer> indices = entry.getValue();
             List<String> ids = idsByType.get(typeName);
 
-            BatchLoader loader = allLoaders().get(typeName);
-            if (loader == null) {
+            if (!pipeline.has(typeName)) {
                 log.warn(
                         "[Federation] No batch loader for type '{}'; {} representations will be null",
                         typeName,
@@ -135,9 +144,14 @@ public class FederationDataFetcher {
             }
 
             CompletableFuture<Void> f = GraphQlRequestContext.within(
-                            env.getGraphQlContext(), metadata.flatMap(md -> loader.loadMapped(ids, md)))
+                            env.getGraphQlContext(), metadata.flatMap(md -> pipeline.loadOutcome(typeName, ids, md)))
                     .toFuture()
-                    .thenAccept(entityMap -> {
+                    .thenAccept(outcome -> {
+                        Map<String, Map<String, Object>> entityMap = outcome.entities();
+                        if (outcome.hasFailures()) {
+                            errors.add(entityError(
+                                    env, outcome.failures().values().iterator().next()));
+                        }
                         for (int j = 0; j < indices.size(); j++) {
                             int resultIdx = indices.get(j);
                             String id = ids.get(j);
@@ -146,6 +160,7 @@ public class FederationDataFetcher {
                     })
                     .exceptionally(ex -> {
                         log.warn("[Federation] Batch load failed for type '{}': {}", typeName, ex.getMessage());
+                        errors.add(entityError(env, ex));
                         return null;
                     });
             futures.add(f);
@@ -155,7 +170,27 @@ public class FederationDataFetcher {
                 .thenApply(v -> {
                     List<Object> list = new ArrayList<>(representations.size());
                     for (Object r : results) list.add(r);
-                    return list;
+                    return DataFetcherResult.<List<Object>>newResult()
+                            .data(list)
+                            .errors(new ArrayList<>(errors))
+                            .build();
                 });
+    }
+
+    /** The GraphQL error of a failed entity load, shaped like the other backend errors (grpcCode, ...). */
+    private static GraphQLError entityError(DataFetchingEnvironment env, Throwable failure) {
+        GraphQLError error = GrpcGraphQlExceptionHandler.toGraphQlError(
+                DataFetcherExceptionHandlerParameters.newExceptionParameters()
+                        .dataFetchingEnvironment(env)
+                        .exception(failure)
+                        .build(),
+                false);
+        if (error != null) return error;
+        GraphqlErrorBuilder<?> fallback =
+                GraphqlErrorBuilder.newError().message("Entity load failed: " + failure.getMessage());
+        if (env.getExecutionStepInfo() != null)
+            fallback.path(env.getExecutionStepInfo().getPath());
+        if (env.getField() != null) fallback.location(env.getField().getSourceLocation());
+        return fallback.build();
     }
 }

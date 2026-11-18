@@ -72,4 +72,16 @@ public class RestBatchLoaderConfig {
      * Timeout in seconds for each HTTP call. Default: 10.
      */
     private int timeoutSeconds = 10;
+
+    /**
+     * Most ids per request of this loader; larger loads are split. {@code 0} = use
+     * {@code shiguchi.graphql.data-loader.max-batch-size}.
+     */
+    private int maxBatchSize = 0;
+
+    /**
+     * Most requests of this loader in flight at once: the parallel strategy's single GETs, or the
+     * batch strategy's split requests. {@code 0} = unbounded. Default: 16.
+     */
+    private int maxConcurrency = 16;
 }

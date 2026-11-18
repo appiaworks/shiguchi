@@ -16,6 +16,21 @@ message Customer {
   string name = 2;
   string email = 3;
   string tier = 4;
+  // Second level of the two-level nested legs: a customer points at its region through a DataLoader.
+  string region_id = 5 [(shiguchi.field) = { id: true, resolves_type: "Region" }];
+}
+
+message Region {
+  string id = 1 [(shiguchi.field) = { id: true, batch_key: true }];
+  string name = 2;
+}
+
+message GetRegionsRequest {
+  repeated string ids = 1;
+}
+
+message Regions {
+  repeated Region items = 1;
 }
 
 message ShopItem {
@@ -53,6 +68,39 @@ message Customers {
   repeated Customer items = 1;
 }
 
+// One-to-many: an author's books through a grouped loader (group_by) versus one call per author.
+message ShopAuthor {
+  string id = 1 [(shiguchi.field) = { id: true, resolves_many: { type: "ShopBook" field: "books" loader: "author_id" } }];
+  string name = 2;
+}
+
+message ShopBook {
+  string id = 1;
+  string author_id = 2;
+  string title = 3;
+  int32 pages = 4;
+}
+
+message ListShopAuthorsRequest {
+  int32 count = 1;
+}
+
+message ShopAuthors {
+  repeated ShopAuthor items = 1;
+}
+
+message BooksByAuthorsRequest {
+  repeated string author_ids = 1;
+}
+
+message BooksOfRequest {
+  string author_id = 1;
+}
+
+message ShopBooks {
+  repeated ShopBook items = 1;
+}
+
 service Shop {
   rpc Get(GetShopOrderRequest) returns (ShopOrder) {
     option (shiguchi.graphql) = { name: "order" type: QUERY };
@@ -68,5 +116,30 @@ service Shop {
       loader_ids_field: "ids"
       loader_result_field: "items"
     };
+  }
+  rpc GetRegions(GetRegionsRequest) returns (Regions) {
+    option (shiguchi.graphql) = {
+      name: "regions"
+      type: QUERY
+      loader_for: "Region"
+      loader_ids_field: "ids"
+      loader_result_field: "items"
+    };
+  }
+  rpc ListAuthors(ListShopAuthorsRequest) returns (ShopAuthors) {
+    option (shiguchi.graphql) = { name: "authors" type: QUERY };
+  }
+  rpc BooksByAuthors(BooksByAuthorsRequest) returns (ShopBooks) {
+    option (shiguchi.graphql) = {
+      name: "booksByAuthors"
+      type: QUERY
+      loader_for: "ShopBook"
+      loader_ids_field: "author_ids"
+      loader_result_field: "items"
+      group_by: "author_id"
+    };
+  }
+  rpc BooksOf(BooksOfRequest) returns (ShopBooks) {
+    option (shiguchi.graphql) = { name: "booksOf" type: QUERY };
   }
 }

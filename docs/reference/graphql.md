@@ -126,6 +126,15 @@ the default DGS handler. The message is the status description, else the status 
 | `details` | yes (proto3 JSON with `@type`, if non-empty) | non-BadRequest details only | |
 | `fieldErrors` | no | yes, for a `BadRequest` | `[{field, message, rule?}]` |
 
+Failures of a relationship (DataLoader) batch use the same shape, with these extra keys:
+
+| Key | When | Value |
+| --- | --- | --- |
+| `httpStatus`, `type`, `endpoint` | the loader is a REST (OpenAPI) one | upstream HTTP status (when there was a response), failure type, the endpoint called; `grpcCode` is derived from them |
+| `omittedFailures`, `loadedType` | more than 20 keys of one loader failed in a request | the count of failures not listed and the loaded GraphQL type; the message gets the suffix `(and N more <Type> loads failed; not listed)` |
+
+The cap is applied per batch: once a loader has 20 listed errors in a request, each later batch of that loader adds one summary error that counts only that batch's omitted keys. The fields of the omitted keys resolve to null. `data-loader.on-error: "NULL"` turns these errors off.
+
 `fieldErrors[].field` is the GraphQL argument path: snake_case becomes camelCase, prefixed with
 `input.` when the field has an `input` argument and the path does not start with a declared
 argument. `rule` is the violation reason and is omitted when empty.
@@ -263,7 +272,11 @@ token exchange) supplies the upstream credential.
 `shiguchi.graphql.batch.max-operations` (0 = off). A POST whose JSON body is an array runs each
 element through the full interceptor chain in order, and answers with an array of results in the same
 order. Limits, introspection and the cost budget apply per operation; the batch is charged the sum.
-Each operation has its own DataLoader registry. A batch over the maximum, an empty batch, invalid
+Each operation has its own DataLoader registry, so relationship loads batch within one operation and
+never across the array: N operations that each select `authors { books { title } }` make N loader calls,
+not one. Keep array operations for independent queries and write a single query for a list with
+nested relationships. Each operation is costed on its own (a one-to-many list field under a list
+multiplies by the parent list's size) and the batch is charged the sum. A batch over the maximum, an empty batch, invalid
 JSON or a non-object element gets 400; a body over 256 KiB times the maximum gets 413. `Retry-After`
 is the largest among the results.
 
@@ -274,6 +287,10 @@ is the largest among the results.
 (`type _Service { sdl: String! }`); `Query._entities(representations: [_Any!]!): [_Entity]!`; and
 `union _Entity` over keyed types. Keys come from `(shiguchi.type).keys`, else the field with
 `batch_key`. `_entities` resolves by the first single-field key; composite keys are published only.
+The federation types and fields (`_Any`, `_Service`, `_Entity`, `_service`, `_entities`) are added by the
+Apollo federation transformer that DGS applies; the gateway supplies the `_entities` fetcher and the
+`__typename` resolution. `_service { sdl }` returns the subgraph SDL without the federation directives,
+as that transformer prints it. Needs at least one keyed type.
 
 ### Introspection
 
@@ -324,5 +341,12 @@ All under `shiguchi.graphql`. See [configuration.md](configuration.md).
 | `response-cache.stale-while-revalidate` | `PT0S` |
 | `response-cache.vary-by-principal` | `true` |
 | `data-loader.max-batch-size` | `0` (unlimited) |
+| `data-loader.max-concurrent-batches` | `4` (0 = all at once) |
+| `data-loader.max-children-per-key` | `0` (unlimited; a one-to-many key over it fails) |
+| `data-loader.timeout` | `PT10S` |
+| `data-loader.on-error` | `ERROR` (`NULL` resolves a failed key to null without an error; quote it in YAML) |
 | `data-loader.cache.<TypeName>.ttl` / `.max-size` | `PT1H` / `10000` (cache map empty by default) |
+| `data-loader.types.<TypeName>.endpoint` | none; names the endpoint whose loader serves the type when several declare one (loader only, not the Query field) |
 | `compat-options` | empty; only value `graphql-1079` |
+
+Counter `loader.conflicts` in the `shiguchi.graphql` meter namespace (tag `type`): a reload or late-loaded service brought a `loader_for` that conflicts with the type's current owner and was rejected. See [Several backends serve the same type](../guides/graphql-annotations.md#several-backends-serve-the-same-type).

@@ -19,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -78,7 +79,11 @@ public class GrpcGraphQlExceptionHandler implements DataFetcherExceptionHandler 
     /** The GraphQL error for a gRPC failure anywhere in the cause chain, or null if there is none. */
     static GraphQLError toGraphQlError(DataFetcherExceptionHandlerParameters parameters, boolean nativeFormat) {
         Throwable t = parameters.getException();
+        Map<String, Object> omitted = Map.of();
         for (int depth = 0; t != null && depth < 8; depth++, t = t.getCause()) {
+            if (t instanceof BatchFailureSummary summary) {
+                omitted = Map.of("omittedFailures", summary.omitted(), "loadedType", summary.type());
+            }
             if (t instanceof GrpcBackendException backend) {
                 return build(
                         parameters,
@@ -86,9 +91,29 @@ public class GrpcGraphQlExceptionHandler implements DataFetcherExceptionHandler 
                         backend.getService(),
                         backend.getMethod(),
                         backend.getDetails(),
-                        nativeFormat);
+                        nativeFormat,
+                        omitted);
+            }
+            if (t instanceof RestBackendException rest) {
+                Map<String, Object> extra = new LinkedHashMap<>();
+                if (rest.getHttpStatus() != 0) extra.put("httpStatus", rest.getHttpStatus());
+                extra.put("type", rest.getType());
+                extra.put("endpoint", rest.getEndpoint());
+                extra.putAll(omitted);
+                return build(
+                        parameters,
+                        Status.fromCode(rest.grpcCode()).withDescription(rest.getMessage()),
+                        null,
+                        null,
+                        GatewayErrorDetails.none(),
+                        nativeFormat,
+                        extra);
             }
             if (t instanceof ThrottledException throttled) {
+                Map<String, Object> extra = new LinkedHashMap<>();
+                extra.put("code", "RESOURCE_EXHAUSTED");
+                extra.put("retryAfterSeconds", throttled.retryAfterSeconds());
+                extra.putAll(omitted);
                 return build(
                         parameters,
                         Status.RESOURCE_EXHAUSTED.withDescription(throttled.getMessage()),
@@ -96,11 +121,27 @@ public class GrpcGraphQlExceptionHandler implements DataFetcherExceptionHandler 
                         null,
                         GatewayErrorDetails.none(),
                         nativeFormat,
-                        Map.of("code", "RESOURCE_EXHAUSTED", "retryAfterSeconds", throttled.retryAfterSeconds()));
+                        extra);
             }
             if (t instanceof StatusRuntimeException sre) {
                 return build(
-                        parameters, sre.getStatus(), null, null, GatewayErrorDetails.from(sre, null), nativeFormat);
+                        parameters,
+                        sre.getStatus(),
+                        null,
+                        null,
+                        GatewayErrorDetails.from(sre, null),
+                        nativeFormat,
+                        omitted);
+            }
+            if (t instanceof TimeoutException) {
+                return build(
+                        parameters,
+                        Status.DEADLINE_EXCEEDED.withDescription(t.getMessage()),
+                        null,
+                        null,
+                        GatewayErrorDetails.none(),
+                        nativeFormat,
+                        omitted);
             }
         }
         return null;
@@ -112,16 +153,6 @@ public class GrpcGraphQlExceptionHandler implements DataFetcherExceptionHandler 
      * {@code DataFetchingException} into {@code errorType: UNAVAILABLE, errorDetail: SERVICE_ERROR},
      * and leaves one that already carries a DGS {@code ErrorType} alone.
      */
-    private static GraphQLError build(
-            DataFetcherExceptionHandlerParameters parameters,
-            Status status,
-            String service,
-            String method,
-            GatewayErrorDetails details,
-            boolean nativeFormat) {
-        return build(parameters, status, service, method, details, nativeFormat, Map.of());
-    }
-
     private static GraphQLError build(
             DataFetcherExceptionHandlerParameters parameters,
             Status status,
@@ -158,6 +189,10 @@ public class GrpcGraphQlExceptionHandler implements DataFetcherExceptionHandler 
         String message = status.getDescription() != null
                 ? status.getDescription()
                 : status.getCode().name();
+        if (extra.containsKey("omittedFailures")) {
+            message += " (and " + extra.get("omittedFailures") + " more " + extra.get("loadedType")
+                    + " loads failed; not listed)";
+        }
         TypedGraphQLError.Builder error = TypedGraphQLError.newBuilder()
                 .errorType(ErrorType.valueOf(errorType(status.getCode())))
                 .message(message)

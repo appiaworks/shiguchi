@@ -22,8 +22,62 @@ public class DataLoaderConfig {
     /** Largest number of ids sent in one batch call; larger batches are split. {@code 0} = unlimited. */
     private int maxBatchSize = 0;
 
+    /**
+     * Most batch calls of one load that run at the same time once {@link #maxBatchSize} has split it.
+     * {@code 0} = unbounded.
+     */
+    private int maxConcurrentBatches = 4;
+
+    /**
+     * Most child entities one parent key may have in a one-to-many (grouped) loader ({@code group_by}).
+     * A key over the cap fails (an error on its field under {@code on-error: ERROR}). {@code 0} =
+     * unlimited. The backend's response is already decoded when the cap is checked, so it protects
+     * the GraphQL response and the gateway's heap after grouping, not the memory spent decoding the
+     * upstream response.
+     */
+    private int maxChildrenPerKey = 0;
+
+    /** How long one gRPC batch call may take before it fails; see {@link #onError} for what its keys then resolve to. */
+    private Duration timeout = Duration.ofSeconds(10);
+
     /** Cross-request entity cache per GraphQL type name (the {@code loader_for} value). Empty by default. */
     private Map<String, TypeCache> cache = new LinkedHashMap<>();
+
+    /**
+     * What a failed batch load does to the fields waiting on it: {@link OnError#ERROR} (the default)
+     * reports a GraphQL error on each of them, {@link OnError#NULL} resolves them to null without one.
+     * In YAML quote the value ({@code "NULL"}): a bare {@code NULL} is YAML's null literal and leaves the default.
+     */
+    private OnError onError = OnError.ERROR;
+
+    /**
+     * Per GraphQL type settings (the {@code loader_for} name). Today only the pin that decides which
+     * endpoint's loader a type uses when several endpoints declare one. Empty by default.
+     */
+    private Map<String, TypeConfig> types = new LinkedHashMap<>();
+
+    public OnError getOnError() {
+        return onError == null ? OnError.ERROR : onError;
+    }
+
+    /** How a failed batch load shows in the response. */
+    public enum OnError {
+        /** The relationship fields it failed resolve to null and carry a typed error. */
+        ERROR,
+        /** The relationship fields it failed resolve to null, with no error. */
+        NULL
+    }
+
+    @Data
+    @NoArgsConstructor
+    public static class TypeConfig {
+        /**
+         * The service endpoint (its configured name) whose loader serves this type when more than one
+         * endpoint declares a {@code loader_for} for it. It decides the loader only, not which endpoint
+         * serves the Query field. Blank = no pin.
+         */
+        private String endpoint;
+    }
 
     @Data
     @NoArgsConstructor

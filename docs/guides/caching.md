@@ -265,6 +265,8 @@ carries `Age`. The counter `shiguchi.graphql.response.cache` is tagged `result` 
 or `miss`.
 
 Unlike the DataLoader cache (`data-loader.cache.<Type>`), which keeps single entities by id across
-requests (shared by all callers, so only for types that are the same for everyone; the parent field
+requests (it covers every by-id loader, gRPC and REST (`rest-batch-loaders`) alike, and the
+Federation `_entities` loads, which go through the same loader; a one-to-many `group_by` loader is
+never cached; shared by all callers, so only for types that are the same for everyone; the parent field
 was authorized before it loads), this keeps the whole response of a query. The two compose: a miss here still benefits
 from warm loaders.

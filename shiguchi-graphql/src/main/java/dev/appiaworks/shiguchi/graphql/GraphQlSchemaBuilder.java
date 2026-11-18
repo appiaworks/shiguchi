@@ -12,6 +12,7 @@ import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
 import dev.appiaworks.shiguchi.proto.FieldRule;
 import dev.appiaworks.shiguchi.proto.GraphQlProto;
+import dev.appiaworks.shiguchi.proto.ResolvesMany;
 import dev.appiaworks.shiguchi.proto.TypeRule;
 import dev.appiaworks.shiguchi.reflection.GraphQlOptionReader;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
@@ -76,6 +77,9 @@ public class GraphQlSchemaBuilder {
     /** Scratch map filled while an SDL is generated; guarded by {@link #generateSdlWithKeys()}. */
     private final Map<String, Integer> collectingCosts = new LinkedHashMap<>();
 
+    private final List<Relationship> collectingRelationships = new ArrayList<>();
+    private volatile List<Relationship> relationships = List.of();
+
     private volatile List<GraphQlContributor> contributors = List.of();
 
     public GraphQlSchemaBuilder(
@@ -105,6 +109,7 @@ public class GraphQlSchemaBuilder {
         this.generatedSdl = result.sdl();
         this.lastFederationKeys = result.federationKeys();
         this.fieldCosts = result.fieldCosts();
+        this.relationships = result.relationships();
         log.info("Generated GraphQL SDL ({} chars)", generatedSdl.length());
         log.debug("GraphQL SDL:\n{}", generatedSdl);
     }
@@ -114,6 +119,7 @@ public class GraphQlSchemaBuilder {
         this.generatedSdl = result.sdl();
         this.lastFederationKeys = result.federationKeys();
         this.fieldCosts = result.fieldCosts();
+        this.relationships = result.relationships();
         log.info("Rebuilt GraphQL SDL ({} chars)", generatedSdl.length());
     }
 
@@ -134,14 +140,60 @@ public class GraphQlSchemaBuilder {
         return fieldCosts;
     }
 
-    private record SdlResult(String sdl, Map<String, String> federationKeys, Map<String, Integer> fieldCosts) {}
+    /**
+     * The relationships of the current schema: each {@code resolves_type} companion field the SDL
+     * got, from the same build as {@link #getGeneratedSdl()}. {@link GatewayDataFetcherRegistrar}
+     * wires a {@link GrpcRelationshipDataFetcher} for each, on nested types too.
+     */
+    public List<Relationship> getRelationships() {
+        return relationships;
+    }
+
+    /**
+     * A companion field of an object type that resolves a reference through a DataLoader.
+     *
+     * @param parentType the GraphQL type that declares the field
+     * @param fieldName the companion field's name in the schema
+     * @param idJsonName the key of the id in the parent's data (the proto field's JSON name)
+     * @param resolvedType the GraphQL type it resolves to (one, or a list of them when {@code groupBy} is set)
+     * @param groupBy empty for a {@code resolves_type} reference (one entity by id); for a
+     *     {@code resolves_many} field the {@code group_by} of the one-to-many loader that serves its list
+     */
+    public record Relationship(
+            String parentType, String fieldName, String idJsonName, String resolvedType, String groupBy) {
+
+        /** A reference to one entity, resolved by id. */
+        public Relationship(String parentType, String fieldName, String idJsonName, String resolvedType) {
+            this(parentType, fieldName, idJsonName, resolvedType, "");
+        }
+
+        /** Whether the field is a list of children ({@code resolves_many}), decided here from the parent's descriptor. */
+        public boolean many() {
+            return groupBy != null && !groupBy.isEmpty();
+        }
+
+        /** The DataLoader that serves it: the type's by-id loader, or its one-to-many loader for the group field. */
+        public String loaderName() {
+            return many() ? GrpcBatchDataLoaderRegistrar.groupedName(resolvedType, groupBy) : resolvedType;
+        }
+    }
+
+    private record SdlResult(
+            String sdl,
+            Map<String, String> federationKeys,
+            Map<String, Integer> fieldCosts,
+            List<Relationship> relationships) {}
 
     private synchronized SdlResult generateSdlWithKeys() {
         Map<String, String> federationKeys = isFederationEnabled() ? new LinkedHashMap<>() : null;
         collectingCosts.clear();
+        collectingRelationships.clear();
         String sdl = generateSdl(federationKeys);
         return new SdlResult(
-                sdl, federationKeys != null ? Map.copyOf(federationKeys) : Map.of(), Map.copyOf(collectingCosts));
+                sdl,
+                federationKeys != null ? Map.copyOf(federationKeys) : Map.of(),
+                Map.copyOf(collectingCosts),
+                List.copyOf(collectingRelationships));
     }
 
     // -------------------------------------------------------------------------
@@ -318,7 +370,7 @@ public class GraphQlSchemaBuilder {
                 .distinct()
                 .forEach(name -> sb.append("scalar ").append(name).append('\n'));
         if (federation) {
-            sb.append("scalar _Any\n");
+            // _Any, _Service, _Entity and Query._service/_entities come from the Apollo transformer DGS applies
             sb.append("scalar _FieldSet\n");
             sb.append("\n");
             sb.append("directive @key(fields: _FieldSet!, resolvable: Boolean) repeatable on OBJECT | INTERFACE\n");
@@ -341,22 +393,7 @@ public class GraphQlSchemaBuilder {
         sb.append("type Query {\n");
         if (!queries.isEmpty()) sb.append(queries);
         else sb.append("  _placeholder: Boolean\n");
-        if (federation) {
-            sb.append("  _service: _Service!\n");
-            sb.append("  _entities(representations: [_Any!]!): [_Entity]!\n");
-        }
         sb.append("}\n\n");
-
-        if (federation) {
-            // _Service type (returns the SDL for the router)
-            sb.append("type _Service {\n  sdl: String!\n}\n\n");
-            // _Entity union over all types that have @key
-            if (!federationKeys.isEmpty()) {
-                sb.append("union _Entity = ")
-                        .append(String.join(" | ", federationKeys.keySet()))
-                        .append("\n\n");
-            }
-        }
 
         if (!mutations.isEmpty())
             sb.append("type Mutation {\n").append(mutations).append("}\n\n");
@@ -633,6 +670,8 @@ public class GraphQlSchemaBuilder {
                 if (resolvesTypes.size() == 1) {
                     String resolverName =
                             jsonName.endsWith("Id") ? jsonName.substring(0, jsonName.length() - 2) : jsonName;
+                    collectingRelationships.add(
+                            new Relationship(typeName, resolverName, jsonName, resolvesTypes.get(0)));
                     sb.append("  ")
                             .append(resolverName)
                             .append(": ")
@@ -643,12 +682,41 @@ public class GraphQlSchemaBuilder {
                     for (String resolvedType : resolvesTypes) {
                         String stripped = resolvedType.substring(prefix.length());
                         String resolverName = Character.toLowerCase(stripped.charAt(0)) + stripped.substring(1);
+                        collectingRelationships.add(new Relationship(typeName, resolverName, jsonName, resolvedType));
                         sb.append("  ")
                                 .append(resolverName)
                                 .append(": ")
                                 .append(resolvedType)
                                 .append("\n");
                     }
+                }
+            }
+
+            // Companion list field for resolves_many: nullable [Child!], never [Child!]!, so a failed
+            // batch can still null the field instead of failing the parent
+            if (ann != null && ann.hasResolvesMany()) {
+                ResolvesMany many = ann.getResolvesMany();
+                if (many.getType().isEmpty() || many.getLoader().isEmpty()) {
+                    log.warn(
+                            "resolves_many on {}.{} needs a type and a loader (the group_by of the one-to-many loader); skipped",
+                            typeName,
+                            field.getName());
+                } else {
+                    String listName = many.getField().isEmpty()
+                            ? Character.toLowerCase(many.getType().charAt(0))
+                                    + many.getType().substring(1) + "s"
+                            : many.getField();
+                    collectingRelationships.add(new Relationship(
+                            typeName,
+                            listName,
+                            field.getJsonName(),
+                            many.getType(),
+                            GrpcBatchDataLoaderRegistrar.snakeToCamel(many.getLoader())));
+                    sb.append("  ")
+                            .append(listName)
+                            .append(": [")
+                            .append(many.getType())
+                            .append("!]\n");
                 }
             }
         }

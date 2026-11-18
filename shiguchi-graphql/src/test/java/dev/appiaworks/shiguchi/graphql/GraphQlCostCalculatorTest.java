@@ -80,6 +80,23 @@ class GraphQlCostCalculatorTest {
     }
 
     @Test
+    @DisplayName("GIVEN a one-to-many list field under a list WHEN selected SHOULD multiply the list sizes")
+    void given_oneToManyListUnderList_when_selected_should_multiply() {
+        GraphQLSchema schema = new SchemaGenerator()
+                .makeExecutableSchema(
+                        new SchemaParser().parse("""
+                                        type Query { authors(first: Int): [Author!]! }
+                                        type Author { id: ID books: [Book!] }
+                                        type Book { title: String }
+                                        """),
+                        RuntimeWiring.newRuntimeWiring().build());
+        Integer cost = new GraphQlCostCalculator(() -> Map.of(), 10)
+                .calculate(schema, "{ authors(first: 3) { books { title } } }", null, Map.of());
+        // authors 1*3, books inherits 3 -> 3, title 1 * 3
+        assertThat(cost).isGreaterThan(3 + 3);
+    }
+
+    @Test
     @DisplayName("GIVEN a document that does not parse WHEN costed SHOULD answer null")
     void given_brokenDocument_when_costed_should_answerNull() {
         assertThat(cost(Map.of(), 10, "{ item(")).isNull();

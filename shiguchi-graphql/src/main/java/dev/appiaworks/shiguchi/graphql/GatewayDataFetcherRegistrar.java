@@ -1,16 +1,12 @@
 package dev.appiaworks.shiguchi.graphql;
 
-import com.google.protobuf.Descriptors.Descriptor;
-import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.netflix.graphql.dgs.DgsCodeRegistry;
 import com.netflix.graphql.dgs.DgsComponent;
+import dev.appiaworks.shiguchi.config.DataLoaderConfig;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
-import dev.appiaworks.shiguchi.proto.FieldRule;
-import dev.appiaworks.shiguchi.proto.GraphQlProto;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
-import dev.appiaworks.shiguchi.routing.ServiceEndpointContext;
-import graphql.schema.DataFetcher;
+import graphql.language.ObjectTypeDefinition;
 import graphql.schema.FieldCoordinates;
 import graphql.schema.GraphQLCodeRegistry;
 import graphql.schema.idl.TypeDefinitionRegistry;
@@ -29,7 +25,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
  * @DgsTypeDefinitionRegistry, so all routes are already loaded when this runs.
  * Without this registration DGS uses its default trivial fetcher, which returns null.
  *
- * Relationship resolvers delegate to DGS DataLoaders for batch loading of referenced types.
+ * The relationship resolvers come from {@link GraphQlSchemaBuilder#getRelationships()}, so every
+ * {@code resolves_type} field the schema declares gets one, nested types included. They delegate to DGS DataLoaders for batch loading of referenced types.
  */
 @DgsComponent
 @ConditionalOnProperty(prefix = "shiguchi.graphql", name = "enabled", matchIfMissing = true)
@@ -40,16 +37,18 @@ public class GatewayDataFetcherRegistrar {
     private final GrpcRouteRegistry registry;
     private final DynamicGraphQlDataFetcher dataFetcher;
     private final GatewayProperties gatewayProperties;
-
-    @Autowired(required = false)
-    private FederationDataFetcher federationDataFetcher;
+    private final GraphQlSchemaBuilder schemaBuilder;
 
     /** Beans that add fields of their own (the push module's subscription fields); optional. */
     @Autowired(required = false)
     private List<GraphQlContributor> contributors;
 
     public GatewayDataFetcherRegistrar(
-            GrpcRouteRegistry registry, DynamicGraphQlDataFetcher dataFetcher, GatewayProperties gatewayProperties) {
+            GrpcRouteRegistry registry,
+            DynamicGraphQlDataFetcher dataFetcher,
+            GatewayProperties gatewayProperties,
+            GraphQlSchemaBuilder schemaBuilder) {
+        this.schemaBuilder = schemaBuilder;
         this.registry = registry;
         this.dataFetcher = dataFetcher;
         this.gatewayProperties = gatewayProperties;
@@ -86,113 +85,36 @@ public class GatewayDataFetcherRegistrar {
             for (GraphQlContributor contributor : contributors) contributor.contributeDataFetchers(codeRegistryBuilder);
         }
 
-        // Register DataLoader-backed resolvers for fields annotated with resolves_type
+        // DataLoader-backed resolvers for the resolves_type companion fields the schema builder
+        // emitted, on nested types too. A relationship whose type or field the schema being built
+        // lacks (the registry is newer or older than the builder's snapshot) is skipped.
         int relCount = 0;
-        for (ServiceEndpointContext ctx : registry.allContexts()) {
-            for (var fd : ctx.getFileDescriptors().values()) {
-                for (Descriptor msgType : fd.getMessageTypes()) {
-                    for (FieldDescriptor field : msgType.getFields()) {
-                        FieldRule fieldOpt = field.getOptions().getExtension(GraphQlProto.field);
-                        if (fieldOpt == null || fieldOpt.getResolvesTypeList().isEmpty()) continue;
-
-                        List<String> resolvesTypes = fieldOpt.getResolvesTypeList();
-                        String protoName = field.getName();
-                        String idFieldJsonName = field.getJsonName();
-                        String parentTypeName = msgType.getName();
-
-                        if (resolvesTypes.size() == 1) {
-                            // Single type: resolver field name matches the schema builder's logic —
-                            // strip "Id" suffix from the JSON name (e.g. "groupId" → "group").
-                            String resolverFieldName = idFieldJsonName.endsWith("Id")
-                                    ? idFieldJsonName.substring(0, idFieldJsonName.length() - 2)
-                                    : idFieldJsonName;
-                            String resolvedType = resolvesTypes.get(0);
-                            codeRegistryBuilder.dataFetcher(
-                                    FieldCoordinates.coordinates(parentTypeName, resolverFieldName),
-                                    new GrpcRelationshipDataFetcher(idFieldJsonName, resolvedType));
-                            relCount++;
-                            log.debug(
-                                    "Registered relationship resolver: {}.{} -> DataLoader[{}]",
-                                    parentTypeName,
-                                    resolverFieldName,
-                                    resolvedType);
-                        } else {
-                            // Multiple types: resolver field name derived from type name.
-                            // Strip common CamelCase prefix (e.g. "Book" from BookAuthor/BookAuthorRef),
-                            // then lowercase the first character of the remainder.
-                            String prefix = commonTypePrefix(resolvesTypes);
-                            for (String resolvedType : resolvesTypes) {
-                                String stripped = resolvedType.substring(prefix.length());
-                                String resolverFieldName =
-                                        Character.toLowerCase(stripped.charAt(0)) + stripped.substring(1);
-                                codeRegistryBuilder.dataFetcher(
-                                        FieldCoordinates.coordinates(parentTypeName, resolverFieldName),
-                                        new GrpcRelationshipDataFetcher(idFieldJsonName, resolvedType));
-                                relCount++;
-                                log.debug(
-                                        "Registered relationship resolver: {}.{} -> DataLoader[{}]",
-                                        parentTypeName,
-                                        resolverFieldName,
-                                        resolvedType);
-                            }
-                        }
-                    }
-                }
+        DataLoaderConfig.OnError onError =
+                gatewayProperties.getGraphql().getDataLoader().getOnError();
+        for (GraphQlSchemaBuilder.Relationship rel : schemaBuilder.getRelationships()) {
+            var parent = typeDefinitionRegistry.getType(rel.parentType()).orElse(null);
+            boolean present = parent instanceof ObjectTypeDefinition object
+                    && object.getFieldDefinitions().stream()
+                            .anyMatch(f -> f.getName().equals(rel.fieldName()));
+            if (!present) {
+                log.debug(
+                        "Skipping relationship {}.{}: not in the schema being built",
+                        rel.parentType(),
+                        rel.fieldName());
+                continue;
             }
+            codeRegistryBuilder.dataFetcher(
+                    FieldCoordinates.coordinates(rel.parentType(), rel.fieldName()),
+                    new GrpcRelationshipDataFetcher(rel.idJsonName(), rel.loaderName(), onError, rel.many()));
+            relCount++;
+            log.debug(
+                    "Registered relationship resolver: {}.{} -> DataLoader[{}]",
+                    rel.parentType(),
+                    rel.fieldName(),
+                    rel.loaderName());
         }
         if (relCount > 0) log.info("Registered {} GraphQL relationship resolvers", relCount);
 
-        // Federation: wire _service and _entities fetchers
-        if (gatewayProperties.getGraphql().getFederation().isEnabled() && federationDataFetcher != null) {
-            codeRegistryBuilder.dataFetcher(FieldCoordinates.coordinates("Query", "_service"), (DataFetcher<?>)
-                    federationDataFetcher::fetchService);
-            codeRegistryBuilder.dataFetcher(FieldCoordinates.coordinates("Query", "_entities"), (DataFetcher<?>)
-                    federationDataFetcher::fetchEntities);
-            log.info("Registered Federation data fetchers (_service, _entities)");
-        }
-
         return codeRegistryBuilder;
-    }
-
-    /**
-     * Returns the longest CamelCase word-boundary prefix shared by all names.
-     * E.g. ["BookAuthor","BookAuthorRef"] → "Book"; ["ShopItem","ShopItemRef"] → "Shop";
-     *      ["Alpha","Beta"] → ""; ["Paperback","Author"] → "".
-     */
-    private static String commonTypePrefix(List<String> names) {
-        if (names.isEmpty()) return "";
-        String first = names.get(0);
-        int len = first.length();
-        for (String s : names) {
-            int shared = 0;
-            int max = Math.min(len, s.length());
-            while (shared < max && first.charAt(shared) == s.charAt(shared)) shared++;
-            len = shared;
-        }
-        // Find the rightmost CamelCase word-start inside the shared region (skip position 0).
-        // "BookAuthor" (shared=10): 'A' at 4 → prefix "Book".
-        // "Books" (shared=5, no inner upper): prefix "Books" (full shared region).
-        int wordBoundary = -1;
-        for (int i = 1; i < len; i++) {
-            if (Character.isUpperCase(first.charAt(i))) wordBoundary = i;
-        }
-        return wordBoundary > 0 ? first.substring(0, wordBoundary) : first.substring(0, len);
-    }
-
-    private static String snakeToCamel(String snake) {
-        if (snake == null || snake.isBlank()) return snake;
-        StringBuilder sb = new StringBuilder();
-        boolean upper = false;
-        for (char c : snake.toCharArray()) {
-            if (c == '_') {
-                upper = true;
-            } else if (upper) {
-                sb.append(Character.toUpperCase(c));
-                upper = false;
-            } else {
-                sb.append(c);
-            }
-        }
-        return sb.toString();
     }
 }

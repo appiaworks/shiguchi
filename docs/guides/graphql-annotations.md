@@ -103,6 +103,7 @@ rpc ListBooks(ListBooksRequest) returns (ListBooksResponse) {
 | `pluck` | Response field returned directly instead of the wrapper message |
 | `loader_for` | Declares the method as a DataLoader for the named type (batched resolution) |
 | `loader_ids_field` / `loader_result_field` | Request ids field / response items field for the loader |
+| `group_by` | Makes the loader one-to-many: the field of the result entity that holds the parent key (`author_id` on a `Book`); see [One-to-many fields](#one-to-many-fields) |
 | `cost` | Weight of this field when the operation's cost is computed (default 1); see [Query cost](#query-cost) |
 | `shareable`, `external`, `requires`, `provides` | Federation directives on the field, see [Federation](#federation) |
 | `directives` | Raw SDL directives appended to the field, see [Federation](#federation) |
@@ -124,6 +125,7 @@ string author_id = 2 [(shiguchi.field) = { id: true, resolves_type: "Author" }];
 | `default` | Default value in input types |
 | `description` / `deprecation_reason` | Doc-string / `@deprecated` |
 | `resolves_type` | This id field resolves to the named type(s): the gateway wires a DataLoader-backed nested resolver (field name derived by stripping `_id`) |
+| `resolves_many` | This id field resolves to the list of child entities whose `group_by` field equals it: a nullable `[Type!]` field backed by a grouped loader; see [One-to-many fields](#one-to-many-fields) |
 | `batch_key` | Marks the identity field used for DataLoader batch keying and federation `@key` |
 | `cost` | Weight of this field when the operation's cost is computed (default 1); see [Query cost](#query-cost) |
 
@@ -283,14 +285,106 @@ type Book {
 ```
 
 Queries selecting `books { author { name } }` batch all author ids into one
-`GetAuthorsByIds` call per request (DGS DataLoader), and the selection set is pushed down
-as a `read_mask` when the request message has one.
+`GetAuthorsByIds` call per request (DGS DataLoader). The `read_mask` pushdown of the selection set applies to
+query and mutation fields, not to a loader batch: the batch asks for whole entities. The same holds for a
+relationship inside a nested message, and for a chain (order, customer, region): each loader makes one call
+per level of the query.
+
+When a batch call fails (backend error, timeout), every key in it fails: the field is null and the response
+carries an error with `extensions.grpcCode`, `service` and `method`, while the rest of the response is intact. A split
+batch (see `data-loader.max-batch-size`) fails only the chunk that failed. A key the backend does not return
+is null without an error. Per request and loader at most 20 keys carry their own error; the next one carries a
+single error with `extensions.omittedFailures` (the count of the rest of its batch) and the other failed keys of
+that batch are null. Set `shiguchi.graphql.data-loader.on-error: "NULL"` to resolve failed keys to null with
+only a log warning, as releases before this setting did (quote it: a bare `NULL` is a YAML null).
 
 All three pieces are needed for `resolves_type` to resolve:
 
 - a method with `loader_for` naming the target type,
 - a `batch_key` field on the target type's message (the loader keys its results by it; without one it falls back to a field named `id`),
 - no existing field on the referencing message with the derived resolver name (`author_id` → `author`).
+
+### One-to-many fields
+
+`resolves_type` points from a child to its one parent. The other direction, an author to all their books,
+is `resolves_many` on the parent's id field, served by a loader that declares `group_by`:
+
+```protobuf
+message Author {
+  string id = 1 [(shiguchi.field) = {
+    id: true
+    resolves_many: { type: "Book" field: "books" loader: "author_id" }
+  }];
+  string name = 2;
+}
+
+message Book {
+  string id        = 1 [(shiguchi.field) = { id: true, batch_key: true }];
+  string author_id = 2;
+  string title     = 3;
+}
+
+rpc BooksByAuthors(BooksByAuthorsRequest) returns (BooksByAuthorsResponse) {
+  option (shiguchi.graphql) = {
+    name: "booksByAuthors"
+    type: QUERY
+    loader_for: "Book"
+    loader_ids_field: "author_ids"   # repeated string in the request
+    loader_result_field: "items"     # repeated Book in the response
+    group_by: "author_id"            # the Book field that holds the parent key
+  };
+}
+```
+
+yields `books: [Book!]` on `Author`, and `authors { books { title } }` costs one call for the authors plus one
+`BooksByAuthors` call for all of them, however many authors there are.
+
+- `resolves_many.type` is the child type, `loader` the `group_by` of the loader that serves it, `field` the
+  GraphQL field name (default: the decapitalised type plus `s`, `books`).
+- The loader maps each requested key to the children whose `group_by` field equals it, in the order the
+  upstream returned them. An author without children answers `[]`, not null.
+- The loader is its own DataLoader, named `Book#by:authorId`. It never replaces the type's by-id loader
+  (`loader_for: "Book"` without `group_by`), is not used by Federation `_entities` and is not cached.
+  `data-loader.cache.<name>` naming a grouped loader fails startup, as does a `group_by` that is not a field of
+  the result message.
+- Duplicate parent ids send each distinct key once, and `data-loader.max-batch-size` splits a large batch into
+  chunks like any other loader.
+- A batch failure follows `data-loader.on-error`: under `ERROR` (default) the field errors; under `NULL` it
+  resolves to `[]` with a log warning.
+- `data-loader.max-children-per-key` (default `0`, no cap) fails a key that has more children than the cap
+  instead of answering them. It protects the response, not the upstream: the batch response is already
+  decoded when the cap is applied, so size the upstream page itself for large fan-outs.
+- The list is costed like any list field (see [Query cost](#query-cost)): selecting `books` under a list
+  of `first` authors multiplies by `first` (or `default-list-size`).
+
+### Several backends serve the same type
+
+A type's loader belongs to one endpoint. If two endpoints each declare a `loader_for` for the same type, the
+gateway does not guess: startup fails with a message naming the type, both endpoints and the key to set.
+Pick the owner in YAML:
+
+```yaml
+shiguchi:
+  graphql:
+    data-loader:
+      types:
+        Customer:
+          endpoint: customers-east   # the configured name of the owning service
+```
+
+The pinned endpoint's loader is registered under the plain type name, so `resolves_type` fields and Federation
+`_entities` both use it. The other endpoint's loader is not registered; the gateway logs that at INFO. A pin that
+names an endpoint with no `loader_for` for the type fails startup, which catches a misspelt name. That includes an
+endpoint that is not loaded yet: pinning a type to a `DYNAMIC` service (or any endpoint) whose loader is not there
+when the gateway starts fails startup, so pin only endpoints that are present at boot. After startup the same
+mistake is logged at ERROR and the running gateway stays up.
+
+The pin decides the loader only. It does not change which endpoint serves a Query field: a `customers` query on the
+other endpoint keeps working. The loader's cache key does not include the endpoint either.
+
+If a reload (a refreshed descriptor, a late-loaded service) brings a loader that conflicts with the one already
+serving a type, the gateway keeps the existing owner, rejects the new loader, logs an ERROR naming both endpoints
+and increments the `shiguchi.graphql.loader.conflicts` counter (tag `type`). It does not fail the running gateway.
 
 
 ## Protos written for other gateways

@@ -3,11 +3,21 @@ package dev.appiaworks.shiguchi.bench;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.Descriptors.ServiceDescriptor;
 import com.google.protobuf.util.JsonFormat;
+import dev.appiaworks.shiguchi.bench.proto.BooksByAuthorsRequest;
+import dev.appiaworks.shiguchi.bench.proto.BooksOfRequest;
 import dev.appiaworks.shiguchi.bench.proto.Customer;
 import dev.appiaworks.shiguchi.bench.proto.Customers;
 import dev.appiaworks.shiguchi.bench.proto.GetCustomersRequest;
+import dev.appiaworks.shiguchi.bench.proto.GetRegionsRequest;
 import dev.appiaworks.shiguchi.bench.proto.GetShopOrderRequest;
+import dev.appiaworks.shiguchi.bench.proto.ListShopAuthorsRequest;
 import dev.appiaworks.shiguchi.bench.proto.ListShopOrdersRequest;
+import dev.appiaworks.shiguchi.bench.proto.Region;
+import dev.appiaworks.shiguchi.bench.proto.Regions;
+import dev.appiaworks.shiguchi.bench.proto.ShopAuthor;
+import dev.appiaworks.shiguchi.bench.proto.ShopAuthors;
+import dev.appiaworks.shiguchi.bench.proto.ShopBook;
+import dev.appiaworks.shiguchi.bench.proto.ShopBooks;
 import dev.appiaworks.shiguchi.bench.proto.ShopItem;
 import dev.appiaworks.shiguchi.bench.proto.ShopOrder;
 import dev.appiaworks.shiguchi.bench.proto.ShopOrders;
@@ -21,12 +31,19 @@ import io.grpc.protobuf.ProtoServiceDescriptorSupplier;
 import io.grpc.protobuf.ProtoUtils;
 import io.grpc.protobuf.services.ProtoReflectionServiceV1;
 import io.grpc.stub.ServerCalls;
+import io.grpc.stub.StreamObserver;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -81,9 +98,34 @@ import reactor.netty.http.server.HttpServer;
  *       with {@code backend=http}: a {@code REST_DOWNSTREAM} type has no relationship field (the
  *       schema links {@code customer_id} to {@code Customer} through the proto
  *       {@code resolves_type} option, which an OpenAPI-derived descriptor cannot carry;
- *       {@code rest-batch-loaders[]} feed Federation {@code _entities} only), so these two throw
- *       {@link UnsupportedOperationException}; run them with {@code -p backend=grpc}.
+ *       {@code rest-batch-loaders[]} feed Federation {@code _entities} only), so these legs
+ *       return an empty string without a request under {@code http} (keeps a full-class run
+ *       alive); their http scores are meaningless, ignore them and use {@code -p backend=grpc}.
+ *   <li>{@code graphql_nested_1000}, {@code graphql_nested_10000} — the same shape at the sizes the
+ *       batching work is judged on. {@code distinctCustomers} sets how many different customers
+ *       the orders point at (default 100, as in the other nested legs); {@code maxBatchSize}
+ *       splits a type's batch into calls of at most that many ids (0 = no split, the baseline);
+ *       {@code entityCache=on} turns the opt-in cross-request {@code Customer}/{@code Region}
+ *       cache on.
+ *   <li>{@code graphql_two_level_100}, {@code graphql_two_level_1000} — N orders, each selecting
+ *       its customer and the customer's region (10 regions): a list hop plus one batch hop per
+ *       level.
+ *   <li>{@code graphql_has_many_AxB} — A authors each selecting their B books through a grouped
+ *       loader ({@code group_by}): one list hop plus one batch hop of A keys, whatever A is.
+ *   <li>{@code graphql_per_parent_AxB} — the same data with one upstream call per author: the
+ *       authors, then one {@code booksOf(authorId)} field per author in the same document (a
+ *       resolver never reads its parent, so the per-parent calls are aliased root fields). The
+ *       difference to {@code graphql_has_many_AxB} is what the grouped loader saves. Only with
+ *       {@code backend=grpc}.
  * </ul>
+ *
+ * <p>The gRPC backend counts its calls and the ids they carried per method, and setup checks the
+ * batching legs against them: with the entity cache off, upstream calls must equal
+ * {@code ceil(distinct keys / maxBatchSize)} per (level, type) and the ids carried the distinct
+ * keys, so a leg that silently stops batching or de-duplicating fails before it is measured.
+ * {@code upstreamLatencyMicros} delays the answers of the loader and has-many stubs (not the list
+ * and get stubs), so the grouped versus per-parent comparison reads like a backend that is not on
+ * the same host. The defaults of the added params reproduce the original legs.
  */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -97,7 +139,11 @@ public class GatewayGraphQlBenchmark {
     @EnableAutoConfiguration
     static class GatewayApp {}
 
-    private static final int CUSTOMERS = 100;
+    /** Regions the customers are spread over, for the two-level legs. */
+    private static final int REGIONS = 10;
+
+    /** Books per author in the one-to-many legs. */
+    private static final int BOOKS_PER_AUTHOR = 10;
 
     private static final String GQL_ORDER_FIELDS = "id name active score items { sku qty price }";
 
@@ -108,6 +154,8 @@ public class GatewayGraphQlBenchmark {
             query("{ orders(count: 10) { items { id name customer { id name tier } } } }");
     private static final String GRPC_NESTED_100 =
             query("{ orders(count: 100) { items { id name customer { id name tier } } } }");
+    private static final String NESTED_FIELDS = "{ items { id name customer { id name tier } } }";
+    private static final String TWO_LEVEL_FIELDS = "{ items { id name customer { id name region { id name } } } }";
 
     /** The http backend's field names are the OpenAPI operationIds; a list operation returns the array itself. */
     private static final String HTTP_SINGLE = query("{ getOrder(id: \\\"order-1\\\") { " + GQL_ORDER_FIELDS + " } }");
@@ -133,6 +181,29 @@ public class GatewayGraphQlBenchmark {
     @Param({"grpc", "http"})
     public String backend;
 
+    /**
+     * Most ids of one type per upstream call ({@code data-loader.max-batch-size}); 0 = unlimited,
+     * the baseline. Sweep with {@code -p maxBatchSize=0,100,1000}.
+     */
+    @Param({"0"})
+    public int maxBatchSize;
+
+    /**
+     * {@code off}: no cross-request cache, the baseline. {@code on}: {@code Customer} and
+     * {@code Region} cached for an hour, so a warm leg measures the cache-hit path (the call-count
+     * check then only bounds the calls from above).
+     */
+    @Param({"off"})
+    public String entityCache;
+
+    /** How many different customers the orders point at; sweep with {@code -p distinctCustomers=1,100,1000,10000}. */
+    @Param({"100"})
+    public int distinctCustomers;
+
+    /** Delay before the loader and has-many stubs answer; 0 = none, 1000 = the 1 ms acceptance comparison. */
+    @Param({"0"})
+    public int upstreamLatencyMicros;
+
     private boolean http;
     private String restSingle;
     private String restList10;
@@ -142,11 +213,24 @@ public class GatewayGraphQlBenchmark {
     private String gqlList100;
     private String gqlNested10;
     private String gqlNested100;
+    private String gqlNested1000;
+    private String gqlNested10000;
+    private String gqlTwoLevel100;
+    private String gqlTwoLevel1000;
+    private String gqlHasMany100;
+    private String gqlHasMany1000;
+    private String gqlPerParent100;
+    private String gqlPerParent1000;
     private DisposableServer httpStub;
     /** Precomputed stub responses by request shape (order id, count, customer ids). */
     private final java.util.Map<String, byte[]> stubBodies = new ConcurrentHashMap<>();
 
     private Server grpcBackend;
+    private ScheduledExecutorService delayer;
+    private final Calls customerCalls = new Calls();
+    private final Calls regionCalls = new Calls();
+    private final Calls booksByAuthorsCalls = new Calls();
+    private final Calls booksOfCalls = new Calls();
     private ConfigurableApplicationContext gateway;
     private WebClient client;
 
@@ -164,22 +248,73 @@ public class GatewayGraphQlBenchmark {
         }
     }
 
+    /** Upstream calls of one stub method, the ids they carried and the most in one call. */
+    private static final class Calls {
+        final AtomicInteger calls = new AtomicInteger();
+        final AtomicLong keys = new AtomicLong();
+        final AtomicInteger maxKeys = new AtomicInteger();
+
+        void hit(int carried) {
+            calls.incrementAndGet();
+            keys.addAndGet(carried);
+            maxKeys.accumulateAndGet(carried, Math::max);
+        }
+
+        void reset() {
+            calls.set(0);
+            keys.set(0);
+            maxKeys.set(0);
+        }
+
+        @Override
+        public String toString() {
+            return "calls=" + calls + " keys=" + keys + " maxKeys=" + maxKeys;
+        }
+    }
+
     private static String query(String graphql) {
         return "{\"query\":\"" + graphql + "\"}";
     }
 
-    static ShopOrder order(int n) {
+    ShopOrder order(int n) {
         ShopOrder.Builder b = ShopOrder.newBuilder()
                 .setId("order-" + n)
                 .setName("benchmark-order-" + n)
                 .setActive(n % 2 == 0)
                 .setScore(n * 1.5)
-                .setCustomerId("cust-" + (n % CUSTOMERS + 1));
+                .setCustomerId("cust-" + (n % distinctCustomers + 1));
         for (int i = 1; i <= 3; i++) {
             b.addItems(
                     ShopItem.newBuilder().setSku("SKU-" + n + "-" + i).setQty(i).setPrice(9.99 * i));
         }
         return b.build();
+    }
+
+    static ShopBook book(String authorId, int k) {
+        return ShopBook.newBuilder()
+                .setId("book-" + authorId + "-" + k)
+                .setAuthorId(authorId)
+                .setTitle("Title " + authorId + "-" + k)
+                .setPages(100 + k)
+                .build();
+    }
+
+    /** The has-many query: authors with their books through the grouped loader. */
+    static String hasManyQuery(int authors) {
+        return query("{ authors(count: " + authors + ") { items { id name books { id title pages } } } }");
+    }
+
+    /** The same data with one upstream books call per author: aliased booksOf root fields. */
+    static String perParentQuery(int authors) {
+        StringBuilder sb = new StringBuilder("{ authors(count: " + authors + ") { items { id name } }");
+        for (int n = 1; n <= authors; n++) {
+            sb.append(" b")
+                    .append(n)
+                    .append(": booksOf(authorId: \\\"author-")
+                    .append(n)
+                    .append("\\\") { items { id title pages } }");
+        }
+        return query(sb.append(" }").toString());
     }
 
     static Customer customer(String id) {
@@ -191,8 +326,40 @@ public class GatewayGraphQlBenchmark {
                 .build();
     }
 
+    /** The gRPC backend's customer: the same, pointing at one of {@link #REGIONS} regions. */
+    static Customer grpcCustomer(String id) {
+        int k = Integer.parseInt(id.substring("cust-".length()));
+        return customer(id).toBuilder()
+                .setRegionId("region-" + (k % REGIONS + 1))
+                .build();
+    }
+
+    static Region region(String id) {
+        return Region.newBuilder().setId(id).setName("Region " + id).build();
+    }
+
+    /** The orders query for a leg: {@code orders(count: n)} selecting {@code fields}. */
+    static String ordersQuery(int n, String fields) {
+        return query("{ orders(count: " + n + ") " + fields + " }");
+    }
+
+    int distinctCustomersOf(int orders) {
+        return Math.min(distinctCustomers, orders);
+    }
+
+    /** Distinct regions the first {@code orders} orders' customers point at. */
+    int distinctRegionsOf(int orders) {
+        Set<Integer> regions = new HashSet<>();
+        for (int n = 1; n <= orders; n++) regions.add((n % distinctCustomers + 1) % REGIONS + 1);
+        return regions.size();
+    }
+
     @Setup(Level.Trial)
     public void setUp() throws Exception {
+        if (distinctCustomers < 1) throw new IllegalArgumentException("distinctCustomers must be >= 1");
+        if (!"off".equals(entityCache) && !"on".equals(entityCache)) {
+            throw new IllegalArgumentException("entityCache must be off or on: " + entityCache);
+        }
         http = "http".equals(backend);
         if (!http && !"grpc".equals(backend)) {
             throw new IllegalArgumentException("backend must be grpc or http: " + backend);
@@ -225,6 +392,15 @@ public class GatewayGraphQlBenchmark {
                     "shiguchi.services[0].host=localhost",
                     "shiguchi.services[0].port=" + grpcBackend.getPort()));
         }
+        if (maxBatchSize > 0) {
+            properties.add("shiguchi.graphql.data-loader.max-batch-size=" + maxBatchSize);
+        }
+        if ("on".equals(entityCache)) {
+            properties.addAll(List.of(
+                    "shiguchi.graphql.data-loader.cache.Customer.ttl=1h",
+                    "shiguchi.graphql.data-loader.cache.Customer.max-size=100000",
+                    "shiguchi.graphql.data-loader.cache.Region.ttl=1h"));
+        }
         if ("lean".equals(profile)) {
             properties.addAll(List.of(
                     "management.observations.enable.spring.security=false",
@@ -256,12 +432,20 @@ public class GatewayGraphQlBenchmark {
                             + "org.springframework.boot.actuate.autoconfigure.logging.otlp.OtlpLoggingAutoConfiguration,"
                             + "org.springframework.boot.actuate.autoconfigure.metrics.export.otlp.OtlpMetricsExportAutoConfiguration");
         }
+        // per_parent_1000x10 posts 1000 aliased root fields (~16 000 tokens); graphql-java's default
+        // parser cap is 15 000 and rejects it. Bench-JVM only, raised well past any leg's query.
+        graphql.parser.ParserOptions.setDefaultOperationParserOptions(
+                graphql.parser.ParserOptions.getDefaultOperationParserOptions().transform(b -> b.maxTokens(1_000_000)));
         gateway = new SpringApplicationBuilder(GatewayApp.class)
                 .web(WebApplicationType.REACTIVE)
                 .properties(properties.toArray(String[]::new))
                 .run();
         int port = Integer.parseInt(gateway.getEnvironment().getRequiredProperty("local.server.port"));
-        client = WebClient.create("http://localhost:" + port);
+        // Client side only: large legs (has_many_1000x10, nested_10000) exceed the 256 KiB default buffer.
+        client = WebClient.builder()
+                .baseUrl("http://localhost:" + port)
+                .codecs(c -> c.defaultCodecs().maxInMemorySize(64 * 1024 * 1024))
+                .build();
 
         // Warm the connections and verify every leg answers what it should.
         if (http) {
@@ -295,22 +479,123 @@ public class GatewayGraphQlBenchmark {
             expect(post("/graphql", gqlList100), "\"benchmark-order-100\"");
             expect(post("/graphql", gqlNested10), "\"customer\":{\"id\":\"cust-10\"");
             expect(post("/graphql", gqlNested100), "\"customer\":{\"id\":\"cust-100\"");
+            gqlNested1000 = ordersQuery(1000, NESTED_FIELDS);
+            gqlNested10000 = ordersQuery(10000, NESTED_FIELDS);
+            gqlTwoLevel100 = ordersQuery(100, TWO_LEVEL_FIELDS);
+            gqlTwoLevel1000 = ordersQuery(1000, TWO_LEVEL_FIELDS);
+            gqlHasMany100 = hasManyQuery(100);
+            gqlHasMany1000 = hasManyQuery(1000);
+            gqlPerParent100 = perParentQuery(100);
+            gqlPerParent1000 = perParentQuery(1000);
+            expect(post("/graphql", gqlHasMany100), "\"title\":\"Title author-100-" + BOOKS_PER_AUTHOR + "\"");
+            expect(post("/graphql", gqlPerParent100), "\"title\":\"Title author-100-" + BOOKS_PER_AUTHOR + "\"");
+            verifyUpstreamCalls();
+        }
+    }
+
+    /**
+     * Runs each batching leg once and compares the stub's counters with
+     * {@code ceil(distinct keys / maxBatchSize)} per (level, type). With the cache on the calls are
+     * only bounded from above, since an earlier check may have warmed the same ids.
+     */
+    private void verifyUpstreamCalls() {
+        for (int orders : new int[] {1000, 10000}) {
+            resetCalls();
+            String body = post("/graphql", orders == 1000 ? gqlNested1000 : gqlNested10000);
+            expect(body, "\"customer\":{\"id\":\"cust-" + (orders % distinctCustomers + 1) + "\"");
+            checkCalls("nested_" + orders + " Customer", customerCalls, distinctCustomersOf(orders));
+        }
+        for (int orders : new int[] {100, 1000}) {
+            resetCalls();
+            String body = post("/graphql", orders == 100 ? gqlTwoLevel100 : gqlTwoLevel1000);
+            expect(body, "\"region\":{\"id\":\"region-");
+            checkCalls("two_level_" + orders + " Customer", customerCalls, distinctCustomersOf(orders));
+            checkCalls("two_level_" + orders + " Region", regionCalls, distinctRegionsOf(orders));
+        }
+        for (int authors : new int[] {100, 1000}) {
+            resetCalls();
+            expect(post("/graphql", authors == 100 ? gqlHasMany100 : gqlHasMany1000), "\"books\":[{");
+            checkCalls("has_many_" + authors + " books", booksByAuthorsCalls, authors);
+            if (booksOfCalls.calls.get() != 0) {
+                throw new IllegalStateException("has_many_" + authors + ": per-parent booksOf was called");
+            }
+            resetCalls();
+            expect(post("/graphql", authors == 100 ? gqlPerParent100 : gqlPerParent1000), "\"b1\":{");
+            if (booksOfCalls.calls.get() != authors || booksByAuthorsCalls.calls.get() != 0) {
+                throw new IllegalStateException(
+                        "per_parent_" + authors + ": expected " + authors + " booksOf calls, got " + booksOfCalls);
+            }
+        }
+        resetCalls();
+    }
+
+    private void checkCalls(String leg, Calls actual, int distinctKeys) {
+        int expectedCalls = maxBatchSize > 0 ? (distinctKeys + maxBatchSize - 1) / maxBatchSize : 1;
+        boolean cached = "on".equals(entityCache) && !leg.contains("books");
+        boolean ok = cached
+                ? actual.calls.get() <= expectedCalls && actual.keys.get() <= distinctKeys
+                : actual.calls.get() == expectedCalls && actual.keys.get() == distinctKeys;
+        if (maxBatchSize > 0 && actual.maxKeys.get() > maxBatchSize) ok = false;
+        if (!ok) {
+            throw new IllegalStateException(leg + ": expected " + expectedCalls + " upstream call(s) carrying "
+                    + distinctKeys + " distinct id(s) (maxBatchSize=" + maxBatchSize + ", entityCache="
+                    + entityCache + "), got " + actual);
+        }
+    }
+
+    private void resetCalls() {
+        for (Calls c : List.of(customerCalls, regionCalls, booksByAuthorsCalls, booksOfCalls)) c.reset();
+    }
+
+    /** Answers {@code response}, after {@code upstreamLatencyMicros} when {@code delayed} (a loader or has-many stub). */
+    private <T> void reply(StreamObserver<T> obs, T response, boolean delayed) {
+        if (delayed && upstreamLatencyMicros > 0) {
+            delayer.schedule(
+                    () -> {
+                        obs.onNext(response);
+                        obs.onCompleted();
+                    },
+                    upstreamLatencyMicros,
+                    TimeUnit.MICROSECONDS);
+        } else {
+            obs.onNext(response);
+            obs.onCompleted();
         }
     }
 
     private void startGrpcBackend() throws Exception {
-        // Backend: compiled stubs, reflection on, a real socket. Three hand-bound unary methods.
+        // Backend: compiled stubs, reflection on, a real socket. Hand-bound unary methods.
+        delayer = Executors.newScheduledThreadPool(2, r -> {
+            Thread t = new Thread(r, "stub-delay");
+            t.setDaemon(true);
+            return t;
+        });
         FileDescriptor file = ShopOrder.getDescriptor().getFile();
         var get = unary("bench.Shop/Get", GetShopOrderRequest.getDefaultInstance(), ShopOrder.getDefaultInstance());
         var list =
                 unary("bench.Shop/List", ListShopOrdersRequest.getDefaultInstance(), ShopOrders.getDefaultInstance());
         var customers = unary(
                 "bench.Shop/GetCustomers", GetCustomersRequest.getDefaultInstance(), Customers.getDefaultInstance());
+        var regions =
+                unary("bench.Shop/GetRegions", GetRegionsRequest.getDefaultInstance(), Regions.getDefaultInstance());
+        var listAuthors = unary(
+                "bench.Shop/ListAuthors",
+                ListShopAuthorsRequest.getDefaultInstance(),
+                ShopAuthors.getDefaultInstance());
+        var booksByAuthors = unary(
+                "bench.Shop/BooksByAuthors",
+                BooksByAuthorsRequest.getDefaultInstance(),
+                ShopBooks.getDefaultInstance());
+        var booksOf = unary("bench.Shop/BooksOf", BooksOfRequest.getDefaultInstance(), ShopBooks.getDefaultInstance());
         var serviceDescriptor = io.grpc.ServiceDescriptor.newBuilder("bench.Shop")
                 .setSchemaDescriptor(new Schema(file, file.findServiceByName("Shop")))
                 .addMethod(get)
                 .addMethod(list)
                 .addMethod(customers)
+                .addMethod(regions)
+                .addMethod(listAuthors)
+                .addMethod(booksByAuthors)
+                .addMethod(booksOf)
                 .build();
         ServerServiceDefinition service = ServerServiceDefinition.builder(serviceDescriptor)
                 .addMethod(get, ServerCalls.asyncUnaryCall((req, obs) -> {
@@ -326,9 +611,37 @@ public class GatewayGraphQlBenchmark {
                 }))
                 .addMethod(customers, ServerCalls.asyncUnaryCall((req, obs) -> {
                     Customers.Builder b = Customers.newBuilder();
-                    for (String id : req.getIdsList()) b.addItems(customer(id));
+                    for (String id : req.getIdsList()) b.addItems(grpcCustomer(id));
+                    customerCalls.hit(req.getIdsCount());
+                    reply(obs, b.build(), true);
+                }))
+                .addMethod(regions, ServerCalls.asyncUnaryCall((req, obs) -> {
+                    Regions.Builder b = Regions.newBuilder();
+                    for (String id : req.getIdsList()) b.addItems(region(id));
+                    regionCalls.hit(req.getIdsCount());
+                    reply(obs, b.build(), true);
+                }))
+                .addMethod(listAuthors, ServerCalls.asyncUnaryCall((req, obs) -> {
+                    ShopAuthors.Builder b = ShopAuthors.newBuilder();
+                    for (int n = 1; n <= req.getCount(); n++) {
+                        b.addItems(ShopAuthor.newBuilder().setId("author-" + n).setName("Author " + n));
+                    }
                     obs.onNext(b.build());
                     obs.onCompleted();
+                }))
+                .addMethod(booksByAuthors, ServerCalls.asyncUnaryCall((req, obs) -> {
+                    ShopBooks.Builder b = ShopBooks.newBuilder();
+                    for (String id : req.getAuthorIdsList()) {
+                        for (int k = 1; k <= BOOKS_PER_AUTHOR; k++) b.addItems(book(id, k));
+                    }
+                    booksByAuthorsCalls.hit(req.getAuthorIdsCount());
+                    reply(obs, b.build(), true);
+                }))
+                .addMethod(booksOf, ServerCalls.asyncUnaryCall((req, obs) -> {
+                    ShopBooks.Builder b = ShopBooks.newBuilder();
+                    for (int k = 1; k <= BOOKS_PER_AUTHOR; k++) b.addItems(book(req.getAuthorId(), k));
+                    booksOfCalls.hit(1);
+                    reply(obs, b.build(), true);
                 }))
                 .build();
         grpcBackend = ServerBuilder.forPort(0)
@@ -375,11 +688,11 @@ public class GatewayGraphQlBenchmark {
             .preservingProtoFieldNames()
             .alwaysPrintFieldsWithNoPresence();
 
-    private static byte[] orderJson(int n) {
+    private byte[] orderJson(int n) {
         return print(order(n)).getBytes(StandardCharsets.UTF_8);
     }
 
-    private static byte[] ordersJson(int count) {
+    private byte[] ordersJson(int count) {
         StringBuilder sb = new StringBuilder("[");
         for (int n = 1; n <= count; n++) {
             if (n > 1) sb.append(',');
@@ -531,6 +844,7 @@ public class GatewayGraphQlBenchmark {
             gateway.close();
         }
         if (grpcBackend != null) grpcBackend.shutdownNow();
+        if (delayer != null) delayer.shutdownNow();
         if (httpStub != null) httpStub.disposeNow();
     }
 
@@ -585,20 +899,81 @@ public class GatewayGraphQlBenchmark {
 
     @Benchmark
     public String graphql_nested_10() {
-        requireNested();
+        if (http) {
+            return "";
+        }
         return post("/graphql", gqlNested10);
     }
 
     @Benchmark
     public String graphql_nested_100() {
-        requireNested();
+        if (http) {
+            return "";
+        }
         return post("/graphql", gqlNested100);
     }
 
-    private void requireNested() {
+    @Benchmark
+    public String graphql_nested_1000() {
         if (http) {
-            throw new UnsupportedOperationException(
-                    "a REST_DOWNSTREAM type has no relationship field; run graphql_nested_* with -p backend=grpc");
+            return "";
         }
+        return post("/graphql", gqlNested1000);
+    }
+
+    @Benchmark
+    public String graphql_nested_10000() {
+        if (http) {
+            return "";
+        }
+        return post("/graphql", gqlNested10000);
+    }
+
+    @Benchmark
+    public String graphql_two_level_100() {
+        if (http) {
+            return "";
+        }
+        return post("/graphql", gqlTwoLevel100);
+    }
+
+    @Benchmark
+    public String graphql_two_level_1000() {
+        if (http) {
+            return "";
+        }
+        return post("/graphql", gqlTwoLevel1000);
+    }
+
+    @Benchmark
+    public String graphql_has_many_100x10() {
+        if (http) {
+            return "";
+        }
+        return post("/graphql", gqlHasMany100);
+    }
+
+    @Benchmark
+    public String graphql_has_many_1000x10() {
+        if (http) {
+            return "";
+        }
+        return post("/graphql", gqlHasMany1000);
+    }
+
+    @Benchmark
+    public String graphql_per_parent_100x10() {
+        if (http) {
+            return "";
+        }
+        return post("/graphql", gqlPerParent100);
+    }
+
+    @Benchmark
+    public String graphql_per_parent_1000x10() {
+        if (http) {
+            return "";
+        }
+        return post("/graphql", gqlPerParent1000);
     }
 }

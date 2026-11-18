@@ -530,6 +530,60 @@ class GraphQlSchemaBuilderTest {
         assertThat(builder.getGeneratedSdl()).containsOnlyOnce("type Extra {\n  a: String\n}\n");
     }
 
+    @Test
+    @DisplayName(
+            "GIVEN resolves_many on an id field WHEN emitting SHOULD declare a nullable [Book!] and a many relationship")
+    void given_resolvesMany_when_emittingObjectType_should_declareNullableListAndRelationship() throws Exception {
+        FieldRule rule = FieldRule.newBuilder()
+                .setResolvesMany(dev.appiaworks.shiguchi.proto.ResolvesMany.newBuilder()
+                        .setType("Book")
+                        .setLoader("author_id"))
+                .build();
+        FieldOptions options =
+                FieldOptions.newBuilder().setExtension(GraphQlProto.field, rule).build();
+        FileDescriptor fd = buildFileDescriptor("shop2.proto", "Author", "id", Type.TYPE_INT64, options);
+        GraphQlSchemaBuilder builder = createBuilder();
+        Map<String, String> typeDefs = new HashMap<>();
+
+        reflectEmitObjectType()
+                .invoke(builder, fd.findMessageTypeByName("Author"), typeDefs, new HashSet<>(), 0, Map.of());
+
+        assertThat(typeDefs.get("Author")).contains("books: [Book!]").doesNotContain("[Book!]!");
+        var rel = collected(builder).stream()
+                .filter(r -> r.fieldName().equals("books"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(rel.many()).isTrue();
+        assertThat(rel.loaderName()).isEqualTo("Book#by:authorId");
+    }
+
+    @Test
+    @DisplayName("GIVEN resolves_type WHEN emitting SHOULD declare a single type and a by-id relationship")
+    void given_resolvesType_when_emittingObjectType_should_declareSingleTypeNotList() throws Exception {
+        FieldOptions options = FieldOptions.newBuilder()
+                .setExtension(
+                        GraphQlProto.field,
+                        FieldRule.newBuilder().addResolvesType("Book").build())
+                .build();
+        FileDescriptor fd = buildFileDescriptor("shop3.proto", "ShopItem", "book_id", Type.TYPE_INT64, options);
+        GraphQlSchemaBuilder builder = createBuilder();
+        Map<String, String> typeDefs = new HashMap<>();
+
+        reflectEmitObjectType()
+                .invoke(builder, fd.findMessageTypeByName("ShopItem"), typeDefs, new HashSet<>(), 0, Map.of());
+
+        assertThat(typeDefs.get("ShopItem")).contains("book: Book").doesNotContain("[Book");
+        assertThat(builder.getRelationships())
+                .allMatch(r -> !r.many() && r.loaderName().equals("Book"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<GraphQlSchemaBuilder.Relationship> collected(GraphQlSchemaBuilder builder) throws Exception {
+        var f = GraphQlSchemaBuilder.class.getDeclaredField("collectingRelationships");
+        f.setAccessible(true);
+        return (List<GraphQlSchemaBuilder.Relationship>) f.get(builder);
+    }
+
     private GraphQlSchemaBuilder createBuilder() {
         return new GraphQlSchemaBuilder(
                 registry,

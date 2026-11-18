@@ -6,80 +6,18 @@ import dev.appiaworks.shiguchi.config.GatewayMode;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.RestBatchLoaderConfig;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
-import graphql.GraphQLContext;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.function.BiFunction;
-import org.dataloader.BatchLoaderEnvironment;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.graphql.execution.BatchLoaderRegistry;
-import reactor.core.publisher.Mono;
 
 /**
  * BDD-style unit tests for {@link RestBatchDataLoaderRegistrar}.
  *
- * <p>{@link BatchLoaderRegistry} is faked with an in-memory implementation (same pattern as
- * {@code GrpcDataLoaderRegistryFactoryTest}) that records the {@code registerMappedBatchLoader}
- * callback per type name, so the scan phase can be verified without a real Spring GraphQL
- * request cycle.
+ * <p>The registrar only scans; registration with Spring GraphQL is {@link GrpcDataLoaderRegistryFactory}'s job.
  */
 @DisplayName("RestBatchDataLoaderRegistrar")
 class RestBatchDataLoaderRegistrarTest {
-
-    /** Minimal BatchLoaderRegistry fake that records the registered callback per type name. */
-    private static class RecordingBatchLoaderRegistry implements BatchLoaderRegistry {
-        final Map<String, BiFunction<Set<String>, BatchLoaderEnvironment, Mono<Map<String, Map<String, Object>>>>>
-                registered = new java.util.LinkedHashMap<>();
-
-        @Override
-        public <K, V> RegistrationSpec<K, V> forTypePair(Class<K> keyType, Class<V> valueType) {
-            throw new UnsupportedOperationException("not used by RestBatchDataLoaderRegistrar");
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public <K, V> RegistrationSpec<K, V> forName(String name) {
-            return new RegistrationSpec<>() {
-                @Override
-                public RegistrationSpec<K, V> withName(String name1) {
-                    return this;
-                }
-
-                @Override
-                public RegistrationSpec<K, V> withOptions(
-                        java.util.function.Consumer<org.dataloader.DataLoaderOptions.Builder> optionsConsumer) {
-                    return this;
-                }
-
-                @Override
-                public RegistrationSpec<K, V> withOptions(org.dataloader.DataLoaderOptions options) {
-                    return this;
-                }
-
-                @Override
-                public void registerBatchLoader(
-                        BiFunction<List<K>, BatchLoaderEnvironment, reactor.core.publisher.Flux<V>> loader) {
-                    throw new UnsupportedOperationException("not used by RestBatchDataLoaderRegistrar");
-                }
-
-                @Override
-                @SuppressWarnings("unchecked")
-                public void registerMappedBatchLoader(
-                        BiFunction<Set<K>, BatchLoaderEnvironment, Mono<Map<K, V>>> loader) {
-                    registered.put(name, (BiFunction<
-                                    Set<String>, BatchLoaderEnvironment, Mono<Map<String, Map<String, Object>>>>)
-                            (BiFunction<?, ?, ?>) loader);
-                }
-            };
-        }
-
-        @Override
-        public void registerDataLoaders(org.dataloader.DataLoaderRegistry registry, GraphQLContext graphQlContext) {
-            // not exercised
-        }
-    }
 
     private static ServiceDefinition restDownstreamService(
             String name, String baseUrl, RestBatchLoaderConfig... loaders) {
@@ -112,15 +50,13 @@ class RestBatchDataLoaderRegistrarTest {
         grpcService.setName("inv-grpc");
         grpcService.setMode(GatewayMode.DYNAMIC);
         GatewayProperties props = propsWith(grpcService);
-        RecordingBatchLoaderRegistry registry = new RecordingBatchLoaderRegistry();
-        RestBatchDataLoaderRegistrar registrar = new RestBatchDataLoaderRegistrar(props, registry);
+        RestBatchDataLoaderRegistrar registrar = new RestBatchDataLoaderRegistrar(props);
 
         // Act
         registrar.scan();
 
         // Assert
         assertThat(registrar.getLoaders()).isEmpty();
-        assertThat(registry.registered).isEmpty();
     }
 
     @Test
@@ -130,8 +66,7 @@ class RestBatchDataLoaderRegistrarTest {
         // Arrange
         ServiceDefinition svcDef = restDownstreamService("inventory", "http://inventory:8080");
         GatewayProperties props = propsWith(svcDef);
-        RecordingBatchLoaderRegistry registry = new RecordingBatchLoaderRegistry();
-        RestBatchDataLoaderRegistrar registrar = new RestBatchDataLoaderRegistrar(props, registry);
+        RestBatchDataLoaderRegistrar registrar = new RestBatchDataLoaderRegistrar(props);
 
         // Act
         registrar.scan();
@@ -148,15 +83,13 @@ class RestBatchDataLoaderRegistrarTest {
         RestBatchLoaderConfig cfg = loaderConfig("Product", "/products");
         ServiceDefinition svcDef = restDownstreamService("catalog", "http://catalog:8080", cfg);
         GatewayProperties props = propsWith(svcDef);
-        RecordingBatchLoaderRegistry registry = new RecordingBatchLoaderRegistry();
-        RestBatchDataLoaderRegistrar registrar = new RestBatchDataLoaderRegistrar(props, registry);
+        RestBatchDataLoaderRegistrar registrar = new RestBatchDataLoaderRegistrar(props);
 
         // Act
         registrar.scan();
 
         // Assert
         assertThat(registrar.getLoaders()).containsOnlyKeys("Product");
-        assertThat(registry.registered).containsOnlyKeys("Product");
     }
 
     @Test
@@ -167,8 +100,7 @@ class RestBatchDataLoaderRegistrarTest {
         RestBatchLoaderConfig valid = loaderConfig("Category", "/categories");
         ServiceDefinition svcDef = restDownstreamService("catalog", "http://catalog:8080", blank, valid);
         GatewayProperties props = propsWith(svcDef);
-        RecordingBatchLoaderRegistry registry = new RecordingBatchLoaderRegistry();
-        RestBatchDataLoaderRegistrar registrar = new RestBatchDataLoaderRegistrar(props, registry);
+        RestBatchDataLoaderRegistrar registrar = new RestBatchDataLoaderRegistrar(props);
 
         // Act — must not throw
         registrar.scan();
@@ -187,8 +119,7 @@ class RestBatchDataLoaderRegistrarTest {
         ServiceDefinition svc2 =
                 restDownstreamService("accounts", "http://accounts:9090", loaderConfig("User", "/users"));
         GatewayProperties props = propsWith(svc1, svc2);
-        RecordingBatchLoaderRegistry registry = new RecordingBatchLoaderRegistry();
-        RestBatchDataLoaderRegistrar registrar = new RestBatchDataLoaderRegistrar(props, registry);
+        RestBatchDataLoaderRegistrar registrar = new RestBatchDataLoaderRegistrar(props);
 
         // Act
         registrar.scan();
@@ -205,13 +136,110 @@ class RestBatchDataLoaderRegistrarTest {
         ServiceDefinition svcDef =
                 restDownstreamService("catalog", "http://catalog:8080", loaderConfig("Product", "/products"));
         GatewayProperties props = propsWith(svcDef);
-        RestBatchDataLoaderRegistrar registrar =
-                new RestBatchDataLoaderRegistrar(props, new RecordingBatchLoaderRegistry());
+        RestBatchDataLoaderRegistrar registrar = new RestBatchDataLoaderRegistrar(props);
         registrar.scan();
 
         // Act & Assert
         Map<String, BatchLoader> loaders = registrar.getLoaders();
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> loaders.put("Other", null))
                 .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    // ---------------------------------------------------------------------------
+    // Through the pipeline, against a real HTTP server
+    // ---------------------------------------------------------------------------
+
+    /** Answers every batch GET with one entity per requested id and records the query strings. */
+    private static com.sun.net.httpserver.HttpServer productServer(List<String> queries) throws java.io.IOException {
+        com.sun.net.httpserver.HttpServer server =
+                com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/products", exchange -> {
+            String query = exchange.getRequestURI().getRawQuery();
+            queries.add(query);
+            StringBuilder body = new StringBuilder("[");
+            String ids = query.substring(query.indexOf("ids=") + 4);
+            boolean first = true;
+            for (String id : ids.split(",")) {
+                if (!first) body.append(',');
+                first = false;
+                body.append("{\"id\":\"").append(id).append("\"}");
+            }
+            byte[] bytes = body.append(']').toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.start();
+        return server;
+    }
+
+    private static BatchLoaderPipeline pipelineOver(
+            RestBatchDataLoaderRegistrar registrar, dev.appiaworks.shiguchi.config.DataLoaderConfig config) {
+        GrpcBatchDataLoaderRegistrar grpc = org.mockito.Mockito.mock(GrpcBatchDataLoaderRegistrar.class);
+        org.mockito.Mockito.when(grpc.getLoaders()).thenReturn(Map.of());
+        return new BatchLoaderPipeline(grpc, registrar, config);
+    }
+
+    private static RestBatchDataLoaderRegistrar scannedRegistrar(int port, RestBatchLoaderConfig cfg) {
+        cfg.setBatchEndpoint(true);
+        cfg.setIdsParam("ids");
+        cfg.setKeyField("id");
+        RestBatchDataLoaderRegistrar registrar = new RestBatchDataLoaderRegistrar(
+                propsWith(restDownstreamService("catalog", "http://127.0.0.1:" + port, cfg)));
+        registrar.scan();
+        return registrar;
+    }
+
+    @Test
+    @DisplayName(
+            "Given a REST loader with max-batch-size 50, when 120 keys load through the pipeline, should send three GETs")
+    void given_restLoaderMaxBatchSize50_when_120KeysLoaded_should_sendThreeGets() throws Exception {
+        List<String> queries = new java.util.concurrent.CopyOnWriteArrayList<>();
+        com.sun.net.httpserver.HttpServer server = productServer(queries);
+        try {
+            RestBatchLoaderConfig cfg = loaderConfig("Product", "/products");
+            cfg.setMaxBatchSize(50);
+            RestBatchDataLoaderRegistrar registrar =
+                    scannedRegistrar(server.getAddress().getPort(), cfg);
+            BatchLoaderPipeline pipeline =
+                    pipelineOver(registrar, new dev.appiaworks.shiguchi.config.DataLoaderConfig());
+            List<String> keys = new java.util.ArrayList<>();
+            for (int i = 0; i < 120; i++) keys.add("p" + i);
+
+            Map<String, Map<String, Object>> result =
+                    pipeline.load("Product", keys, new io.grpc.Metadata()).block();
+
+            assertThat(queries).hasSize(3);
+            assertThat(result).hasSize(120);
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    @DisplayName(
+            "Given a cache entry for a REST type, when the same keys load twice through the pipeline, should make one HTTP exchange")
+    void given_restTypeWithCacheEntry_when_sameKeysLoadedTwice_should_makeOneExchange() throws Exception {
+        List<String> queries = new java.util.concurrent.CopyOnWriteArrayList<>();
+        com.sun.net.httpserver.HttpServer server = productServer(queries);
+        try {
+            RestBatchDataLoaderRegistrar registrar =
+                    scannedRegistrar(server.getAddress().getPort(), loaderConfig("Product", "/products"));
+            dev.appiaworks.shiguchi.config.DataLoaderConfig config =
+                    new dev.appiaworks.shiguchi.config.DataLoaderConfig();
+            config.getCache().put("Product", new dev.appiaworks.shiguchi.config.DataLoaderConfig.TypeCache());
+            BatchLoaderPipeline pipeline = pipelineOver(registrar, config);
+
+            pipeline.load("Product", List.of("1", "2"), new io.grpc.Metadata()).block();
+            Map<String, Map<String, Object>> second = pipeline.load(
+                            "Product", List.of("1", "2"), new io.grpc.Metadata())
+                    .block();
+
+            assertThat(queries).hasSize(1);
+            assertThat(second).containsOnlyKeys("1", "2");
+        } finally {
+            server.stop(0);
+        }
     }
 }
