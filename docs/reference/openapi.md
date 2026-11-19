@@ -195,7 +195,9 @@ The `x-shiguchi-*` keys are **kept** in the consolidated spec, like `x-gateway-a
 
 `RelationshipSuggester` (Java, EXPERIMENTAL) lists candidates from names alone (`customerId` or `customer_id`
 next to a `Customer` schema, and the inverse `orders` collection). It never wires anything: copy a candidate into
-an extension or the YAML to adopt it.
+an extension or the YAML to adopt it. [Which way should I declare it?](../guides/graphql-annotations.md#which-way-should-i-declare-it)
+compares the five sources, and the runnable
+[`sample-graphql-relationships`](../../samples/sample-graphql-relationships/README.md) uses these extensions.
 
 ## 5. Configuration keys
 

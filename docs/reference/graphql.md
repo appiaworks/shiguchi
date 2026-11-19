@@ -267,6 +267,15 @@ are refused as `unauthenticated`. The validated `connection_init` bearer is also
 `authorization`, like an HTTP request's own header, unless an `UpstreamCredentialSource` bean (the BFF, a
 token exchange) supplies the upstream credential.
 
+### Relationships
+
+Relationship fields (`Order.customer`, `Customer.orders`) are declared by proto annotation, OpenAPI
+`x-shiguchi-*` extension, YAML or bean, and resolved through DataLoaders, so one operation makes one
+batched call per loader. The sources and their precedence are in
+[Which way should I declare it?](../guides/graphql-annotations.md#which-way-should-i-declare-it), and
+`GET /actuator/gateway-relationships` reports what was resolved
+([observability](../operations/observability.md#the-gateway-relationships-endpoint)).
+
 ### Batching
 
 `shiguchi.graphql.batch.max-operations` (0 = off). A POST whose JSON body is an array runs each

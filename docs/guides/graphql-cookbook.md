@@ -88,6 +88,36 @@ See [Paging](projections/paging.md) and [Sorting](projections/sorting.md).
 Only the fields in the selection set are read from the backend when the request has a `read_mask`: ask for
 `{ id title }` and the mask is `id,title`. See [Field projection](projections/field-projection.md).
 
+## Relationships between REST services
+
+Two REST services, no proto: an order lists a `customerId`, and a customer should list its orders. Declare it in
+the backend's OpenAPI document and the gateway adds `Order.customer` and `Customer.orders`:
+
+```json
+"Order":    { "properties": { "customerId": { "type": "string", "x-shiguchi-references": "Customer" } } },
+"Customer": { "x-shiguchi-batch-key": "id",
+              "properties": { "id": { "type": "string",
+                "x-shiguchi-has-many": { "type": "Order", "group-by": "customerId", "field": "orders" } } } }
+```
+
+Each side also needs a loader, which is a list operation marked as one:
+
+```json
+"/orders": { "get": { "operationId": "listOrders",
+  "x-shiguchi-loader": { "type": "Order", "ids-param": "customerIds", "group-by": "customerId" } } },
+"/customers": { "get": { "operationId": "listCustomers",
+  "x-shiguchi-loader": { "type": "Customer", "ids-param": "ids" } } }
+```
+
+```bash
+$GQL '{"query":"{ listCustomers { name orders { id total } } }"}'
+```
+
+However many customers come back, the backend sees one `GET /orders?customerIds=...`. The same relationship can
+be written in YAML or as a bean, for a backend whose document you do not control or for data behind a Java
+client. The runnable [`sample-graphql-relationships`](../../samples/sample-graphql-relationships/README.md) shows
+all three with a test that counts the backend calls; [which way to pick](graphql-annotations.md#which-way-should-i-declare-it).
+
 ## Subscriptions
 
 A server-streaming method annotated `type: SUBSCRIPTION` is served over WebSocket

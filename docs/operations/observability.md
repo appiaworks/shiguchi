@@ -443,6 +443,8 @@ actuator security, and is not exposed by default.
 
 ## The `gateway-relationships` endpoint
 
+(For how each gateway endpoint is gated and how to restrict the reads, see [actuator endpoints](../guides/security.md#actuator-endpoints).)
+
 When the GraphQL module is present, `GET /actuator/gateway-relationships` shows what the gateway resolved
 for GraphQL relationships. Expose it like `gateway-routes`:
 

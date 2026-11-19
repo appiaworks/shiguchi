@@ -1,0 +1,77 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "Shop (legacy REST)", "version": "1.0.0" },
+  "paths": {
+    "/customers": {
+      "get": {
+        "operationId": "listCustomers",
+        "summary": "Customers; ?ids=c1,c2 returns just those (the batch loader's call)",
+        "x-shiguchi-loader": { "type": "Customer", "ids-param": "ids" },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Customer" } } } }
+          }
+        }
+      }
+    },
+    "/orders": {
+      "get": {
+        "operationId": "listOrders",
+        "summary": "Orders; ?customerIds=c1,c2 returns the orders of those customers (the grouped loader's call)",
+        "x-shiguchi-loader": { "type": "Order", "ids-param": "customerIds", "group-by": "customerId" },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Order" } } } }
+          }
+        }
+      }
+    },
+    "/shipments/{id}": {
+      "get": {
+        "operationId": "getShipment",
+        "summary": "Declares the Shipment type; its relationship and loader are Spring beans, not annotations",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Shipment" } } }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Customer": {
+        "type": "object",
+        "x-shiguchi-batch-key": "id",
+        "properties": {
+          "id": {
+            "type": "string",
+            "x-shiguchi-has-many": { "type": "Order", "group-by": "customerId", "field": "orders" }
+          },
+          "name": { "type": "string" }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "customerId": { "type": "string", "x-shiguchi-references": "Customer" },
+          "total": { "type": "integer" }
+        }
+      },
+      "Shipment": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "orderId": { "type": "string" },
+          "carrier": { "type": "string" },
+          "status": { "type": "string" }
+        }
+      }
+    }
+  }
+}

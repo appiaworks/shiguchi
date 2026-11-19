@@ -72,6 +72,8 @@ source: `fieldName` (the companion GraphQL field), `target` (the GraphQL type), 
 when `many`) followed by a chip naming the source; the tooltip gives the group-by field. Click the badge to expand
 the target type's fields.
 
+![Output schema of ListBooks in the console: Book.authorId badged "→ Author" and Author.id badged "→ Book[]", each with a YAML source chip](../images/grpc-ui-relationships.png)
+
 Method visibility follows `services[].include-methods` / `exclude-methods`, and the schema works with every
 discovery mode (`DYNAMIC`, `STATIC`, `PB_FILE`).
 

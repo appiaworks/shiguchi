@@ -357,6 +357,27 @@ yields `books: [Book!]` on `Author`, and `authors { books { title } }` costs one
 - The list is costed like any list field (see [Query cost](#query-cost)): selecting `books` under a list
   of `first` authors multiplies by `first` (or `default-list-size`).
 
+### Which way should I declare it?
+
+A relationship can come from five places. They can be mixed in one gateway, even in one service.
+
+| You have | Declare it with | Where it lives | Pick it when |
+| --- | --- | --- | --- |
+| A gRPC service you own | [Annotation](#how-the-pieces-combine): `(shiguchi.field)` and `(shiguchi.graphql)` | The proto | The proto is yours to change; the relationship travels with the schema |
+| A REST service whose OpenAPI document you own | [OpenAPI extension](../reference/openapi.md#x-shiguchi-relationship-extensions): `x-shiguchi-references`, `x-shiguchi-has-many`, `x-shiguchi-loader` | The backend's document | The backend team owns the relationship and the gateway should pick it up with no gateway change |
+| A service you cannot change (a third party, a document you only read) | [YAML](#relationships-in-yaml): `relationships[]`, `rest-batch-loaders[]` | The gateway's `application.yml` | The gateway operator owns the relationship, or the backend document is out of your hands |
+| Data the gateway cannot reach itself (a hand-written client, a database, an in-process service) | [Beans](#custom-loaders-and-relationships-as-beans): `BatchLoaderDefinition`, `RelationshipDefinition` | Java in the gateway | The loader needs code |
+| No idea yet | [Suggestions](#see-what-the-gateway-resolved): the `suggestions` list of `gateway-relationships` | Nothing: it only reports | You want candidates from field names, to copy into one of the above |
+
+When two sources declare the same `Type.field`, the higher one wins. From lowest to highest:
+suggestions (never wired), proto annotation, OpenAPI extension, YAML, bean. A lower source is not an error
+when it is overridden, so a gateway operator can correct a backend's declaration in YAML without touching the
+backend. The `gateway-relationships` endpoint and the console show the source that won.
+
+The [`sample-graphql-relationships`](../../samples/sample-graphql-relationships/README.md)
+sample declares all three of the non-proto paths over REST services, with no annotation at all, and has a
+test that counts the backend calls.
+
 ### Relationships in YAML
 
 The same relationships, batch keys and loaders can be declared per service in YAML, for protos you do
@@ -521,6 +542,9 @@ chunking, bounded concurrency, error handling and, for a by-id loader, cache. By
 }
 ```
 
+The two types are compiled against, so the application declares `io.github.appiaworks:shiguchi-graphql`
+itself: the GraphQL starter brings it in at runtime scope only.
+
 The maps are the JSON form of the entity, with the JSON field names, which is what a Jackson client reads. A
 grouped loader is named `Type#by:camelCase(groupBy)` and, like the gRPC one, stays out of `_entities` and the
 caches; a parent with no children gets an empty list. `RelationshipDefinition.one` / `many` are the code form of a
@@ -547,6 +571,8 @@ declared (`annotation`, `extension`, `yaml` or `bean`), whether a loader serves 
 [observability](../operations/observability.md#the-gateway-relationships-endpoint).
 The web console shows the same resolved relationships, whichever source declared them, as `→ Book[]` badges on the
 ID fields of its output schema.
+
+![Output schema of ListBooks in the console: Book.authorId badged "→ Author" and Author.id badged "→ Book[]", each with a YAML source chip](../images/grpc-ui-relationships.png)
 
 
 ## Protos written for other gateways
