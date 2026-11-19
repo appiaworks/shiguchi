@@ -550,7 +550,7 @@ public class DiscoveredServiceSynchronizer {
     }
 
     private static String meta(ServiceInstance i, String key) {
-        Map<String, String> m = i.getMetadata();
-        return m == null ? null : m.get(key);
+        // Also the Consul spelling ("shiguchi_expose"): Consul rejects dots in meta keys.
+        return DiscoveryMetadata.value(i.getMetadata(), key);
     }
 }

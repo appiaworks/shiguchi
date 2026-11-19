@@ -358,12 +358,12 @@ eureka.instance.metadata-map:
   # openapi-path: /v3/api-docs
 ```
 
-Consul:
+Consul (its meta keys cannot contain a `.`: write `shiguchi_expose`; the gateway reads both spellings):
 
 ```yaml
 spring.cloud.consul.discovery.metadata:
-  shiguchi.expose: "true"
-  shiguchi.type: rest
+  shiguchi_expose: "true"
+  shiguchi_type: rest
   openapi-path: /openapi.json
 ```
 
@@ -483,22 +483,20 @@ no dynamic-port case and no pod-side publisher.
 
 **Consul.** With Spring Cloud Consul discovery (`spring-cloud-starter-consul-discovery`) on the
 classpath and `expose-grpc-port=true`, the library writes the port into the service meta
-(`grpc-port`, plus `<metadata-prefix>type=grpc`) through a `ConsulRegistrationCustomizer`, using the same
+(`grpc-port`, plus `<metadata-prefix>type=grpc` written as `shiguchi_type`, because Consul rejects dots in
+meta keys) through a `ConsulRegistrationCustomizer`, using the same
 `shiguchi.discovery.client.*` properties as Eureka. A port known before registration (a fixed port,
 `shiguchi.discovery.client.grpc-port`, a `GrpcServerPortSupplier`) is simply part of the first
 registration. A late port (a server bound to port 0) is published by re-registering the same service ID
 with the metadata.
 
-To keep the gateway from seeing the service without a port, a late port is registered with a critical
-health check, which the publish replaces with a passing one (`hold-until-published`; the
-`publish-timeout` releases it without a port, as with Eureka). The hold is reliable only when the
-library owns the check status: without TTL heartbeat (`spring.cloud.consul.discovery.heartbeat.enabled`
-off) and with a check registered at startup (a fixed web port and `register-health-check=true`). With
-heartbeat on, Spring Cloud keeps the check passing; with a random web port or no health check there is no
-check to hold. In those cases the library still adds the metadata and re-registers, but the service may
-be visible for a moment without `grpc-port`, and the gateway never dials a wrong port. The
-re-registration calls the Consul agent directly, so it does not schedule a second TTL heartbeat. This
-path is covered by tests with in-process fakes; it has not been validated against a live Consul agent.
+Consul has no `STARTING` state. A new check is `critical` until its first run, and Spring Cloud Consul
+attaches the check after the customizers run, so the library cannot hold the instance longer than that:
+between registration and the re-registration a gateway may see the service without `grpc-port` and fall
+back to the registry port (it never dials a wrong port). A fixed port (`shiguchi.discovery.client.grpc-port`
+or a supplier) is part of the first registration and has no such gap. The re-registration calls the Consul
+agent directly, so it does not schedule a second TTL heartbeat. When Consul refuses it, a WARN names the
+status and `publish` returns `false`. Checked against a live Consul 1.19 agent.
 A key you set yourself (`spring.cloud.consul.discovery.metadata.grpc-port`) is never overwritten, unless
 `shiguchi.discovery.client.grpc-port` is set.
 

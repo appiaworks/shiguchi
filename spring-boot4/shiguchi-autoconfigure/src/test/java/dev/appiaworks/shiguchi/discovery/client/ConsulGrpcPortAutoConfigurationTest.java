@@ -105,7 +105,7 @@ class ConsulGrpcPortAutoConfigurationTest {
 
                     ctx.getBean(ConsulGrpcPortPublisher.class).customize(reg);
 
-                    assertThat(meta(reg)).containsEntry("grpc-port", "9595").containsEntry("shiguchi.type", "grpc");
+                    assertThat(meta(reg)).containsEntry("grpc-port", "9595").containsEntry("shiguchi_type", "grpc");
                     assertThat(reg.getService().getCheck().getStatus()).isNull();
                     assertThat(ctx.getBean(ConsulGrpcPortPublisher.class).isHolding())
                             .isFalse();
@@ -121,7 +121,7 @@ class ConsulGrpcPortAutoConfigurationTest {
 
             ctx.getBean(ConsulGrpcPortPublisher.class).customize(reg);
 
-            assertThat(meta(reg)).containsEntry("grpc-port", "1234").containsEntry("shiguchi.type", "grpc");
+            assertThat(meta(reg)).containsEntry("grpc-port", "1234").containsEntry("shiguchi_type", "grpc");
         });
     }
 
@@ -166,11 +166,40 @@ class ConsulGrpcPortAutoConfigurationTest {
             boolean published = publisher.publish(45123);
 
             assertThat(published).isTrue();
-            assertThat(meta(reg)).containsEntry("grpc-port", "45123").containsEntry("shiguchi.type", "grpc");
+            assertThat(meta(reg)).containsEntry("grpc-port", "45123").containsEntry("shiguchi_type", "grpc");
             assertThat(reg.getService().getCheck().getStatus()).isEqualTo("passing");
             assertThat(publisher.isHolding()).isFalse();
             verify(consul).agentServiceRegister(isNull(), same(reg.getService()));
         });
+    }
+
+    @Test
+    @DisplayName("GIVEN Consul refuses the re-registration WHEN the port is published SHOULD report false")
+    void GIVEN_consul_rejects_reregistration_WHEN_publishing_SHOULD_return_false() {
+        when(auto.isRunning()).thenReturn(true);
+        when(consul.agentServiceRegister(any(), any()))
+                .thenReturn(org.springframework.http.ResponseEntity.badRequest().build());
+        runner.run(ctx -> {
+            ConsulRegistration reg = registration(httpCheck(), null);
+            ConsulGrpcPortPublisher publisher = ctx.getBean(ConsulGrpcPortPublisher.class);
+            publisher.customize(reg);
+
+            assertThat(publisher.publish(45123)).isFalse();
+        });
+    }
+
+    @Test
+    @DisplayName("GIVEN a custom prefix with dots WHEN the type is published SHOULD use only Consul-valid characters")
+    void GIVEN_dotted_prefix_WHEN_customizing_SHOULD_write_dot_free_keys() {
+        runner.withPropertyValues(
+                        "shiguchi.discovery.client.grpc-port=9595", "shiguchi.discovery.client.metadata-prefix=a.b.")
+                .run(ctx -> {
+                    ConsulRegistration reg = registration(httpCheck(), null);
+
+                    ctx.getBean(ConsulGrpcPortPublisher.class).customize(reg);
+
+                    assertThat(meta(reg)).containsEntry("a_b_type", "grpc");
+                });
     }
 
     @Test
