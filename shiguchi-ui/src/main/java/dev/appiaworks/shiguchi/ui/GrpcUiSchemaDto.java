@@ -63,7 +63,53 @@ public final class GrpcUiSchemaDto {
             /** True when annotated required (google.api.field_behavior = REQUIRED, buf.validate required or min_len above 0); proto3 has no native required */
             boolean required,
             /** GraphQL type names this field's ID resolves to ((shiguchi.field).resolves_type); empty when not a reference */
-            List<String> resolvesTypes) {}
+            List<String> resolvesTypes,
+            /** Relationships declared on this ID field by any source; empty when it is not a reference */
+            List<RelationshipSchema> relationships) {
+
+        /** A field with no relationships beyond its {@code resolves_type} list. */
+        public FieldSchema(
+                String name,
+                String jsonName,
+                String type,
+                String label,
+                String typeName,
+                List<FieldSchema> fields,
+                List<EnumValueSchema> enumValues,
+                String oneofName,
+                boolean mapEntry,
+                String wellKnownType,
+                boolean hasPresence,
+                boolean required,
+                List<String> resolvesTypes) {
+            this(
+                    name,
+                    jsonName,
+                    type,
+                    label,
+                    typeName,
+                    fields,
+                    enumValues,
+                    oneofName,
+                    mapEntry,
+                    wellKnownType,
+                    hasPresence,
+                    required,
+                    resolvesTypes,
+                    List.of());
+        }
+    }
+
+    /**
+     * One relationship an ID field carries.
+     *
+     * @param fieldName the companion field in the GraphQL schema that resolves it
+     * @param target the GraphQL type it resolves to
+     * @param many true for a one-to-many list ({@code resolves_many}), false for a reference to one entity
+     * @param groupBy the group-by field of the one-to-many loader; empty when not many
+     * @param source where it was declared: {@code annotation}, {@code extension}, {@code yaml} or {@code bean}
+     */
+    public record RelationshipSchema(String fieldName, String target, boolean many, String groupBy, String source) {}
 
     public record EnumValueSchema(String name, int number) {}
 

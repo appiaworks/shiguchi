@@ -357,6 +357,137 @@ yields `books: [Book!]` on `Author`, and `authors { books { title } }` costs one
 - The list is costed like any list field (see [Query cost](#query-cost)): selecting `books` under a list
   of `first` authors multiplies by `first` (or `default-list-size`).
 
+### Which way should I declare it?
+
+A relationship can come from five places. They can be mixed in one gateway, even in one service.
+
+| You have | Declare it with | Where it lives | Pick it when |
+| --- | --- | --- | --- |
+| A gRPC service you own | [Annotation](#how-the-pieces-combine): `(shiguchi.field)` and `(shiguchi.graphql)` | The proto | The proto is yours to change; the relationship travels with the schema |
+| A REST service whose OpenAPI document you own | [OpenAPI extension](../reference/openapi.md#x-shiguchi-relationship-extensions): `x-shiguchi-references`, `x-shiguchi-has-many`, `x-shiguchi-loader` | The backend's document | The backend team owns the relationship and the gateway should pick it up with no gateway change |
+| A service you cannot change (a third party, a document you only read) | [YAML](#relationships-in-yaml): `relationships[]`, `rest-batch-loaders[]` | The gateway's `application.yml` | The gateway operator owns the relationship, or the backend document is out of your hands |
+| Data the gateway cannot reach itself (a hand-written client, a database, an in-process service) | [Beans](#custom-loaders-and-relationships-as-beans): `BatchLoaderDefinition`, `RelationshipDefinition` | Java in the gateway | The loader needs code |
+| No idea yet | [Suggestions](#see-what-the-gateway-resolved): the `suggestions` list of `gateway-relationships` | Nothing: it only reports | You want candidates from field names, to copy into one of the above |
+
+When two sources declare the same `Type.field`, the higher one wins. From lowest to highest:
+suggestions (never wired), proto annotation, OpenAPI extension, YAML, bean. A lower source is not an error
+when it is overridden, so a gateway operator can correct a backend's declaration in YAML without touching the
+backend. The `gateway-relationships` endpoint and the console show the source that won.
+
+The [`sample-graphql-relationships`](../../samples/sample-graphql-relationships/README.md)
+sample declares all three of the non-proto paths over REST services, with no annotation at all, and has a
+test that counts the backend calls.
+
+### Relationships in YAML
+
+The same relationships, batch keys and loaders can be declared per service in YAML, for protos you do
+not own or cannot annotate. Annotations and YAML merge; where both declare the same companion field the
+YAML entry wins.
+
+```yaml
+shiguchi:
+  services:
+    - name: library
+      relationships:
+        - from: Author.id          # Type.proto_field holding the id
+          to: Book
+          many: true               # one-to-many: needs group-by
+          group-by: author_id      # child field matched against the parent id
+        - from: Book.author_id
+          to: Author
+          field: writer            # optional companion name
+      batch-keys:
+        Book: isbn                 # by-id loader for Book keys on isbn (default id)
+      loaders:
+        - type: Book
+          rpc: lib.Library/BooksByAuthors
+          ids-field: author_ids
+          result-field: items
+          group-by: author_id
+```
+
+`loaders[]` is the YAML form of `loader_for`, `loader_ids_field`, `loader_result_field` and `group_by`
+and overrides the proto options of that rpc. REST loaders stay in `rest-batch-loaders[]` (next section).
+Every entry is checked at startup: an unknown `from` type or field, a `to` type with no loader (or no
+loader with that `group-by`), a `group-by` that is not a child field, or a duplicate companion field
+fails startup with a message naming the entry and its YAML path. On a reload the problem is only logged.
+
+### Relationships on REST_DOWNSTREAM services
+
+The easiest place to declare them is the OpenAPI document itself, with `x-shiguchi-*` extensions (the
+[extensions table](../reference/openapi.md) lists them all). Type names are the document's schema names; the
+gateway prefixes them. This needs no YAML at all:
+
+```json
+{
+  "paths": {
+    "/customers": { "get": { "operationId": "listCustomers",
+      "x-shiguchi-loader": { "type": "Customer", "ids-param": "ids" } } },
+    "/orders": { "get": { "operationId": "listOrders",
+      "x-shiguchi-loader": { "type": "Order", "ids-param": "customerIds", "group-by": "customerId" } } }
+  },
+  "components": { "schemas": {
+    "Customer": { "x-shiguchi-batch-key": "id", "properties": {
+      "id": { "type": "string",
+              "x-shiguchi-has-many": { "type": "Order", "group-by": "customerId", "field": "orders" } } } },
+    "Order": { "properties": {
+      "customerId": { "type": "string", "x-shiguchi-references": "Customer" } } }
+  } }
+}
+```
+
+That gives `Order.customer` and `Customer.orders`, each one batched call however many parents the query returns.
+A mistake (unknown schema, no loader) fails the start naming the extension and its location. The extensions stay
+in the consolidated OpenAPI document. YAML is the alternative when you do not own the document, and it wins over
+an extension on the same field. `RelationshipSuggester` can propose candidates from `<type>Id` property names;
+it never wires them.
+
+The same declarations in YAML:
+
+A `REST_DOWNSTREAM` service takes the same `relationships[]`. `from` and `to` use the GraphQL type
+names of the generated schema, so with `graphql-type-prefix: Shop` the OpenAPI schema `Order` is
+`ShopOrder`; `from` names the property of the OpenAPI schema as written (`customerId`). The OpenAPI
+document needs no annotations. The loaders go in `rest-batch-loaders[]`:
+
+```yaml
+shiguchi:
+  services:
+    - name: shop
+      mode: REST_DOWNSTREAM
+      openapi-url: http://shop:8080/v3/api-docs
+      graphql-type-prefix: Shop
+      relationships:
+        - from: ShopOrder.customerId     # many-to-one: Order.customer
+          to: ShopCustomer
+        - from: ShopCustomer.id          # one-to-many: Customer.orders
+          to: ShopOrder
+          many: true
+          field: orders
+          group-by: customerId
+      rest-batch-loaders:
+        - type: ShopCustomer             # by id: GET /customers?ids=c1,c2
+          endpoint: /customers
+          ids-param: ids
+        - type: ShopOrder                # by parent: GET /orders?customerIds=c1,c2
+          endpoint: /orders
+          ids-param: customerIds
+          group-by: customerId           # the order field holding the customer id
+```
+
+An entry without `group-by` is a by-id loader (also used by Federation `_entities`). An entry with
+`group-by` returns the children of the given parent ids and is named `Type#by:camelCase(group-by)`; it
+may share a `type` with a by-id entry. `group-by` is matched against the key as it appears in the
+response, so write it as the backend spells it. `endpoint`, `ids-param`, `result-field`, `batch-endpoint`,
+`timeout-seconds`, `max-batch-size` and `max-concurrency` mean the same as for by-id entries, and
+`data-loader.max-children-per-key` caps the children of one parent.
+
+With `batch-endpoint: false` the loader makes one GET per parent id, with `{id}` in `endpoint`
+(`/customers/{id}/orders`), at most `max-concurrency` at a time; a 404 means no children. The batch form
+sends the ids comma separated, so an id containing a comma fails; use the per-id form for those.
+A relationship whose loader does not exist (`to` without a `rest-batch-loaders` entry, or a many entry
+without one that has the same `group-by`) is checked like the gRPC ones. Loaders are rebuilt on every
+schema reload, so a service whose OpenAPI document loads late still gets its relationships.
+
 ### Several backends serve the same type
 
 A type's loader belongs to one endpoint. If two endpoints each declare a `loader_for` for the same type, the
@@ -385,6 +516,63 @@ other endpoint keeps working. The loader's cache key does not include the endpoi
 If a reload (a refreshed descriptor, a late-loaded service) brings a loader that conflicts with the one already
 serving a type, the gateway keeps the existing owner, rejects the new loader, logs an ERROR naming both endpoints
 and increments the `shiguchi.graphql.loader.conflicts` counter (tag `type`). It does not fail the running gateway.
+
+### Custom loaders and relationships as beans
+
+For data the gateway cannot reach itself (a hand-written Jackson or REST client, a database, an in-process
+service) declare the loader and the relationship as Spring beans. A `BatchLoaderDefinition` is a third source for
+the batching pipeline, next to the gRPC and REST loaders, behind the same de-duplication, `max-batch-size`
+chunking, bounded concurrency, error handling and, for a by-id loader, cache. By-id loaders also serve Federation
+`_entities`.
+
+```java
+@Bean BatchLoaderDefinition booksByAuthor(BookClient client) {
+    // one call for every parent of the operation; each child map carries its parent's key
+    return BatchLoaderDefinition.grouped("Book", "author_id",
+            (authorIds, metadata) -> client.findByAuthors(authorIds));   // Mono<List<Map<String, Object>>>
+}
+
+@Bean BatchLoaderDefinition authors(AuthorClient client) {
+    return BatchLoaderDefinition.byId("Author",
+            (ids, metadata) -> client.findAll(ids));                    // Mono<Map<id, Map<String, Object>>>
+}
+
+@Bean RelationshipDefinition authorBooks() {
+    return RelationshipDefinition.many("Author.id", "Book", "author_id").named("books");
+}
+```
+
+The two types are compiled against, so the application declares `io.github.appiaworks:shiguchi-graphql`
+itself: the GraphQL starter brings it in at runtime scope only.
+
+The maps are the JSON form of the entity, with the JSON field names, which is what a Jackson client reads. A
+grouped loader is named `Type#by:camelCase(groupBy)` and, like the gRPC one, stays out of `_entities` and the
+caches; a parent with no children gets an empty list. `RelationshipDefinition.one` / `many` are the code form of a
+YAML `relationships` entry and win over one on the same `Type.field`.
+
+Limits:
+
+- The GraphQL type must already exist, from a gRPC route or a REST service of the gateway. A bean supplies data and
+  relationships, it does not derive a type from a Java class or a JSON schema.
+- If a gRPC or REST loader also serves the type, the bean wins and the gateway logs a WARN once. To keep the
+  service's loader, pin the type with `types.<Type>.endpoint` (see above): the pin names a service, so the bean is
+  ignored.
+- Two beans for the same loader name fail startup. A relationship naming an unknown type or field, or a target with no
+  loader, is checked like a YAML one: startup fails, and after a reload it is logged at ERROR.
+
+### See what the gateway resolved
+
+With the `gateway-relationships` actuator endpoint exposed (`management.endpoints.web.exposure.include`),
+`GET /actuator/gateway-relationships` lists, per parent type, each effective relationship with where it was
+declared (`annotation`, `extension`, `yaml` or `bean`), whether a loader serves it and which kind (`grpc`,
+`rest`, `bean`), plus the batch keys and the loaders. For REST_DOWNSTREAM documents it also lists
+`suggestions`: `<type>Id` candidates nobody declared, labelled `suggested` and `wired: false`, each with the
+`x-shiguchi-references` or YAML line that would wire it. See
+[observability](../operations/observability.md#the-gateway-relationships-endpoint).
+The web console shows the same resolved relationships, whichever source declared them, as `→ Book[]` badges on the
+ID fields of its output schema.
+
+![Output schema of ListBooks in the console: Book.authorId badged "→ Author" and Author.id badged "→ Book[]", each with a YAML source chip](../images/grpc-ui-relationships.png)
 
 
 ## Protos written for other gateways

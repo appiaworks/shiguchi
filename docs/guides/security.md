@@ -487,6 +487,69 @@ anonymous callers by design (the signed token is the credential) and outside the
 it is not cookie-authenticated. It has been run by hand against a real issuer's sender, outside CI. See
 [design/bff.md](../../design/bff.md#10-session-lifecycle-built-in-g5).
 
+## Actuator endpoints
+
+The gateway's actuator endpoints are exposed only when you list them, and they are gated in one of two ways:
+**always gated** means the gateway requires an authenticated caller whatever the mode, **follows the mode**
+means the endpoint is treated like any other transcoded route (open under `PERMIT_ALL`, token required under
+`AUTHENTICATED` unless `surfaces.rest.require-auth` is `false`).
+
+| Endpoint | Reads (`GET`) | Writes | Gating of the writes |
+| --- | --- | --- | --- |
+| `gateway-routes` | what loaded, per service | none | |
+| `gateway-relationships` (GraphQL module) | resolved relationships, loaders, suggestions | none | |
+| `gateway-discovery` | discovered services | none | |
+| `gateway-refresh` | none | `POST` re-reads every backend's schema | **Always gated**, every method |
+| `gateway-traffic` | traffic split, drained versions | `POST` sets weights or a rollout step, `DELETE` resets | **Always gated** |
+| `gateway-push` ([push](cursus/index.md), when `shiguchi.cursus.enabled`) | overview, namespaces, messages and more | `POST`, `DELETE` (publish, republish, tombstone, ...) | **Always gated** (the endpoint also authorizes per namespace) |
+| `gateway-bff-sessions` (BFF, when `shiguchi.bff.enabled`) | one subject's sessions | `DELETE` ends them | **Always gated**, reads too, and needs `shiguchi.bff.admin.role` |
+| `gateway-cache` (`rest.response-cache`) | hit, miss and size counters | `DELETE` empties it or one service's entries | **Follows the mode**: not gated by the gateway |
+
+Reads of every endpoint follow the mode. Under the default `PERMIT_ALL`, an exposed read is therefore open to
+anyone who can reach the port, and so is the `DELETE` of `gateway-cache`. The routes, relationships and
+discovery reports describe your backends (service names, paths, types), and `gateway-push` reads can list
+messages; do not expose them to an untrusted network without restricting them.
+
+Expose only what you use, and keep `health` for probes:
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,gateway-routes,gateway-relationships
+```
+
+To restrict reads (and the cache `DELETE`), add rules with a `GatewaySecurityCustomizer`
+([Extending the chain](#extending-the-chain)). It keeps the gateway's own chain, and the always-gated writes stay
+gated whatever it says:
+
+```java
+@Bean
+GatewaySecurityCustomizer actuatorReads() {
+    return new GatewaySecurityCustomizer() {
+        @Override public void authorize(ServerHttpSecurity.AuthorizeExchangeSpec exchanges) {
+            exchanges.pathMatchers("/actuator/health/**").permitAll()
+                     .pathMatchers("/actuator/gateway-*", "/actuator/gateway-*/**")
+                     .hasAuthority("SCOPE_gateway:admin");
+        }
+    };
+}
+```
+
+This needs a JWT decoder, as every authenticated rule does. With your own chain
+([Bringing your own chain](#bringing-your-own-chain)) write the same two `pathMatchers` in it. If you move the
+actuator to its own port with `management.server.port`, that port is not behind this chain: restrict it at the
+network.
+
+**Cookie sessions.** With [`shiguchi-bff`](bff/push-with-cookie.md) enabled, a request authenticated by a session cookie is refused with
+`403` on every actuator path, reads included, whatever you permit above; only bearer callers reach them
+([Browser sessions never reach actuator endpoints](#browser-sessions-never-reach-actuator-endpoints)).
+
+Each endpoint's report is described where it belongs: [observability](../operations/observability.md) for
+routes and relationships, [service discovery](service-discovery.md) for traffic and discovery,
+[caching](caching.md) for the cache, and the [push operations guide](cursus/operations.md) for `gateway-push`.
+
 ## Bringing your own chain
 
 A `SecurityWebFilterChain` bean of your own replaces the gateway's entirely — the modes, the

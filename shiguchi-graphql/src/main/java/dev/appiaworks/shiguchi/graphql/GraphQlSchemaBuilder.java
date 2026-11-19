@@ -11,8 +11,6 @@ import dev.appiaworks.shiguchi.config.FieldOverrideConfig;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
 import dev.appiaworks.shiguchi.proto.FieldRule;
-import dev.appiaworks.shiguchi.proto.GraphQlProto;
-import dev.appiaworks.shiguchi.proto.ResolvesMany;
 import dev.appiaworks.shiguchi.proto.TypeRule;
 import dev.appiaworks.shiguchi.reflection.GraphQlOptionReader;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
@@ -67,6 +65,7 @@ public class GraphQlSchemaBuilder {
     private final GraphQlPaginationArgInjector paginationInjector;
     private final GatewayProperties gatewayProperties;
     private final GraphQlOptionReader fieldOptions;
+    private volatile RelationshipResolver relationshipResolver;
     private volatile String generatedSdl;
     /** typeName → batch_key JSON field name; populated on each SDL build. */
     private volatile Map<String, String> lastFederationKeys = new LinkedHashMap<>();
@@ -79,6 +78,8 @@ public class GraphQlSchemaBuilder {
 
     private final List<Relationship> collectingRelationships = new ArrayList<>();
     private volatile List<Relationship> relationships = List.of();
+    private final List<RelationshipSource.BatchKey> collectingKeys = new ArrayList<>();
+    private volatile List<RelationshipSource.BatchKey> batchKeys = List.of();
 
     private volatile List<GraphQlContributor> contributors = List.of();
 
@@ -91,10 +92,25 @@ public class GraphQlSchemaBuilder {
         this.relayTransformer = relayTransformer;
         this.paginationInjector = paginationInjector;
         this.gatewayProperties = gatewayProperties;
+        this.relationshipResolver = RelationshipResolver.of(gatewayProperties, List.of());
         this.fieldOptions = GraphQlOptionReader.of(
                 gatewayProperties != null && gatewayProperties.getGraphql() != null
                         ? gatewayProperties.getGraphql().getCompatOptions()
                         : null);
+    }
+
+    /**
+     * Extra relationship sources (OpenAPI extensions, user beans). The resolver is the annotations,
+     * the YAML, then these, ordered by {@link RelationshipSource.Source} so a later source wins.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setRelationshipSources(List<RelationshipSource> sources) {
+        this.relationshipResolver = RelationshipResolver.of(gatewayProperties, sources);
+    }
+
+    /** The resolver in effect, for readers that must agree with the schema (the console's relationship badges). */
+    RelationshipResolver relationshipResolver() {
+        return relationshipResolver;
     }
 
     /** Beans that add fields of their own (the push module's subscription fields); optional. */
@@ -110,6 +126,7 @@ public class GraphQlSchemaBuilder {
         this.lastFederationKeys = result.federationKeys();
         this.fieldCosts = result.fieldCosts();
         this.relationships = result.relationships();
+        this.batchKeys = result.batchKeys();
         log.info("Generated GraphQL SDL ({} chars)", generatedSdl.length());
         log.debug("GraphQL SDL:\n{}", generatedSdl);
     }
@@ -120,6 +137,7 @@ public class GraphQlSchemaBuilder {
         this.lastFederationKeys = result.federationKeys();
         this.fieldCosts = result.fieldCosts();
         this.relationships = result.relationships();
+        this.batchKeys = result.batchKeys();
         log.info("Rebuilt GraphQL SDL ({} chars)", generatedSdl.length());
     }
 
@@ -149,6 +167,11 @@ public class GraphQlSchemaBuilder {
         return relationships;
     }
 
+    /** The batch key of each entity type of the current schema that declares one, with its source. */
+    public List<RelationshipSource.BatchKey> getBatchKeys() {
+        return batchKeys;
+    }
+
     /**
      * A companion field of an object type that resolves a reference through a DataLoader.
      *
@@ -158,13 +181,25 @@ public class GraphQlSchemaBuilder {
      * @param resolvedType the GraphQL type it resolves to (one, or a list of them when {@code groupBy} is set)
      * @param groupBy empty for a {@code resolves_type} reference (one entity by id); for a
      *     {@code resolves_many} field the {@code group_by} of the one-to-many loader that serves its list
+     * @param source where the relationship was declared
      */
     public record Relationship(
-            String parentType, String fieldName, String idJsonName, String resolvedType, String groupBy) {
+            String parentType,
+            String fieldName,
+            String idJsonName,
+            String resolvedType,
+            String groupBy,
+            RelationshipSource.Source source) {
 
-        /** A reference to one entity, resolved by id. */
+        /** A reference to one entity, resolved by id, declared by an annotation. */
         public Relationship(String parentType, String fieldName, String idJsonName, String resolvedType) {
             this(parentType, fieldName, idJsonName, resolvedType, "");
+        }
+
+        /** A relationship declared by an annotation. */
+        public Relationship(
+                String parentType, String fieldName, String idJsonName, String resolvedType, String groupBy) {
+            this(parentType, fieldName, idJsonName, resolvedType, groupBy, RelationshipSource.Source.ANNOTATION);
         }
 
         /** Whether the field is a list of children ({@code resolves_many}), decided here from the parent's descriptor. */
@@ -182,18 +217,21 @@ public class GraphQlSchemaBuilder {
             String sdl,
             Map<String, String> federationKeys,
             Map<String, Integer> fieldCosts,
-            List<Relationship> relationships) {}
+            List<Relationship> relationships,
+            List<RelationshipSource.BatchKey> batchKeys) {}
 
     private synchronized SdlResult generateSdlWithKeys() {
         Map<String, String> federationKeys = isFederationEnabled() ? new LinkedHashMap<>() : null;
         collectingCosts.clear();
         collectingRelationships.clear();
+        collectingKeys.clear();
         String sdl = generateSdl(federationKeys);
         return new SdlResult(
                 sdl,
                 federationKeys != null ? Map.copyOf(federationKeys) : Map.of(),
                 Map.copyOf(collectingCosts),
-                List.copyOf(collectingRelationships));
+                List.copyOf(collectingRelationships),
+                List.copyOf(collectingKeys));
     }
 
     // -------------------------------------------------------------------------
@@ -603,15 +641,12 @@ public class GraphQlSchemaBuilder {
 
         // Federation keys: (shiguchi.type).keys, else the field marked batch_key.
         List<String> keySets = new ArrayList<>();
+        Optional<RelationshipSource.BatchKey> batchKey = relationshipResolver.batchKey(descriptor);
+        batchKey.ifPresent(collectingKeys::add);
         if (federationKeys != null) {
             for (String key : typeRule.getKeysList()) keySets.add(resolveKeyFields(descriptor, key));
             if (keySets.isEmpty()) {
-                for (FieldDescriptor f : descriptor.getFields()) {
-                    if (fieldOptions.fieldRule(f).getBatchKey()) {
-                        keySets.add(f.getJsonName());
-                        break;
-                    }
-                }
+                batchKey.ifPresent(k -> keySets.add(k.jsonName()));
             }
             // _entities resolves by the first single-field key; composite keys are published only.
             if (!typeRule.getUnresolvable()) {
@@ -662,62 +697,15 @@ public class GraphQlSchemaBuilder {
             appendFieldDirectives(sb, fieldOptions.fieldRule(field), federationKeys != null, typeName, fieldName);
             sb.append("\n");
 
-            // Emit companion resolver field(s) for resolves_type annotations
-            FieldRule ann = field.getOptions().getExtension(GraphQlProto.field);
-            if (ann != null && !ann.getResolvesTypeList().isEmpty()) {
-                List<String> resolvesTypes = ann.getResolvesTypeList();
-                String jsonName = field.getJsonName(); // e.g. "typeId", "solarSystemId"
-                if (resolvesTypes.size() == 1) {
-                    String resolverName =
-                            jsonName.endsWith("Id") ? jsonName.substring(0, jsonName.length() - 2) : jsonName;
-                    collectingRelationships.add(
-                            new Relationship(typeName, resolverName, jsonName, resolvesTypes.get(0)));
-                    sb.append("  ")
-                            .append(resolverName)
-                            .append(": ")
-                            .append(resolvesTypes.get(0))
-                            .append("\n");
-                } else {
-                    String prefix = commonTypeNamePrefix(resolvesTypes);
-                    for (String resolvedType : resolvesTypes) {
-                        String stripped = resolvedType.substring(prefix.length());
-                        String resolverName = Character.toLowerCase(stripped.charAt(0)) + stripped.substring(1);
-                        collectingRelationships.add(new Relationship(typeName, resolverName, jsonName, resolvedType));
-                        sb.append("  ")
-                                .append(resolverName)
-                                .append(": ")
-                                .append(resolvedType)
-                                .append("\n");
-                    }
-                }
-            }
-
-            // Companion list field for resolves_many: nullable [Child!], never [Child!]!, so a failed
-            // batch can still null the field instead of failing the parent
-            if (ann != null && ann.hasResolvesMany()) {
-                ResolvesMany many = ann.getResolvesMany();
-                if (many.getType().isEmpty() || many.getLoader().isEmpty()) {
-                    log.warn(
-                            "resolves_many on {}.{} needs a type and a loader (the group_by of the one-to-many loader); skipped",
-                            typeName,
-                            field.getName());
-                } else {
-                    String listName = many.getField().isEmpty()
-                            ? Character.toLowerCase(many.getType().charAt(0))
-                                    + many.getType().substring(1) + "s"
-                            : many.getField();
-                    collectingRelationships.add(new Relationship(
-                            typeName,
-                            listName,
-                            field.getJsonName(),
-                            many.getType(),
-                            GrpcBatchDataLoaderRegistrar.snakeToCamel(many.getLoader())));
-                    sb.append("  ")
-                            .append(listName)
-                            .append(": [")
-                            .append(many.getType())
-                            .append("!]\n");
-                }
+            // Companion resolver fields: resolves_type references and resolves_many lists. A list is
+            // nullable [Child!], never [Child!]!, so a failed batch can still null the field
+            // instead of failing the parent.
+            for (Relationship rel : relationshipResolver.relationships(descriptor, field)) {
+                collectingRelationships.add(rel);
+                sb.append("  ").append(rel.fieldName()).append(": ");
+                if (rel.many()) sb.append('[').append(rel.resolvedType()).append("!]");
+                else sb.append(rel.resolvedType());
+                sb.append("\n");
             }
         }
         sb.append("}\n");
@@ -1026,21 +1014,9 @@ public class GraphQlSchemaBuilder {
         };
     }
 
+    // Kept here for the tests that reach it by reflection; the rule lives in AnnotationRelationshipSource.
     private static String commonTypeNamePrefix(List<String> names) {
-        if (names.isEmpty()) return "";
-        String first = names.get(0);
-        int len = first.length();
-        for (String s : names) {
-            int shared = 0;
-            int max = Math.min(len, s.length());
-            while (shared < max && first.charAt(shared) == s.charAt(shared)) shared++;
-            len = shared;
-        }
-        int wordBoundary = -1;
-        for (int i = 1; i < len; i++) {
-            if (Character.isUpperCase(first.charAt(i))) wordBoundary = i;
-        }
-        return wordBoundary > 0 ? first.substring(0, wordBoundary) : first.substring(0, len);
+        return AnnotationRelationshipSource.commonTypeNamePrefix(names);
     }
 
     // Legacy helper kept for external callers (e.g. tests)

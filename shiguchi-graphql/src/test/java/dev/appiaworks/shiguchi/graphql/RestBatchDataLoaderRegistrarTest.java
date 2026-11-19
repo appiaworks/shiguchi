@@ -242,4 +242,251 @@ class RestBatchDataLoaderRegistrarTest {
             server.stop(0);
         }
     }
+
+    // ---------------------------------------------------------------------------
+    // One-to-many (group-by)
+    // ---------------------------------------------------------------------------
+
+    private static RestBatchLoaderConfig groupedConfig(String type, String endpoint, String idsParam, String groupBy) {
+        RestBatchLoaderConfig cfg = loaderConfig(type, endpoint);
+        cfg.setIdsParam(idsParam);
+        cfg.setGroupBy(groupBy);
+        cfg.setResultField("items");
+        return cfg;
+    }
+
+    /** Answers GET /orders?customerIds=a,b and GET /customers/{id}/orders with two orders per customer. */
+    private static com.sun.net.httpserver.HttpServer orderServer(List<String> requests) throws java.io.IOException {
+        com.sun.net.httpserver.HttpServer server =
+                com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> {
+            String path = exchange.getRequestURI().getRawPath();
+            String query = exchange.getRequestURI().getRawQuery();
+            requests.add(query == null ? path : path + "?" + query);
+            List<String> ids;
+            if (path.equals("/orders")) {
+                ids = List.of(query.substring(query.indexOf('=') + 1).split(","));
+            } else if (path.startsWith("/customers/missing")) {
+                exchange.sendResponseHeaders(404, -1);
+                exchange.close();
+                return;
+            } else {
+                ids = List.of(path.split("/")[2]);
+            }
+            StringBuilder body = new StringBuilder("{\"items\":[");
+            boolean first = true;
+            for (String id : ids) {
+                for (int n = 1; n <= 2; n++) {
+                    if (!first) body.append(',');
+                    first = false;
+                    body.append("{\"id\":\"o").append(n).append("-").append(id);
+                    body.append("\",\"customerId\":\"").append(id).append("\"}");
+                }
+            }
+            byte[] bytes = body.append("]}").toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.start();
+        return server;
+    }
+
+    private static BatchLoaderPipeline groupedPipeline(
+            com.sun.net.httpserver.HttpServer server, RestBatchLoaderConfig cfg, int maxChildren) {
+        GatewayProperties props = propsWith(restDownstreamService(
+                "shop", "http://127.0.0.1:" + server.getAddress().getPort(), cfg));
+        props.getGraphql().getDataLoader().setMaxChildrenPerKey(maxChildren);
+        RestBatchDataLoaderRegistrar registrar = new RestBatchDataLoaderRegistrar(props);
+        registrar.scan();
+        return pipelineOver(registrar, new dev.appiaworks.shiguchi.config.DataLoaderConfig());
+    }
+
+    @Test
+    @DisplayName("GIVEN a by-id and a group-by entry for one type WHEN scan runs SHOULD keep both apart")
+    void GIVEN_byIdAndGroupByEntryOfOneType_WHEN_scan_SHOULD_keepBothApart() {
+        RestBatchDataLoaderRegistrar registrar = new RestBatchDataLoaderRegistrar(propsWith(restDownstreamService(
+                "shop",
+                "http://127.0.0.1:1",
+                loaderConfig("Order", "/orders"),
+                groupedConfig("Order", "/orders", "customerIds", "customerId"))));
+
+        registrar.scan();
+
+        assertThat(registrar.getLoaders()).containsOnlyKeys("Order");
+        assertThat(registrar.getGroupedLoaders()).containsOnlyKeys("Order#by:customerId");
+    }
+
+    @Test
+    @DisplayName("GIVEN a snake_case group-by WHEN scan runs SHOULD name the loader by its camelCase")
+    void GIVEN_snakeCaseGroupBy_WHEN_scan_SHOULD_nameLoaderByCamelCase() {
+        RestBatchDataLoaderRegistrar registrar = new RestBatchDataLoaderRegistrar(propsWith(restDownstreamService(
+                "shop", "http://127.0.0.1:1", groupedConfig("Order", "/orders", "customerIds", "customer_id"))));
+
+        registrar.scan();
+
+        assertThat(registrar.getGroupedLoaders()).containsOnlyKeys("Order#by:customerId");
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a group-by loader WHEN parents load through the pipeline SHOULD send one GET and group the children")
+    void GIVEN_groupByLoader_WHEN_parentsLoaded_SHOULD_sendOneGetAndGroup() throws Exception {
+        List<String> requests = new java.util.concurrent.CopyOnWriteArrayList<>();
+        com.sun.net.httpserver.HttpServer server = orderServer(requests);
+        try {
+            BatchLoaderPipeline pipeline =
+                    groupedPipeline(server, groupedConfig("Order", "/orders", "customerIds", "customerId"), 0);
+
+            GroupedOutcome outcome = pipeline.loadGrouped(
+                            "Order#by:customerId", List.of("c1", "c2", "c3", "c1"), new io.grpc.Metadata())
+                    .block();
+
+            assertThat(requests).containsExactly("/orders?customerIds=c1,c2,c3");
+            assertThat(outcome.groups()).containsOnlyKeys("c1", "c2", "c3");
+            assertThat(outcome.groups().get("c2")).hasSize(2);
+            assertThat(pipeline.groupedNames()).containsExactly("Order#by:customerId");
+            assertThat(pipeline.hasGrouped("Order#by:customerId")).isTrue();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    @DisplayName("GIVEN a group-by loader with max-batch-size 2 WHEN 5 parents load SHOULD send three GETs")
+    void GIVEN_groupByLoaderMaxBatchSize2_WHEN_fiveParentsLoaded_SHOULD_sendThreeGets() throws Exception {
+        List<String> requests = new java.util.concurrent.CopyOnWriteArrayList<>();
+        com.sun.net.httpserver.HttpServer server = orderServer(requests);
+        try {
+            RestBatchLoaderConfig cfg = groupedConfig("Order", "/orders", "customerIds", "customerId");
+            cfg.setMaxBatchSize(2);
+            BatchLoaderPipeline pipeline = groupedPipeline(server, cfg, 0);
+
+            GroupedOutcome outcome = pipeline.loadGrouped(
+                            "Order#by:customerId", List.of("a", "b", "c", "d", "e"), new io.grpc.Metadata())
+                    .block();
+
+            assertThat(requests).hasSize(3);
+            assertThat(outcome.groups()).hasSize(5);
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN the parallel strategy WHEN parents load SHOULD send one GET per id and treat 404 as no children")
+    void GIVEN_parallelStrategy_WHEN_parentsLoaded_SHOULD_oneGetPerIdAnd404NoChildren() throws Exception {
+        List<String> requests = new java.util.concurrent.CopyOnWriteArrayList<>();
+        com.sun.net.httpserver.HttpServer server = orderServer(requests);
+        try {
+            RestBatchLoaderConfig cfg = groupedConfig("Order", "/customers/{id}/orders", "ids", "customerId");
+            cfg.setBatchEndpoint(false);
+            BatchLoaderPipeline pipeline = groupedPipeline(server, cfg, 0);
+
+            GroupedOutcome outcome = pipeline.loadGrouped(
+                            "Order#by:customerId", List.of("c1", "missing"), new io.grpc.Metadata())
+                    .block();
+
+            assertThat(requests).containsExactlyInAnyOrder("/customers/c1/orders", "/customers/missing/orders");
+            assertThat(outcome.groups().get("c1")).hasSize(2);
+            assertThat(outcome.groups().get("missing")).isEmpty();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    @DisplayName("GIVEN max-children-per-key 1 WHEN a REST parent has two children SHOULD fail that key")
+    void GIVEN_maxChildrenPerKey_WHEN_restParentOverCap_SHOULD_failKey() throws Exception {
+        List<String> requests = new java.util.concurrent.CopyOnWriteArrayList<>();
+        com.sun.net.httpserver.HttpServer server = orderServer(requests);
+        try {
+            BatchLoaderPipeline pipeline =
+                    groupedPipeline(server, groupedConfig("Order", "/orders", "customerIds", "customerId"), 1);
+
+            GroupedOutcome outcome = pipeline.loadGrouped("Order#by:customerId", List.of("c1"), new io.grpc.Metadata())
+                    .block();
+
+            assertThat(outcome.failures()).containsOnlyKeys("c1");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Rescan
+    // ---------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("GIVEN an unchanged config WHEN scan runs again SHOULD keep the same loader instances")
+    void GIVEN_unchangedConfig_WHEN_scanAgain_SHOULD_keepLoaderInstances() {
+        RestBatchDataLoaderRegistrar registrar = new RestBatchDataLoaderRegistrar(propsWith(restDownstreamService(
+                "shop",
+                "http://127.0.0.1:1",
+                loaderConfig("Product", "/products"),
+                groupedConfig("Order", "/orders", "customerIds", "customerId"))));
+        registrar.scan();
+        BatchLoader byId = registrar.getLoaders().get("Product");
+        GroupedOutcome.Loader many = registrar.getGroupedLoaders().get("Order#by:customerId");
+
+        registrar.scan();
+
+        assertThat(registrar.getLoaders().get("Product")).isSameAs(byId);
+        assertThat(registrar.getGroupedLoaders().get("Order#by:customerId")).isSameAs(many);
+    }
+
+    @Test
+    @DisplayName("GIVEN a service added after the first scan WHEN scan runs again SHOULD register its loaders")
+    void GIVEN_serviceAddedAfterFirstScan_WHEN_scanAgain_SHOULD_registerItsLoaders() {
+        GatewayProperties props =
+                propsWith(restDownstreamService("shop", "http://127.0.0.1:1", loaderConfig("A", "/a")));
+        RestBatchDataLoaderRegistrar registrar = new RestBatchDataLoaderRegistrar(props);
+        registrar.scan();
+        List<ServiceDefinition> services = new java.util.ArrayList<>(props.getServices());
+        services.add(restDownstreamService(
+                "late", "http://127.0.0.1:2", groupedConfig("Order", "/orders", "ids", "customerId")));
+        props.setServices(services);
+
+        registrar.scan();
+
+        assertThat(registrar.getLoaders()).containsOnlyKeys("A");
+        assertThat(registrar.getGroupedLoaders()).containsOnlyKeys("Order#by:customerId");
+    }
+
+    @Test
+    @DisplayName("GIVEN a changed and a removed entry WHEN scan runs again SHOULD replace the one and drop the other")
+    void GIVEN_changedAndRemovedEntry_WHEN_scanAgain_SHOULD_replaceAndDrop() {
+        RestBatchLoaderConfig a = loaderConfig("A", "/a");
+        GatewayProperties props =
+                propsWith(restDownstreamService("shop", "http://127.0.0.1:1", a, loaderConfig("B", "/b")));
+        RestBatchDataLoaderRegistrar registrar = new RestBatchDataLoaderRegistrar(props);
+        registrar.scan();
+        BatchLoader before = registrar.getLoaders().get("A");
+        a.setEndpoint("/a2");
+        props.getServices().get(0).setRestBatchLoaders(List.of(a));
+
+        registrar.scan();
+
+        assertThat(registrar.getLoaders()).containsOnlyKeys("A");
+        assertThat(registrar.getLoaders().get("A")).isNotSameAs(before);
+    }
+
+    @Test
+    @DisplayName("GIVEN loaders declared after the pipeline was built WHEN rescanRest runs SHOULD see them")
+    void GIVEN_loadersDeclaredLate_WHEN_rescanRest_SHOULD_seeThem() {
+        GatewayProperties props = new GatewayProperties();
+        props.setServices(List.of());
+        RestBatchDataLoaderRegistrar registrar = new RestBatchDataLoaderRegistrar(props);
+        registrar.scan();
+        BatchLoaderPipeline pipeline = pipelineOver(registrar, new dev.appiaworks.shiguchi.config.DataLoaderConfig());
+        assertThat(pipeline.groupedNames()).isEmpty();
+        props.setServices(List.of(restDownstreamService(
+                "shop", "http://127.0.0.1:1", groupedConfig("Order", "/orders", "ids", "customerId"))));
+
+        pipeline.rescanRest();
+
+        assertThat(pipeline.groupedNames()).containsExactly("Order#by:customerId");
+    }
 }

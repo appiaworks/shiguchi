@@ -1,0 +1,58 @@
+server:
+  port: 8080
+
+sample:
+  backend-port: 8081                       # the in-process REST backend (ShopBackend)
+
+shiguchi:
+  services:
+    # Path 1: OpenAPI extensions. shop-openapi.json carries x-shiguchi-references, -has-many,
+    # -batch-key and -loader, so this entry needs no relationships or loaders of its own.
+    # Shipment's relationship is not in the document: the beans in ShipmentRelationships add it.
+    - name: shop
+      mode: REST_DOWNSTREAM
+      openapi-url: http://localhost:${sample.backend-port}/shop-openapi.json
+      path-prefix: /shop
+      graphql-type-prefix: Shop            # schema Order becomes the GraphQL type ShopOrder
+
+    # Path 2: YAML. catalog-openapi.json is a plain document with no x-shiguchi-* keys, the case
+    # of a service you do not own. Everything is declared here instead.
+    - name: catalog
+      mode: REST_DOWNSTREAM
+      openapi-url: http://localhost:${sample.backend-port}/catalog-openapi.json
+      path-prefix: /catalog
+      graphql-type-prefix: Catalog
+      relationships:
+        - from: CatalogReview.productId    # many-to-one: Review.product
+          to: CatalogProduct
+        - from: CatalogProduct.id          # one-to-many: Product.reviews, one call for all products
+          to: CatalogReview
+          many: true
+          field: reviews
+          group-by: productId
+      rest-batch-loaders:
+        - type: CatalogProduct             # by id:      GET /products?ids=p1,p2
+          endpoint: /products
+          ids-param: ids
+        - type: CatalogReview              # by parent:  GET /reviews?productIds=p1,p2
+          endpoint: /reviews
+          ids-param: productIds
+          group-by: productId
+
+  graphql:
+    enabled: true
+
+  grpc:
+    enabled: false
+
+  ui:
+    enabled: false
+
+  openapi:
+    enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,gateway-relationships   # what the gateway resolved, and from which source

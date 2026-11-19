@@ -43,6 +43,7 @@ include(
     "sample-merge-gateway",
     "sample-jpa-backend",
     "sample-rest-downstream",
+    "sample-graphql-relationships",
     "sample-avro-downstream",
     "sample-rate-limited-gateway",
     "sample-discovery-gateway",

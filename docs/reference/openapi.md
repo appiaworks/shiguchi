@@ -166,6 +166,39 @@ Vendor extensions the generator itself writes: codec media types carry `RestBody
 codec adds `x-avro-schema` on its media type. Extensions read from backends: `x-avro-schema`, `x-avro-record` (Avro
 `REST_DOWNSTREAM`). No other `x-*` keys are produced.
 
+### `x-shiguchi-*` relationship extensions { #x-shiguchi-relationship-extensions }
+
+A `REST_DOWNSTREAM` document can declare its GraphQL relationships and batch loaders itself, with these
+vendor extensions. The gateway reads them from the document it fetched; no YAML is needed. Type names are
+the OpenAPI schema names as written in the document (`Customer`, not `ShopCustomer`); the gateway adds
+`graphql-type-prefix` and the usual name sanitising.
+
+| Extension | Where | Value | Meaning |
+| --- | --- | --- | --- |
+| `x-shiguchi-references` | property | schema name | Many-to-one: the property holds the id of that schema. Adds `Order.customer` |
+| `x-shiguchi-field` | property (with `x-shiguchi-references`) | name | Companion field name; defaults to the property name without `Id` / `_id` |
+| `x-shiguchi-has-many` | property | `{type, group-by, field}` | One-to-many: this property is the parent key of the `type` children whose `group-by` property holds it; `field` names the collection |
+| `x-shiguchi-batch-key` | schema | property name | The property that identifies an entity of this schema; used as the loader key |
+| `x-shiguchi-loader` | operation (GET) | `{type, ids-param, ...}` | A batch loader for `type`. Takes the keys of a `rest-batch-loaders[]` entry (`ids-param`, `key-field`, `result-field`, `group-by`, `batch-endpoint`, `timeout-seconds`, `max-batch-size`, `max-concurrency`); `endpoint` is the operation's path |
+
+Precedence on the same `Type.field`: proto annotations, then these extensions, then `relationships[]` in
+YAML, then bean sources. An explicit `rest-batch-loaders[]` entry wins over an `x-shiguchi-loader` of the
+same loader name.
+
+Extension declarations are validated like the YAML ones: an unknown schema or property, a `x-shiguchi-loader`
+on a non-GET operation, or a relationship with no loader fails the first start with a message that names the
+extension and its place (`OpenAPI x-shiguchi-references on Order.customerId: ...`). On a schema reload the same
+problem is logged at error level and the gateway keeps running.
+
+The `x-shiguchi-*` keys are **kept** in the consolidated spec, like `x-gateway-auth-scopes`: the merger copies
+`x-*` untouched, so a client reading the gateway's document sees what the backend declared.
+
+`RelationshipSuggester` (Java, EXPERIMENTAL) lists candidates from names alone (`customerId` or `customer_id`
+next to a `Customer` schema, and the inverse `orders` collection). It never wires anything: copy a candidate into
+an extension or the YAML to adopt it. [Which way should I declare it?](../guides/graphql-annotations.md#which-way-should-i-declare-it)
+compares the five sources, and the runnable
+[`sample-graphql-relationships`](../../samples/sample-graphql-relationships/README.md) uses these extensions.
+
 ## 5. Configuration keys
 
 From `dev.appiaworks.shiguchi.config.OpenApiConfig` (prefix `shiguchi.openapi`) and `ServiceDefinition`.

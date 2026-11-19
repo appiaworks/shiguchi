@@ -69,6 +69,7 @@ public final class DownstreamOpenApiDocument {
      *     or null when inline
      * @param responseSchemaName {@code components.schemas} name the response schema (or, for an
      *     array, its items) refers to, or null when inline
+     * @param extensions the operation's own {@code x-*} vendor extensions, raw, empty when none
      */
     public record Operation(
             String httpMethod,
@@ -83,12 +84,46 @@ public final class DownstreamOpenApiDocument {
             List<String> requestMediaTypes,
             List<String> responseMediaTypes,
             String requestSchemaName,
-            String responseSchemaName) {
+            String responseSchemaName,
+            Map<String, Object> extensions) {
         public Operation {
+            extensions = extensions != null ? Collections.unmodifiableMap(new LinkedHashMap<>(extensions)) : Map.of();
             gatewayAuthScopes = gatewayAuthScopes != null ? List.copyOf(gatewayAuthScopes) : List.of();
             parameters = parameters != null ? List.copyOf(parameters) : List.of();
             requestMediaTypes = requestMediaTypes != null ? List.copyOf(requestMediaTypes) : List.of();
             responseMediaTypes = responseMediaTypes != null ? List.copyOf(responseMediaTypes) : List.of();
+        }
+
+        /** Constructor without vendor extensions. */
+        public Operation(
+                String httpMethod,
+                String path,
+                String operationId,
+                boolean hasOperationId,
+                List<String> gatewayAuthScopes,
+                String summary,
+                List<Parameter> parameters,
+                Map<String, Object> requestBodySchema,
+                Map<String, Object> responseSchema,
+                List<String> requestMediaTypes,
+                List<String> responseMediaTypes,
+                String requestSchemaName,
+                String responseSchemaName) {
+            this(
+                    httpMethod,
+                    path,
+                    operationId,
+                    hasOperationId,
+                    gatewayAuthScopes,
+                    summary,
+                    parameters,
+                    requestBodySchema,
+                    responseSchema,
+                    requestMediaTypes,
+                    responseMediaTypes,
+                    requestSchemaName,
+                    responseSchemaName,
+                    null);
         }
 
         /** Constructor without media-type information: JSON is assumed wherever a schema is present. */
@@ -259,13 +294,22 @@ public final class DownstreamOpenApiDocument {
                         mediaTypes(requestContent),
                         mediaTypes(responseContent),
                         schemaName(requestSchema),
-                        schemaName(responseSchema)));
+                        schemaName(responseSchema),
+                        extensionsOf(op)));
             }
         }
         return new DownstreamOpenApiDocument(ops, schemas);
     }
 
     // -------------------------------------------------------------------------
+
+    private static Map<String, Object> extensionsOf(Map<String, Object> op) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        op.forEach((k, v) -> {
+            if (k.startsWith("x-")) out.put(k, v);
+        });
+        return out;
+    }
 
     private static List<Parameter> parameters(Object raw, Map<String, Object> components) {
         List<Parameter> out = new ArrayList<>();

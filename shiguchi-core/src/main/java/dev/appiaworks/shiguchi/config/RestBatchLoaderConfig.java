@@ -15,6 +15,10 @@ import lombok.NoArgsConstructor;
  *       {@code endpoint/{id}}; results are assembled from individual responses.</li>
  * </ul>
  *
+ * <p>With {@link #groupBy} set the loader is one-to-many instead: the request carries parent ids,
+ * the response is the list of children, and they are grouped by the child field {@code groupBy}.
+ * It loads the children a {@code relationships[]} entry with {@code many: true} asks for.
+ *
  * <p>Example YAML:
  * <pre>
  * restBatchLoaders:
@@ -27,6 +31,10 @@ import lombok.NoArgsConstructor;
  *     endpoint: /categories/{id}
  *     batchEndpoint: false   # parallel single-GET strategy
  *     keyField: id
+ *   - type: Order            # one-to-many: the orders of many customers in one call
+ *     endpoint: /orders
+ *     idsParam: customerIds  # GET /orders?customerIds=1,2,3
+ *     groupBy: customerId    # child field holding the parent's id
  * </pre>
  */
 @Data
@@ -84,4 +92,13 @@ public class RestBatchLoaderConfig {
      * batch strategy's split requests. {@code 0} = unbounded. Default: 16.
      */
     private int maxConcurrency = 16;
+
+    /**
+     * Makes this a one-to-many loader: the child field (as the response spells it) that holds the
+     * parent's id. The request carries parent ids, the response is the list of children, grouped
+     * client-side by this field. A parent with no children gets an empty list. Blank (default) =
+     * a by-id loader. The loader is named {@code Type#by:camelCase(groupBy)}, the name a
+     * relationship's {@code group-by} resolves to.
+     */
+    private String groupBy;
 }

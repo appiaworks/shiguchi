@@ -541,6 +541,16 @@ public final class OpenApiToDescriptor {
         return sb.toString().replaceAll("_+", "_");
     }
 
+    /** The synthetic message name of component schema {@code componentName} under {@code typePrefix}. */
+    public static String protoTypeName(String typePrefix, String componentName) {
+        return (typePrefix != null ? typePrefix : "") + sanitizeTypeName(componentName);
+    }
+
+    /** The synthetic field name of schema property {@code property}. */
+    public static String protoFieldName(String property) {
+        return fieldName(property);
+    }
+
     static String sanitizeTypeName(String s) {
         String id = sanitizeIdentifier(s);
         return Character.toUpperCase(id.charAt(0)) + id.substring(1);
