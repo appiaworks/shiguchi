@@ -59,6 +59,8 @@ LEFTOVER_EXCLUDED = [
     ":!build.gradle.kts",
     ":!docs/migration.md",
     ":!docs/operations/api-compatibility.md",
+    # A dependency range of a third party (monaco-editor ">= 0.25.0 < 1"), not a pin of ours.
+    ":!shiguchi-ui-frontend/package-lock.json",
     ":!.github/",
     ":!buildSrc/",
 ]
