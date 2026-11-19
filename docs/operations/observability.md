@@ -440,3 +440,42 @@ Common uses:
 It is read-only and exposes nothing a caller could not already learn from the OpenAPI document
 or the GraphQL schema — but it is an actuator endpoint, so it follows whatever you have set for
 actuator security, and is not exposed by default.
+
+## The `gateway-relationships` endpoint
+
+When the GraphQL module is present, `GET /actuator/gateway-relationships` shows what the gateway resolved
+for GraphQL relationships. Expose it like `gateway-routes`:
+
+```yaml
+management:
+  endpoints.web.exposure.include: health,gateway-relationships
+```
+
+```json
+{
+  "types": [
+    {"type": "ShopOrder", "relationships": [
+      {"field": "customer", "target": "ShopCustomer", "many": false, "groupBy": null,
+       "source": "extension", "loaderRegistered": true,
+       "loader": {"name": "ShopCustomer", "kind": "rest", "grouped": false}}]}
+  ],
+  "batchKeys": [{"type": "ShopCustomer", "field": "id", "source": "extension"}],
+  "loaders": [{"name": "ShopCustomer", "kind": "rest", "grouped": false}],
+  "suggestions": [
+    {"service": "depot", "parentType": "DepotInvoice", "field": "order", "targetType": "DepotOrder",
+     "many": false, "groupBy": null, "source": "suggested", "wired": false,
+     "hint": {"extension": "x-shiguchi-references: Order on Invoice.orderId",
+              "yaml": "relationships: [{from: DepotInvoice.orderId, to: DepotOrder}]"}}]
+}
+```
+
+- `source` is where the relationship or key was declared: `annotation` (proto), `extension` (OpenAPI
+  `x-shiguchi-*`), `yaml`, or `bean`. A later source wins on the same field.
+- `loader` is the DataLoader that serves it (`kind` is `grpc`, `rest` or `bean`), or `null` with
+  `loaderRegistered: false` when none is registered.
+- `suggestions` are heuristic candidates over the REST_DOWNSTREAM documents, never wired: declare one
+  with the `hint` to use it.
+
+`?type=ShopOrder` limits the report to one parent type. It is read-only and stateless, but it describes the
+internal topology, so keep it off public exposure. It is not exposed by default and is absent when
+`shiguchi.graphql.enabled=false`.

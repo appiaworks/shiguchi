@@ -194,6 +194,39 @@ public class BatchLoaderPipeline {
         return names;
     }
 
+    /**
+     * Which source serves each by-id loader: {@code grpc}, {@code rest} or {@code bean}, the same
+     * precedence the pipeline applies when loading. Read-only, for the {@code gateway-relationships} report.
+     */
+    public Map<String, String> loaderKinds() {
+        Map<String, String> kinds = new LinkedHashMap<>();
+        for (String name : types()) {
+            boolean grpc = grpcRegistrar.getLoaders().containsKey(name);
+            boolean service =
+                    grpc || (restRegistrar != null && restRegistrar.getLoaders().containsKey(name));
+            kinds.put(name, kindOf(name, beanLoaders.containsKey(name), service, grpc));
+        }
+        return kinds;
+    }
+
+    /** Which source serves each one-to-many loader, as {@link #loaderKinds()} does for by-id loaders. */
+    public Map<String, String> groupedLoaderKinds() {
+        Map<String, String> kinds = new LinkedHashMap<>();
+        for (String name : groupedNames()) {
+            boolean grpc = grpcRegistrar.getGroupedLoaders().containsKey(name);
+            boolean service = grpc
+                    || (restRegistrar != null
+                            && restRegistrar.getGroupedLoaders().containsKey(name));
+            kinds.put(name, kindOf(name, beanGrouped.containsKey(name), service, grpc));
+        }
+        return kinds;
+    }
+
+    private String kindOf(String name, boolean bean, boolean service, boolean grpc) {
+        if (bean && (!service || !pinned(name))) return "bean";
+        return grpc ? "grpc" : "rest";
+    }
+
     boolean hasGrouped(String name) {
         return groupedLoader(name) != null;
     }

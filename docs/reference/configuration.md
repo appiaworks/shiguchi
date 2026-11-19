@@ -292,6 +292,9 @@ see [observability](../operations/observability.md#the-gateway-routes-endpoint).
 changes the traffic split of version-routed services at runtime, and reports which versions are
 drained; its writes always require authentication —
 see [service-discovery](../guides/service-discovery.md#changing-the-split-at-runtime-and-knowing-when-a-version-is-drained).
+`gateway-relationships` (with the GraphQL module) shows the relationships the gateway resolved, their sources
+and loaders, and suggestions for REST documents —
+see [observability](../operations/observability.md#the-gateway-relationships-endpoint).
 
 ### Startup validation
 

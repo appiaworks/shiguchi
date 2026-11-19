@@ -536,6 +536,16 @@ Limits:
 - Two beans for the same loader name fail startup. A relationship naming an unknown type or field, or a target with no
   loader, is checked like a YAML one: startup fails, and after a reload it is logged at ERROR.
 
+### See what the gateway resolved
+
+With the `gateway-relationships` actuator endpoint exposed (`management.endpoints.web.exposure.include`),
+`GET /actuator/gateway-relationships` lists, per parent type, each effective relationship with where it was
+declared (`annotation`, `extension`, `yaml` or `bean`), whether a loader serves it and which kind (`grpc`,
+`rest`, `bean`), plus the batch keys and the loaders. For REST_DOWNSTREAM documents it also lists
+`suggestions`: `<type>Id` candidates nobody declared, labelled `suggested` and `wired: false`, each with the
+`x-shiguchi-references` or YAML line that would wire it. See
+[observability](../operations/observability.md#the-gateway-relationships-endpoint).
+
 
 ## Protos written for other gateways
 
