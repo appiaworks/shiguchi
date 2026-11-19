@@ -393,6 +393,36 @@ fails startup with a message naming the entry and its YAML path. On a reload the
 
 ### Relationships on REST_DOWNSTREAM services
 
+The easiest place to declare them is the OpenAPI document itself, with `x-shiguchi-*` extensions (the
+[extensions table](../reference/openapi.md) lists them all). Type names are the document's schema names; the
+gateway prefixes them. This needs no YAML at all:
+
+```json
+{
+  "paths": {
+    "/customers": { "get": { "operationId": "listCustomers",
+      "x-shiguchi-loader": { "type": "Customer", "ids-param": "ids" } } },
+    "/orders": { "get": { "operationId": "listOrders",
+      "x-shiguchi-loader": { "type": "Order", "ids-param": "customerIds", "group-by": "customerId" } } }
+  },
+  "components": { "schemas": {
+    "Customer": { "x-shiguchi-batch-key": "id", "properties": {
+      "id": { "type": "string",
+              "x-shiguchi-has-many": { "type": "Order", "group-by": "customerId", "field": "orders" } } } },
+    "Order": { "properties": {
+      "customerId": { "type": "string", "x-shiguchi-references": "Customer" } } }
+  } }
+}
+```
+
+That gives `Order.customer` and `Customer.orders`, each one batched call however many parents the query returns.
+A mistake (unknown schema, no loader) fails the start naming the extension and its location. The extensions stay
+in the consolidated OpenAPI document. YAML is the alternative when you do not own the document, and it wins over
+an extension on the same field. `RelationshipSuggester` can propose candidates from `<type>Id` property names;
+it never wires them.
+
+The same declarations in YAML:
+
 A `REST_DOWNSTREAM` service takes the same `relationships[]`. `from` and `to` use the GraphQL type
 names of the generated schema, so with `graphql-type-prefix: Shop` the OpenAPI schema `Order` is
 `ShopOrder`; `from` names the property of the OpenAPI schema as written (`customerId`). The OpenAPI

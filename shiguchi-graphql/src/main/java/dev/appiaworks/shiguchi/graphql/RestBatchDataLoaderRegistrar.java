@@ -12,7 +12,10 @@ import java.util.Map;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import tools.jackson.databind.DeserializationFeature;
@@ -32,6 +35,7 @@ import tools.jackson.databind.json.JsonMapper;
  * If {@code openapiUrl} is set, the host/port are inferred from it — otherwise the
  * {@code host} + {@code port} fields are used directly.
  */
+@DependsOn("restDownstreamRouteLoader")
 @Component
 @ConditionalOnProperty(prefix = "shiguchi.graphql", name = "enabled", matchIfMissing = true)
 public class RestBatchDataLoaderRegistrar {
@@ -57,8 +61,16 @@ public class RestBatchDataLoaderRegistrar {
     private volatile Map<String, GroupedOutcome.Loader> groupedView = Map.of();
     private volatile Map<String, RestBatchLoaderConfig> groupedConfigView = Map.of();
 
+    private final OpenApiRelationshipIndex extensions;
+
     public RestBatchDataLoaderRegistrar(GatewayProperties properties) {
+        this(properties, null);
+    }
+
+    @Autowired
+    RestBatchDataLoaderRegistrar(GatewayProperties properties, ObjectProvider<OpenApiRelationshipIndex> extensions) {
         this.properties = properties;
+        this.extensions = extensions == null ? null : extensions.getIfAvailable();
     }
 
     /**
@@ -77,12 +89,13 @@ public class RestBatchDataLoaderRegistrar {
         Map<String, Built<GroupedBatchLoader>> nextGrouped = new LinkedHashMap<>();
         for (ServiceDefinition svcDef : List.copyOf(properties.getServices())) {
             if (!svcDef.isRestDownstream()) continue;
-            if (svcDef.getRestBatchLoaders().isEmpty()) continue;
+            List<RestBatchLoaderConfig> declared = declaredLoaders(svcDef);
+            if (declared.isEmpty()) continue;
 
             String baseUrl = resolveBaseUrl(svcDef);
             WebClient webClient = null;
 
-            for (RestBatchLoaderConfig cfg : svcDef.getRestBatchLoaders()) {
+            for (RestBatchLoaderConfig cfg : declared) {
                 if (cfg.getType() == null || cfg.getType().isBlank()) {
                     log.warn(
                             "[RestBatchLoaderRegistrar] Skipping loader with blank type in service '{}'",
@@ -138,6 +151,33 @@ public class RestBatchDataLoaderRegistrar {
                     java.util.stream.Stream.concat(nextById.keySet().stream(), nextGrouped.keySet().stream())
                             .toList());
         }
+    }
+
+    /**
+     * The loaders of a service: its {@code rest-batch-loaders[]} entries, then those its OpenAPI
+     * document declares with {@code x-shiguchi-loader}. An explicit entry wins over an extension one
+     * with the same name.
+     */
+    private List<RestBatchLoaderConfig> declaredLoaders(ServiceDefinition svcDef) {
+        List<RestBatchLoaderConfig> yaml = svcDef.getRestBatchLoaders();
+        OpenApiRelationshipIndex ext = extensions;
+        if (ext == null) return yaml;
+        List<RestBatchLoaderConfig> fromDocument = ext.loaders(svcDef.getName());
+        if (fromDocument.isEmpty()) return yaml;
+        java.util.Set<String> taken = new java.util.HashSet<>();
+        for (RestBatchLoaderConfig c : yaml) taken.add(nameOf(c));
+        List<RestBatchLoaderConfig> all = new java.util.ArrayList<>(yaml);
+        for (RestBatchLoaderConfig c : fromDocument) {
+            if (taken.add(nameOf(c))) all.add(c);
+        }
+        return all;
+    }
+
+    private static String nameOf(RestBatchLoaderConfig c) {
+        boolean many = c.getGroupBy() != null && !c.getGroupBy().isBlank();
+        return many && c.getType() != null
+                ? GrpcBatchDataLoaderRegistrar.groupedName(c.getType(), c.getGroupBy())
+                : c.getType();
     }
 
     @SuppressWarnings("unchecked")

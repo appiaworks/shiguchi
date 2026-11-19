@@ -11,6 +11,7 @@ import dev.appiaworks.shiguchi.config.RestBatchLoaderConfig;
 import dev.appiaworks.shiguchi.config.ServiceDefinition;
 import dev.appiaworks.shiguchi.rest.ReactiveGrpcDispatcher;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
+import dev.appiaworks.shiguchi.routing.OpenApiToDescriptor;
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
 import dev.appiaworks.shiguchi.routing.ServiceEndpointContext;
 import io.micrometer.core.instrument.Counter;
@@ -67,6 +68,7 @@ public class GrpcBatchDataLoaderRegistrar {
     private boolean started;
     private volatile List<RelationshipDefinition> beanRelationships = List.of();
     private volatile Set<String> beanLoaderNames = Set.of();
+    private volatile OpenApiRelationshipIndex openApiIndex;
 
     public GrpcBatchDataLoaderRegistrar(GrpcRouteRegistry registry, ReactiveGrpcDispatcher dispatcher) {
         this(registry, dispatcher, new DataLoaderConfig(), null);
@@ -117,6 +119,12 @@ public class GrpcBatchDataLoaderRegistrar {
                 .filter(RelationshipDefinition.class::isInstance)
                 .map(RelationshipDefinition.class::cast)
                 .toList();
+    }
+
+    /** The OpenAPI extensions of the REST_DOWNSTREAM services, for the checks and the loader names. */
+    @Autowired(required = false)
+    public void setOpenApiRelationshipIndex(OpenApiRelationshipIndex index) {
+        this.openApiIndex = index;
     }
 
     /** The loaders declared as {@link BatchLoaderDefinition} beans: they count as loaders for the checks. */
@@ -194,6 +202,7 @@ public class GrpcBatchDataLoaderRegistrar {
         checkPins(candidates);
         checkGroupedCaches(candidates);
         checkYaml(candidates);
+        checkExtensions(candidates);
         checkBeans(candidates);
 
         synchronized (loadersByType) {
@@ -337,6 +346,19 @@ public class GrpcBatchDataLoaderRegistrar {
     /** The REST loaders the YAML declares: the type for a by-id one, {@code Type#by:field} for a grouped one. */
     private Set<String> restLoaderNames() {
         Set<String> names = new HashSet<>();
+        OpenApiRelationshipIndex openApi = openApiIndex;
+        if (openApi != null) {
+            for (OpenApiRelationshipIndex.Entry entry : openApi.entries()) {
+                for (var loader : entry.extensions().loaders()) {
+                    RestBatchLoaderConfig l = loader.config();
+                    if (l.getGroupBy() != null && !l.getGroupBy().isBlank()) {
+                        names.add(groupedName(l.getType(), l.getGroupBy()));
+                    } else {
+                        names.add(l.getType());
+                    }
+                }
+            }
+        }
         if (properties == null || properties.getServices() == null) return names;
         for (ServiceDefinition svc : properties.getServices()) {
             for (RestBatchLoaderConfig l : svc.getRestBatchLoaders()) {
@@ -349,6 +371,65 @@ public class GrpcBatchDataLoaderRegistrar {
             }
         }
         return names;
+    }
+
+    /**
+     * Checks the {@code x-shiguchi-*} extensions of the loaded REST_DOWNSTREAM documents the way
+     * {@link #checkYaml} checks the YAML: a malformed or dangling declaration (unknown schema or
+     * property, no loader for the target) fails startup naming the extension and where it sits; a
+     * reload logs it.
+     */
+    private void checkExtensions(Map<String, Map<String, RouteDefinition>> candidates) {
+        OpenApiRelationshipIndex openApi = openApiIndex;
+        if (openApi == null) return;
+        List<OpenApiRelationshipIndex.Entry> entries = openApi.entries();
+        if (entries.isEmpty()) return;
+        Set<String> loaders = restLoaderNames();
+        loaders.addAll(beanLoaderNames);
+        List<String> problems = new java.util.ArrayList<>();
+        for (OpenApiRelationshipIndex.Entry entry : entries) {
+            String service = " (service " + entry.serviceName() + ")";
+            entry.extensions().problems().forEach(p -> problems.add(p + service));
+            Map<String, Descriptor> types = new HashMap<>();
+            for (var fd : entry.context().getFileDescriptors().values()) collectMessages(fd.getMessageTypes(), types);
+            Set<String> seen = new HashSet<>();
+            for (var ref : entry.extensions().references()) {
+                RelationshipConfig rel = new RelationshipConfig();
+                rel.setFrom(ref.parentType() + "." + OpenApiToDescriptor.protoFieldName(ref.property()));
+                rel.setTo(ref.targetType());
+                rel.setField(ref.field());
+                addExtensionProblem(problems, ref.location() + service, rel, types, candidates, loaders, seen);
+            }
+            for (var many : entry.extensions().hasMany()) {
+                RelationshipConfig rel = new RelationshipConfig();
+                rel.setFrom(many.parentType() + "." + OpenApiToDescriptor.protoFieldName(many.property()));
+                rel.setTo(many.targetType());
+                rel.setField(many.field());
+                rel.setMany(true);
+                rel.setGroupBy(many.groupBy());
+                addExtensionProblem(problems, many.location() + service, rel, types, candidates, loaders, seen);
+            }
+        }
+        if (problems.isEmpty()) return;
+        if (!started) throw new IllegalStateException(String.join("\n", problems));
+        problems.forEach(log::error);
+    }
+
+    private static void addExtensionProblem(
+            List<String> problems,
+            String where,
+            RelationshipConfig rel,
+            Map<String, Descriptor> types,
+            Map<String, Map<String, RouteDefinition>> candidates,
+            Set<String> loaders,
+            Set<String> seen) {
+        String problem = relationshipProblem(rel, types, candidates, loaders, seen);
+        if (problem == null) return;
+        if (problem.startsWith("no loader")) {
+            problem += "; or put x-shiguchi-loader on the operation that lists " + rel.getTo()
+                    + " in the OpenAPI document";
+        }
+        problems.add(where + ": " + problem);
     }
 
     /**
