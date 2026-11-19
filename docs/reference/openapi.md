@@ -166,7 +166,7 @@ Vendor extensions the generator itself writes: codec media types carry `RestBody
 codec adds `x-avro-schema` on its media type. Extensions read from backends: `x-avro-schema`, `x-avro-record` (Avro
 `REST_DOWNSTREAM`). No other `x-*` keys are produced.
 
-### `x-shiguchi-*` relationship extensions
+### `x-shiguchi-*` relationship extensions { #x-shiguchi-relationship-extensions }
 
 A `REST_DOWNSTREAM` document can declare its GraphQL relationships and batch loaders itself, with these
 vendor extensions. The gateway reads them from the document it fetched; no YAML is needed. Type names are
