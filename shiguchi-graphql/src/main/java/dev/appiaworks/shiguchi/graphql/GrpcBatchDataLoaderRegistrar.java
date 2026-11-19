@@ -5,7 +5,6 @@ import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.MethodDescriptor;
 import dev.appiaworks.shiguchi.config.DataLoaderConfig;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
-import dev.appiaworks.shiguchi.proto.GraphQlProto;
 import dev.appiaworks.shiguchi.rest.ReactiveGrpcDispatcher;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
@@ -46,6 +45,7 @@ import org.springframework.stereotype.Component;
 public class GrpcBatchDataLoaderRegistrar {
     private static final Logger log = LoggerFactory.getLogger(GrpcBatchDataLoaderRegistrar.class);
 
+    private final RelationshipResolver relationshipResolver = RelationshipResolver.annotationsOnly();
     private final GrpcRouteRegistry registry;
     private final ReactiveGrpcDispatcher dispatcher;
     private final Map<String, BatchLoader> loadersByType = Collections.synchronizedMap(new LinkedHashMap<>());
@@ -325,7 +325,7 @@ public class GrpcBatchDataLoaderRegistrar {
         String batchKeyJsonName = snakeToCamel(route.getLoaderIdsField());
         String batchResultJsonName = snakeToCamel(route.getLoaderResultField());
         String entityKeyJsonName = detectEntityKeyField(methodDescriptor, route.getLoaderResultField())
-                .orElse("id");
+                .orElse(RelationshipResolver.DEFAULT_BATCH_KEY);
 
         var loader = new GrpcBatchLoader(
                 route, ctx, dispatcher, batchKeyJsonName, batchResultJsonName, entityKeyJsonName, timeout);
@@ -408,13 +408,7 @@ public class GrpcBatchDataLoaderRegistrar {
     }
 
     private Optional<String> findBatchKeyField(Descriptor entityType) {
-        for (FieldDescriptor field : entityType.getFields()) {
-            var gqlField = field.getOptions().getExtension(GraphQlProto.field);
-            if (gqlField != null && gqlField.getBatchKey()) {
-                return Optional.of(snakeToCamel(field.getName()));
-            }
-        }
-        return Optional.empty();
+        return relationshipResolver.batchKey(entityType).map(key -> snakeToCamel(key.protoField()));
     }
 
     /**
