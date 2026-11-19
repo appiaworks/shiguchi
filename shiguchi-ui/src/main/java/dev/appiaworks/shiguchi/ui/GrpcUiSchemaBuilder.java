@@ -66,8 +66,20 @@ public class GrpcUiSchemaBuilder implements dev.appiaworks.shiguchi.routing.Sche
     private final GrpcRouteRegistry registry;
     private volatile List<GrpcUiSchemaDto.ServiceSchema> schema = Collections.emptyList();
 
+    private volatile FieldRelationshipProvider relationshipProvider;
+
     public GrpcUiSchemaBuilder(GrpcRouteRegistry registry) {
         this.registry = registry;
+    }
+
+    /**
+     * Where the relationship badges come from: the GraphQL module's resolver, so relationships declared in
+     * YAML, OpenAPI extensions or beans show as well as annotations. Optional; without it the console reads
+     * {@code resolves_type} from the field options.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setRelationshipProvider(FieldRelationshipProvider relationshipProvider) {
+        this.relationshipProvider = relationshipProvider;
     }
 
     @EventListener(ContextRefreshedEvent.class)
@@ -226,7 +238,23 @@ public class GrpcUiSchemaBuilder implements dev.appiaworks.shiguchi.routing.Sche
                 wellKnownType,
                 fd.hasPresence(),
                 isRequired(fd),
-                resolvesTypes(fd));
+                resolvesTypes(fd),
+                relationshipsOf(fd));
+    }
+
+    /** The field's relationships from the provider, or the annotation's {@code resolves_type} read raw without one. */
+    private List<GrpcUiSchemaDto.RelationshipSchema> relationshipsOf(FieldDescriptor fd) {
+        FieldRelationshipProvider provider = this.relationshipProvider;
+        if (provider != null) {
+            try {
+                return List.copyOf(provider.relationships(fd.getContainingType(), fd));
+            } catch (RuntimeException e) {
+                log.debug("Could not resolve relationships of {}, using the annotation", fd.getFullName(), e);
+            }
+        }
+        return resolvesTypes(fd).stream()
+                .map(t -> new GrpcUiSchemaDto.RelationshipSchema(null, t, false, "", "annotation"))
+                .toList();
     }
 
     private static final int FIELD_BEHAVIOR_EXT = 1052;

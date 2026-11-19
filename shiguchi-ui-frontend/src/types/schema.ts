@@ -19,6 +19,20 @@ export interface FieldSchema {
   required?: boolean
   /** GraphQL type names this ID field resolves to ((shiguchi.field).resolves_type). */
   resolvesTypes?: string[]
+  /** Relationships declared on this ID field by any source (annotation, OpenAPI extension, YAML, bean). */
+  relationships?: RelationshipSchema[]
+}
+
+export interface RelationshipSchema {
+  /** The companion GraphQL field that resolves it. */
+  fieldName?: string | null
+  /** The GraphQL type it resolves to. */
+  target: string
+  /** One-to-many list rather than a single entity. */
+  many: boolean
+  /** Group-by field of a one-to-many loader; empty when not many. */
+  groupBy: string
+  source: 'annotation' | 'extension' | 'yaml' | 'bean' | string
 }
 
 export interface MessageSchema {

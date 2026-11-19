@@ -19,6 +19,8 @@ dependencies {
     // The push module's GraphQL subscription fields live here, behind @ConditionalOnClass: present
     // only when an application has both starters, so neither module depends on the other at runtime.
     compileOnly(project(":shiguchi-cursus"))
+    // The console's relationship badges read this module's resolver; present only with the UI starter.
+    compileOnly(project(":shiguchi-ui"))
     // The REDIS backend of the per-caller cost budget; present only when the application has it.
     compileOnly("org.springframework.boot:spring-boot-starter-data-redis-reactive")
 
@@ -32,6 +34,7 @@ dependencies {
     testImplementation(libs.dgs.spring.graphql.test)
     testImplementation(libs.reactor.test)
     testImplementation(project(":shiguchi-cursus"))
+    testImplementation(project(":shiguchi-ui"))
     // A real Redis for the cross-instance live-invalidation test (same as the Cursus REDIS engine tests).
     testImplementation("org.springframework.boot:spring-boot-starter-data-redis-reactive")
     testImplementation("com.github.codemonstur:embedded-redis:1.4.4")

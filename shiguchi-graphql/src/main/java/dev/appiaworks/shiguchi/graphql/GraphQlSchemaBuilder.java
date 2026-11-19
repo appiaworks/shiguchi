@@ -108,6 +108,11 @@ public class GraphQlSchemaBuilder {
         this.relationshipResolver = RelationshipResolver.of(gatewayProperties, sources);
     }
 
+    /** The resolver in effect, for readers that must agree with the schema (the console's relationship badges). */
+    RelationshipResolver relationshipResolver() {
+        return relationshipResolver;
+    }
+
     /** Beans that add fields of their own (the push module's subscription fields); optional. */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     public void setContributors(List<GraphQlContributor> contributors) {

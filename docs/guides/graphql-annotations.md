@@ -545,6 +545,8 @@ declared (`annotation`, `extension`, `yaml` or `bean`), whether a loader serves 
 `suggestions`: `<type>Id` candidates nobody declared, labelled `suggested` and `wired: false`, each with the
 `x-shiguchi-references` or YAML line that would wire it. See
 [observability](../operations/observability.md#the-gateway-relationships-endpoint).
+The web console shows the same resolved relationships, whichever source declared them, as `→ Book[]` badges on the
+ID fields of its output schema.
 
 
 ## Protos written for other gateways

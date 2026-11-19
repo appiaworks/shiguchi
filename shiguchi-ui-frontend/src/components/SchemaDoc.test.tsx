@@ -116,6 +116,45 @@ describe('SchemaDoc', () => {
     expect(screen.getByText(/Ghost is not part of any schema/)).toBeTruthy()
   })
 
+  it('GIVEN_yaml_one_to_many_relationship_WHEN_rendered_SHOULD_show_list_badge_source_chip_and_group_by_tooltip', () => {
+    render(
+      <SchemaDoc
+        schema={schema(
+          field({
+            name: 'id',
+            jsonName: 'id',
+            relationships: [
+              { fieldName: 'books', target: 'Book', many: true, groupBy: 'authorId', source: 'yaml' },
+            ],
+          }),
+        )}
+      />,
+    )
+
+    const badge = screen.getByText('→ Book[]')
+    expect(badge.getAttribute('title')).toContain('grouped by authorId')
+    expect(screen.getByText('yaml').getAttribute('title')).toContain('gateway YAML')
+  })
+
+  it('GIVEN_annotation_relationship_WHEN_rendered_SHOULD_show_single_badge_with_annotation_chip', () => {
+    render(
+      <SchemaDoc
+        schema={schema(
+          field({
+            name: 'author_id',
+            jsonName: 'authorId',
+            resolvesTypes: ['Author'],
+            relationships: [{ fieldName: 'author', target: 'Author', many: false, groupBy: '', source: 'annotation' }],
+          }),
+        )}
+      />,
+    )
+
+    expect(screen.getByText('→ Author')).toBeTruthy()
+    expect(screen.queryByText('→ Author[]')).toBeNull()
+    expect(screen.getByText('annotation')).toBeTruthy()
+  })
+
   it('GIVEN_repeated_map_oneof_and_well_known_fields_WHEN_rendered_SHOULD_explain_them_in_tooltips', () => {
     render(
       <SchemaDoc

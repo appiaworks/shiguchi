@@ -34,6 +34,43 @@ function keepRequired(f: FieldSchema): boolean {
   return f.required === true || f.fields.some(keepRequired)
 }
 
+const SOURCE_TIPS: Record<string, string> = {
+  annotation: 'Declared by (shiguchi.field).resolves_type / resolves_many in the proto',
+  extension: 'Declared by an x-shiguchi extension in the OpenAPI document',
+  yaml: 'Declared in the gateway YAML (relationships:)',
+  bean: 'Declared by a RelationshipSource bean in the application',
+}
+
+/** What one badge points at: a relationship, or a bare resolves_type from an older backend. */
+interface RefBadge {
+  target: string
+  many: boolean
+  fieldName?: string | null
+  groupBy?: string
+  source?: string
+}
+
+function refBadges(f: FieldSchema): RefBadge[] {
+  if (f.relationships && f.relationships.length > 0) {
+    return f.relationships.map((r) => ({
+      target: r.target,
+      many: r.many,
+      fieldName: r.fieldName,
+      groupBy: r.groupBy,
+      source: r.source,
+    }))
+  }
+  return (f.resolvesTypes ?? []).map((t) => ({ target: t, many: false }))
+}
+
+function refTitle(r: RefBadge, isOpen: boolean): string {
+  const what = r.many
+    ? `This ID has many ${r.target}${r.groupBy ? `, grouped by ${r.groupBy}` : ''}.`
+    : `This ID points to ${r.target}.`
+  const via = r.fieldName ? ` Resolved by the ${r.fieldName} field.` : ''
+  return `${what}${via} Click to ${isOpen ? 'hide' : 'show'} its fields.`
+}
+
 function anyExpandable(fields: FieldSchema[]): boolean {
   return fields.some((f) => f.fields.length > 0 || f.enumValues.length > 0)
 }
@@ -59,6 +96,7 @@ function FieldRow({
   const [enumOpen, setEnumOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const hasEnum = field.enumValues.length > 0
+  const refs = refBadges(field)
   const hasChildren = field.fields.length > 0
 
   useEffect(() => {
@@ -157,16 +195,25 @@ function FieldRow({
             {enumOpen ? '▾' : '▸'} enum ({field.enumValues.length})
           </button>
         )}
-        {(field.resolvesTypes ?? []).map((t) => (
-          <button
-            key={t}
-            onClick={() => setOpenRef(openRef === t ? null : t)}
-            aria-expanded={openRef === t}
-            title={`This ID points to ${t}. Click to ${openRef === t ? 'hide' : 'show'} its fields.`}
-            className="rounded bg-sky-500/15 px-1 text-sky-300 text-[13px] hover:bg-sky-500/25"
-          >
-            → {t}
-          </button>
+        {refs.map((r) => (
+          <span key={`${r.fieldName ?? ''}:${r.target}`} className="inline-flex items-center gap-0.5">
+            <button
+              onClick={() => setOpenRef(openRef === r.target ? null : r.target)}
+              aria-expanded={openRef === r.target}
+              title={refTitle(r, openRef === r.target)}
+              className="rounded bg-sky-500/15 px-1 text-sky-300 text-[13px] hover:bg-sky-500/25"
+            >
+              {`→ ${r.target}${r.many ? '[]' : ''}`}
+            </button>
+            {r.source && (
+              <span
+                className="rounded bg-slate-500/20 px-1 text-slate-400 text-[11px] uppercase tracking-wide"
+                title={SOURCE_TIPS[r.source] ?? `Declared by ${r.source}`}
+              >
+                {r.source}
+              </span>
+            )}
+          </span>
         ))}
         {field.label !== 'optional' && (
           <span className={`text-[14px] ${labelColor}`} title={labelTip}>

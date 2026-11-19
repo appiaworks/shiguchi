@@ -19,6 +19,7 @@ import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
 import dev.appiaworks.shiguchi.routing.ServiceEndpointContext;
 import io.grpc.MethodDescriptor.MethodType;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -322,6 +323,64 @@ class GrpcUiSchemaBuilderTest {
 
         assertThat(field(input, "author_id").resolvesTypes()).containsExactly("Author", "AuthorRef");
         assertThat(field(input, "plain").resolvesTypes()).isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a provider with a YAML one-to-many and an annotation relationship WHEN building SHOULD expose many, group-by and source")
+    void given_provider_when_building_should_exposeRelationships() throws Exception {
+        GrpcUiSchemaDto.RelationshipSchema yaml =
+                new GrpcUiSchemaDto.RelationshipSchema("authors", "Author", true, "authorId", "yaml");
+        GrpcUiSchemaDto.RelationshipSchema annotation =
+                new GrpcUiSchemaDto.RelationshipSchema("author", "Author", false, "", "annotation");
+        GrpcRouteRegistry registry = new GrpcRouteRegistry();
+        registry.registerContext(context("rel-svc", requiredFile("schema.relprovider"), false));
+        GrpcUiSchemaBuilder builder = new GrpcUiSchemaBuilder(registry);
+        builder.setRelationshipProvider(
+                (parent, f) -> f.getName().equals("author_id") ? List.of(annotation, yaml) : List.of());
+        builder.rebuild();
+
+        GrpcUiSchemaDto.MessageSchema input =
+                builder.getSchema().get(0).methods().get(0).inputSchema();
+
+        assertThat(field(input, "author_id").relationships()).containsExactly(annotation, yaml);
+        assertThat(field(input, "author_id").relationships().get(1).many()).isTrue();
+        assertThat(field(input, "author_id").relationships().get(1).groupBy()).isEqualTo("authorId");
+        assertThat(field(input, "author_id").relationships().get(1).source()).isEqualTo("yaml");
+        assertThat(field(input, "plain").relationships()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("GIVEN no relationship provider WHEN building SHOULD fall back to the resolves_type annotation")
+    void given_noProvider_when_building_should_fallBackToAnnotation() throws Exception {
+        GrpcUiSchemaDto.MessageSchema input = inputOf(requiredFile("schema.relfallback"));
+
+        assertThat(field(input, "author_id").relationships())
+                .extracting(
+                        GrpcUiSchemaDto.RelationshipSchema::target,
+                        GrpcUiSchemaDto.RelationshipSchema::many,
+                        GrpcUiSchemaDto.RelationshipSchema::source)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("Author", false, "annotation"),
+                        org.assertj.core.groups.Tuple.tuple("AuthorRef", false, "annotation"));
+        assertThat(field(input, "plain").relationships()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("GIVEN a provider that throws WHEN building SHOULD fall back to the resolves_type annotation")
+    void given_throwingProvider_when_building_should_fallBackToAnnotation() throws Exception {
+        GrpcRouteRegistry registry = new GrpcRouteRegistry();
+        registry.registerContext(context("rel-svc2", requiredFile("schema.relthrow"), false));
+        GrpcUiSchemaBuilder builder = new GrpcUiSchemaBuilder(registry);
+        builder.setRelationshipProvider((parent, f) -> {
+            throw new IllegalStateException("boom");
+        });
+        builder.rebuild();
+
+        GrpcUiSchemaDto.MessageSchema input =
+                builder.getSchema().get(0).methods().get(0).inputSchema();
+
+        assertThat(field(input, "author_id").relationships()).hasSize(2);
     }
 
     /** (shiguchi.field) = { resolves_type: ... } : extension 50101, resolves_type is field 9. */
