@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-11-19
+
 ### Changed
 - `GrpcUiSchemaDto.FieldSchema` gained a `relationships` component. The old canonical constructor remains as a compatibility constructor (empty list), so existing callers compile unchanged.
 - A failed relationship (DataLoader) batch now reports a GraphQL error on each field waiting on it, with `extensions.grpcCode` (and `httpStatus`, `type`, `endpoint` for a REST loader). Before, the keys silently resolved to null. `shiguchi.graphql.data-loader.on-error: "NULL"` restores that (quote it in YAML: a bare `NULL` is YAML's null and leaves the default). A failed chunk no longer fails the other chunks of the same load, and more than 20 failed keys of one loader in a request are summarised in one error. A GraphQL response that carries errors is no longer stored by the response cache.
