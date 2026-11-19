@@ -119,6 +119,26 @@ public final class DiscoveryMetadata {
         return key.trim().toLowerCase(java.util.Locale.ROOT).replace('.', '-').replace('_', '-');
     }
 
+    /**
+     * {@code key} as Consul accepts it for a service meta key (letters, digits, {@code -} and
+     * {@code _} only): every other character becomes {@code _}, so {@code shiguchi.type} is
+     * {@code shiguchi_type}. Eureka and Kubernetes keep the dotted spelling.
+     */
+    public static String consulKey(String key) {
+        return key.replaceAll("[^A-Za-z0-9_-]", "_");
+    }
+
+    /**
+     * The metadata value of {@code key}: the exact key first, then its {@link #consulKey Consul
+     * spelling}, so an instance registered with Consul is found under the default {@code shiguchi.}
+     * prefix.
+     */
+    public static String value(java.util.Map<String, String> metadata, String key) {
+        if (metadata == null) return null;
+        String v = metadata.get(key);
+        return v != null ? v : metadata.get(consulKey(key));
+    }
+
     /** The key under {@code prefix}: {@code key("shiguchi.", EXPOSE)} is {@code shiguchi.expose}. */
     public static String key(String prefix, String name) {
         return (prefix == null ? DEFAULT_PREFIX : prefix) + name;

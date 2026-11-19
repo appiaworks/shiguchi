@@ -122,4 +122,17 @@ class DiscoveryMetadataTest {
         assertThat(DiscoveryMetadata.grpcPort(Map.of("port.grpc", "9090", "my.key", "7777"), "my.key"))
                 .hasValue(7777);
     }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("GIVEN a Consul-spelled key WHEN reading the dotted key SHOULD find it")
+    void GIVEN_consul_spelling_WHEN_reading_dotted_key_SHOULD_find_it() {
+        java.util.Map<String, String> meta = java.util.Map.of("shiguchi_expose", "true", "shiguchi.type", "rest");
+
+        org.assertj.core.api.Assertions.assertThat(DiscoveryMetadata.value(meta, "shiguchi.expose"))
+                .isEqualTo("true");
+        org.assertj.core.api.Assertions.assertThat(DiscoveryMetadata.value(meta, "shiguchi.type"))
+                .isEqualTo("rest");
+        org.assertj.core.api.Assertions.assertThat(DiscoveryMetadata.consulKey("shiguchi.path-prefix"))
+                .isEqualTo("shiguchi_path-prefix");
+    }
 }

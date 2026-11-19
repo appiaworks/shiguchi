@@ -21,6 +21,7 @@ import org.springframework.cloud.consul.model.http.agent.NewService;
 import org.springframework.cloud.consul.serviceregistry.ConsulAutoServiceRegistration;
 import org.springframework.cloud.consul.serviceregistry.ConsulRegistration;
 import org.springframework.cloud.consul.serviceregistry.ConsulRegistrationCustomizer;
+import org.springframework.http.ResponseEntity;
 
 /**
  * Publishes the app's gRPC port in its Consul registration, as service meta ({@code grpc-port} and
@@ -33,15 +34,19 @@ import org.springframework.cloud.consul.serviceregistry.ConsulRegistrationCustom
  * as an update. A key the app already set to another value is left alone unless
  * {@code shiguchi.discovery.client.grpc-port} is set.
  *
- * <p><strong>Hold.</strong> Consul has no {@code STARTING} state, so the hold is the health check: the
- * service registers with its check {@code critical} and is not returned as healthy until the port is
- * published (the re-registration sets the check {@code passing}; the check's own next run takes over).
- * This only works when the app registers a check that Spring Cloud Consul does not keep passing:
- * with {@code spring.cloud.consul.discovery.heartbeat.enabled=true} the TTL scheduler marks the check
- * passing every interval, and with {@code register-health-check=false} there is no check, so there is
- * no hold and the port still arrives by re-registration. The check must also exist when the
- * registration is customized, which is the case for a fixed web server port; with a random one Spring
- * Cloud Consul creates the check after the customizers ran.
+ * <p><strong>Meta keys.</strong> Consul rejects service meta keys with anything but letters, digits,
+ * {@code -} and {@code _} (a {@code .} fails the registration with a 400). The type key is therefore
+ * published with the prefix's dots turned into underscores ({@code shiguchi_type}); the gateway reads
+ * either spelling. {@code grpc-port} is already valid.
+ *
+ * <p><strong>Hold.</strong> Consul has no {@code STARTING} state. A new check starts {@code critical}
+ * until its first run, which keeps a fresh instance out of passing-only queries for that moment, but
+ * Spring Cloud Consul attaches the check <em>after</em> the customizers run, so the publisher usually
+ * cannot hold the instance any longer. The port still arrives by re-registration, and a gateway that
+ * sees the instance before then falls back to the registry port. If a check is present when the
+ * registration is customized, it is set {@code critical} until {@link #publish(int)} (not with TTL
+ * heartbeat on, which marks it passing every interval). A re-registration Consul refuses is logged as a
+ * WARN and {@link #publish(int)} returns {@code false}.
  */
 public class ConsulGrpcPortPublisher implements GrpcPortSink, ConsulRegistrationCustomizer, AutoCloseable {
 
@@ -144,7 +149,7 @@ public class ConsulGrpcPortPublisher implements GrpcPortSink, ConsulRegistration
             writeMeta(service, update);
             log.info("Published gRPC port {} in the Consul service meta as {}", port, update);
         }
-        reregister(current);
+        if (!reregister(current)) return false;
         return port == currentPort(service);
     }
 
@@ -205,20 +210,33 @@ public class ConsulGrpcPortPublisher implements GrpcPortSink, ConsulRegistration
         return true;
     }
 
-    private void reregister(ConsulRegistration current) {
+    /** Returns {@code false} when Consul refused the registration or could not be reached. */
+    private boolean reregister(ConsulRegistration current) {
         ConsulAutoServiceRegistration auto = autoRegistration.getIfAvailable();
         // Not registered yet: the registration that follows carries the new meta and status.
-        if (auto == null || !auto.isRunning()) return;
+        if (auto == null || !auto.isRunning()) return true;
         ConsulClient consul = client.getIfAvailable();
-        if (consul == null) return;
+        if (consul == null) return true;
         ConsulDiscoveryProperties discovery = discoveryProperties.getIfAvailable();
         try {
-            consul.agentServiceRegister(discovery == null ? null : discovery.getAclToken(), current.getService());
+            ResponseEntity<Void> response = consul.agentServiceRegister(
+                    discovery == null ? null : discovery.getAclToken(), current.getService());
+            if (response != null && !response.getStatusCode().is2xxSuccessful()) {
+                log.warn(
+                        "Consul answered {} to the re-registration that publishes the gRPC port (service meta {});"
+                                + " the agent keeps the old registration. Meta keys may only contain letters,"
+                                + " digits, '-' and '_'",
+                        response.getStatusCode(),
+                        current.getService().getMeta());
+                return false;
+            }
+            return true;
         } catch (RuntimeException e) {
             log.warn(
                     "Could not register the gRPC port with Consul; it is in the local registration and goes out"
                             + " with the next registration",
                     e);
+            return false;
         }
     }
 
@@ -265,8 +283,10 @@ public class ConsulGrpcPortPublisher implements GrpcPortSink, ConsulRegistration
     }
 
     private String typeKey() {
-        String prefix = properties.getMetadataPrefix();
-        return (prefix == null ? DiscoveryMetadata.DEFAULT_PREFIX : prefix) + DiscoveryMetadata.TYPE;
+        // Consul meta keys allow only letters, digits, '-' and '_': "shiguchi." is published as "shiguchi_".
+        // The gateway reads either spelling.
+        return DiscoveryMetadata.consulKey(
+                DiscoveryMetadata.key(properties.getMetadataPrefix(), DiscoveryMetadata.TYPE));
     }
 
     private boolean holdWanted() {
