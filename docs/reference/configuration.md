@@ -404,6 +404,9 @@ bean; define your own bean of that name and the gateway's backs off — call
 | `shiguchi.avro.uint64-as` | `LONG` | How `uint64` / `fixed64` map into derived Avro schemas: `LONG` (wraps above 2^63) or `STRING` |
 | `shiguchi.merge.*` | — | Cross-backend merge routes (`max-sources`, `window-multiplier`, `routes[]`) — documented in [merging.md](../guides/merging.md) |
 | `rest-batch-loaders[]` | `[]` | `REST_DOWNSTREAM`: endpoints that resolve GraphQL types by id (`type`, `endpoint`, `ids-param`, `key-field`, `result-field`, `batch-endpoint`, `timeout-seconds`, `max-batch-size` (0 = the global `data-loader.max-batch-size`), `max-concurrency` (default 16, 0 = unbounded)) |
+| `relationships[]` | `[]` | GraphQL relationships declared in YAML instead of `(shiguchi.graphql.field)` annotations, per service: `from` (`Type.proto_field`, the field holding the id), `to` (the GraphQL type it resolves to), `field` (companion field name; default: `from` without `Id`, or the plural of `to` when `many`), `many` (one-to-many, needs `group-by`), `group-by` (child field the parent id is matched on). Wins over the annotation. See [graphql-annotations.md](../guides/graphql-annotations.md) |
+| `batch-keys` | `{}` | Map of GraphQL type name to the proto field its by-id loader keys on (the YAML form of `batch_key`; default `id`) |
+| `loaders[]` | `[]` | gRPC batch loaders declared in YAML, the form of `loader_for` / `loader_ids_field` / `loader_result_field` / `group_by`: `type`, `rpc` (`package.Service/Method`), `ids-field`, `result-field`, `group-by`. Overrides the proto options of that rpc; REST by-id loaders stay in `rest-batch-loaders[]` |
 
 ## Conventions (no annotation needed)
 

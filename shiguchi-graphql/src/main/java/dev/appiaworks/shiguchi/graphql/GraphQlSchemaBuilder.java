@@ -65,7 +65,7 @@ public class GraphQlSchemaBuilder {
     private final GraphQlPaginationArgInjector paginationInjector;
     private final GatewayProperties gatewayProperties;
     private final GraphQlOptionReader fieldOptions;
-    private final RelationshipResolver relationshipResolver = RelationshipResolver.annotationsOnly();
+    private volatile RelationshipResolver relationshipResolver;
     private volatile String generatedSdl;
     /** typeName → batch_key JSON field name; populated on each SDL build. */
     private volatile Map<String, String> lastFederationKeys = new LinkedHashMap<>();
@@ -92,10 +92,20 @@ public class GraphQlSchemaBuilder {
         this.relayTransformer = relayTransformer;
         this.paginationInjector = paginationInjector;
         this.gatewayProperties = gatewayProperties;
+        this.relationshipResolver = RelationshipResolver.of(gatewayProperties, List.of());
         this.fieldOptions = GraphQlOptionReader.of(
                 gatewayProperties != null && gatewayProperties.getGraphql() != null
                         ? gatewayProperties.getGraphql().getCompatOptions()
                         : null);
+    }
+
+    /**
+     * Extra relationship sources (OpenAPI extensions, user beans). The resolver is the annotations,
+     * the YAML, then these, ordered by {@link RelationshipSource.Source} so a later source wins.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setRelationshipSources(List<RelationshipSource> sources) {
+        this.relationshipResolver = RelationshipResolver.of(gatewayProperties, sources);
     }
 
     /** Beans that add fields of their own (the push module's subscription fields); optional. */

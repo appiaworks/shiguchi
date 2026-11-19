@@ -385,6 +385,7 @@ public class DynamicRouteLoader implements ServiceLoader {
 
         if (svcDef.isGraphqlEnabled(globalGraphQl)) {
             applyGraphQlBinding(builder, sd, md, ctx.protoComment(sd.getFullName() + "." + md.getName()));
+            YamlLoaders.apply(builder, svcDef, sd, md, DynamicRouteLoader::inferLoaderIdsField);
         }
 
         RouteDefinition route = builder.build();

@@ -1015,6 +1015,23 @@ public class ServiceDefinition {
      */
     private List<RestBatchLoaderConfig> restBatchLoaders = new ArrayList<>();
 
+    /**
+     * Relationships declared in YAML instead of {@code resolves_type}/{@code resolves_many}
+     * proto options. They win over the annotations.
+     */
+    private List<RelationshipConfig> relationships = new ArrayList<>();
+
+    /**
+     * Batch key per type ({@code TypeName -> proto field}), the YAML form of the
+     * {@code batch_key} field option.
+     */
+    private Map<String, String> batchKeys = new HashMap<>();
+
+    /**
+     * gRPC batch loaders declared in YAML, the form of the {@code loader_for} method options.
+     */
+    private List<GrpcLoaderConfig> loaders = new ArrayList<>();
+
     /** True when this is a REST-downstream service (non-gRPC; uses openapiUrl for discovery). */
     public boolean isRestDownstream() {
         return mode == GatewayMode.REST_DOWNSTREAM;

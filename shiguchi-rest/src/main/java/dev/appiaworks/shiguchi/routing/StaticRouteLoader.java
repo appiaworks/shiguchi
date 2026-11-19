@@ -298,6 +298,7 @@ public class StaticRouteLoader implements ServiceLoader {
 
         if (svcDef.isGraphqlEnabled(globalGraphQl)) {
             applyGraphQlBinding(builder, sd, md);
+            YamlLoaders.apply(builder, svcDef, sd, md, StaticRouteLoader::inferLoaderIdsField);
         }
 
         RouteDefinition route = builder.build();

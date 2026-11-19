@@ -5,6 +5,10 @@ import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.MethodDescriptor;
 import dev.appiaworks.shiguchi.config.DataLoaderConfig;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
+import dev.appiaworks.shiguchi.config.GrpcLoaderConfig;
+import dev.appiaworks.shiguchi.config.RelationshipConfig;
+import dev.appiaworks.shiguchi.config.RestBatchLoaderConfig;
+import dev.appiaworks.shiguchi.config.ServiceDefinition;
 import dev.appiaworks.shiguchi.rest.ReactiveGrpcDispatcher;
 import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import dev.appiaworks.shiguchi.routing.RouteDefinition;
@@ -17,6 +21,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -45,7 +50,8 @@ import org.springframework.stereotype.Component;
 public class GrpcBatchDataLoaderRegistrar {
     private static final Logger log = LoggerFactory.getLogger(GrpcBatchDataLoaderRegistrar.class);
 
-    private final RelationshipResolver relationshipResolver = RelationshipResolver.annotationsOnly();
+    private volatile RelationshipResolver relationshipResolver = RelationshipResolver.annotationsOnly();
+    private final GatewayProperties properties;
     private final GrpcRouteRegistry registry;
     private final ReactiveGrpcDispatcher dispatcher;
     private final Map<String, BatchLoader> loadersByType = Collections.synchronizedMap(new LinkedHashMap<>());
@@ -65,7 +71,7 @@ public class GrpcBatchDataLoaderRegistrar {
 
     public GrpcBatchDataLoaderRegistrar(
             GrpcRouteRegistry registry, ReactiveGrpcDispatcher dispatcher, GatewayProperties properties) {
-        this(registry, dispatcher, properties.getGraphql().getDataLoader(), null);
+        this(registry, dispatcher, properties.getGraphql().getDataLoader(), null, properties);
     }
 
     @Autowired
@@ -74,7 +80,7 @@ public class GrpcBatchDataLoaderRegistrar {
             ReactiveGrpcDispatcher dispatcher,
             GatewayProperties properties,
             ObjectProvider<MeterRegistry> meters) {
-        this(registry, dispatcher, properties.getGraphql().getDataLoader(), meters.getIfAvailable());
+        this(registry, dispatcher, properties.getGraphql().getDataLoader(), meters.getIfAvailable(), properties);
     }
 
     GrpcBatchDataLoaderRegistrar(
@@ -82,11 +88,28 @@ public class GrpcBatchDataLoaderRegistrar {
             ReactiveGrpcDispatcher dispatcher,
             DataLoaderConfig config,
             MeterRegistry meters) {
+        this(registry, dispatcher, config, meters, null);
+    }
+
+    GrpcBatchDataLoaderRegistrar(
+            GrpcRouteRegistry registry,
+            ReactiveGrpcDispatcher dispatcher,
+            DataLoaderConfig config,
+            MeterRegistry meters,
+            GatewayProperties properties) {
+        this.properties = properties;
+        if (properties != null) this.relationshipResolver = RelationshipResolver.of(properties, List.of());
         this.registry = registry;
         this.dispatcher = dispatcher;
         this.config = config;
         this.timeout = config.getTimeout();
         this.meters = meters;
+    }
+
+    /** Extra relationship sources; keep in step with {@link GraphQlSchemaBuilder#setRelationshipSources}. */
+    @Autowired(required = false)
+    public void setRelationshipSources(List<RelationshipSource> sources) {
+        this.relationshipResolver = RelationshipResolver.of(properties, sources);
     }
 
     /**
@@ -156,6 +179,7 @@ public class GrpcBatchDataLoaderRegistrar {
         }
         checkPins(candidates);
         checkGroupedCaches(candidates);
+        checkYaml(candidates);
 
         synchronized (loadersByType) {
             loadersByType.clear();
@@ -238,6 +262,128 @@ public class GrpcBatchDataLoaderRegistrar {
                     + " only the by-id loader of a type can be cached";
             if (!started) throw new IllegalStateException(message);
             log.error(message);
+        }
+    }
+
+    /**
+     * Checks what the YAML declares against what the services expose: relationships, batch keys and
+     * loaders. A bad entry fails startup, naming the entry and its YAML path; a reload logs it.
+     */
+    private void checkYaml(Map<String, Map<String, RouteDefinition>> candidates) {
+        if (properties == null || properties.getServices() == null) return;
+        List<String> problems = new java.util.ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        Set<String> restTypes = new HashSet<>();
+        for (ServiceDefinition svc : properties.getServices()) {
+            for (RestBatchLoaderConfig l : svc.getRestBatchLoaders()) restTypes.add(l.getType());
+        }
+        List<ServiceDefinition> services = properties.getServices();
+        for (int i = 0; i < services.size(); i++) {
+            ServiceDefinition svc = services.get(i);
+            if (svc.getRelationships().isEmpty()
+                    && svc.getBatchKeys().isEmpty()
+                    && svc.getLoaders().isEmpty()) {
+                continue;
+            }
+            ServiceEndpointContext ctx = registry.contextsInStableOrder().stream()
+                    .filter(c -> svc.getName() != null
+                            && svc.getName().equals(c.getConfig().getName()))
+                    .findFirst()
+                    .orElse(null);
+            if (ctx == null) continue; // not loaded yet: checked on the scan that sees it
+            Map<String, Descriptor> types = new HashMap<>();
+            for (var fd : ctx.getFileDescriptors().values()) collectMessages(fd.getMessageTypes(), types);
+            String base = "shiguchi.services[" + i + "] (" + svc.getName() + ")";
+            for (int j = 0; j < svc.getRelationships().size(); j++) {
+                RelationshipConfig rel = svc.getRelationships().get(j);
+                String where = base + ".relationships[" + j + "] (from '" + rel.getFrom() + "')";
+                String problem = relationshipProblem(rel, types, candidates, restTypes, seen);
+                if (problem != null) problems.add(where + ": " + problem);
+            }
+            for (Map.Entry<String, String> key : svc.getBatchKeys().entrySet()) {
+                Descriptor type = types.get(key.getKey());
+                String where = base + ".batch-keys." + key.getKey();
+                if (type == null) {
+                    problems.add(where + ": " + key.getKey() + " is not a message type of the service");
+                } else if (findField(type, key.getValue()) == null) {
+                    problems.add(where + ": '" + key.getValue() + "' is not a field of " + type.getFullName());
+                }
+            }
+            for (int j = 0; j < svc.getLoaders().size(); j++) {
+                GrpcLoaderConfig loader = svc.getLoaders().get(j);
+                String where = base + ".loaders[" + j + "] (rpc '" + loader.getRpc() + "')";
+                String problem = loaderProblem(loader, ctx);
+                if (problem != null) problems.add(where + ": " + problem);
+            }
+        }
+        if (problems.isEmpty()) return;
+        if (!started) throw new IllegalStateException(String.join("\n", problems));
+        problems.forEach(log::error);
+    }
+
+    private static String relationshipProblem(
+            RelationshipConfig rel,
+            Map<String, Descriptor> types,
+            Map<String, Map<String, RouteDefinition>> candidates,
+            Set<String> restTypes,
+            Set<String> seen) {
+        String[] from = YamlRelationshipSource.split(rel.getFrom());
+        if (from == null) return "from must be 'Type.proto_field'";
+        Descriptor parent = types.get(from[0]);
+        if (parent == null) return "type " + from[0] + " is not a message type of the service";
+        FieldDescriptor field = findField(parent, from[1]);
+        if (field == null) return "'" + from[1] + "' is not a field of " + parent.getFullName();
+        if (rel.getTo() == null || rel.getTo().isBlank()) return "to is required";
+        var declared = YamlRelationshipSource.toRelationship(rel, parent.getName(), field.getJsonName());
+        if (!seen.add(declared.parentType() + "." + declared.fieldName())) {
+            return "duplicate: " + declared.parentType() + "." + declared.fieldName()
+                    + " is declared twice; give each relationship from the same field its own 'field' name";
+        }
+        for (FieldDescriptor existing : parent.getFields()) {
+            if (existing.getJsonName().equals(declared.fieldName())) {
+                return "companion field '" + declared.fieldName() + "' collides with a field of " + parent.getFullName()
+                        + "; set 'field' to another name";
+            }
+        }
+        if (rel.isMany()) {
+            if (rel.getGroupBy() == null || rel.getGroupBy().isBlank()) return "many: true needs group-by";
+            Descriptor child = types.get(rel.getTo());
+            if (child != null && findField(child, rel.getGroupBy()) == null) {
+                return "group-by '" + rel.getGroupBy() + "' is not a field of " + child.getFullName();
+            }
+            if (!candidates.containsKey(groupedName(rel.getTo(), rel.getGroupBy()))) {
+                return "no loader for " + rel.getTo() + " with group_by '" + rel.getGroupBy()
+                        + "'; declare one in loaders[] or with loader_for/group_by in the proto";
+            }
+        } else if (!candidates.containsKey(rel.getTo()) && !restTypes.contains(rel.getTo())) {
+            return "no loader for type " + rel.getTo() + "; declare one in loaders[] or with loader_for in the proto";
+        }
+        return null;
+    }
+
+    private static String loaderProblem(GrpcLoaderConfig loader, ServiceEndpointContext ctx) {
+        if (loader.getType() == null || loader.getType().isBlank()) return "type is required";
+        String rpc = loader.getRpc();
+        int slash = rpc == null ? -1 : rpc.indexOf('/');
+        if (slash <= 0 || slash == rpc.length() - 1) return "rpc must be 'package.Service/Method'";
+        if (ctx.lookupMethod(rpc.substring(0, slash), rpc.substring(slash + 1)).isEmpty()) {
+            return "the service has no rpc " + rpc;
+        }
+        return null;
+    }
+
+    private static FieldDescriptor findField(Descriptor type, String name) {
+        String camel = snakeToCamel(name);
+        for (FieldDescriptor f : type.getFields()) {
+            if (f.getName().equals(name) || f.getJsonName().equals(camel)) return f;
+        }
+        return null;
+    }
+
+    private static void collectMessages(List<Descriptor> messages, Map<String, Descriptor> into) {
+        for (Descriptor d : messages) {
+            into.putIfAbsent(d.getName(), d);
+            collectMessages(d.getNestedTypes(), into);
         }
     }
 

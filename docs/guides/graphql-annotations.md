@@ -357,6 +357,40 @@ yields `books: [Book!]` on `Author`, and `authors { books { title } }` costs one
 - The list is costed like any list field (see [Query cost](#query-cost)): selecting `books` under a list
   of `first` authors multiplies by `first` (or `default-list-size`).
 
+### Relationships in YAML
+
+The same relationships, batch keys and loaders can be declared per service in YAML, for protos you do
+not own or cannot annotate. Annotations and YAML merge; where both declare the same companion field the
+YAML entry wins.
+
+```yaml
+shiguchi:
+  services:
+    - name: library
+      relationships:
+        - from: Author.id          # Type.proto_field holding the id
+          to: Book
+          many: true               # one-to-many: needs group-by
+          group-by: author_id      # child field matched against the parent id
+        - from: Book.author_id
+          to: Author
+          field: writer            # optional companion name
+      batch-keys:
+        Book: isbn                 # by-id loader for Book keys on isbn (default id)
+      loaders:
+        - type: Book
+          rpc: lib.Library/BooksByAuthors
+          ids-field: author_ids
+          result-field: items
+          group-by: author_id
+```
+
+`loaders[]` is the YAML form of `loader_for`, `loader_ids_field`, `loader_result_field` and `group_by`
+and overrides the proto options of that rpc. REST by-id loaders stay in `rest-batch-loaders[]`.
+Every entry is checked at startup: an unknown `from` type or field, a `to` type with no loader (or no
+loader with that `group-by`), a `group-by` that is not a child field, or a duplicate companion field
+fails startup with a message naming the entry and its YAML path. On a reload the problem is only logged.
+
 ### Several backends serve the same type
 
 A type's loader belongs to one endpoint. If two endpoints each declare a `loader_for` for the same type, the

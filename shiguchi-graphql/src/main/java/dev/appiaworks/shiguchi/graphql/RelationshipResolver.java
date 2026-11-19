@@ -34,6 +34,22 @@ public final class RelationshipResolver {
         return new RelationshipResolver(List.of(new AnnotationRelationshipSource()));
     }
 
+    /**
+     * The annotations, then the YAML of {@code properties}, then {@code extras} (OpenAPI extensions,
+     * beans), ordered by {@link RelationshipSource.Source} so a later source wins. {@code extras}
+     * that are the YAML or annotation kind slot in after the built-in one of their kind.
+     */
+    public static RelationshipResolver of(
+            dev.appiaworks.shiguchi.config.GatewayProperties properties, List<RelationshipSource> extras) {
+        List<RelationshipSource> all = new ArrayList<>();
+        all.add(new AnnotationRelationshipSource());
+        all.add(new YamlRelationshipSource(properties));
+        if (extras != null) all.addAll(extras);
+        // stable sort: built-ins first inside their precedence tier
+        all.sort(java.util.Comparator.comparing(RelationshipSource::source));
+        return new RelationshipResolver(all);
+    }
+
     /** The relationships declared on {@code field} of {@code parent}, merged over all sources, each carrying its source. */
     public List<Relationship> relationships(Descriptor parent, FieldDescriptor field) {
         Map<String, Relationship> merged = new LinkedHashMap<>();
