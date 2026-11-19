@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -64,6 +65,8 @@ public class GrpcBatchDataLoaderRegistrar {
     private final DataLoaderConfig config;
     private final MeterRegistry meters;
     private boolean started;
+    private volatile List<RelationshipDefinition> beanRelationships = List.of();
+    private volatile Set<String> beanLoaderNames = Set.of();
 
     public GrpcBatchDataLoaderRegistrar(GrpcRouteRegistry registry, ReactiveGrpcDispatcher dispatcher) {
         this(registry, dispatcher, new DataLoaderConfig(), null);
@@ -110,6 +113,17 @@ public class GrpcBatchDataLoaderRegistrar {
     @Autowired(required = false)
     public void setRelationshipSources(List<RelationshipSource> sources) {
         this.relationshipResolver = RelationshipResolver.of(properties, sources);
+        this.beanRelationships = sources.stream()
+                .filter(RelationshipDefinition.class::isInstance)
+                .map(RelationshipDefinition.class::cast)
+                .toList();
+    }
+
+    /** The loaders declared as {@link BatchLoaderDefinition} beans: they count as loaders for the checks. */
+    @Autowired(required = false)
+    public void setBatchLoaderDefinitions(List<BatchLoaderDefinition> definitions) {
+        this.beanLoaderNames =
+                definitions.stream().map(BatchLoaderDefinition::name).collect(Collectors.toSet());
     }
 
     /**
@@ -180,6 +194,7 @@ public class GrpcBatchDataLoaderRegistrar {
         checkPins(candidates);
         checkGroupedCaches(candidates);
         checkYaml(candidates);
+        checkBeans(candidates);
 
         synchronized (loadersByType) {
             loadersByType.clear();
@@ -273,17 +288,8 @@ public class GrpcBatchDataLoaderRegistrar {
         if (properties == null || properties.getServices() == null) return;
         List<String> problems = new java.util.ArrayList<>();
         Set<String> seen = new HashSet<>();
-        Set<String> restTypes = new HashSet<>();
-        for (ServiceDefinition svc : properties.getServices()) {
-            for (RestBatchLoaderConfig l : svc.getRestBatchLoaders()) {
-                // A REST loader with group-by is one-to-many: it serves relationships, not by-id loads
-                if (l.getGroupBy() != null && !l.getGroupBy().isBlank()) {
-                    if (l.getType() != null) restTypes.add(groupedName(l.getType(), l.getGroupBy()));
-                } else {
-                    restTypes.add(l.getType());
-                }
-            }
-        }
+        Set<String> restTypes = restLoaderNames();
+        restTypes.addAll(beanLoaderNames);
         List<ServiceDefinition> services = properties.getServices();
         for (int i = 0; i < services.size(); i++) {
             ServiceDefinition svc = services.get(i);
@@ -322,6 +328,62 @@ public class GrpcBatchDataLoaderRegistrar {
                 String problem = loaderProblem(loader, ctx);
                 if (problem != null) problems.add(where + ": " + problem);
             }
+        }
+        if (problems.isEmpty()) return;
+        if (!started) throw new IllegalStateException(String.join("\n", problems));
+        problems.forEach(log::error);
+    }
+
+    /** The REST loaders the YAML declares: the type for a by-id one, {@code Type#by:field} for a grouped one. */
+    private Set<String> restLoaderNames() {
+        Set<String> names = new HashSet<>();
+        if (properties == null || properties.getServices() == null) return names;
+        for (ServiceDefinition svc : properties.getServices()) {
+            for (RestBatchLoaderConfig l : svc.getRestBatchLoaders()) {
+                // A REST loader with group-by is one-to-many: it serves relationships, not by-id loads
+                if (l.getGroupBy() != null && !l.getGroupBy().isBlank()) {
+                    if (l.getType() != null) names.add(groupedName(l.getType(), l.getGroupBy()));
+                } else {
+                    names.add(l.getType());
+                }
+            }
+        }
+        return names;
+    }
+
+    /**
+     * Checks the {@link RelationshipDefinition} beans against what the services expose, as
+     * {@link #checkYaml} does for the YAML: the parent type and field, the companion name and the
+     * loader of the target (a service's, a REST one or a {@link BatchLoaderDefinition} bean). A bad one
+     * fails startup, naming the bean; a reload logs it. While a configured service has not loaded
+     * yet a type that is missing may only be late, so that one is left for the scan that sees it.
+     */
+    private void checkBeans(Map<String, Map<String, RouteDefinition>> candidates) {
+        List<RelationshipDefinition> definitions = beanRelationships;
+        if (definitions.isEmpty()) return;
+        Map<String, Descriptor> types = new HashMap<>();
+        for (ServiceEndpointContext ctx : registry.contextsInStableOrder()) {
+            for (var fd : ctx.getFileDescriptors().values()) collectMessages(fd.getMessageTypes(), types);
+        }
+        boolean allLoaded = true;
+        if (properties != null && properties.getServices() != null) {
+            Set<String> loaded = registry.contextsInStableOrder().stream()
+                    .map(c -> c.getConfig().getName())
+                    .collect(Collectors.toSet());
+            for (ServiceDefinition svc : properties.getServices()) {
+                if (svc.getName() != null && !loaded.contains(svc.getName())) allLoaded = false;
+            }
+        }
+        Set<String> loaders = restLoaderNames();
+        loaders.addAll(beanLoaderNames);
+        List<String> problems = new java.util.ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (RelationshipDefinition definition : definitions) {
+            RelationshipConfig rel = definition.toConfig();
+            String[] from = YamlRelationshipSource.split(rel.getFrom());
+            if (!allLoaded && from != null && !types.containsKey(from[0])) continue;
+            String problem = relationshipProblem(rel, types, candidates, loaders, seen);
+            if (problem != null) problems.add("RelationshipDefinition bean (from '" + rel.getFrom() + "'): " + problem);
         }
         if (problems.isEmpty()) return;
         if (!started) throw new IllegalStateException(String.join("\n", problems));

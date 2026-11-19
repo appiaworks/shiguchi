@@ -466,6 +466,46 @@ If a reload (a refreshed descriptor, a late-loaded service) brings a loader that
 serving a type, the gateway keeps the existing owner, rejects the new loader, logs an ERROR naming both endpoints
 and increments the `shiguchi.graphql.loader.conflicts` counter (tag `type`). It does not fail the running gateway.
 
+### Custom loaders and relationships as beans
+
+For data the gateway cannot reach itself (a hand-written Jackson or REST client, a database, an in-process
+service) declare the loader and the relationship as Spring beans. A `BatchLoaderDefinition` is a third source for
+the batching pipeline, next to the gRPC and REST loaders, behind the same de-duplication, `max-batch-size`
+chunking, bounded concurrency, error handling and, for a by-id loader, cache. By-id loaders also serve Federation
+`_entities`.
+
+```java
+@Bean BatchLoaderDefinition booksByAuthor(BookClient client) {
+    // one call for every parent of the operation; each child map carries its parent's key
+    return BatchLoaderDefinition.grouped("Book", "author_id",
+            (authorIds, metadata) -> client.findByAuthors(authorIds));   // Mono<List<Map<String, Object>>>
+}
+
+@Bean BatchLoaderDefinition authors(AuthorClient client) {
+    return BatchLoaderDefinition.byId("Author",
+            (ids, metadata) -> client.findAll(ids));                    // Mono<Map<id, Map<String, Object>>>
+}
+
+@Bean RelationshipDefinition authorBooks() {
+    return RelationshipDefinition.many("Author.id", "Book", "author_id").named("books");
+}
+```
+
+The maps are the JSON form of the entity, with the JSON field names, which is what a Jackson client reads. A
+grouped loader is named `Type#by:camelCase(groupBy)` and, like the gRPC one, stays out of `_entities` and the
+caches; a parent with no children gets an empty list. `RelationshipDefinition.one` / `many` are the code form of a
+YAML `relationships` entry and win over one on the same `Type.field`.
+
+Limits:
+
+- The GraphQL type must already exist, from a gRPC route or a REST service of the gateway. A bean supplies data and
+  relationships, it does not derive a type from a Java class or a JSON schema.
+- If a gRPC or REST loader also serves the type, the bean wins and the gateway logs a WARN once. To keep the
+  service's loader, pin the type with `types.<Type>.endpoint` (see above): the pin names a service, so the bean is
+  ignored.
+- Two beans for the same loader name fail startup. A relationship naming an unknown type or field, or a target with no
+  loader, is checked like a YAML one: startup fails, and after a reload it is logged at ERROR.
+
 
 ## Protos written for other gateways
 

@@ -19,6 +19,7 @@ import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -53,6 +54,11 @@ public class BatchLoaderPipeline {
     private final Map<String, Layered> layers = new ConcurrentHashMap<>();
     private final Set<String> warnedDuplicates = ConcurrentHashMap.newKeySet();
 
+    /** By-id loaders declared as {@link BatchLoaderDefinition} beans, by type. */
+    private final Map<String, BatchLoader> beanLoaders = new LinkedHashMap<>();
+    /** One-to-many loaders declared as beans, by {@code Type#by:field}. */
+    private final Map<String, GroupedOutcome.Loader> beanGrouped = new LinkedHashMap<>();
+
     /** A type's chunking (and caching) layer, kept for as long as the raw loader it wraps is the current one. */
     private record Layered(BatchLoader raw, BatchLoader loader) {}
 
@@ -60,22 +66,80 @@ public class BatchLoaderPipeline {
     BatchLoaderPipeline(
             GrpcBatchDataLoaderRegistrar grpcRegistrar,
             Optional<RestBatchDataLoaderRegistrar> restRegistrar,
-            GatewayProperties properties) {
-        this(grpcRegistrar, restRegistrar.orElse(null), properties.getGraphql().getDataLoader());
+            GatewayProperties properties,
+            ObjectProvider<BatchLoaderDefinition> definitions) {
+        this(
+                grpcRegistrar,
+                restRegistrar.orElse(null),
+                properties.getGraphql().getDataLoader(),
+                definitions.orderedStream().toList());
     }
 
     BatchLoaderPipeline(
             GrpcBatchDataLoaderRegistrar grpcRegistrar,
             RestBatchDataLoaderRegistrar restRegistrar,
             DataLoaderConfig config) {
+        this(grpcRegistrar, restRegistrar, config, List.of());
+    }
+
+    BatchLoaderPipeline(
+            GrpcBatchDataLoaderRegistrar grpcRegistrar,
+            RestBatchDataLoaderRegistrar restRegistrar,
+            DataLoaderConfig config,
+            List<BatchLoaderDefinition> definitions) {
         this.grpcRegistrar = grpcRegistrar;
         this.restRegistrar = restRegistrar;
         this.config = config;
+        for (BatchLoaderDefinition definition : definitions) {
+            String name = definition.name();
+            boolean duplicate = definition.isGrouped()
+                    ? beanGrouped.put(
+                                    name,
+                                    new GroupedBatchLoader(
+                                            definition.items(),
+                                            definition.groupByJsonName(),
+                                            config.getMaxChildrenPerKey()))
+                            != null
+                    : beanLoaders.put(name, definition.loader()) != null;
+            if (duplicate) {
+                throw new IllegalStateException("Two BatchLoaderDefinition beans declare the loader " + name);
+            }
+        }
     }
 
-    /** Every type with a by-id loader, gRPC and REST. */
+    /** The loader names the beans declare: types for by-id ones, {@code Type#by:field} for grouped ones. */
+    Set<String> beanLoaderNames() {
+        Set<String> names = new LinkedHashSet<>(beanLoaders.keySet());
+        names.addAll(beanGrouped.keySet());
+        return names;
+    }
+
+    /** True when a service (gRPC or REST) pins {@code name}'s loader to an endpoint: the pin beats a bean. */
+    private boolean pinned(String name) {
+        DataLoaderConfig.TypeConfig typeConfig = config.getTypes().get(name);
+        return typeConfig != null
+                && typeConfig.getEndpoint() != null
+                && !typeConfig.getEndpoint().isBlank();
+    }
+
+    /** Whether the bean's loader serves {@code name}: it does unless a pinned service loader exists too. */
+    private boolean beanServes(String name, boolean serviceHasIt) {
+        if (!serviceHasIt) return true;
+        if (pinned(name)) return false;
+        if (warnedDuplicates.add("bean:" + name)) {
+            log.warn(
+                    "Loader {} is declared by a BatchLoaderDefinition bean and by a service; the bean is used."
+                            + " Pin the service with shiguchi.graphql.data-loader.types.{}.endpoint to use it instead",
+                    name,
+                    name);
+        }
+        return true;
+    }
+
+    /** Every type with a by-id loader: gRPC, REST and bean. */
     public Set<String> types() {
         Set<String> types = new LinkedHashSet<>(grpcRegistrar.getLoaders().keySet());
+        types.addAll(beanLoaders.keySet());
         if (restRegistrar != null) {
             for (String type : restRegistrar.getLoaders().keySet()) {
                 if (!types.add(type) && warnedDuplicates.add(type)) {
@@ -126,6 +190,7 @@ public class BatchLoaderPipeline {
                 new LinkedHashSet<>(grpcRegistrar.getGroupedLoaders().keySet());
         if (restRegistrar != null)
             names.addAll(restRegistrar.getGroupedLoaders().keySet());
+        names.addAll(beanGrouped.keySet());
         return names;
     }
 
@@ -159,6 +224,12 @@ public class BatchLoaderPipeline {
     }
 
     private GroupedOutcome.Loader groupedLoader(String name) {
+        GroupedOutcome.Loader service = serviceGroupedLoader(name);
+        GroupedOutcome.Loader bean = beanGrouped.get(name);
+        return bean != null && beanServes(name, service != null) ? bean : service;
+    }
+
+    private GroupedOutcome.Loader serviceGroupedLoader(String name) {
         GroupedOutcome.Loader grpc = grpcRegistrar.getGroupedLoaders().get(name);
         if (grpc != null || restRegistrar == null) return grpc;
         return restRegistrar.getGroupedLoaders().get(name);
@@ -166,6 +237,9 @@ public class BatchLoaderPipeline {
 
     /** Parent ids per call of a one-to-many loader: a REST loader's own limit wins over the global one. */
     private int groupedChunkSize(String name) {
+        if (beanGrouped.containsKey(name) && groupedLoader(name) == beanGrouped.get(name)) {
+            return config.getMaxBatchSize();
+        }
         if (restRegistrar != null && grpcRegistrar.getGroupedLoaders().get(name) == null) {
             RestBatchLoaderConfig rest = restRegistrar.getGroupedConfigs().get(name);
             if (rest != null && rest.getMaxBatchSize() > 0) return rest.getMaxBatchSize();
@@ -174,6 +248,12 @@ public class BatchLoaderPipeline {
     }
 
     private BatchLoader rawLoader(String type) {
+        BatchLoader service = serviceLoader(type);
+        BatchLoader bean = beanLoaders.get(type);
+        return bean != null && beanServes(type, service != null) ? bean : service;
+    }
+
+    private BatchLoader serviceLoader(String type) {
         BatchLoader grpc = grpcRegistrar.getLoaders().get(type);
         if (restRegistrar == null) return grpc;
         BatchLoader rest = restRegistrar.getLoaders().get(type);
@@ -200,6 +280,9 @@ public class BatchLoaderPipeline {
 
     /** Ids per call of this type: a REST loader's own limit wins over the global one; 0 = no limit. */
     private int chunkSize(String type) {
+        if (beanLoaders.containsKey(type) && rawLoader(type) == beanLoaders.get(type)) {
+            return config.getMaxBatchSize();
+        }
         if (restRegistrar != null && grpcRegistrar.getLoaders().get(type) == null) {
             RestBatchLoaderConfig rest = restRegistrar.getConfigs().get(type);
             if (rest != null && rest.getMaxBatchSize() > 0) return rest.getMaxBatchSize();
