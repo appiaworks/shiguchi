@@ -165,6 +165,45 @@ class GrpcYamlRelationshipValidationTest {
                 .hasMessageContaining("no loader for type Author");
     }
 
+    private static dev.appiaworks.shiguchi.config.RestBatchLoaderConfig restLoader(String type, String groupBy) {
+        dev.appiaworks.shiguchi.config.RestBatchLoaderConfig c =
+                new dev.appiaworks.shiguchi.config.RestBatchLoaderConfig();
+        c.setType(type);
+        c.setEndpoint("/x");
+        c.setGroupBy(groupBy);
+        return c;
+    }
+
+    @Test
+    @DisplayName("GIVEN a to type served by a rest-batch-loaders entry WHEN the registrar starts SHOULD accept it")
+    void GIVEN_restByIdLoader_WHEN_start_SHOULD_accept() {
+        declare(rel("Book.author_id", "Author", false, null));
+        definition.setRestBatchLoaders(List.of(restLoader("Author", null)));
+
+        assertThatCode(() -> registrar().scan()).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a grouped relationship served by a rest-batch-loaders group-by entry WHEN starting SHOULD accept it")
+    void GIVEN_restGroupedLoader_WHEN_start_SHOULD_accept() {
+        declare(rel("Author.id", "Book", true, "id"));
+        definition.setRestBatchLoaders(List.of(restLoader("Book", "id")));
+
+        assertThatCode(() -> registrar().scan()).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("GIVEN a grouped relationship and only a by-id rest loader of the type WHEN starting SHOULD fail")
+    void GIVEN_onlyRestByIdLoader_WHEN_startGrouped_SHOULD_fail() {
+        declare(rel("Author.id", "Book", true, "id"));
+        definition.setRestBatchLoaders(List.of(restLoader("Book", null)));
+
+        assertThatThrownBy(() -> registrar().scan())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("no loader for Book with group_by 'id'");
+    }
+
     @Test
     @DisplayName("GIVEN a grouped relationship without a loader of that group_by WHEN starting SHOULD fail")
     void GIVEN_noGroupedLoader_WHEN_start_SHOULD_fail() {

@@ -36,7 +36,7 @@ import tools.jackson.databind.ObjectMapper;
  * <p>The Authorization header from gRPC {@link Metadata} is forwarded as an HTTP header
  * when present so REST services receive the same bearer token.
  */
-public class OpenApiBatchLoader implements BatchOutcome.Loader {
+public class OpenApiBatchLoader implements BatchOutcome.Loader, GroupedBatchLoader.ItemSource {
 
     private static final Logger log = LoggerFactory.getLogger(OpenApiBatchLoader.class);
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
@@ -129,39 +129,107 @@ public class OpenApiBatchLoader implements BatchOutcome.Loader {
                 cause);
     }
 
-    @SuppressWarnings("unchecked")
     private Map<String, Map<String, Object>> parseBatchResponse(String body, List<String> requestedKeys) {
+        List<Map<String, Object>> items = readItems(body);
+        Map<String, Map<String, Object>> result = new LinkedHashMap<>();
+        for (Map<String, Object> item : items) {
+            Object keyValue = item.get(config.getKeyField());
+            if (keyValue != null) {
+                result.put(String.valueOf(keyValue), item);
+            }
+        }
+        log.debug(
+                "[OpenApiBatchLoader] Parsed {} of {} requested entities for type={}",
+                result.size(),
+                requestedKeys.size(),
+                config.getType());
+        return result;
+    }
+
+    /** The entity list of a response: a bare JSON array, or the array at {@code result-field}. */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> readItems(String body) {
         try {
-            List<Map<String, Object>> items;
             if (config.getResultField() != null && !config.getResultField().isBlank()) {
                 Map<String, Object> wrapper = objectMapper.readValue(body, MAP_TYPE);
                 Object raw = wrapper.get(config.getResultField());
                 if (!(raw instanceof List)) {
                     throw unreadable(null, "without a list at resultField '" + config.getResultField() + "'");
                 }
-                items = (List<Map<String, Object>>) raw;
-            } else {
-                items = objectMapper.readValue(body, LIST_TYPE);
+                return (List<Map<String, Object>>) raw;
             }
-
-            Map<String, Map<String, Object>> result = new LinkedHashMap<>();
-            for (Map<String, Object> item : items) {
-                Object keyValue = item.get(config.getKeyField());
-                if (keyValue != null) {
-                    result.put(String.valueOf(keyValue), item);
-                }
-            }
-            log.debug(
-                    "[OpenApiBatchLoader] Parsed {} of {} requested entities for type={}",
-                    result.size(),
-                    requestedKeys.size(),
-                    config.getType());
-            return result;
+            return objectMapper.readValue(body, LIST_TYPE);
         } catch (RestBackendException ex) {
             throw ex;
         } catch (Exception ex) {
             throw unreadable(ex, "a body that is not a JSON list of entities");
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // One-to-many: the children of every parent key, as one flat list
+    // -------------------------------------------------------------------------
+
+    /**
+     * The entities {@code keys} (parent ids) own, as the backend sent them, for {@link GroupedBatchLoader}:
+     * one GET with every id (batch strategy), or one GET per id, flattened (parallel strategy; a 404 is
+     * a parent with no children). Never split here: the pipeline chunks before it calls. A failed
+     * request fails the load, and so every key of that chunk.
+     */
+    @Override
+    public Mono<List<Map<String, Object>>> loadItems(List<String> keys, Metadata metadata) {
+        if (keys == null || keys.isEmpty()) return Mono.just(List.of());
+        if (!config.isBatchEndpoint()) {
+            return Flux.fromIterable(keys)
+                    .flatMap(id -> loadSingleItems(id, metadata), concurrency())
+                    .collectList()
+                    .map(lists -> {
+                        List<Map<String, Object>> all = new ArrayList<>();
+                        lists.forEach(all::addAll);
+                        return all;
+                    });
+        }
+        for (String key : keys) {
+            if (key.indexOf(',') >= 0) {
+                return Mono.error(new IllegalStateException("Parent id '" + key + "' of type " + config.getType()
+                        + " has a comma: the batch strategy cannot carry it (use batch-endpoint: false)"));
+            }
+        }
+        String authHeader = extractAuth(metadata);
+        return webClient
+                .get()
+                .uri(uriBuilder -> uriBuilder
+                        .path(config.getEndpoint())
+                        .queryParam(config.getIdsParam(), String.join(",", keys))
+                        .build())
+                .headers(h -> {
+                    if (authHeader != null) h.set(AUTHORIZATION, authHeader);
+                })
+                .retrieve()
+                .bodyToMono(String.class)
+                .timeout(Duration.ofSeconds(config.getTimeoutSeconds()))
+                .map(this::readItems)
+                .doOnError(ex -> log.warn(
+                        "[OpenApiBatchLoader] Grouped request failed for type={}: {}",
+                        config.getType(),
+                        ex.getMessage()))
+                .onErrorMap(ex -> RestBackendException.of(ex, config.getType(), config.getEndpoint()));
+    }
+
+    private Mono<List<Map<String, Object>>> loadSingleItems(String id, Metadata metadata) {
+        String authHeader = extractAuth(metadata);
+        return webClient
+                .get()
+                .uri(config.getEndpoint(), Map.of("id", id))
+                .headers(h -> {
+                    if (authHeader != null) h.set(AUTHORIZATION, authHeader);
+                })
+                .retrieve()
+                .bodyToMono(String.class)
+                .timeout(Duration.ofSeconds(config.getTimeoutSeconds()))
+                .map(this::readItems)
+                .onErrorResume(WebClientResponseException.NotFound.class, ex -> Mono.just(List.of()))
+                .onErrorMap(ex -> RestBackendException.of(ex, config.getType(), config.getEndpoint()));
     }
 
     // -------------------------------------------------------------------------

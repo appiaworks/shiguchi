@@ -275,6 +275,8 @@ public class GrpcDataLoaderRegistryFactory implements SchemaReloadListener {
     @Override
     public void onSchemaReloaded() {
         registrar.scan();
+        // REST loaders are declared in YAML but only valid once their document has loaded
+        pipeline.rescanRest();
         registerLoaders();
     }
 

@@ -275,7 +275,14 @@ public class GrpcBatchDataLoaderRegistrar {
         Set<String> seen = new HashSet<>();
         Set<String> restTypes = new HashSet<>();
         for (ServiceDefinition svc : properties.getServices()) {
-            for (RestBatchLoaderConfig l : svc.getRestBatchLoaders()) restTypes.add(l.getType());
+            for (RestBatchLoaderConfig l : svc.getRestBatchLoaders()) {
+                // A REST loader with group-by is one-to-many: it serves relationships, not by-id loads
+                if (l.getGroupBy() != null && !l.getGroupBy().isBlank()) {
+                    if (l.getType() != null) restTypes.add(groupedName(l.getType(), l.getGroupBy()));
+                } else {
+                    restTypes.add(l.getType());
+                }
+            }
         }
         List<ServiceDefinition> services = properties.getServices();
         for (int i = 0; i < services.size(); i++) {
@@ -351,9 +358,11 @@ public class GrpcBatchDataLoaderRegistrar {
             if (child != null && findField(child, rel.getGroupBy()) == null) {
                 return "group-by '" + rel.getGroupBy() + "' is not a field of " + child.getFullName();
             }
-            if (!candidates.containsKey(groupedName(rel.getTo(), rel.getGroupBy()))) {
+            String loader = groupedName(rel.getTo(), rel.getGroupBy());
+            if (!candidates.containsKey(loader) && !restTypes.contains(loader)) {
                 return "no loader for " + rel.getTo() + " with group_by '" + rel.getGroupBy()
-                        + "'; declare one in loaders[] or with loader_for/group_by in the proto";
+                        + "'; declare one in loaders[] or with loader_for/group_by in the proto,"
+                        + " or in rest-batch-loaders[] with group-by for a REST_DOWNSTREAM service";
             }
         } else if (!candidates.containsKey(rel.getTo()) && !restTypes.contains(rel.getTo())) {
             return "no loader for type " + rel.getTo() + "; declare one in loaders[] or with loader_for in the proto";

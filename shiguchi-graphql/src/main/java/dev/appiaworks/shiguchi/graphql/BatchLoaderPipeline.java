@@ -1,5 +1,6 @@
 package dev.appiaworks.shiguchi.graphql;
 
+import dev.appiaworks.protobuf.extras.api.ApiStatus;
 import dev.appiaworks.shiguchi.config.DataLoaderConfig;
 import dev.appiaworks.shiguchi.config.GatewayProperties;
 import dev.appiaworks.shiguchi.config.RestBatchLoaderConfig;
@@ -40,7 +41,8 @@ import reactor.core.publisher.Mono;
  */
 @Component
 @ConditionalOnProperty(prefix = "shiguchi.graphql", name = "enabled", matchIfMissing = true)
-class BatchLoaderPipeline {
+@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.26.0")
+public class BatchLoaderPipeline {
 
     private static final Logger log = LoggerFactory.getLogger(BatchLoaderPipeline.class);
 
@@ -71,8 +73,8 @@ class BatchLoaderPipeline {
         this.config = config;
     }
 
-    /** Every type with a loader, gRPC and REST. */
-    Set<String> types() {
+    /** Every type with a by-id loader, gRPC and REST. */
+    public Set<String> types() {
         Set<String> types = new LinkedHashSet<>(grpcRegistrar.getLoaders().keySet());
         if (restRegistrar != null) {
             for (String type : restRegistrar.getLoaders().keySet()) {
@@ -116,35 +118,59 @@ class BatchLoaderPipeline {
     }
 
     /**
-     * The one-to-many loaders by name ({@code Type#by:field}), gRPC only. Apart from {@link #types()}
+     * The one-to-many loaders by name ({@code Type#by:field}), gRPC and REST. Apart from {@link #types()}
      * on purpose: a grouped loader has no entities by id, so {@code _entities} and the caches never see it.
      */
-    Set<String> groupedNames() {
-        return new LinkedHashSet<>(grpcRegistrar.getGroupedLoaders().keySet());
+    public Set<String> groupedNames() {
+        Set<String> names =
+                new LinkedHashSet<>(grpcRegistrar.getGroupedLoaders().keySet());
+        if (restRegistrar != null)
+            names.addAll(restRegistrar.getGroupedLoaders().keySet());
+        return names;
     }
 
     boolean hasGrouped(String name) {
-        return grpcRegistrar.getGroupedLoaders().containsKey(name);
+        return groupedLoader(name) != null;
     }
 
     /**
      * Loads the children of {@code keys} (parent ids) from the grouped loader {@code name}: de-duplicated,
-     * chunked by {@code max-batch-size} with bounded concurrency like a by-id load, never cached. A
-     * failed chunk fails only its own keys; a loader that is gone fails them all.
+     * chunked by {@code max-batch-size} (a REST loader's own wins) with bounded concurrency like a by-id
+     * load, never cached. A failed chunk fails only its own keys; a loader that is gone fails them all.
      */
     Mono<GroupedOutcome> loadGrouped(String name, Collection<String> keys, Metadata metadata) {
         if (keys.isEmpty()) return Mono.just(GroupedOutcome.EMPTY);
         List<String> distinct = distinct(keys);
-        GroupedOutcome.Loader raw = grpcRegistrar.getGroupedLoaders().get(name);
+        GroupedOutcome.Loader raw = groupedLoader(name);
         if (raw == null) {
             return Mono.just(GroupedOutcome.failed(
                     distinct, new IllegalStateException("No batch loader is available for " + name)));
         }
         return chunkedGrouped(
                 distinct,
-                config.getMaxBatchSize(),
+                groupedChunkSize(name),
                 config.getMaxConcurrentBatches(),
                 chunk -> GroupedOutcome.of(raw, chunk, metadata));
+    }
+
+    /** Runs the REST registrar's scan again: services whose documents loaded since get their loaders. */
+    void rescanRest() {
+        if (restRegistrar != null) restRegistrar.scan();
+    }
+
+    private GroupedOutcome.Loader groupedLoader(String name) {
+        GroupedOutcome.Loader grpc = grpcRegistrar.getGroupedLoaders().get(name);
+        if (grpc != null || restRegistrar == null) return grpc;
+        return restRegistrar.getGroupedLoaders().get(name);
+    }
+
+    /** Parent ids per call of a one-to-many loader: a REST loader's own limit wins over the global one. */
+    private int groupedChunkSize(String name) {
+        if (restRegistrar != null && grpcRegistrar.getGroupedLoaders().get(name) == null) {
+            RestBatchLoaderConfig rest = restRegistrar.getGroupedConfigs().get(name);
+            if (rest != null && rest.getMaxBatchSize() > 0) return rest.getMaxBatchSize();
+        }
+        return config.getMaxBatchSize();
     }
 
     private BatchLoader rawLoader(String type) {

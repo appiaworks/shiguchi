@@ -386,10 +386,56 @@ shiguchi:
 ```
 
 `loaders[]` is the YAML form of `loader_for`, `loader_ids_field`, `loader_result_field` and `group_by`
-and overrides the proto options of that rpc. REST by-id loaders stay in `rest-batch-loaders[]`.
+and overrides the proto options of that rpc. REST loaders stay in `rest-batch-loaders[]` (next section).
 Every entry is checked at startup: an unknown `from` type or field, a `to` type with no loader (or no
 loader with that `group-by`), a `group-by` that is not a child field, or a duplicate companion field
 fails startup with a message naming the entry and its YAML path. On a reload the problem is only logged.
+
+### Relationships on REST_DOWNSTREAM services
+
+A `REST_DOWNSTREAM` service takes the same `relationships[]`. `from` and `to` use the GraphQL type
+names of the generated schema, so with `graphql-type-prefix: Shop` the OpenAPI schema `Order` is
+`ShopOrder`; `from` names the property of the OpenAPI schema as written (`customerId`). The OpenAPI
+document needs no annotations. The loaders go in `rest-batch-loaders[]`:
+
+```yaml
+shiguchi:
+  services:
+    - name: shop
+      mode: REST_DOWNSTREAM
+      openapi-url: http://shop:8080/v3/api-docs
+      graphql-type-prefix: Shop
+      relationships:
+        - from: ShopOrder.customerId     # many-to-one: Order.customer
+          to: ShopCustomer
+        - from: ShopCustomer.id          # one-to-many: Customer.orders
+          to: ShopOrder
+          many: true
+          field: orders
+          group-by: customerId
+      rest-batch-loaders:
+        - type: ShopCustomer             # by id: GET /customers?ids=c1,c2
+          endpoint: /customers
+          ids-param: ids
+        - type: ShopOrder                # by parent: GET /orders?customerIds=c1,c2
+          endpoint: /orders
+          ids-param: customerIds
+          group-by: customerId           # the order field holding the customer id
+```
+
+An entry without `group-by` is a by-id loader (also used by Federation `_entities`). An entry with
+`group-by` returns the children of the given parent ids and is named `Type#by:camelCase(group-by)`; it
+may share a `type` with a by-id entry. `group-by` is matched against the key as it appears in the
+response, so write it as the backend spells it. `endpoint`, `ids-param`, `result-field`, `batch-endpoint`,
+`timeout-seconds`, `max-batch-size` and `max-concurrency` mean the same as for by-id entries, and
+`data-loader.max-children-per-key` caps the children of one parent.
+
+With `batch-endpoint: false` the loader makes one GET per parent id, with `{id}` in `endpoint`
+(`/customers/{id}/orders`), at most `max-concurrency` at a time; a 404 means no children. The batch form
+sends the ids comma separated, so an id containing a comma fails; use the per-id form for those.
+A relationship whose loader does not exist (`to` without a `rest-batch-loaders` entry, or a many entry
+without one that has the same `group-by`) is checked like the gRPC ones. Loaders are rebuilt on every
+schema reload, so a service whose OpenAPI document loads late still gets its relationships.
 
 ### Several backends serve the same type
 

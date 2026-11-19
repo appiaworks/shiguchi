@@ -458,6 +458,50 @@ class GrpcDataLoaderRegistryFactoryTest {
 
     @Test
     @DisplayName(
+            "GIVEN a REST loader declared after startup WHEN onSchemaReloaded runs SHOULD rescan and register it, grouped ones included")
+    void given_restLoaderDeclaredAfterStartup_when_onSchemaReloaded_should_rescanAndRegister() {
+        // Arrange
+        RecordingBatchLoaderRegistry registry = new RecordingBatchLoaderRegistry();
+        GrpcBatchDataLoaderRegistrar registrar = mock(GrpcBatchDataLoaderRegistrar.class);
+        when(registrar.getLoaders()).thenReturn(new java.util.HashMap<>());
+        GatewayProperties props = new GatewayProperties();
+        props.setServices(new java.util.ArrayList<>());
+        RestBatchDataLoaderRegistrar rest = new RestBatchDataLoaderRegistrar(props);
+        rest.scan();
+        GrpcDataLoaderRegistryFactory factory = new GrpcDataLoaderRegistryFactory(
+                registry,
+                registrar,
+                java.util.Optional.of(rest),
+                new dev.appiaworks.shiguchi.config.DataLoaderConfig(),
+                new GrpcMetadataPopulator(props));
+        factory.registerLoaders();
+        assertThat(registry.registered).isEmpty();
+
+        dev.appiaworks.shiguchi.config.ServiceDefinition svc = new dev.appiaworks.shiguchi.config.ServiceDefinition();
+        svc.setName("shop");
+        svc.setMode(dev.appiaworks.shiguchi.config.GatewayMode.REST_DOWNSTREAM);
+        svc.setBaseUrl("http://127.0.0.1:1");
+        dev.appiaworks.shiguchi.config.RestBatchLoaderConfig byId =
+                new dev.appiaworks.shiguchi.config.RestBatchLoaderConfig();
+        byId.setType("Customer");
+        byId.setEndpoint("/customers");
+        dev.appiaworks.shiguchi.config.RestBatchLoaderConfig many =
+                new dev.appiaworks.shiguchi.config.RestBatchLoaderConfig();
+        many.setType("Order");
+        many.setEndpoint("/orders");
+        many.setGroupBy("customerId");
+        svc.setRestBatchLoaders(List.of(byId, many));
+        props.setServices(List.of(svc));
+
+        // Act
+        factory.onSchemaReloaded();
+
+        // Assert
+        assertThat(registry.registered).containsKeys("Customer", "Order#by:customerId");
+    }
+
+    @Test
+    @DisplayName(
             "GIVEN a type's loader was replaced in the registrar after registration WHEN the registered callback runs SHOULD call the replacement loader, not the original")
     void given_loaderReplacedInRegistrar_when_registeredCallbackRuns_should_useReplacementLoader() {
         // Arrange
