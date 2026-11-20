@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.stream.Collectors;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
@@ -28,8 +29,13 @@ import org.springframework.stereotype.Component;
  *
  * Registered as an explicit service on the gRPC proxy server so tools like
  * grpcurl, Postman, and grpcui can discover the full combined schema.
+ *
+ * Only a bean when the proxy is ({@code shiguchi.grpc.enabled=true}). It is a gRPC service, and an
+ * application that also runs a Spring gRPC server serves every such bean: unconditionally, it would
+ * collide with that server's own reflection service ("Found duplicate service implementation").
  */
 @Component
+@ConditionalOnProperty(name = "shiguchi.grpc.enabled", havingValue = "true")
 public class GrpcReflectionAggregator extends ServerReflectionGrpc.ServerReflectionImplBase {
 
     private static final int STATUS_NOT_FOUND = io.grpc.Status.Code.NOT_FOUND.value();
