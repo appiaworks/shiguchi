@@ -32,6 +32,8 @@ dependencies {
     // generated stubs, so the sample is one module with no codegen step.
     implementation("io.grpc:grpc-services")
     implementation("io.grpc:grpc-netty")
+    // The gRPC server: a BindableService bean is served on spring.grpc.server.port.
+    implementation("org.springframework.boot:spring-boot-starter-grpc-server")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

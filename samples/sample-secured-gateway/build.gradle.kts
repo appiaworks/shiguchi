@@ -22,6 +22,8 @@ dependencies {
 
     implementation("io.grpc:grpc-services")
     implementation("io.grpc:grpc-netty")
+    // The gRPC server: a BindableService bean is served on spring.grpc.server.port.
+    implementation("org.springframework.boot:spring-boot-starter-grpc-server")
 
     // Only to generate throwaway certificates at startup, so no private key is committed to the
     // repository. A real deployment mounts its PEM files and needs none of this.

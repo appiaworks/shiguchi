@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- A gateway and a Spring gRPC server in the same application no longer fail to start with `Found duplicate service implementation: grpc.reflection.v1.ServerReflection`. `GrpcReflectionAggregator` is no longer a bean (it was picked up as a `BindableService`); `GrpcProxyServer` builds it from the `GrpcRouteRegistry`. The public constructors are unchanged.
+
+### Changed
+- Six samples (`sample-validation`, `sample-static-schema`, `sample-jpa-backend`, `sample-rate-limited-gateway`, `sample-secured-gateway`, `sample-bff-spa/gateway`) serve their backend with Spring gRPC (`spring.grpc.server.port`) instead of a hand-built `ServerBuilder`. `sample-discovery-gateway` and `sample-merge-gateway` keep raw servers: they run several backend instances in one JVM.
+
 ## [0.26.0] - 2026-11-19
 
 ### Changed

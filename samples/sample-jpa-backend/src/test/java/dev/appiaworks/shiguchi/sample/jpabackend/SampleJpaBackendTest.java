@@ -138,7 +138,7 @@ class SampleJpaBackendTest {
     @SpringBootTest(
             webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
             properties = {
-                "sample.backend-port=19190",
+                "spring.grpc.server.port=19190",
                 "sample.paging=offset",
                 "spring.datasource.url=jdbc:h2:mem:offset;DB_CLOSE_DELAY=-1",
                 "shiguchi.services[0].name=library",
@@ -155,7 +155,7 @@ class SampleJpaBackendTest {
     @SpringBootTest(
             webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
             properties = {
-                "sample.backend-port=19191",
+                "spring.grpc.server.port=19191",
                 "sample.paging=keyset",
                 "spring.datasource.url=jdbc:h2:mem:keyset;DB_CLOSE_DELAY=-1",
                 "shiguchi.services[0].name=library",

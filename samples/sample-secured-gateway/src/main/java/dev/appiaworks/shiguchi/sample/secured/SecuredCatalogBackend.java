@@ -11,23 +11,18 @@ import com.google.protobuf.DescriptorProtos.ServiceDescriptorProto;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.DynamicMessage;
+import io.grpc.BindableService;
 import io.grpc.MethodDescriptor;
-import io.grpc.Server;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.ServiceDescriptor;
 import io.grpc.Status;
-import io.grpc.netty.GrpcSslContexts;
-import io.grpc.netty.NettyServerBuilder;
 import io.grpc.protobuf.ProtoFileDescriptorSupplier;
 import io.grpc.protobuf.ProtoServiceDescriptorSupplier;
 import io.grpc.protobuf.ProtoUtils;
-import io.grpc.protobuf.services.ProtoReflectionServiceV1;
 import io.grpc.stub.ServerCalls;
 import io.grpc.stub.StreamObserver;
-import io.netty.handler.ssl.ClientAuth;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
 /**
  * The catalog backend, listening over TLS and <em>requiring</em> a client certificate.
@@ -37,9 +32,8 @@ import org.slf4j.LoggerFactory;
  * before any RPC is attempted. That is what the gateway's {@code tls.cert-chain} /
  * {@code tls.private-key} configuration exists to satisfy.
  */
-final class SecuredCatalogBackend {
-
-    private static final Logger log = LoggerFactory.getLogger(SecuredCatalogBackend.class);
+@Service
+class SecuredCatalogBackend implements BindableService {
 
     static final FileDescriptor FILE = buildFile();
     private static final Descriptor PRODUCT = FILE.findMessageTypeByName("Product");
@@ -48,16 +42,10 @@ final class SecuredCatalogBackend {
     private static final Map<String, String> PRODUCTS =
             Map.of("A100", "Anvil, 50 kg", "B200", "Bird seed, 10 kg", "C300", "Catapult, portable");
 
-    private final int port;
-    private final DevCertificates certs;
-    private Server server;
-
-    SecuredCatalogBackend(int port, DevCertificates certs) {
-        this.port = port;
-        this.certs = certs;
-    }
-
-    void start() throws Exception {
+    /** The service definition; the mutual TLS comes from the SSL bundle the application
+     * publishes, see {@code SampleSecuredGatewayApplication.CertificateEnvironment}. */
+    @Override
+    public ServerServiceDefinition bindService() {
         var get = MethodDescriptor.<DynamicMessage, DynamicMessage>newBuilder()
                 .setType(MethodDescriptor.MethodType.UNARY)
                 .setFullMethodName("sample.secured.CatalogService/GetProduct")
@@ -67,31 +55,12 @@ final class SecuredCatalogBackend {
                         DynamicMessage.newBuilder(PRODUCT).build()))
                 .build();
 
-        var definition = ServerServiceDefinition.builder(ServiceDescriptor.newBuilder("sample.secured.CatalogService")
+        return ServerServiceDefinition.builder(ServiceDescriptor.newBuilder("sample.secured.CatalogService")
                         .setSchemaDescriptor(new Schema())
                         .addMethod(get)
                         .build())
                 .addMethod(get, ServerCalls.asyncUnaryCall(this::getProduct))
                 .build();
-
-        var ssl = GrpcSslContexts.forServer(
-                        certs.serverCert().toFile(), certs.serverKey().toFile())
-                // The mutual half: present a certificate or do not get a connection.
-                .trustManager(certs.caCert().toFile())
-                .clientAuth(ClientAuth.REQUIRE)
-                .build();
-
-        server = NettyServerBuilder.forPort(port)
-                .sslContext(ssl)
-                .addService(definition)
-                .addService(ProtoReflectionServiceV1.newInstance())
-                .build()
-                .start();
-        log.info("secured catalog backend listening on :{} (TLS, client certificate REQUIRED)", port);
-    }
-
-    void stop() {
-        if (server != null) server.shutdownNow();
     }
 
     private void getProduct(DynamicMessage request, StreamObserver<DynamicMessage> out) {

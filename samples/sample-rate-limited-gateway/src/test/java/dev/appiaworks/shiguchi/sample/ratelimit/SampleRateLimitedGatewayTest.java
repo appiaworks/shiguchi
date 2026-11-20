@@ -15,7 +15,7 @@ import org.springframework.web.reactive.function.client.WebClient;
         // from application.yml, so the service entry is restated here on a port no developer's
         // local backend is likely to hold.
         properties = {
-            "sample.backend-port=19090",
+            "spring.grpc.server.port=19090",
             "shiguchi.services[0].name=catalog",
             "shiguchi.services[0].mode=DYNAMIC",
             "shiguchi.services[0].host=localhost",

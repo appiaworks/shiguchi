@@ -25,6 +25,8 @@ dependencies {
     implementation("io.grpc:grpc-protobuf:1.85.1")
     implementation("io.grpc:grpc-stub:1.85.1")
     implementation("io.grpc:grpc-netty:1.85.1")
+    // The gRPC server: a BindableService bean is served on spring.grpc.server.port.
+    implementation("org.springframework.boot:spring-boot-starter-grpc-server")
     compileOnly("org.apache.tomcat:annotations-api:6.0.53") // javax.annotation.Generated on JDK 9+
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")

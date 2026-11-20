@@ -1,7 +1,5 @@
 package dev.appiaworks.shiguchi.sample.secured;
 
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -11,7 +9,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
-import org.springframework.stereotype.Component;
 
 /**
  * A gateway secured on both sides: callers authenticate to it with a JWT, and it authenticates to
@@ -64,33 +61,18 @@ public class SampleSecuredGatewayApplication {
                 props.put("sample.certs.ca", certs.caCert().toString());
                 props.put("sample.certs.client-cert", certs.clientCert().toString());
                 props.put("sample.certs.client-key", certs.clientKey().toString());
+                // The backend's mutual TLS, through Spring gRPC's SSL bundle: its own certificate,
+                // plus the CA it trusts for callers, with a client certificate REQUIRED.
+                props.put("spring.ssl.bundle.pem.backend.keystore.certificate", certs.serverCert().toUri().toString());
+                props.put("spring.ssl.bundle.pem.backend.keystore.private-key", certs.serverKey().toUri().toString());
+                props.put("spring.ssl.bundle.pem.backend.truststore.certificate", certs.caCert().toUri().toString());
+                props.put("spring.grpc.server.ssl.bundle", "backend");
+                props.put("spring.grpc.server.ssl.client-auth", "require");
                 environment.getPropertySources().addFirst(new MapPropertySource("sample-dev-certificates", props));
                 log.info("generated throwaway dev certificates in {}", certs.dir());
             } catch (Exception e) {
                 throw new IllegalStateException("could not generate the sample's dev certificates", e);
             }
-        }
-    }
-
-    /** Runs the TLS backend for the lifetime of the app. */
-    @Component
-    public static class Backend {
-
-        private final SecuredCatalogBackend backend;
-
-        public Backend(
-                @org.springframework.beans.factory.annotation.Value("${sample.backend-port:9443}") int port) {
-            this.backend = new SecuredCatalogBackend(port, CertificateEnvironment.certificates);
-        }
-
-        @PostConstruct
-        public void start() throws Exception {
-            backend.start();
-        }
-
-        @PreDestroy
-        public void stop() {
-            backend.stop();
         }
     }
 }

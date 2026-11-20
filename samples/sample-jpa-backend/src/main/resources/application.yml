@@ -2,11 +2,13 @@ server:
   port: 8080
 
 sample:
-  backend-port: 9090
   # offset (default) or keyset. Same gateway contract either way; only the token's contents change.
   paging: offset
 
 spring:
+  grpc:
+    server:
+      port: 9090
   jpa:
     open-in-view: false
 
