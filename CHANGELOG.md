@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- An application that runs a Spring gRPC server and has `shiguchi-grpc-proxy` on its classpath failed to start with `Found duplicate service implementation: grpc.reflection.v1.ServerReflection`. `GrpcReflectionAggregator` is a gRPC service bean whether or not the proxy is enabled, so Spring gRPC served it next to its own reflection service. It is now a bean only with `shiguchi.grpc.enabled=true`, like `GrpcProxyServer`, which is its only user.
+
 ## [0.26.0] - 2026-11-19
 
 ### Changed
