@@ -1,14 +1,10 @@
 package dev.appiaworks.shiguchi.sample.bff.gateway;
 
 import dev.appiaworks.shiguchi.security.GatewaySecurityCustomizer;
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.stereotype.Component;
 
 /**
  * A gateway a single-page app signs in through, with no token in the browser: the `shiguchi-bff` module
@@ -37,26 +33,5 @@ public class SampleBffGatewayApplication {
                 exchanges.pathMatchers("/", "/index.html", "/favicon.ico", "/assets/**").permitAll();
             }
         };
-    }
-
-    /** Runs the backend for the lifetime of the app. */
-    @Component
-    public static class Backend {
-
-        private final WhoAmIBackend backend;
-
-        public Backend(@Value("${sample.backend-port:9090}") int port) {
-            this.backend = new WhoAmIBackend(port);
-        }
-
-        @PostConstruct
-        public void start() throws Exception {
-            backend.start();
-        }
-
-        @PreDestroy
-        public void stop() {
-            backend.stop();
-        }
     }
 }

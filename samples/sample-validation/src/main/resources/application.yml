@@ -1,8 +1,10 @@
 server:
   port: 8080
 
-sample:
-  backend-port: 9090
+spring:
+  grpc:
+    server:
+      port: 9090
 
 shiguchi:
   services:

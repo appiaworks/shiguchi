@@ -24,7 +24,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
         // Setting one indexed property replaces the whole services list, so the entry has to be
         // restated in full — including the tls block, which is the point of the sample.
         properties = {
-            "sample.backend-port=19443",
+            "spring.grpc.server.port=19443",
             "shiguchi.services[0].name=catalog",
             "shiguchi.services[0].mode=DYNAMIC",
             "shiguchi.services[0].host=localhost",
@@ -100,7 +100,7 @@ class SampleSecuredGatewayTest {
                 .expectBody()
                 .jsonPath("$.loaded")
                 .isEqualTo(1)
-                .jsonPath("$.services[0].routes[0].http")
+                .jsonPath("$.services[0].routes[?(@.method=='sample.secured.CatalogService/GetProduct')].http")
                 .isEqualTo("GET /v1/products/{sku}");
     }
 }

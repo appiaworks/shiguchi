@@ -16,7 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.stream.Collectors;
-import org.springframework.stereotype.Component;
 
 /**
  * gRPC reflection service that aggregates descriptors from all downstream services.
@@ -28,8 +27,11 @@ import org.springframework.stereotype.Component;
  *
  * Registered as an explicit service on the gRPC proxy server so tools like
  * grpcurl, Postman, and grpcui can discover the full combined schema.
+ *
+ * Deliberately not a bean: it is a {@code BindableService}, so a Spring gRPC server in the same
+ * application would serve it next to its own reflection service and fail on the duplicate.
+ * {@link GrpcProxyServer} creates it.
  */
-@Component
 public class GrpcReflectionAggregator extends ServerReflectionGrpc.ServerReflectionImplBase {
 
     private static final int STATUS_NOT_FOUND = io.grpc.Status.Code.NOT_FOUND.value();

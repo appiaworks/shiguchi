@@ -11,27 +11,25 @@ import com.google.protobuf.DescriptorProtos.ServiceDescriptorProto;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.DynamicMessage;
+import io.grpc.BindableService;
 import io.grpc.Context;
 import io.grpc.Contexts;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
-import io.grpc.Server;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
+import io.grpc.ServerInterceptors;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.ServiceDescriptor;
-import io.grpc.netty.NettyServerBuilder;
 import io.grpc.protobuf.ProtoFileDescriptorSupplier;
 import io.grpc.protobuf.ProtoServiceDescriptorSupplier;
 import io.grpc.protobuf.ProtoUtils;
-import io.grpc.protobuf.services.ProtoReflectionServiceV1;
 import io.grpc.stub.ServerCalls;
 import io.grpc.stub.StreamObserver;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
 /**
  * The sample's backend: one unary RPC, {@code sample.bff.WhoAmI/Whoami}, that answers with what the
@@ -40,11 +38,12 @@ import org.slf4j.LoggerFactory;
  * {@code sub}) and an {@code authorization} header carrying the session's access token, which the
  * gateway attached from the session store ({@code upstream-token-mode: RELAY}).
  *
- * <p>The schema is built in code and served by gRPC reflection, so the sample needs no protoc.
+ * <p>The schema is built in code and served by gRPC reflection, so the sample needs no protoc. The
+ * class is a {@code BindableService} bean, so Spring gRPC serves it on {@code spring.grpc.server.port}
+ * with reflection on; the interceptor is attached to this service only.
  */
-final class WhoAmIBackend {
-
-    private static final Logger log = LoggerFactory.getLogger(WhoAmIBackend.class);
+@Service
+final class WhoAmIBackend implements BindableService {
 
     static final FileDescriptor FILE = buildFile();
     private static final Descriptor REQUEST = FILE.findMessageTypeByName("WhoamiRequest");
@@ -57,14 +56,9 @@ final class WhoAmIBackend {
     private static final Context.Key<String> PRINCIPAL = Context.key("principal");
     private static final Context.Key<String> TOKEN = Context.key("token");
 
-    private final int port;
-    private Server server;
-
-    WhoAmIBackend(int port) {
-        this.port = port;
-    }
-
-    void start() throws Exception {
+    /** The service definition, with the interceptor that reads the gateway's headers attached. */
+    @Override
+    public ServerServiceDefinition bindService() {
         var whoami = MethodDescriptor.<DynamicMessage, DynamicMessage>newBuilder()
                 .setType(MethodDescriptor.MethodType.UNARY)
                 .setFullMethodName("sample.bff.WhoAmI/Whoami")
@@ -81,17 +75,7 @@ final class WhoAmIBackend {
                 .addMethod(whoami, ServerCalls.asyncUnaryCall(this::whoami))
                 .build();
 
-        server = NettyServerBuilder.forPort(port)
-                .addService(definition)
-                .addService(ProtoReflectionServiceV1.newInstance())
-                .intercept(new CallerMetadata())
-                .build()
-                .start();
-        log.info("whoami backend listening on :{}", port);
-    }
-
-    void stop() {
-        if (server != null) server.shutdownNow();
+        return ServerInterceptors.intercept(definition, new CallerMetadata());
     }
 
     private void whoami(DynamicMessage request, StreamObserver<DynamicMessage> out) {

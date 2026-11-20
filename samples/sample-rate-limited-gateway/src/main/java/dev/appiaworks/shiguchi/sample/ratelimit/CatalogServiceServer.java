@@ -12,22 +12,18 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.DescriptorValidationException;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.DynamicMessage;
+import io.grpc.BindableService;
 import io.grpc.MethodDescriptor;
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.ServiceDescriptor;
 import io.grpc.Status;
 import io.grpc.protobuf.ProtoFileDescriptorSupplier;
 import io.grpc.protobuf.ProtoServiceDescriptorSupplier;
 import io.grpc.protobuf.ProtoUtils;
-import io.grpc.protobuf.services.ProtoReflectionServiceV1;
 import io.grpc.stub.ServerCalls;
 import io.grpc.stub.StreamObserver;
-import java.io.IOException;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
 /**
  * An in-process catalog backend served over real gRPC with reflection enabled, so the gateway
@@ -41,12 +37,12 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  *
- * The descriptor is built here rather than by protoc so the sample stays one module with no
+ * It is a {@code BindableService} bean: Spring gRPC serves it on {@code spring.grpc.server.port}, with
+ * reflection on by default. The descriptor is built here rather than by protoc so the sample stays one module with no
  * codegen step; the shape is what a {@code catalog.proto} would give you.
  */
-public class CatalogServiceServer {
-
-    private static final Logger log = LoggerFactory.getLogger(CatalogServiceServer.class);
+@Service
+public class CatalogServiceServer implements BindableService {
 
     static final FileDescriptor FILE = buildFile();
     static final Descriptor PRODUCT = FILE.findMessageTypeByName("Product");
@@ -59,20 +55,14 @@ public class CatalogServiceServer {
             "B200", product("B200", "Bird seed, 10 kg", 18.5),
             "C300", product("C300", "Catapult, portable", 349.99));
 
-    private final int port;
-    private Server server;
-
-    public CatalogServiceServer(int port) {
-        this.port = port;
-    }
-
-    public void start() throws IOException {
+    @Override
+    public ServerServiceDefinition bindService() {
         var get = unary("GetProduct", GET_REQUEST, PRODUCT);
         var list = unary("ListProducts", LIST_REQUEST, PRODUCT_LIST);
 
         // The schema descriptor is what ProtoReflectionService serves: without it the gateway sees
         // that the service exists but not its messages or http bindings, and registers zero routes.
-        var service = ServerServiceDefinition.builder(ServiceDescriptor.newBuilder("sample.catalog.CatalogService")
+        return ServerServiceDefinition.builder(ServiceDescriptor.newBuilder("sample.catalog.CatalogService")
                         .setSchemaDescriptor(new Schema())
                         .addMethod(get)
                         .addMethod(list)
@@ -80,17 +70,6 @@ public class CatalogServiceServer {
                 .addMethod(get, ServerCalls.asyncUnaryCall(this::getProduct))
                 .addMethod(list, ServerCalls.asyncUnaryCall(this::listProducts))
                 .build();
-
-        server = ServerBuilder.forPort(port)
-                .addService(service)
-                .addService(ProtoReflectionServiceV1.newInstance())
-                .build()
-                .start();
-        log.info("catalog backend listening on :{} (sample.catalog.CatalogService, reflection on)", port);
-    }
-
-    public void stop() {
-        if (server != null) server.shutdownNow();
     }
 
     private void getProduct(DynamicMessage request, StreamObserver<DynamicMessage> out) {

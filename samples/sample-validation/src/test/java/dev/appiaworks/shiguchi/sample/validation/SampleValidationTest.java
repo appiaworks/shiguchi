@@ -17,7 +17,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
-            "sample.backend-port=19190",
+            "spring.grpc.server.port=19190",
             "shiguchi.services[0].name=orders",
             "shiguchi.services[0].mode=DYNAMIC",
             "shiguchi.services[0].host=localhost",

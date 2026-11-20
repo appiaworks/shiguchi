@@ -1,6 +1,7 @@
 package dev.appiaworks.shiguchi.grpc;
 
 import dev.appiaworks.shiguchi.config.GatewayProperties;
+import dev.appiaworks.shiguchi.routing.GrpcRouteRegistry;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import java.io.IOException;
@@ -59,7 +60,6 @@ public class GrpcProxyServer implements SmartLifecycle {
      *     beans), served on this port in place; they take precedence over the proxy for their
      *     method names
      */
-    @Autowired
     public GrpcProxyServer(
             GatewayProperties properties,
             GrpcProxyHandlerRegistry handlerRegistry,
@@ -70,6 +70,26 @@ public class GrpcProxyServer implements SmartLifecycle {
                 properties,
                 handlerRegistry,
                 reflectionAggregator,
+                serverInterceptor,
+                hostedServices.orderedStream().toList());
+    }
+
+    /**
+     * The Spring constructor: the reflection aggregator is built here from the route registry
+     * rather than injected, so it is not a {@code BindableService} bean a Spring gRPC server
+     * would pick up.
+     */
+    @Autowired
+    public GrpcProxyServer(
+            GatewayProperties properties,
+            GrpcProxyHandlerRegistry handlerRegistry,
+            GrpcRouteRegistry routeRegistry,
+            GrpcProxyServerInterceptor serverInterceptor,
+            ObjectProvider<GatewayHostedService> hostedServices) {
+        this(
+                properties,
+                handlerRegistry,
+                new GrpcReflectionAggregator(routeRegistry),
                 serverInterceptor,
                 hostedServices.orderedStream().toList());
     }

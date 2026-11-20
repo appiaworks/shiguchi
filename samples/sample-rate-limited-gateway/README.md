@@ -90,7 +90,7 @@ them:
 
 ```bash
 cd samples && ../gradlew :sample-rate-limited-gateway:bootRun \
-  --args='--spring.profiles.active=redis --server.port=8081 --sample.backend-port=9091 --shiguchi.services[0].port=9091'
+  --args='--spring.profiles.active=redis --server.port=8081 --spring.grpc.server.port=9091 --shiguchi.services[0].port=9091'
 
 for i in $(seq 1 8); do
   curl -s -o /dev/null -w "%{http_code} via 8080\n" localhost:8080/v1/products/A100
@@ -112,7 +112,7 @@ warning in the log; set it to `false` and everything is 429 until Redis is back.
   documented in [docs/guides/rate-limiting.md](../../docs/guides/rate-limiting.md).
 - **`application-redis.yml`** — the delta for shared buckets: `backend: REDIS`, the key prefix
   and `fail-open`, plus the standard `spring.data.redis.*` connection settings.
-- **`CatalogServiceServer`** — the backend, served over real gRPC with reflection so the gateway
+- **`CatalogServiceServer`** — the backend, served by Spring gRPC (reflection on) so the gateway
   finds it in `DYNAMIC` mode. It is unaware of the limiter; a refused request never reaches it.
 
 ## Beyond the sample

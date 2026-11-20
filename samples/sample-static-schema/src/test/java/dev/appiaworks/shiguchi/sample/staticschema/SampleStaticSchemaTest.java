@@ -95,7 +95,7 @@ class SampleStaticSchemaTest {
     @SpringBootTest(
             webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
             properties = {
-                "sample.backend-port=19090",
+                "spring.grpc.server.port=19090",
                 "shiguchi.services[0].name=catalog",
                 "shiguchi.services[0].mode=STATIC",
                 "shiguchi.services[0].host=localhost",
@@ -116,7 +116,7 @@ class SampleStaticSchemaTest {
     @SpringBootTest(
             webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
             properties = {
-                "sample.backend-port=19091",
+                "spring.grpc.server.port=19091",
                 "shiguchi.services[0].name=catalog",
                 "shiguchi.services[0].mode=PB_FILE",
                 "shiguchi.services[0].host=localhost",
