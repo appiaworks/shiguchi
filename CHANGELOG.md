@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `shiguchi.graphql.limits.max-stream-items` (default `0`, unlimited): fails a server-streaming GraphQL query that yields more items than the cap, cancelling the upstream stream, instead of buffering it all. Subscriptions are unaffected.
+- `shiguchi.graphql.data-loader.subscription-batch-window`: relationship fields on subscription events batch across events that arrive within the window (one batch call per loader instead of one per event). Off by default; adds up to one window of latency per event. Queries and mutations are unaffected.
 
 ## [0.27.0] - 2026-11-21
 

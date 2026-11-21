@@ -1,5 +1,9 @@
 package dev.appiaworks.shiguchi.graphql;
 
+import dev.appiaworks.shiguchi.config.GatewayProperties;
+import graphql.language.Document;
+import graphql.language.OperationDefinition;
+import graphql.parser.Parser;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.graphql.server.WebGraphQlInterceptor;
 import org.springframework.graphql.server.WebGraphQlRequest;
@@ -29,11 +33,49 @@ import reactor.core.publisher.Mono;
 @ConditionalOnProperty(prefix = "shiguchi.graphql", name = "enabled", matchIfMissing = true)
 public class DataLoaderChainingInterceptor implements WebGraphQlInterceptor {
 
+    private final boolean markSubscriptions;
+
+    public DataLoaderChainingInterceptor() {
+        this(false);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public DataLoaderChainingInterceptor(GatewayProperties properties) {
+        this(!properties
+                .getGraphql()
+                .getDataLoader()
+                .getSubscriptionBatchWindow()
+                .isZero());
+    }
+
+    DataLoaderChainingInterceptor(boolean markSubscriptions) {
+        this.markSubscriptions = markSubscriptions;
+    }
+
     @Override
     public Mono<WebGraphQlResponse> intercept(WebGraphQlRequest request, Chain chain) {
-        request.configureExecutionInput((input, builder) -> builder.graphQLContext(
-                        ctx -> ctx.put("__GJ_enable_data_loader_chaining", Boolean.TRUE))
+        boolean subscription = markSubscriptions && isSubscription(request.getDocument(), request.getOperationName());
+        request.configureExecutionInput((input, builder) -> builder.graphQLContext(ctx -> {
+                    ctx.put("__GJ_enable_data_loader_chaining", Boolean.TRUE);
+                    if (subscription) ctx.put(GatewayBatchLoaderRegistry.SUBSCRIPTION_KEY, Boolean.TRUE);
+                })
                 .build());
         return chain.next(request);
+    }
+
+    /** Whether the operation the request runs is a subscription; false when the document does not parse. */
+    static boolean isSubscription(String document, String operationName) {
+        try {
+            Document parsed = Parser.parse(document);
+            var operations = parsed.getDefinitionsOfType(OperationDefinition.class);
+            for (OperationDefinition op : operations) {
+                if (operationName == null ? operations.size() == 1 : operationName.equals(op.getName())) {
+                    return op.getOperation() == OperationDefinition.Operation.SUBSCRIPTION;
+                }
+            }
+        } catch (RuntimeException e) {
+            // an unparsable document fails in the engine with a proper error
+        }
+        return false;
     }
 }
