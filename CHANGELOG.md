@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-11-21
+
 ### Added
 
 - `shiguchi.graphql.limits.max-stream-items` (default `0`, unlimited): fails a server-streaming GraphQL query that yields more items than the cap, cancelling the upstream stream, instead of buffering it all. Subscriptions are unaffected.
