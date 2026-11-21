@@ -124,7 +124,7 @@ string author_id = 2 [(shiguchi.field) = { id: true, resolves_type: "Author" }];
 | `omit` | Hide from the schema |
 | `default` | Default value in input types |
 | `description` / `deprecation_reason` | Doc-string / `@deprecated` |
-| `resolves_type` | This id field resolves to the named type(s): the gateway wires a DataLoader-backed nested resolver (field name derived by stripping `_id`) |
+| `resolves_type` | This id field resolves to the named type(s): the gateway wires a DataLoader-backed nested resolver (field name derived by stripping `_id`). On a `repeated` id field (`character_ids`) the companion is a list, `characters: [EveCharacter!]`, one entity per id in order (ids the loader does not return are dropped); the name strips `Ids` and pluralises |
 | `resolves_many` | This id field resolves to the list of child entities whose `group_by` field equals it: a nullable `[Type!]` field backed by a grouped loader; see [One-to-many fields](#one-to-many-fields) |
 | `batch_key` | Marks the identity field used for DataLoader batch keying and federation `@key` |
 | `cost` | Weight of this field when the operation's cost is computed (default 1); see [Query cost](#query-cost) |
