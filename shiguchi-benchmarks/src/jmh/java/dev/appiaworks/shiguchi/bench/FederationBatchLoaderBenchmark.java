@@ -29,6 +29,8 @@ import io.grpc.stub.ServerCalls;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -108,6 +110,9 @@ public class FederationBatchLoaderBenchmark {
     public int maxConcurrency;
 
     private Server server;
+    /** Runs the in-process server and channel off the benchmark thread, as a real backend's threads would. */
+    private ExecutorService grpcExecutor;
+
     private ManagedChannel channel;
     private DisposableServer httpStub;
     private GrpcBatchLoader grpcLoader;
@@ -154,13 +159,15 @@ public class FederationBatchLoaderBenchmark {
                     obs.onCompleted();
                 }))
                 .build();
+        grpcExecutor =
+                Executors.newFixedThreadPool(Math.max(4, Runtime.getRuntime().availableProcessors()));
         String name = InProcessServerBuilder.generateName();
         server = InProcessServerBuilder.forName(name)
-                .directExecutor()
+                .executor(grpcExecutor)
                 .addService(service)
                 .build()
                 .start();
-        channel = InProcessChannelBuilder.forName(name).directExecutor().build();
+        channel = InProcessChannelBuilder.forName(name).executor(grpcExecutor).build();
 
         var props = new GatewayProperties();
         props.getClient().setDefaultDeadline(java.time.Duration.ZERO);
@@ -247,6 +254,7 @@ public class FederationBatchLoaderBenchmark {
     public void tearDown() {
         channel.shutdownNow();
         server.shutdownNow();
+        grpcExecutor.shutdownNow();
         httpStub.disposeNow();
     }
 

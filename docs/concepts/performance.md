@@ -52,6 +52,30 @@ with at most `max-concurrent-batches` calls in flight. Compared with the code be
   gain that holds regardless of the stub is upstream load: 1 backend call against 1000, and about
   half the allocation. Expect the wall-clock gap to grow with backend latency and with how few
   calls the backend can serve at once, and measure it on your own backend.
+- **Duplicate keys cost almost nothing.** `FederationBatchLoaderBenchmark` with `dupRatio` (the
+  share of `_entities` representations that repeat an id) swept from 0.0 to 0.9. The backend
+  returns one entity per distinct id, so time and allocation fall with the number of distinct ids.
+  JMH average time per call, `maxBatchSize=0` unless noted; the gRPC backend is in-process on a
+  thread pool, the REST backend a loopback reactor-netty server:
+
+  | keys | dupRatio | gRPC µs | gRPC B/op | REST µs | REST B/op |
+  |---:|---:|---:|---:|---:|---:|
+  | 100 | 0.0 | 399 | 1.02 MB | 843 | 1.61 MB |
+  | 100 | 0.5 | 243 | 516 KB | 500 | 849 KB |
+  | 100 | 0.9 | 85 | 115 KB | 210 | 196 KB |
+  | 1000 | 0.5 | 2112 | 5.09 MB | 3801 | 8.16 MB |
+  | 1000 | 0.9 | 485 | 1.09 MB | 869 | 1.72 MB |
+  | 1000, `maxBatchSize=200` | 0.0 | 1386 | 10.1 MB | 2291 | 15.9 MB |
+  | 1000, `maxBatchSize=200` | 0.5 | 1146 | 5.16 MB | 1894 | 8.02 MB |
+  | 1000, `maxBatchSize=200` | 0.9 | 506 | 1.08 MB | 872 | 1.72 MB |
+
+  Going from no duplicates to 90% at 100 keys cuts gRPC time about 4.7x and allocation about 8.8x;
+  REST about 4x and 8.2x. The 1000-key, no-duplicates case has no unchunked row: 1000 ids in one
+  `GET /orders?ids=` overflow the stub's 4096-byte request line (HTTP 414), so set `max-batch-size`
+  for REST backends with long id lists. Chunking lets the five calls overlap, and both transports
+  gain from it: for 1000 ids gRPC takes 1386 µs chunked against about 4200 µs extrapolated from
+  the 500-id unchunked row, REST 2291 µs against about 7600 µs. Error bars reach ±20%, and more on
+  the smaller gRPC rows; read the trend, not the single figures.
 
 ## Measuring
 
