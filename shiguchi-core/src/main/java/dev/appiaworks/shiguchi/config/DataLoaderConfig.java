@@ -37,6 +37,16 @@ public class DataLoaderConfig {
      */
     private int maxChildrenPerKey = 0;
 
+    /**
+     * Window over which relationship loads of one subscription are coalesced. Every event of a
+     * subscription runs its own execution, so without a window each event costs its own batch call
+     * per relationship loader. With one, a subscription's loaders dispatch at most once per window:
+     * loads from events arriving inside it go out as one batch, at the price of up to one window of
+     * added latency per event. Queries and mutations are unaffected. {@code 0} (default) = dispatch
+     * per event.
+     */
+    private Duration subscriptionBatchWindow = Duration.ZERO;
+
     /** How long one gRPC batch call may take before it fails; see {@link #onError} for what its keys then resolve to. */
     private Duration timeout = Duration.ofSeconds(10);
 

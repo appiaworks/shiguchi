@@ -357,6 +357,14 @@ yields `books: [Book!]` on `Author`, and `authors { books { title } }` costs one
 - The list is costed like any list field (see [Query cost](#query-cost)): selecting `books` under a list
   of `first` authors multiplies by `first` (or `default-list-size`).
 
+### Relationships on subscription events
+
+Each event of a subscription runs its own execution, so by default every event costs its own batch call per
+relationship loader. Set `data-loader.subscription-batch-window` (for example `50ms`) and the loads of events that
+arrive within the window go out as one batch per loader. It adds up to one window of latency to each event, so it
+is off by default; queries and mutations are not affected. A subscription keeps one DataLoader cache for its whole
+life, so a key loaded once is not asked of the backend again while the subscription lasts.
+
 ### Which way should I declare it?
 
 A relationship can come from five places. They can be mixed in one gateway, even in one service.
