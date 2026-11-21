@@ -158,6 +158,67 @@ class DynamicGraphQlDataFetcherSubscriptionTest {
         assertThat(((CompletableFuture<?>) result).get()).isEqualTo(List.of(Map.of("id", "1"), Map.of("id", "2")));
     }
 
+    private DynamicGraphQlDataFetcher cappedFetcher(int max) {
+        GatewayAuthorizationEnforcer authEnforcer = mock(GatewayAuthorizationEnforcer.class);
+        when(authEnforcer.enforce(any(), any(), any(), any(), any())).thenReturn(Mono.empty());
+        GraphQlFieldMaskInjector maskInjector = mock(GraphQlFieldMaskInjector.class);
+        when(maskInjector.inject(any(), any(), any(), any())).thenAnswer(inv -> inv.getArgument(0));
+        return new DynamicGraphQlDataFetcher(
+                registry,
+                grpcDispatcher,
+                mock(RelayConnectionTransformer.class),
+                maskInjector,
+                mock(GraphQlSelectionProjector.class),
+                mock(GrpcMetadataPopulator.class),
+                authEnforcer,
+                mock(MergeDispatcher.class),
+                mock(HttpUpstreamDispatcher.class),
+                max);
+    }
+
+    @Test
+    @DisplayName("GIVEN max-stream-items 2 WHEN a QUERY stream yields three items SHOULD fail and cancel the stream")
+    void given_streamCap_when_queryExceedsIt_should_failAndCancelUpstream() {
+        RouteDefinition r = register(RouteDefinition.GraphQlOperationType.QUERY);
+        AtomicBoolean cancelled = new AtomicBoolean();
+        when(grpcDispatcher.dispatchStreamingToMap(eq(r), eq(ctx), any(), any(), any()))
+                .thenReturn(Flux.<Map<String, Object>>generate(sink -> sink.next(Map.of("id", "x")))
+                        .doOnCancel(() -> cancelled.set(true)));
+
+        CompletableFuture<?> result = (CompletableFuture<?>) cappedFetcher(2).get(env());
+
+        assertThat(result)
+                .failsWithin(Duration.ofSeconds(30))
+                .withThrowableThat()
+                .withMessageContaining("limits.max-stream-items");
+        assertThat(cancelled).as("upstream cancelled").isTrue();
+    }
+
+    @Test
+    @DisplayName("GIVEN max-stream-items 2 WHEN a QUERY stream yields exactly two items SHOULD return them")
+    void given_streamCap_when_queryStaysWithinIt_should_collectList() throws Exception {
+        RouteDefinition r = register(RouteDefinition.GraphQlOperationType.QUERY);
+        when(grpcDispatcher.dispatchStreamingToMap(eq(r), eq(ctx), any(), any(), any()))
+                .thenReturn(Flux.just(Map.of("id", "1"), Map.of("id", "2")));
+
+        Object result = cappedFetcher(2).get(env());
+
+        assertThat(((CompletableFuture<?>) result).get()).isEqualTo(List.of(Map.of("id", "1"), Map.of("id", "2")));
+    }
+
+    @Test
+    @DisplayName("GIVEN max-stream-items 1 WHEN a SUBSCRIPTION yields more SHOULD NOT cap it")
+    void given_streamCap_when_subscription_should_notCap() {
+        RouteDefinition r = register(RouteDefinition.GraphQlOperationType.SUBSCRIPTION);
+        when(grpcDispatcher.dispatchStreamingToMap(eq(r), eq(ctx), any(), any(), any()))
+                .thenReturn(Flux.just(Map.of("id", "1"), Map.of("id", "2")));
+
+        @SuppressWarnings("unchecked")
+        Publisher<Object> publisher = (Publisher<Object>) cappedFetcher(1).get(env());
+
+        StepVerifier.create(publisher).expectNextCount(2).verifyComplete();
+    }
+
     /** ev.Events/Watch(WatchRequest) returns (stream Item). */
     private static FileDescriptor buildFile() {
         try {

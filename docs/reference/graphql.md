@@ -185,6 +185,7 @@ All off by default. Keys under `shiguchi.graphql.limits`.
 | --- | --- | --- |
 | Depth | `max-depth` | graphql-java `MaxQueryDepthInstrumentation`; `0` = off; the error message contains `maximum query depth exceeded` |
 | Complexity | `max-complexity` | refused with `maximum query complexity exceeded <cost> > <max>` (ValidationError) |
+| Stream items | `max-stream-items` | a server-streaming query yielding more items fails the field (`stream exceeded the maximum of <max> items`) and cancels the upstream; `0` = off; subscriptions not capped |
 | Cost budget | `budget.per-minute` | token bucket per caller; see below |
 | List size | `default-list-size` | multiplier for list fields without a `first` argument; minimum 1 |
 | Cost report | `report-cost` | puts `extensions.cost` on the response |
@@ -326,6 +327,7 @@ All under `shiguchi.graphql`. See [configuration.md](configuration.md).
 | `federation.enabled` | `false` |
 | `limits.max-depth` | `0` |
 | `limits.max-complexity` | `0` |
+| `limits.max-stream-items` | `0` |
 | `limits.default-list-size` | `10` |
 | `limits.report-cost` | `false` |
 | `limits.budget.per-minute` | `0` |

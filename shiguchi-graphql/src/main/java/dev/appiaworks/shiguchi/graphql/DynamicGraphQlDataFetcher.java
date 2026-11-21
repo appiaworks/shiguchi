@@ -42,6 +42,7 @@ public class DynamicGraphQlDataFetcher implements DataFetcher<Object> {
 
     private static final Logger log = LoggerFactory.getLogger(DynamicGraphQlDataFetcher.class);
 
+    private final int maxStreamItems;
     private final GrpcRouteRegistry registry;
     private final ReactiveGrpcDispatcher dispatcher;
     private final RelayConnectionTransformer relayTransformer;
@@ -62,7 +63,58 @@ public class DynamicGraphQlDataFetcher implements DataFetcher<Object> {
             GrpcMetadataPopulator metadataPopulator,
             GatewayAuthorizationEnforcer authEnforcer,
             dev.appiaworks.shiguchi.rest.MergeDispatcher mergeDispatcher,
+            dev.appiaworks.shiguchi.rest.HttpUpstreamDispatcher httpDispatcher,
+            dev.appiaworks.shiguchi.config.GatewayProperties properties) {
+        this(
+                registry,
+                dispatcher,
+                relayTransformer,
+                fieldMaskInjector,
+                selectionProjector,
+                metadataPopulator,
+                authEnforcer,
+                mergeDispatcher,
+                httpDispatcher,
+                properties.getGraphql().getLimits().getMaxStreamItems());
+    }
+
+    /** Constructor shape before the stream cap; no cap. Kept for callers that wire by hand. */
+    public DynamicGraphQlDataFetcher(
+            GrpcRouteRegistry registry,
+            ReactiveGrpcDispatcher dispatcher,
+            RelayConnectionTransformer relayTransformer,
+            GraphQlFieldMaskInjector fieldMaskInjector,
+            GraphQlSelectionProjector selectionProjector,
+            GrpcMetadataPopulator metadataPopulator,
+            GatewayAuthorizationEnforcer authEnforcer,
+            dev.appiaworks.shiguchi.rest.MergeDispatcher mergeDispatcher,
             dev.appiaworks.shiguchi.rest.HttpUpstreamDispatcher httpDispatcher) {
+        this(
+                registry,
+                dispatcher,
+                relayTransformer,
+                fieldMaskInjector,
+                selectionProjector,
+                metadataPopulator,
+                authEnforcer,
+                mergeDispatcher,
+                httpDispatcher,
+                0);
+    }
+
+    /** Full constructor; {@code maxStreamItems <= 0} means no cap on a streamed query's items. */
+    public DynamicGraphQlDataFetcher(
+            GrpcRouteRegistry registry,
+            ReactiveGrpcDispatcher dispatcher,
+            RelayConnectionTransformer relayTransformer,
+            GraphQlFieldMaskInjector fieldMaskInjector,
+            GraphQlSelectionProjector selectionProjector,
+            GrpcMetadataPopulator metadataPopulator,
+            GatewayAuthorizationEnforcer authEnforcer,
+            dev.appiaworks.shiguchi.rest.MergeDispatcher mergeDispatcher,
+            dev.appiaworks.shiguchi.rest.HttpUpstreamDispatcher httpDispatcher,
+            int maxStreamItems) {
+        this.maxStreamItems = maxStreamItems;
         this.registry = registry;
         this.dispatcher = dispatcher;
         this.relayTransformer = relayTransformer;
@@ -195,7 +247,7 @@ public class DynamicGraphQlDataFetcher implements DataFetcher<Object> {
                 return flux;
             }
             // Collect all stream items into a list for server-streaming queries.
-            return flux.collectList().map(list -> (Object) list).toFuture();
+            return capped(flux, route).collectList().map(list -> (Object) list).toFuture();
         }
 
         // Enforce declared auth scopes, then build gRPC metadata and dispatch. A REST_DOWNSTREAM
@@ -295,6 +347,27 @@ public class DynamicGraphQlDataFetcher implements DataFetcher<Object> {
         unwrapped.remove("input");
         unwrapped.putAll((Map<String, Object>) inputMap);
         return unwrapped;
+    }
+
+    /**
+     * Fails a server-streaming query that yields more than {@code limits.max-stream-items} items
+     * (cancelling the upstream stream), instead of buffering it all. No cap when the limit is 0.
+     */
+    private Flux<Object> capped(Flux<Object> flux, RouteDefinition route) {
+        int max = maxStreamItems;
+        if (max <= 0) {
+            return flux;
+        }
+        return flux.index().handle((tuple, sink) -> {
+            if (tuple.getT1() >= max) {
+                String svc = route.getFullServiceName() + "/" + route.getMethodName();
+                log.warn("[GraphQL← stream] {} exceeded limits.max-stream-items={}", svc, max);
+                sink.error(new IllegalStateException(
+                        "[" + svc + "] stream exceeded the maximum of " + max + " items (limits.max-stream-items)"));
+            } else {
+                sink.next(tuple.getT2());
+            }
+        });
     }
 
     /**
