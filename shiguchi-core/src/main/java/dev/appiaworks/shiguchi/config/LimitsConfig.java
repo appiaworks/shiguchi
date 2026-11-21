@@ -25,6 +25,13 @@ public class LimitsConfig {
      */
     private int maxComplexity = 0;
     /**
+     * Most items a server-streaming query may collect into its list. A stream past it fails the
+     * field with an error (never truncated silently) and the upstream stream is cancelled. Applies at
+     * run time, not in the cost check. Subscriptions are not buffered and not capped. {@code 0} =
+     * unlimited.
+     */
+    private int maxStreamItems = 0;
+    /**
      * Multiplier for a list field whose query sends no {@code first} argument, when computing the
      * cost of an operation.
      */
