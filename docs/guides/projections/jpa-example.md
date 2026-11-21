@@ -4,7 +4,7 @@ Part of the [projections guide](index.md).
 
 The gateway hands your service a `PageRequest`, a `sort_fields` list and a `read_mask`. Honouring
 all three is the same code in every list method: check the sort keys against an allow-list, pick
-the columns, apply the page, cut the extra row, build a cursor. `shiguchi-backend-support-jpa`
+the columns, apply the page, cut the extra row, build a cursor. `shiguchi-backend-support`
 does those steps, so a list method is a few lines. Nothing here is gateway-specific: it is
 ordinary code behind a gRPC service implementation.
 
@@ -13,13 +13,13 @@ A runnable version, with tests, is [`sample-jpa-backend`](../../../samples/sampl
 ## Dependency
 
 ```kotlin
-implementation("io.github.appiaworks:shiguchi-backend-support-jpa:<version>")
+implementation("io.github.appiaworks:shiguchi-backend-support:<version>")
 ```
 
 ```xml
 <dependency>
   <groupId>io.github.appiaworks</groupId>
-  <artifactId>shiguchi-backend-support-jpa</artifactId>
+  <artifactId>shiguchi-backend-support</artifactId>
   <version>${shiguchi.version}</version>
 </dependency>
 ```

@@ -165,7 +165,8 @@ configure(subprojects.filter { it.name != "shiguchi-bom" }) {
 }
 
 // Apply publishing to all publishable modules (everything except samples and benchmarks)
-val samplesModules = setOf("sample-full", "sample-rest-gateway", "sample-graphql-gateway",
+// shiguchi-cursus-cli is a command line: its fat jar goes on the GitHub Release, not to Maven Central.
+val samplesModules = setOf("shiguchi-cursus-cli", "sample-full", "sample-rest-gateway", "sample-graphql-gateway",
                            "sample-grpc-proxy", "sample-grpc-ui-standalone", "shiguchi-benchmarks")
 
 configure(subprojects.filter { it.name !in samplesModules }) {

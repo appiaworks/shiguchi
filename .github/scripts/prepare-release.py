@@ -46,6 +46,7 @@ DOC_PINS = [
     r"(shiguchi-[a-z-]+[-/]){old}(?=[-/])",
     r"(/sample-full:v){old}(?![\w.-])",
     r"(cursus-){old}(?=-all\.jar)",
+    r"(/releases/download/v){old}(?=/)",
 ]
 
 # Files that keep the old version on purpose.

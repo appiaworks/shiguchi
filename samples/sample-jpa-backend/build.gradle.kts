@@ -21,8 +21,7 @@ dependencies {
     implementation("io.github.appiaworks:shiguchi-graphql-spring-boot4-starter:$gatewayVersion")
 
     // The point of this sample: sort_fields, read_mask and page_request turned into a JPA query.
-    // The -jpa artifact brings shiguchi-backend-support (the Spec classes) with it.
-    implementation("io.github.appiaworks:shiguchi-backend-support-jpa:$gatewayVersion")
+    implementation("io.github.appiaworks:shiguchi-backend-support:$gatewayVersion")
 
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     runtimeOnly("com.h2database:h2")
