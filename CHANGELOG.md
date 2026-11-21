@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `resolves_type` on a `repeated` id field (`characterIds`, `monitoredRegionIds`) now generates a distinct list companion (`characters: [EveCharacter!]`) instead of a resolver named like the id field itself, which clashed. Ids resolve in order through the type's DataLoader; ids the loader does not return are dropped.
+
 ### Added
 
 - `shiguchi.graphql.limits.max-stream-items` (default `0`, unlimited): fails a server-streaming GraphQL query that yields more items than the cap, cancelling the upstream stream, instead of buffering it all. Subscriptions are unaffected.

@@ -182,6 +182,8 @@ public class GraphQlSchemaBuilder {
      * @param groupBy empty for a {@code resolves_type} reference (one entity by id); for a
      *     {@code resolves_many} field the {@code group_by} of the one-to-many loader that serves its list
      * @param source where the relationship was declared
+     * @param idList true when the id field is {@code repeated}: the companion is then a list of the
+     *     resolved type, one entity per id (ids the loader does not return are dropped)
      */
     public record Relationship(
             String parentType,
@@ -189,7 +191,19 @@ public class GraphQlSchemaBuilder {
             String idJsonName,
             String resolvedType,
             String groupBy,
-            RelationshipSource.Source source) {
+            RelationshipSource.Source source,
+            boolean idList) {
+
+        /** A relationship whose id field is a single value. */
+        public Relationship(
+                String parentType,
+                String fieldName,
+                String idJsonName,
+                String resolvedType,
+                String groupBy,
+                RelationshipSource.Source source) {
+            this(parentType, fieldName, idJsonName, resolvedType, groupBy, source, false);
+        }
 
         /** A reference to one entity, resolved by id, declared by an annotation. */
         public Relationship(String parentType, String fieldName, String idJsonName, String resolvedType) {
@@ -703,7 +717,8 @@ public class GraphQlSchemaBuilder {
             for (Relationship rel : relationshipResolver.relationships(descriptor, field)) {
                 collectingRelationships.add(rel);
                 sb.append("  ").append(rel.fieldName()).append(": ");
-                if (rel.many()) sb.append('[').append(rel.resolvedType()).append("!]");
+                if (rel.many() || rel.idList())
+                    sb.append('[').append(rel.resolvedType()).append("!]");
                 else sb.append(rel.resolvedType());
                 sb.append("\n");
             }

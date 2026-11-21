@@ -105,7 +105,8 @@ public class GatewayDataFetcherRegistrar {
             }
             codeRegistryBuilder.dataFetcher(
                     FieldCoordinates.coordinates(rel.parentType(), rel.fieldName()),
-                    new GrpcRelationshipDataFetcher(rel.idJsonName(), rel.loaderName(), onError, rel.many()));
+                    new GrpcRelationshipDataFetcher(
+                            rel.idJsonName(), rel.loaderName(), onError, rel.many(), rel.idList()));
             relCount++;
             log.debug(
                     "Registered relationship resolver: {}.{} -> DataLoader[{}]",

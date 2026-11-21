@@ -650,4 +650,39 @@ class GraphQlSchemaBuilderTest {
         return FileDescriptor.buildFrom(
                 fileProto, new FileDescriptor[] {GraphQlProto.getDescriptor(), googleTypeDescriptor.getFile()});
     }
+
+    @Test
+    @DisplayName(
+            "Given a repeated field 'characterIds' annotated with resolves_type, emitObjectType should emit a distinct list companion 'characters: [EveCharacter!]' beside the id field")
+    void given_repeatedIdWithResolvesType_when_emittingObjectType_should_emitDistinctListCompanion() throws Exception {
+        FieldOptions fieldOptions = FieldOptions.newBuilder()
+                .setExtension(
+                        GraphQlProto.field,
+                        FieldRule.newBuilder().addResolvesType("EveCharacter").build())
+                .build();
+        FileDescriptorProto fileProto = FileDescriptorProto.newBuilder()
+                .setName("corp_repeated.proto")
+                .setSyntax("proto3")
+                .addDependency("shiguchi/graphql.proto")
+                .addMessageType(DescriptorProto.newBuilder()
+                        .setName("Corp")
+                        .addField(FieldDescriptorProto.newBuilder()
+                                .setName("character_ids")
+                                .setNumber(1)
+                                .setType(Type.TYPE_INT64)
+                                .setLabel(FieldDescriptorProto.Label.LABEL_REPEATED)
+                                .setOptions(fieldOptions)))
+                .build();
+        Descriptor descriptor = FileDescriptor.buildFrom(fileProto, new FileDescriptor[] {GraphQlProto.getDescriptor()})
+                .findMessageTypeByName("Corp");
+
+        GraphQlSchemaBuilder builder = createBuilder();
+        Map<String, String> typeDefs = new HashMap<>();
+        reflectEmitObjectType().invoke(builder, descriptor, typeDefs, new HashSet<>(), 0, Map.of());
+
+        String sdl = typeDefs.get("Corp");
+        assertThat(sdl).contains("characterIds:").contains("characters: [EveCharacter!]");
+        // each field name appears once: the companion must not redeclare the id field
+        assertThat(sdl.split("characterIds:", -1)).hasSize(2);
+    }
 }
