@@ -22,7 +22,6 @@ dependencies {
         api("io.github.appiaworks:shiguchi-backend-support:${project.version}")
         api("io.github.appiaworks:shiguchi-spring-boot4-autoconfigure:${project.version}")
         api("io.github.appiaworks:shiguchi-spring-boot4-starter:${project.version}")
-        api("io.github.appiaworks:shiguchi-ui-spring-boot4-autoconfigure:${project.version}")
         api("io.github.appiaworks:shiguchi-ui-spring-boot4-starter:${project.version}")
         api("io.github.appiaworks:shiguchi-ui-webmvc-spring-boot4-starter:${project.version}")
         api("io.github.appiaworks:shiguchi-graphql-spring-boot4-starter:${project.version}")

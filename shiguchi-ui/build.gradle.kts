@@ -58,6 +58,9 @@ dependencies {
     api(project(":shiguchi-rest"))
     api(libs.reactor.core)
     api(libs.spring.boot.starter.security)
+    // The auto-configuration (ShiguchiUiAutoConfiguration) is in this jar; Boot finds it through
+    // META-INF/spring/...AutoConfiguration.imports, so the starters are only dependency bundles.
+    api(libs.spring.boot.autoconfigure)
     implementation("tools.jackson.core:jackson-databind")
     // Each web stack is compileOnly: the WebFlux adapter and the servlet adapter ship in the same jar,
     // and the starter for the stack in use supplies the real thing at runtime.
