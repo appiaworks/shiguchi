@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-11-21
+
 ### Fixed
 - A gateway and a Spring gRPC server in the same application no longer fail to start with `Found duplicate service implementation: grpc.reflection.v1.ServerReflection`. `GrpcReflectionAggregator` is no longer a bean (it was picked up as a `BindableService`); `GrpcProxyServer` builds it from the `GrpcRouteRegistry`. The public constructors are unchanged.
 
