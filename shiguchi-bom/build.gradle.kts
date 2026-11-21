@@ -33,7 +33,5 @@ dependencies {
         api("io.github.appiaworks:shiguchi-bff:${project.version}")
         api("io.github.appiaworks:shiguchi-bff-spring-boot4-starter:${project.version}")
         api("io.github.appiaworks:shiguchi-validation:${project.version}")
-        api("io.github.appiaworks:shiguchi-validation-spring-boot4-autoconfigure:${project.version}")
-        api("io.github.appiaworks:shiguchi-validation-spring-boot4-starter:${project.version}")
     }
 }

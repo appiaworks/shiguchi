@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking (artifact coordinates):** `shiguchi-validation-spring-boot4-autoconfigure` and `shiguchi-validation-spring-boot4-starter` are merged into `shiguchi-validation`, which now carries the auto-configuration (same packages, same properties). Replace either dependency with `io.github.appiaworks:shiguchi-validation`. `shiguchi-validation` is checked by the API gate: no type moved or changed.
 - **Breaking (artifact coordinates):** `shiguchi-backend-support-jpa` is merged into `shiguchi-backend-support` (the classes keep their package, `dev.appiaworks.shiguchi.backend.jpa`; Jakarta Persistence is still `compileOnly`). Replace the `-jpa` dependency with `shiguchi-backend-support`. Both were `EXPERIMENTAL`.
 - **Breaking (artifact coordinates):** `shiguchi-cursus-cli` is no longer published to Maven Central or listed in the BOM, and `jbang-catalog.json` is gone. The fat jar is still attached to each GitHub Release (`cursus-<version>-all.jar`); run it with `java -jar`, or `jbang <release URL>`. See docs/reference/push-cli.md.
 

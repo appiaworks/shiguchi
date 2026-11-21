@@ -18,7 +18,7 @@ dependencies {
 
     // Brings protovalidate and the gateway's validation hook. It also puts
     // buf/validate/validate.proto on the proto path, which is what this sample's proto imports.
-    implementation("io.github.appiaworks:shiguchi-validation-spring-boot4-starter:$gatewayVersion")
+    implementation("io.github.appiaworks:shiguchi-validation:$gatewayVersion")
 
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 

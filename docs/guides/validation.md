@@ -26,10 +26,10 @@ nothing is declared twice and nothing in the gateway's configuration names a fie
 
 ## Setup
 
-Add the validation starter next to the gateway starter:
+Add `shiguchi-validation` next to the gateway starter (it carries its own auto-configuration, so there is no separate validation starter):
 
 ```kotlin
-implementation("io.github.appiaworks:shiguchi-validation-spring-boot4-starter:0.28.0")
+implementation("io.github.appiaworks:shiguchi-validation:0.28.0")
 ```
 
 It brings `build.buf:protovalidate`, which is both the engine and the jar that carries
