@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `publishAllPublicationsToNexusRepository`: publish a snapshot to your own Maven repository (`nexusUrl`, or `nexusBaseUrl` plus `nexusSnapshotRepository`, with `nexusUsername`/`nexusPassword` and `-PnexusVersion=x.y.z-SNAPSHOT`) to test downstream projects without publishing to Maven Central. Off unless configured; a non-SNAPSHOT version is refused. See docs/operations/deployment.md.
+
 ## [0.28.0] - 2026-11-21
 
 ### Added
