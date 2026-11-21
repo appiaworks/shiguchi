@@ -11,11 +11,11 @@ Verbs: `sub`, `pub`, `ls`, `find`, and for operators `repub`, `rm`, `dlq`, `seek
 ## Install
 
 ```bash
-# jbang (fetches the jar from the Maven repository the catalog names)
-jbang cursus@appiaworks/shiguchi sub 'orders:*'      # catalog: jbang-catalog.json at the repo root
-jbang alias add --name cursus io.github.appiaworks:shiguchi-cursus-cli:LATEST
+# the fat jar, attached to each GitHub Release as cursus-<version>-all.jar (not on v0.14.0).
+# It is not on Maven Central, so jbang runs it from the release URL:
+jbang https://github.com/appiaworks/shiguchi/releases/download/v0.28.0/cursus-0.28.0-all.jar sub 'orders:*'
 
-# the fat jar (also attached to each GitHub Release as cursus-<version>-all.jar, not on v0.14.0)
+# or build it
 ./gradlew :shiguchi-cursus-cli:shadowJar                  # build/libs/cursus-<version>-all.jar
 java -jar cursus-0.28.0-all.jar sub 'orders:*'
 

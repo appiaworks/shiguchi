@@ -114,7 +114,7 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: .pipeline/.github/scripts/publish-central.sh "$TAG"
 
-      # The fat jar of the cursus command line, for people who do not use jbang.
+      # The fat jar of the cursus command line, (it is not published to Maven Central).
       - name: Build the cursus jar
         run: ./gradlew :shiguchi-cursus-cli:shadowJar --no-daemon
 

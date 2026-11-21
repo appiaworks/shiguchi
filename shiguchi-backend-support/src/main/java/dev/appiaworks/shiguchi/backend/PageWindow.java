@@ -25,7 +25,7 @@ import java.util.function.Function;
  *   <li><b>Keyset</b> ({@link #keyset}): the token carries the last row's sort key, and the next
  *       page is "rows after this key". Stable under writes and flat in cost, but the sort
  *       columns must be non-null and the sort must be the same on every page. {@code
- *       shiguchi-backend-support-jpa}'s {@code ProjectionQuery} does this for you.
+ *       shiguchi-backend-support}'s {@code ProjectionQuery} does this for you.
  * </ul>
  */
 @ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.21.0")

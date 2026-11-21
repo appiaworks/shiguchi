@@ -2,12 +2,15 @@
 
 Part of the [projections guide](../guides/projections/index.md). The walkthrough is the
 [JPA example](../guides/projections/jpa-example.md);
-this page is the reference for what is in the two modules.
+this page is the reference for what is in the module.
 
-| Module | Needs | Contains |
+| Package | Needs | Contains |
 | --- | --- | --- |
-| `shiguchi-backend-support` | the request protos, gRPC `Status` | `SortSpec`, `MaskSpec`, `PageDefaults`, `PageWindow`, `PageResult`, `PageCursor`, `ProtoProjector`, `UnaryCalls` |
-| `shiguchi-backend-support-jpa` | Jakarta Persistence (yours) | `ProjectionQuery` |
+| `dev.appiaworks.shiguchi.backend` | the request protos, gRPC `Status` | `SortSpec`, `MaskSpec`, `PageDefaults`, `PageWindow`, `PageResult`, `PageCursor`, `ProtoProjector`, `UnaryCalls` |
+| `dev.appiaworks.shiguchi.backend.jpa` | Jakarta Persistence (yours) | `ProjectionQuery` |
+
+Both packages are in the one artifact, `shiguchi-backend-support`. Jakarta Persistence is a
+`compileOnly` dependency, so a JDBC, jOOQ or Mongo backend uses the first package without it.
 
 Everything is `@ApiStatus(EXPERIMENTAL)` since 0.21.0. Instances of the spec classes are
 immutable and thread-safe, so declare them `static final`.
