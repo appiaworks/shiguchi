@@ -6,10 +6,13 @@ evaluationDependsOn(":shiguchi-core")
 // Resolved outside the dependencies block: there `project(...)` is a dependency factory, not a Project.
 val coreTestOutput = project(":shiguchi-core").extensions.getByType<SourceSetContainer>()["test"].output
 
+// The validation hooks and the auto-configuration that registers them (a Spring Boot application
+// picks it up from META-INF/spring/...AutoConfiguration.imports; it needs no separate starter).
 dependencies {
     implementation(platform(libs.spring.boot4.bom))
     api(project(":shiguchi-core"))
     api(libs.protovalidate)
+    api(libs.spring.boot.autoconfigure)
 
     compileOnly(project(":shiguchi-rest"))
     compileOnly(project(":shiguchi-grpc-proxy"))

@@ -29,8 +29,6 @@ include(
     "shiguchi-graphql-spring-boot4-starter",
     "shiguchi-openapi-spring-boot4-starter",
     "shiguchi-avro-spring-boot4-starter",
-    "shiguchi-validation-spring-boot4-autoconfigure",
-    "shiguchi-validation-spring-boot4-starter",
     "shiguchi-cursus-spring-boot4-starter",
     "shiguchi-bff-spring-boot4-starter"
 )
@@ -49,7 +47,5 @@ project(":shiguchi-ui-webmvc-spring-boot4-starter").projectDir          = file("
 project(":shiguchi-graphql-spring-boot4-starter").projectDir          = file("spring-boot4/shiguchi-graphql-starter")
 project(":shiguchi-openapi-spring-boot4-starter").projectDir          = file("spring-boot4/shiguchi-openapi-starter")
 project(":shiguchi-avro-spring-boot4-starter").projectDir             = file("spring-boot4/shiguchi-avro-starter")
-project(":shiguchi-validation-spring-boot4-autoconfigure").projectDir = file("spring-boot4/shiguchi-validation-autoconfigure")
-project(":shiguchi-validation-spring-boot4-starter").projectDir       = file("spring-boot4/shiguchi-validation-starter")
 project(":shiguchi-cursus-spring-boot4-starter").projectDir             = file("spring-boot4/shiguchi-cursus-starter")
 project(":shiguchi-bff-spring-boot4-starter").projectDir              = file("spring-boot4/shiguchi-bff-starter")
