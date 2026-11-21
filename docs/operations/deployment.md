@@ -197,3 +197,21 @@ jvm:
 
 ZGC's concurrent cycles do not show up in `jvm_gc_pause_seconds`; watch
 `jvm_gc_concurrent_phase_time_seconds` and the pod's CPU instead.
+
+## Snapshots to an internal Nexus
+
+To test unreleased code in downstream projects without publishing to Maven Central, publish a
+snapshot to your own Maven repository. It is off unless `nexusUrl` is set, and it never touches Central.
+
+```bash
+./gradlew publishAllPublicationsToNexusRepository   -PnexusUrl=https://nexus.example.org/repository/maven-snapshots/   -PnexusVersion=0.29.0-SNAPSHOT
+```
+
+Instead of `nexusUrl` you can set `nexusBaseUrl` (`https://nexus.example.org/repository`) and
+`nexusSnapshotRepository` (default `maven-snapshots`) once in `~/.gradle/gradle.properties`.
+
+Credentials come from `nexusUsername` and `nexusPassword` (put them in `~/.gradle/gradle.properties`,
+or `ORG_GRADLE_PROJECT_nexusUsername` / `ORG_GRADLE_PROJECT_nexusPassword`), never from the repository.
+A version without `-SNAPSHOT` is refused unless `-PnexusAllowRelease=true`, so a release number
+cannot reach a repository by accident. Signing is skipped when no signing key is set. Consumers add
+the repository and depend on `0.29.0-SNAPSHOT`. Releases still go through the tag pipeline.

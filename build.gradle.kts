@@ -21,6 +21,8 @@ plugins {
 allprojects {
     group = "io.github.appiaworks"
     version = "0.28.0"
+    // Only for a snapshot published to an internal Nexus (see docs/operations/deployment.md).
+    findProperty("nexusVersion")?.let { version = it.toString() }
     repositories {
         mavenLocal()
         mavenCentral()
@@ -175,6 +177,47 @@ configure(subprojects.filter { it.name !in samplesModules }) {
         metaInf {
             from(rootProject.layout.projectDirectory.file("LICENSE"))
             from(rootProject.layout.projectDirectory.file("NOTICE"))
+        }
+    }
+
+    // An internal Nexus (or any Maven repository) for snapshots to test downstream projects, so Central
+    // sees only deliberate releases. Opt-in: nexusUrl, nexusUsername and nexusPassword as Gradle
+    // properties or ORG_GRADLE_PROJECT_* variables. A version without -SNAPSHOT is refused unless
+    // nexusAllowRelease=true, since a repository that accepts it may refuse the same version twice.
+    fun nexusProperty(name: String) = providers.gradleProperty(name)
+        .orElse(providers.environmentVariable("ORG_GRADLE_PROJECT_$name"))
+    // nexusUrl wins; otherwise nexusBaseUrl (e.g. https://host/repository) plus nexusSnapshotRepository.
+    val nexusUrl = nexusProperty("nexusUrl").orNull
+        ?: nexusProperty("nexusBaseUrl").orNull?.let { base ->
+            base.trimEnd('/') + "/" + (nexusProperty("nexusSnapshotRepository").orNull ?: "maven-snapshots")
+        }
+    if (!nexusUrl.isNullOrBlank()) {
+        apply(plugin = "maven-publish")
+        extensions.configure<PublishingExtension> {
+            repositories {
+                maven {
+                    name = "nexus"
+                    url = uri(nexusUrl)
+                    isAllowInsecureProtocol = nexusUrl.startsWith("http://")
+                    if (nexusProperty("nexusUsername").isPresent && !nexusUrl.startsWith("file:")) {
+                        credentials {
+                            username = nexusProperty("nexusUsername").get()
+                            password = nexusProperty("nexusPassword").orNull
+                        }
+                    }
+                }
+            }
+        }
+        val allowRelease = nexusProperty("nexusAllowRelease").orNull == "true"
+        tasks.withType<PublishToMavenRepository>().matching { it.name.endsWith("ToNexusRepository") }.configureEach {
+            doFirst {
+                if (!allowRelease && !project.version.toString().endsWith("-SNAPSHOT")) {
+                    throw GradleException(
+                        "Refusing to publish ${project.version} to Nexus: pass -PnexusVersion=x.y.z-SNAPSHOT " +
+                            "(or -PnexusAllowRelease=true for a release repository)."
+                    )
+                }
+            }
         }
     }
 
