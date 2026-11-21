@@ -23,7 +23,6 @@ include(
     // Spring Boot 4 modules
     "shiguchi-spring-boot4-autoconfigure",
     "shiguchi-spring-boot4-starter",
-    "shiguchi-ui-spring-boot4-autoconfigure",
     "shiguchi-ui-spring-boot4-starter",
     "shiguchi-ui-webmvc-spring-boot4-starter",
     "shiguchi-graphql-spring-boot4-starter",
@@ -41,7 +40,6 @@ project(":shiguchi-cursus-cli").projectDir                      = file("shiguchi
 // Remap Spring Boot 4 modules to their grouped subdirectory.
 project(":shiguchi-spring-boot4-autoconfigure").projectDir    = file("spring-boot4/shiguchi-autoconfigure")
 project(":shiguchi-spring-boot4-starter").projectDir          = file("spring-boot4/shiguchi-starter")
-project(":shiguchi-ui-spring-boot4-autoconfigure").projectDir         = file("spring-boot4/shiguchi-ui-autoconfigure")
 project(":shiguchi-ui-spring-boot4-starter").projectDir               = file("spring-boot4/shiguchi-ui-starter")
 project(":shiguchi-ui-webmvc-spring-boot4-starter").projectDir          = file("spring-boot4/shiguchi-ui-webmvc-starter")
 project(":shiguchi-graphql-spring-boot4-starter").projectDir          = file("spring-boot4/shiguchi-graphql-starter")

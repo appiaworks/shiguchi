@@ -9,6 +9,7 @@ import java.io.IOException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ReactiveWebApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.core.type.classreading.SimpleMetadataReaderFactory;
@@ -33,7 +34,9 @@ class ShiguchiUiServletAutoConfigurationTest {
             "GIVEN a servlet application without Spring MVC WHEN the context starts SHOULD back off without the UI "
                     + "or the gateway's reactive security chain")
     void given_servletAppWithoutSpringMvc_when_contextStarts_should_backOff() {
+        // Spring MVC is on this module's test classpath (the servlet adapter is compiled here), so hide it.
         new WebApplicationContextRunner()
+                .withClassLoader(new FilteredClassLoader("org.springframework.web.servlet"))
                 .withConfiguration(UI_AUTO_CONFIGURATIONS)
                 .withPropertyValues("shiguchi.ui.enabled=true")
                 .run(context -> {
