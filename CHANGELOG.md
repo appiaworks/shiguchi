@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- GraphQL `totalCount` no longer reports `-1` (not computed) as a count; it is `null`, matching REST omitting `X-Total-Count`.
 - GraphQL: `pageInfo.endCursor` (and `startCursor` from `prev_page_token`) is now the same `base64(token:index)` cursor as the edge cursors, so passing it as `after` works. It was the raw page token, which failed with `INVALID_ARGUMENT: Malformed page_token`. `after` also accepts a raw token again whatever its bytes.
 
 ### Added

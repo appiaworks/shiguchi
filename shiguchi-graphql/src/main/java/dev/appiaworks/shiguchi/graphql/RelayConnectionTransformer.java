@@ -133,6 +133,8 @@ public class RelayConnectionTransformer {
 
         String nextToken = (String) pageInfo.getOrDefault("nextPageToken", "");
         Object totalCount = pageInfo.getOrDefault("totalCount", null);
+        // Negative means "unknown" (REST omits X-Total-Count for it); never surface -1 as a count.
+        if (totalCount instanceof Number n && n.longValue() < 0) totalCount = null;
 
         // Build edges with synthetic cursors
         List<Map<String, Object>> edges = new ArrayList<>();
