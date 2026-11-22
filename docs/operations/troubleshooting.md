@@ -206,6 +206,7 @@ This is almost always the [proto3 JSON mapping](../concepts/transcoding.md) rath
 | An enum as its name, not its number | Also standard. |
 | `1.0` for a number set to `1`, or `1.0E20` | `double`, `float` and `google.protobuf.Value` numbers print with Java's `Double.toString`. Valid proto3 JSON, same value; only the layout differs from `JSON.stringify` ([json-types.md](../guides/json-types.md#doubles-floats-and-googleprotobufvalue-numbers)). |
 | A size, hash or `ETag` that differs from the client's | The JSON text is not canonical; compare or measure parsed values, not bytes ([json-types.md](../guides/json-types.md#comparing-json-text)). |
+| `<` instead of `<` in a payload | Output from before 0.14.0: `JsonFormat` HTML-escaped strings on the `Any`, `response_body` and push paths. The gateway no longer escapes them on any path ([json-types.md](../guides/json-types.md#string-escaping)). |
 
 ---
 
