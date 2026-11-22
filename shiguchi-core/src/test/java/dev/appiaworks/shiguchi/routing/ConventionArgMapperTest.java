@@ -307,4 +307,16 @@ class ConventionArgMapperTest {
                 .setLabel(FieldDescriptorProto.Label.LABEL_OPTIONAL)
                 .build();
     }
+
+    @Test
+    @DisplayName("GIVEN a negative page size WHEN applyPaging SHOULD fail with INVALID_ARGUMENT")
+    void given_negativePageSize_when_applyPaging_should_failInvalidArgument() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> ConventionArgMapper.applyPaging(Map.of("pageSize", "-5"), inputWithPaging))
+                .isInstanceOfSatisfying(
+                        io.grpc.StatusRuntimeException.class,
+                        e -> org.assertj.core.api.Assertions.assertThat(
+                                        e.getStatus().getCode())
+                                .isEqualTo(io.grpc.Status.Code.INVALID_ARGUMENT));
+    }
 }
