@@ -20,7 +20,9 @@ request shape either way:
 
 `first` is the Relay spelling of `pageSize`; `after` is the Relay cursor. When both a
 cursor and an explicit token are supplied, the cursor wins. A cursor that isn't valid
-base64 is used as a raw token rather than rejected.
+base64 is used as a raw token rather than rejected. A negative page size is rejected
+(`400` on REST, `BAD_USER_INPUT` on GraphQL) before the backend is called; `0` and large values
+are passed through for the backend to default or clamp.
 
 If the request message has **no** `page_request` field, these arguments are dropped rather
 than passed through as unknown fields.

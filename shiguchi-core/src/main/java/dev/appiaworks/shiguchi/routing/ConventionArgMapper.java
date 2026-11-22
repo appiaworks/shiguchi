@@ -41,6 +41,14 @@ public final class ConventionArgMapper {
         String pageToken = asString(args.get("pageToken"));
         String afterCursor = asString(args.get("after"));
 
+        if (pageSize != null && pageSize < 0) {
+            // Rejected here, once, so REST and GraphQL answer the same way instead of each backend
+            // deciding what a negative page size means. 0 still passes through (backend default).
+            throw io.grpc.Status.INVALID_ARGUMENT
+                    .withDescription("page size must not be negative, got " + pageSize)
+                    .asRuntimeException();
+        }
+
         if (pageSize == null && pageToken == null && afterCursor == null) return args;
 
         Map<String, Object> out = new HashMap<>(args);
