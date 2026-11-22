@@ -408,24 +408,26 @@ class PagingAndSortingSurfacesEndToEndTest {
     // ================================================================ 6. first <= 0 / negative / huge
 
     @Test
-    @DisplayName(
-            "GIVEN ?pageSize=0, -5 and a huge value WHEN sent on REST SHOULD forward each verbatim to the backend (documents current behaviour)")
-    void given_oddPageSizesOnRest_when_called_should_forwardVerbatim() {
+    @DisplayName("GIVEN ?pageSize=0 and a huge value WHEN sent on REST SHOULD forward each verbatim to the backend")
+    void given_zeroAndHugePageSizeOnRest_when_called_should_forwardVerbatim() {
         Reply zero = rest("/v1/items?pageSize=0");
-        Reply negative = rest("/v1/items?pageSize=-5");
         Reply huge = rest("/v1/items?pageSize=2147483647");
 
         assertThat(zero.status()).as(zero.body()).isEqualTo(200);
-        assertThat(negative.status()).as(negative.body()).isEqualTo(200);
         assertThat(huge.status()).as(huge.body()).isEqualTo(200);
         // 0 is the proto default, so the backend cannot tell it from "unset": it applies its own default.
         assertThat(CALLS.get(0).pageSize()).isZero();
-        assertThat(CALLS.get(1).pageSize()).isEqualTo(-5);
-        assertThat(CALLS.get(2).pageSize()).isEqualTo(Integer.MAX_VALUE);
-        // The backend here treats <= 0 as its default of 10: all seven items come back.
-        assertThat(restIds(zero)).hasSize(TOTAL);
-        assertThat(restIds(negative)).hasSize(TOTAL);
-        assertThat(restIds(huge)).hasSize(TOTAL);
+        assertThat(CALLS.get(1).pageSize()).isEqualTo(Integer.MAX_VALUE);
+    }
+
+    @Test
+    @DisplayName("GIVEN ?pageSize=-5 WHEN sent on REST SHOULD answer 400 without reaching the backend")
+    void given_negativePageSizeOnRest_when_called_should_be400() {
+        Reply negative = rest("/v1/items?pageSize=-5");
+
+        assertThat(negative.status()).as(negative.body()).isEqualTo(400);
+        assertThat(negative.body()).contains("page size must not be negative");
+        assertThat(CALLS).isEmpty();
     }
 
     @Test
@@ -442,17 +444,33 @@ class PagingAndSortingSurfacesEndToEndTest {
     }
 
     @Test
-    @DisplayName(
-            "GIVEN first: 0, -1 and Int max WHEN sent on GraphQL SHOULD forward each verbatim to the backend (documents current behaviour)")
-    void given_oddFirstOnGraphQl_when_called_should_forwardVerbatim() {
+    @DisplayName("GIVEN first: 0 and Int max WHEN sent on GraphQL SHOULD forward each verbatim to the backend")
+    void given_zeroAndMaxFirstOnGraphQl_when_called_should_forwardVerbatim() {
         connection("first: 0");
-        connection("first: -1");
         connection("first: 2147483647");
 
-        assertThat(CALLS).hasSize(3);
+        assertThat(CALLS).hasSize(2);
         assertThat(CALLS.get(0).pageSize()).isZero();
-        assertThat(CALLS.get(1).pageSize()).isEqualTo(-1);
-        assertThat(CALLS.get(2).pageSize()).isEqualTo(Integer.MAX_VALUE);
+        assertThat(CALLS.get(1).pageSize()).isEqualTo(Integer.MAX_VALUE);
+    }
+
+    @Test
+    @DisplayName("GIVEN first: -1 WHEN sent on GraphQL SHOULD fail with BAD_USER_INPUT without reaching the backend")
+    void given_negativeFirstOnGraphQl_when_called_should_beBadUserInput() {
+        Reply reply = graphqlRaw("{ items(first: -1) { edges { node { id } } } }");
+
+        Struct error = reply.json()
+                .getFieldsOrThrow("errors")
+                .getListValue()
+                .getValues(0)
+                .getStructValue();
+        assertThat(error.getFieldsOrThrow("message").getStringValue()).contains("page size must not be negative");
+        assertThat(error.getFieldsOrThrow("extensions")
+                        .getStructValue()
+                        .getFieldsOrThrow("code")
+                        .getStringValue())
+                .isEqualTo("BAD_USER_INPUT");
+        assertThat(CALLS).isEmpty();
     }
 
     @Test
