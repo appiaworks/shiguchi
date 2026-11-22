@@ -385,6 +385,26 @@ class PagingAndSortingSurfacesEndToEndTest {
                 .isTrue();
     }
 
+    @Test
+    @DisplayName(
+            "GIVEN a backend total_count of 0 (proto3 default, also what unset decodes to) WHEN read on both surfaces SHOULD agree with each other")
+    void given_totalCountZero_when_readOnBothSurfaces_should_agree() {
+        totalCountToReport = 0;
+
+        Reply rest = rest("/v1/items?pageSize=3");
+        Struct gql = connection("first: 3");
+
+        String header = rest.header("X-Total-Count");
+        var total = gql.getFieldsOrThrow("totalCount");
+        if (header == null) {
+            assertThat(total.hasNullValue())
+                    .as("REST omits it, so GraphQL must too: %s", total)
+                    .isTrue();
+        } else {
+            assertThat(total.getNumberValue()).isEqualTo(Double.parseDouble(header));
+        }
+    }
+
     // ================================================================ 6. first <= 0 / negative / huge
 
     @Test
