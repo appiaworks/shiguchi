@@ -68,15 +68,17 @@ they use Tier 1/2 and never the Tier 0 wire-to-JSON fast path.
 ### GraphQL: Relay Connections
 
 A response shaped `{repeated items, page_info}` is exposed as a Relay Connection —
-`edges { node }`, `pageInfo`, `totalCount` — by `RelayConnectionTransformer`. `endCursor`
-and `hasNextPage` are synthesised from `next_page_token`; edge cursors are
-`base64(nextPageToken + ":" + index)`.
+`edges { node }`, `pageInfo`, `totalCount` — by `RelayConnectionTransformer`. `hasNextPage`
+is synthesised from `next_page_token`. Every cursor the gateway emits is the same kind,
+`base64(nextPageToken + ":" + index)`: edge cursors, `endCursor` (the last edge's cursor) and
+`startCursor` when it comes from `prev_page_token`. Pass any of them as `after`, which is what
+Relay clients do with `endCursor`. A raw token sent as `after` is still accepted.
 
 `startCursor` and `hasPreviousPage` come from whichever of these the gateway can know:
 
 | Source | `hasPreviousPage` | `startCursor` |
 | --- | --- | --- |
-| `page_info.prev_page_token` set | `true` | that token |
+| `page_info.prev_page_token` set | `true` | that token, as a cursor |
 | the caller sent `after` | `true` | the cursor they sent |
 | neither | `false` | `null` |
 

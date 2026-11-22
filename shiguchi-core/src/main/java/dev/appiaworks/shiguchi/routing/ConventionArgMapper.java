@@ -125,13 +125,23 @@ public final class ConventionArgMapper {
         return kv.length > 1 && "desc".equalsIgnoreCase(kv[1].trim());
     }
 
-    /** Base64 Relay cursor → the page-token component before the {@code ":"} separator. */
+    /**
+     * Base64 Relay cursor → the page-token component before the {@code ":"} separator. Anything
+     * that is not a well-formed {@code base64(token:index)} cursor is a raw token and passes
+     * through: an unpadded token (an {@code endCursor} from before cursors were unified) can still
+     * be valid base64 and decode to binary garbage, so decoding must be strict and need a colon.
+     */
     static String unpackCursor(String base64Cursor) {
         try {
-            String decoded = new String(
-                    java.util.Base64.getDecoder().decode(base64Cursor), java.nio.charset.StandardCharsets.UTF_8);
-            int colon = decoded.indexOf(':');
-            return colon > 0 ? decoded.substring(0, colon) : decoded;
+            String decoded = java.nio.charset.StandardCharsets.UTF_8
+                    .newDecoder()
+                    .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+                    .decode(java.nio.ByteBuffer.wrap(
+                            java.util.Base64.getDecoder().decode(base64Cursor)))
+                    .toString();
+            int colon = decoded.lastIndexOf(':');
+            return colon > 0 ? decoded.substring(0, colon) : base64Cursor;
         } catch (Exception e) {
             return base64Cursor; // treat as a raw token if it is not a synthetic cursor
         }

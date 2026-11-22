@@ -26,6 +26,26 @@ class RelayBackwardPaginationTest {
         return (Map<String, Object>) connection.get("pageInfo");
     }
 
+    private static String cursor(String token, int index) {
+        return java.util.Base64.getEncoder()
+                .encodeToString((token + ":" + index).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN a page of edges WHEN transformed SHOULD make endCursor the last edge's cursor, so it works as after")
+    void given_page_when_transformed_should_endCursorEqualLastEdgeCursor() {
+        Map<String, Object> raw = Map.of(
+                "items", List.of(Map.of("id", "1"), Map.of("id", "2"), Map.of("id", "3")),
+                "pageInfo", Map.of("nextPageToken", "CgNmb28"));
+
+        Map<String, Object> connection = transformer.transform(raw, "items", null);
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> edges = (List<Map<String, Object>>) connection.get("edges");
+        assertThat(pageInfo(connection)).containsEntry("endCursor", edges.get(2).get("cursor"));
+    }
+
     /** A gRPC response with the documented page_info shape. */
     private static Map<String, Object> response(Map<String, Object> pageInfo) {
         return Map.of("items", List.of(Map.of("id", "1")), "pageInfo", pageInfo);
@@ -37,7 +57,7 @@ class RelayBackwardPaginationTest {
         Map<String, Object> connection = transformer.transform(response(Map.of("nextPageToken", "n1")), "items", null);
 
         assertThat(pageInfo(connection)).containsEntry("hasPreviousPage", false).containsEntry("startCursor", null);
-        assertThat(pageInfo(connection)).containsEntry("hasNextPage", true).containsEntry("endCursor", "n1");
+        assertThat(pageInfo(connection)).containsEntry("hasNextPage", true).containsEntry("endCursor", cursor("n1", 0));
     }
 
     @Test
@@ -62,7 +82,9 @@ class RelayBackwardPaginationTest {
         Map<String, Object> connection = transformer.transform(
                 response(Map.of("nextPageToken", "n3", "prevPageToken", "p2")), "items", "cursor-from-page-1");
 
-        assertThat(pageInfo(connection)).containsEntry("hasPreviousPage", true).containsEntry("startCursor", "p2");
+        assertThat(pageInfo(connection))
+                .containsEntry("hasPreviousPage", true)
+                .containsEntry("startCursor", cursor("p2", 0));
     }
 
     @Test
@@ -72,7 +94,9 @@ class RelayBackwardPaginationTest {
         Map<String, Object> connection =
                 transformer.transform(response(Map.of("nextPageToken", "", "prevPageToken", "p1")), "items", null);
 
-        assertThat(pageInfo(connection)).containsEntry("hasPreviousPage", true).containsEntry("startCursor", "p1");
+        assertThat(pageInfo(connection))
+                .containsEntry("hasPreviousPage", true)
+                .containsEntry("startCursor", cursor("p1", 0));
     }
 
     @Test
