@@ -65,6 +65,7 @@ public final class PushWebSocketHandler implements WebSocketHandler {
 
     private final PushProperties properties;
     private final PushStreams streams;
+    private final PushStore store;
     private final PushPublisher publisher;
     private final TopicAuthorizer authorizer;
     private final PushMetrics metrics;
@@ -115,6 +116,7 @@ public final class PushWebSocketHandler implements WebSocketHandler {
             PushUpstreams upstreams,
             PushSessions sessions) {
         this.sessions = sessions;
+        this.store = store;
         this.properties = properties;
         this.streams = new PushStreams(broker, store, properties, shutdown, upstreams, sessions);
         this.publisher = publisher;
@@ -451,7 +453,13 @@ public final class PushWebSocketHandler implements WebSocketHandler {
                     return Mono.empty();
                 }
             }
-            Map<Topic, String> after = after(obj, topics);
+            Map<Topic, String> after;
+            try {
+                after = after(obj, topics);
+            } catch (PushException e) {
+                send(error(e.code(), e.getMessage(), null));
+                return Mono.empty();
+            }
             int max = properties.getConnection().getMaxSubscriptions();
             Qos qos = requested;
             String group = obj.hasNonNull("group") ? obj.get("group").asString() : null;
@@ -713,20 +721,23 @@ public final class PushWebSocketHandler implements WebSocketHandler {
         }
 
         /** {@code after} as one id for every topic, or an object of topic to id. */
-        private static Map<Topic, String> after(ObjectNode obj, List<Topic> topics) {
+        private Map<Topic, String> after(ObjectNode obj, List<Topic> topics) {
             Map<Topic, String> out = new LinkedHashMap<>();
             JsonNode after = obj.get("after");
             if (after == null || after.isNull()) return out;
             if (after.isObject()) {
                 for (Map.Entry<String, JsonNode> f : after.properties()) {
                     try {
-                        out.put(Topic.parse(f.getKey()), f.getValue().asString());
+                        out.put(
+                                Topic.parse(f.getKey()),
+                                PushStreams.after(f.getValue().asString(), store));
                     } catch (IllegalArgumentException ignored) {
                         // An id for a topic not in this frame is nothing to resume.
                     }
                 }
             } else {
-                for (Topic t : topics) out.put(t, after.asString());
+                String id = PushStreams.after(after.asString(), store);
+                for (Topic t : topics) out.put(t, id);
             }
             return out;
         }

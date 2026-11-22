@@ -36,7 +36,6 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -283,9 +282,6 @@ class PushCrossTransportResumeEndToEndTest {
         }
     }
 
-    @Disabled("DEFECT: a WebSocket sub frame with after=not-an-id is not refused. Expected an error frame with code"
-            + " bad_request like SSE 400, gRPC INVALID_ARGUMENT and GraphQL; observed no error frame,"
-            + " no event and no connect error within 30s")
     @Test
     @DisplayName(
             "GIVEN a resume id that is not an event id WHEN a WebSocket subscriber presents it SHOULD be refused as a bad request")
