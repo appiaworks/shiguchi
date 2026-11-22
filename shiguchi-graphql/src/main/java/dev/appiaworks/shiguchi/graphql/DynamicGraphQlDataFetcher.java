@@ -175,6 +175,9 @@ public class DynamicGraphQlDataFetcher implements DataFetcher<Object> {
                     route.getMethodName());
         }
         args = unwrapInputArg(args);
+        // applyPaging folds `after` into page_request and strips it; keep the original cursor so the
+        // Relay transformer can derive hasPreviousPage/startCursor from it.
+        final String requestCursor = args.get("after") instanceof String s ? s : null;
         if (md != null) {
             // Map the SDL paging/sorting args (first/after/sort) onto the nested proto fields the
             // conventions define — the same mapping the REST surface applies to its query params.
@@ -281,11 +284,8 @@ public class DynamicGraphQlDataFetcher implements DataFetcher<Object> {
                             // answered from the response alone — a backend that returns only
                             // next_page_token has said nothing about what came before — but a
                             // caller that sent `after` is by definition past the first page.
-                            Object after = finalArgs.get("after");
                             response = relayTransformer.transform(
-                                    response,
-                                    relayTransformer.getEdgesFieldName(outputDesc),
-                                    after instanceof String cursor ? cursor : null);
+                                    response, relayTransformer.getEdgesFieldName(outputDesc), requestCursor);
                         }
                     }
                     return (Object) response;

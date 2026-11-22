@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking (artifact coordinates):** `shiguchi-backend-support-jpa` is merged into `shiguchi-backend-support` (the classes keep their package, `dev.appiaworks.shiguchi.backend.jpa`; Jakarta Persistence is still `compileOnly`). Replace the `-jpa` dependency with `shiguchi-backend-support`. Both were `EXPERIMENTAL`.
 - **Breaking (artifact coordinates):** `shiguchi-cursus-cli` is no longer published to Maven Central or listed in the BOM, and `jbang-catalog.json` is gone. The fat jar is still attached to each GitHub Release (`cursus-<version>-all.jar`); run it with `java -jar`, or `jbang <release URL>`. See docs/reference/push-cli.md.
 
+### Fixed
+
+- GraphQL: `pageInfo.endCursor` (and `startCursor` from `prev_page_token`) is now the same `base64(token:index)` cursor as the edge cursors, so passing it as `after` works. It was the raw page token, which failed with `INVALID_ARGUMENT: Malformed page_token`. `after` also accepts a raw token again whatever its bytes.
+
 ### Added
 
 - `publishAllPublicationsToNexusRepository`: publish a snapshot to your own Maven repository (`nexusUrl`, or `nexusBaseUrl` plus `nexusSnapshotRepository`, with `nexusUsername`/`nexusPassword` and `-PnexusVersion=x.y.z-SNAPSHOT`) to test downstream projects without publishing to Maven Central. Off unless configured; a non-SNAPSHOT version is refused. See docs/operations/deployment.md.

@@ -137,6 +137,18 @@ class ConventionArgMapperTest {
     }
 
     @Test
+    @DisplayName("Given an unpadded raw token that decodes to binary garbage, when applyPaging, should pass it through")
+    void given_rawTokenThatDecodesToGarbage_when_applyPaging_should_passThrough() {
+        // The pre-fix endCursor: valid unpadded base64 of protobuf bytes, no colon, not UTF-8.
+        String raw = Base64.getEncoder()
+                .withoutPadding()
+                .encodeToString(new byte[] {0x0a, 0x03, (byte) 0xff, (byte) 0xfe, 0x01});
+        Map<String, Object> result = ConventionArgMapper.applyPaging(Map.of("after", raw), inputWithPaging);
+
+        assertThat(result).containsEntry("pageRequest", Map.of("pageToken", raw));
+    }
+
+    @Test
     @DisplayName("Given non-base64 after value, when applyPaging, should fall back to raw token usage")
     void given_invalidBase64After_when_applyPaging_should_fallbackToRawToken() {
         Map<String, Object> args = Map.of("after", "not-base64-at-all", "id", "x");

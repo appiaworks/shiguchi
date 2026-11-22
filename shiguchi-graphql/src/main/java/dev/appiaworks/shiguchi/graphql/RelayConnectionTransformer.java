@@ -137,8 +137,7 @@ public class RelayConnectionTransformer {
         // Build edges with synthetic cursors
         List<Map<String, Object>> edges = new ArrayList<>();
         for (int i = 0; i < items.size(); i++) {
-            String cursor = Base64.getEncoder().encodeToString((nextToken + ":" + i).getBytes(StandardCharsets.UTF_8));
-            edges.add(Map.of("node", items.get(i), "cursor", cursor));
+            edges.add(Map.of("node", items.get(i), "cursor", cursor(nextToken, i)));
         }
 
         // The backward half of the cursor pair, when the backend chose to provide it. Optional by
@@ -148,13 +147,15 @@ public class RelayConnectionTransformer {
 
         // Build Relay PageInfo
         Map<String, Object> relayPageInfo = new HashMap<>();
-        relayPageInfo.put("endCursor", nextToken.isBlank() ? null : nextToken);
+        // Same kind as the edge cursors (the last edge's, or index 0 on an empty page), so a client
+        // can pass it back as `after`: Relay clients (Apollo fetchMore) do exactly that.
+        relayPageInfo.put("endCursor", nextToken.isBlank() ? null : cursor(nextToken, Math.max(items.size() - 1, 0)));
         relayPageInfo.put("hasNextPage", !nextToken.isBlank());
 
         // startCursor is where this page begins, so a client can page back to it. The backend's
         // prev_page_token when there is one; otherwise the cursor the caller arrived with, which
         // is the same position by definition.
-        String startCursor = !prevToken.isBlank() ? prevToken : emptyToNull(requestCursor);
+        String startCursor = !prevToken.isBlank() ? cursor(prevToken, 0) : emptyToNull(requestCursor);
         relayPageInfo.put("startCursor", startCursor);
 
         // Previously hardcoded to false, which was wrong the moment a caller paged past the first
@@ -168,6 +169,11 @@ public class RelayConnectionTransformer {
         connection.put("pageInfo", relayPageInfo);
         connection.put("totalCount", totalCount);
         return connection;
+    }
+
+    /** The one cursor format: {@code base64(token + ":" + index)}, read back by ConventionArgMapper. */
+    private static String cursor(String token, int index) {
+        return Base64.getEncoder().encodeToString((token + ":" + index).getBytes(StandardCharsets.UTF_8));
     }
 
     private static String toCamelCase(String snake) {
