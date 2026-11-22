@@ -31,16 +31,18 @@ final class AnnotationRelationshipSource implements RelationshipSource {
         if (!ann.getResolvesTypeList().isEmpty()) {
             List<String> resolvesTypes = ann.getResolvesTypeList();
             String jsonName = field.getJsonName(); // e.g. "typeId", "solarSystemId"
+            boolean idList = field.isRepeated();
             if (resolvesTypes.size() == 1) {
-                String resolverName = jsonName.endsWith("Id") ? jsonName.substring(0, jsonName.length() - 2) : jsonName;
+                String resolverName = idList ? pluralResolverName(jsonName) : singularResolverName(jsonName);
                 out.add(new Relationship(
-                        typeName, resolverName, jsonName, resolvesTypes.get(0), "", Source.ANNOTATION));
+                        typeName, resolverName, jsonName, resolvesTypes.get(0), "", Source.ANNOTATION, idList));
             } else {
                 String prefix = commonTypeNamePrefix(resolvesTypes);
                 for (String resolvedType : resolvesTypes) {
                     String stripped = resolvedType.substring(prefix.length());
                     String resolverName = Character.toLowerCase(stripped.charAt(0)) + stripped.substring(1);
-                    out.add(new Relationship(typeName, resolverName, jsonName, resolvedType, "", Source.ANNOTATION));
+                    out.add(new Relationship(
+                            typeName, resolverName, jsonName, resolvedType, "", Source.ANNOTATION, idList));
                 }
             }
         }
@@ -78,6 +80,29 @@ final class AnnotationRelationshipSource implements RelationshipSource {
             }
         }
         return Optional.empty();
+    }
+
+    /** {@code solarSystemId} becomes {@code solarSystem}; a name without the suffix is kept. */
+    static String singularResolverName(String jsonName) {
+        return jsonName.endsWith("Id") ? jsonName.substring(0, jsonName.length() - 2) : jsonName;
+    }
+
+    /**
+     * The companion name for a repeated id field: {@code characterIds} becomes {@code characters},
+     * {@code monitoredRegionIds} {@code monitoredRegions}, {@code categoryIds} {@code categories}. The
+     * singular rule would give back the field's own name for these, which the schema cannot hold
+     * twice. A name without an {@code Ids} suffix gets {@code Resolved} appended (still distinct).
+     */
+    static String pluralResolverName(String jsonName) {
+        if (!jsonName.endsWith("Ids") || jsonName.length() == 3) return jsonName + "Resolved";
+        String base = jsonName.substring(0, jsonName.length() - 3);
+        if (base.endsWith("y") && base.length() > 1 && "aeiou".indexOf(base.charAt(base.length() - 2)) < 0) {
+            return base.substring(0, base.length() - 1) + "ies";
+        }
+        if (base.endsWith("s") || base.endsWith("x") || base.endsWith("ch") || base.endsWith("sh")) {
+            return base + "es";
+        }
+        return base + "s";
     }
 
     static String commonTypeNamePrefix(List<String> names) {

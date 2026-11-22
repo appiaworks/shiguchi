@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `resolves_type` on a `repeated` id field (`characterIds`, `monitoredRegionIds`) now generates a distinct list companion (`characters: [EveCharacter!]`) instead of a resolver named like the id field itself, which clashed. Ids resolve in order through the type's DataLoader; ids the loader does not return are dropped.
 - Push over WebSocket: a `sub` frame whose `after` is not a valid event id now gets a `bad_request` error frame instead of being accepted silently, matching SSE (400), gRPC (`INVALID_ARGUMENT`) and GraphQL.
 - A negative `pageSize`/`first` is now rejected with `400` (REST) / `BAD_USER_INPUT` (GraphQL) instead of being forwarded to the backend.
 - GraphQL `totalCount` no longer reports `-1` (not computed) as a count; it is `null`, matching REST omitting `X-Total-Count`.

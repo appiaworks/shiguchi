@@ -59,6 +59,20 @@ public class GrpcRelationshipDataFetcher implements DataFetcher<CompletableFutur
      */
     public GrpcRelationshipDataFetcher(
             String idFieldJsonName, String resolvedTypeName, DataLoaderConfig.OnError onError, boolean many) {
+        this(idFieldJsonName, resolvedTypeName, onError, many, false);
+    }
+
+    /**
+     * @param idList the id field is {@code repeated}: the value is a list with one entity per id, in
+     *     order; ids the backend did not return are dropped, a missing or empty list gives {@code []}
+     */
+    public GrpcRelationshipDataFetcher(
+            String idFieldJsonName,
+            String resolvedTypeName,
+            DataLoaderConfig.OnError onError,
+            boolean many,
+            boolean idList) {
+        this.idList = idList;
         this.idFieldJsonName = idFieldJsonName;
         this.resolvedTypeName = resolvedTypeName;
         this.onError = onError == null ? DataLoaderConfig.OnError.ERROR : onError;
@@ -67,8 +81,10 @@ public class GrpcRelationshipDataFetcher implements DataFetcher<CompletableFutur
 
     private final boolean many;
 
+    private final boolean idList;
+
     private Object none() {
-        return many ? java.util.List.of() : null;
+        return many || idList ? java.util.List.of() : null;
     }
 
     @Override
@@ -94,6 +110,8 @@ public class GrpcRelationshipDataFetcher implements DataFetcher<CompletableFutur
             return CompletableFuture.completedFuture(null);
         }
 
+        if (idList) return loadAll(loader, id);
+
         String idStr = String.valueOf(id);
         log.debug("[Relationship] Scheduling DataLoader load: type={} id={}", resolvedTypeName, idStr);
 
@@ -114,6 +132,38 @@ public class GrpcRelationshipDataFetcher implements DataFetcher<CompletableFutur
                 return none();
             }
             throw failure instanceof CompletionException completion ? completion : new CompletionException(failure);
+        });
+    }
+
+    /** One load per id (the DataLoader batches them), results in id order, absent ones dropped. */
+    private CompletableFuture<Object> loadAll(DataLoader<String, Object> loader, Object ids) {
+        if (!(ids instanceof java.util.Collection<?> collection) || collection.isEmpty()) {
+            return CompletableFuture.completedFuture(java.util.List.of());
+        }
+        java.util.List<CompletableFuture<Object>> loads = new java.util.ArrayList<>(collection.size());
+        for (Object id : collection) {
+            if (id == null) continue;
+            String idStr = String.valueOf(id);
+            loads.add(loader.load(idStr).handle((value, failure) -> {
+                if (failure == null) return value == BatchFailureSummary.SUPPRESSED ? null : value;
+                if (onError == DataLoaderConfig.OnError.NULL) {
+                    log.warn(
+                            "[Relationship] DataLoader load failed for type='{}' id={}: {}",
+                            resolvedTypeName,
+                            idStr,
+                            failure.getMessage());
+                    return null;
+                }
+                throw failure instanceof CompletionException completion ? completion : new CompletionException(failure);
+            }));
+        }
+        return CompletableFuture.allOf(loads.toArray(new CompletableFuture[0])).thenApply(ignored -> {
+            java.util.List<Object> resolved = new java.util.ArrayList<>(loads.size());
+            for (CompletableFuture<Object> load : loads) {
+                Object value = load.join();
+                if (value != null) resolved.add(value);
+            }
+            return resolved;
         });
     }
 }

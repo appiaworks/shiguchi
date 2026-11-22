@@ -231,4 +231,73 @@ class GrpcRelationshipDataFetcherTest {
 
         assertThat(manyFetcher(DataLoaderConfig.OnError.NULL).get(env).get()).isEqualTo(java.util.List.of());
     }
+
+    private static GrpcRelationshipDataFetcher listFetcher(DataLoaderConfig.OnError onError) {
+        return new GrpcRelationshipDataFetcher("characterIds", "EveCharacter", onError, false, true);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static DataLoader<String, Object> loaderFor(DataFetchingEnvironment env) {
+        DataLoader<String, Object> loader = mock(DataLoader.class);
+        when(env.<String, Object>getDataLoader("EveCharacter")).thenReturn(loader);
+        return loader;
+    }
+
+    @Test
+    @DisplayName(
+            "Given a repeated id field, when get called, should load each id and return the entities in id order, dropping absent ones")
+    void given_repeatedIds_when_get_should_returnEntitiesInOrderDroppingMissing() throws Exception {
+        DataFetchingEnvironment env = envWithSource(Map.of("characterIds", java.util.List.of(3L, 1L, 2L)));
+        DataLoader<String, Object> loader = loaderFor(env);
+        Map<String, Object> one = Map.of("id", "1");
+        Map<String, Object> three = Map.of("id", "3");
+        when(loader.load(eq("3"))).thenReturn(CompletableFuture.completedFuture(three));
+        when(loader.load(eq("1"))).thenReturn(CompletableFuture.completedFuture(one));
+        when(loader.load(eq("2"))).thenReturn(CompletableFuture.completedFuture(null));
+
+        Object result = listFetcher(DataLoaderConfig.OnError.ERROR).get(env).get();
+
+        assertThat(result).isEqualTo(java.util.List.of(three, one));
+    }
+
+    @Test
+    @DisplayName("Given a repeated id field that is empty or absent, when get called, should return an empty list")
+    void given_emptyOrAbsentRepeatedIds_when_get_should_returnEmptyList() throws Exception {
+        DataFetchingEnvironment empty = envWithSource(Map.of("characterIds", java.util.List.of()));
+        loaderFor(empty);
+        DataFetchingEnvironment absent = envWithSource(Map.of("other", 1));
+
+        assertThat(listFetcher(DataLoaderConfig.OnError.ERROR).get(empty).get()).isEqualTo(java.util.List.of());
+        assertThat(listFetcher(DataLoaderConfig.OnError.ERROR).get(absent).get())
+                .isEqualTo(java.util.List.of());
+    }
+
+    @Test
+    @DisplayName("Given on-error ERROR and one failing id of a repeated field, when get called, should fail the field")
+    void given_repeatedIds_and_oneLoadFails_when_getUnderError_should_failTheField() {
+        DataFetchingEnvironment env = envWithSource(Map.of("characterIds", java.util.List.of(1L, 2L)));
+        DataLoader<String, Object> loader = loaderFor(env);
+        CompletableFuture<Object> failing = new CompletableFuture<>();
+        failing.completeExceptionally(new RuntimeException("backend unreachable"));
+        when(loader.load(eq("1"))).thenReturn(CompletableFuture.completedFuture(Map.of("id", "1")));
+        when(loader.load(eq("2"))).thenReturn(failing);
+
+        assertThatThrownBy(listFetcher(DataLoaderConfig.OnError.ERROR).get(env)::get)
+                .hasMessageContaining("backend unreachable");
+    }
+
+    @Test
+    @DisplayName(
+            "Given on-error NULL and one failing id of a repeated field, when get called, should drop only that id")
+    void given_repeatedIds_and_oneLoadFails_when_getUnderNull_should_dropOnlyThatId() throws Exception {
+        DataFetchingEnvironment env = envWithSource(Map.of("characterIds", java.util.List.of(1L, 2L)));
+        DataLoader<String, Object> loader = loaderFor(env);
+        CompletableFuture<Object> failing = new CompletableFuture<>();
+        failing.completeExceptionally(new RuntimeException("backend unreachable"));
+        Map<String, Object> one = Map.of("id", "1");
+        when(loader.load(eq("1"))).thenReturn(CompletableFuture.completedFuture(one));
+        when(loader.load(eq("2"))).thenReturn(failing);
+
+        assertThat(listFetcher(DataLoaderConfig.OnError.NULL).get(env).get()).isEqualTo(java.util.List.of(one));
+    }
 }

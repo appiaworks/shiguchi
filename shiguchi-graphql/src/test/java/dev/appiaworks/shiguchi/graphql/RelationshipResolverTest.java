@@ -135,6 +135,12 @@ class RelationshipResolverTest {
 
     private static Descriptor message(String name, String fieldName, Type type, FieldRule.Builder rule)
             throws Exception {
+        return message(name, fieldName, type, rule, FieldDescriptorProto.Label.LABEL_OPTIONAL);
+    }
+
+    private static Descriptor message(
+            String name, String fieldName, Type type, FieldRule.Builder rule, FieldDescriptorProto.Label label)
+            throws Exception {
         FieldOptions options = FieldOptions.newBuilder()
                 .setExtension(GraphQlProto.field, rule.build())
                 .build();
@@ -148,10 +154,56 @@ class RelationshipResolverTest {
                                 .setName(fieldName)
                                 .setNumber(1)
                                 .setType(type)
-                                .setLabel(FieldDescriptorProto.Label.LABEL_OPTIONAL)
+                                .setLabel(label)
                                 .setOptions(options)))
                 .build();
         return FileDescriptor.buildFrom(proto, new FileDescriptor[] {GraphQlProto.getDescriptor()})
                 .findMessageTypeByName(name);
+    }
+
+    @Test
+    @DisplayName(
+            "GIVEN resolves_type on a repeated characterIds WHEN resolving SHOULD yield a distinct plural companion flagged as a list")
+    void given_repeatedIdField_when_resolving_should_yieldPluralListCompanion() throws Exception {
+        Descriptor msg = message(
+                "Corp",
+                "character_ids",
+                Type.TYPE_INT64,
+                FieldRule.newBuilder().addResolvesType("EveCharacter"),
+                FieldDescriptorProto.Label.LABEL_REPEATED);
+
+        List<Relationship> rels = resolver.relationships(msg, msg.findFieldByName("character_ids"));
+
+        assertThat(rels).hasSize(1);
+        Relationship rel = rels.get(0);
+        assertThat(rel.fieldName()).isEqualTo("characters").isNotEqualTo("characterIds");
+        assertThat(rel.idJsonName()).isEqualTo("characterIds");
+        assertThat(rel.resolvedType()).isEqualTo("EveCharacter");
+        assertThat(rel.idList()).isTrue();
+        assertThat(rel.many()).isFalse();
+        assertThat(rel.loaderName()).isEqualTo("EveCharacter");
+    }
+
+    @Test
+    @DisplayName("GIVEN repeated id field names WHEN deriving the resolver name SHOULD pluralise the stripped base")
+    void given_repeatedIdNames_when_derivingResolverName_should_pluralise() {
+        assertThat(AnnotationRelationshipSource.pluralResolverName("monitoredRegionIds"))
+                .isEqualTo("monitoredRegions");
+        assertThat(AnnotationRelationshipSource.pluralResolverName("categoryIds"))
+                .isEqualTo("categories");
+        assertThat(AnnotationRelationshipSource.pluralResolverName("statusIds")).isEqualTo("statuses");
+        assertThat(AnnotationRelationshipSource.pluralResolverName("keyIds")).isEqualTo("keys");
+        assertThat(AnnotationRelationshipSource.pluralResolverName("members")).isEqualTo("membersResolved");
+        assertThat(AnnotationRelationshipSource.pluralResolverName("Ids")).isEqualTo("IdsResolved");
+    }
+
+    @Test
+    @DisplayName("GIVEN a singular id field WHEN resolving SHOULD keep the existing name and not be a list")
+    void given_singularIdField_when_resolving_should_notBeList() throws Exception {
+        Descriptor msg = message(
+                "Order", "customer_id", Type.TYPE_INT64, FieldRule.newBuilder().addResolvesType("Customer"));
+
+        assertThat(resolver.relationships(msg, msg.findFieldByName("customer_id")))
+                .allMatch(r -> !r.idList() && r.fieldName().equals("customer"));
     }
 }
