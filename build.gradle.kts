@@ -20,7 +20,7 @@ plugins {
 
 allprojects {
     group = "io.github.appiaworks"
-    version = "0.28.0"
+    version = "0.29.0"
     // Only for a snapshot published to an internal Nexus (see docs/operations/deployment.md).
     findProperty("nexusVersion")?.let { version = it.toString() }
     repositories {

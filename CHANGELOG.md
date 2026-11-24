@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-11-24
+
 ### Changed
 
 - **Breaking (artifact coordinates):** `shiguchi-ui-spring-boot4-autoconfigure` is merged into `shiguchi-ui`, which now carries the auto-configuration (same packages, same properties). The two UI starters are unchanged and pull `shiguchi-ui` in; anyone depending on the autoconfigure artifact directly should depend on `io.github.appiaworks:shiguchi-ui`.
