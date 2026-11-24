@@ -62,6 +62,7 @@ public class GraphQlFieldMaskInjector {
 
         Set<String> paths = env.getSelectionSet().getImmediateFields().stream()
                 .map(f -> CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, f.getName()))
+                .filter(name -> !GraphQlSchemaBuilder.EMPTY_PLACEHOLDER.equals(name))
                 .filter(name -> inputDescriptor.findFieldByName(name) != null
                         || !name.startsWith("page") && !name.startsWith("sort"))
                 .collect(Collectors.toSet());

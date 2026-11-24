@@ -67,6 +67,19 @@ mutation ($input: CreateBookRequestInput!) {
 
 Variables (`{"input": {"title": "Dune"}}`) go in the GraphiQL variables pane.
 
+### Empty messages
+
+GraphQL does not allow a type without fields, so a proto message that declares none
+(`message UnlinkResponse {}`) gets one nullable `_placeholder: Boolean`. Select it (or
+`__typename`) on an empty response, since an object type needs a selection:
+
+```graphql
+mutation { unlink(input: { id: "a" }) { _placeholder } }
+```
+
+The result is `{ "unlink": { "_placeholder": null } }`. In a nested empty request message the field is
+optional input; send it or leave it out, it never reaches the backend.
+
 ## Paging and sorting
 
 Requests with `page_request` get `first` and `after`; requests with `sort_fields` get `sort`:
