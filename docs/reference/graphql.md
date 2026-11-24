@@ -62,6 +62,13 @@ them. `JSON`, `DateTime` and `Void` are always declared.
 | response `pluck` | the plucked field's type (list if repeated) |
 | response with a repeated message field and `page_info` | Relay `<X>Connection`; shared `PageInfo` type |
 | no queries in the schema | `_placeholder: Boolean` on `Query` |
+| response message with no fields (`message UnlinkResponse {}`) | object type with one nullable `_placeholder: Boolean`; select `{ _placeholder }` (resolves to `null`) or `{ __typename }` |
+| `google.protobuf.Empty` | the `Void` scalar, no placeholder |
+
+The placeholder exists because GraphQL forbids object and input types without fields. It is added only
+to a message that declares no fields at all, so a real field cannot collide with it. A route of type
+RESOLVER that adds fields to such a type replaces the placeholder. A message whose fields are all
+omitted by configuration (`omit`, filtered names) is not covered and stays field-less.
 
 ### Arguments
 
@@ -72,6 +79,8 @@ them. `JSON`, `DateTime` and `Void` are always declared.
 | MUTATION | `input: <Request>Input!` (when the request has user fields) |
 | QUERY, all fields scalar, at most 5 | one argument per field |
 | QUERY otherwise | `input: <Request>Input` (nullable) |
+| request with no fields | no arguments |
+| nested message with no fields | `<Message>Input` with one optional `_placeholder: Boolean`; accepted and dropped before the proto message is built |
 
 Injected arguments: `first: Int, after: String` when the request has `page_request`, and
 `sort: [SortFieldInput]` when it has `sort_fields`. The shared types are `input SortFieldInput { field:

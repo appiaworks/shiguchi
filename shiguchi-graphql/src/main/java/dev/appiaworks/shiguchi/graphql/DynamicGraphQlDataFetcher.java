@@ -13,6 +13,8 @@ import dev.appiaworks.shiguchi.routing.ServiceEndpointContext;
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
 import io.grpc.Metadata;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -175,6 +177,9 @@ public class DynamicGraphQlDataFetcher implements DataFetcher<Object> {
                     route.getMethodName());
         }
         args = unwrapInputArg(args);
+        if (md != null) {
+            args = (Map<String, Object>) stripEmptyPlaceholder(args, md.getInputType());
+        }
         // applyPaging folds `after` into page_request and strips it; keep the original cursor so the
         // Relay transformer can derive hasPreviousPage/startCursor from it.
         final String requestCursor = args.get("after") instanceof String s ? s : null;
@@ -347,6 +352,37 @@ public class DynamicGraphQlDataFetcher implements DataFetcher<Object> {
         unwrapped.remove("input");
         unwrapped.putAll((Map<String, Object>) inputMap);
         return unwrapped;
+    }
+
+    /**
+     * Drops the {@code _placeholder} argument the schema adds to message types with no fields, so
+     * the proto message never sees an unknown field. Guided by the descriptor: only where the
+     * message at that position declares no fields, so a real field renamed {@code _placeholder}
+     * is left alone. Builds copies; graphql-java's argument maps may be immutable.
+     */
+    @SuppressWarnings("unchecked")
+    static Object stripEmptyPlaceholder(Object value, com.google.protobuf.Descriptors.Descriptor desc) {
+        if (value instanceof List<?> list) {
+            List<Object> out = new ArrayList<>(list.size());
+            for (Object item : list) out.add(stripEmptyPlaceholder(item, desc));
+            return out;
+        }
+        if (!(value instanceof Map<?, ?> map) || desc == null) return value;
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        boolean empty = desc.getFields().isEmpty();
+        for (Map.Entry<String, Object> e : ((Map<String, Object>) map).entrySet()) {
+            if (empty && GraphQlSchemaBuilder.EMPTY_PLACEHOLDER.equals(e.getKey())) continue;
+            var field = desc.getFields().stream()
+                    .filter(f ->
+                            f.getJsonName().equals(e.getKey()) || f.getName().equals(e.getKey()))
+                    .findFirst()
+                    .orElse(null);
+            boolean nested = field != null
+                    && !field.isMapField()
+                    && field.getType() == com.google.protobuf.Descriptors.FieldDescriptor.Type.MESSAGE;
+            out.put(e.getKey(), nested ? stripEmptyPlaceholder(e.getValue(), field.getMessageType()) : e.getValue());
+        }
+        return out;
     }
 
     /**

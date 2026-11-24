@@ -59,6 +59,14 @@ public class GraphQlSchemaBuilder {
     private static final Logger log = LoggerFactory.getLogger(GraphQlSchemaBuilder.class);
     private static final int MAX_DEPTH = 10;
     private static final Set<String> PAGINATION_FIELD_NAMES = Set.of("page_request", "sort_fields", "read_mask");
+    /**
+     * Field added to a message that declares no fields (an object or input type needs at least
+     * one); same name and type as {@code Query._placeholder}. One underscore: {@code __} is reserved.
+     */
+    static final String EMPTY_PLACEHOLDER = "_placeholder";
+
+    /** Types whose only field is the placeholder; scratch, rebuilt with each SDL. */
+    private final Set<String> placeholderOnlyTypes = new java.util.HashSet<>();
 
     private final GrpcRouteRegistry registry;
     private final RelayConnectionTransformer relayTransformer;
@@ -237,6 +245,7 @@ public class GraphQlSchemaBuilder {
     private synchronized SdlResult generateSdlWithKeys() {
         Map<String, String> federationKeys = isFederationEnabled() ? new LinkedHashMap<>() : null;
         collectingCosts.clear();
+        placeholderOnlyTypes.clear();
         collectingRelationships.clear();
         collectingKeys.clear();
         String sdl = generateSdl(federationKeys);
@@ -374,6 +383,10 @@ public class GraphQlSchemaBuilder {
             String fieldsBlock = String.join("", entry.getValue());
             if (typeDefs.containsKey(parentType)) {
                 String existing = typeDefs.get(parentType);
+                // The placeholder only keeps an empty type valid; real resolver fields replace it.
+                if (placeholderOnlyTypes.contains(parentType)) {
+                    existing = existing.replace("  " + EMPTY_PLACEHOLDER + ": Boolean\n", "");
+                }
                 // Insert resolver fields before the closing brace
                 int closingBrace = existing.lastIndexOf('}');
                 typeDefs.put(parentType, existing.substring(0, closingBrace) + fieldsBlock + "}\n");
@@ -444,7 +457,7 @@ public class GraphQlSchemaBuilder {
 
         sb.append("type Query {\n");
         if (!queries.isEmpty()) sb.append(queries);
-        else sb.append("  _placeholder: Boolean\n");
+        else sb.append("  ").append(EMPTY_PLACEHOLDER).append(": Boolean\n");
         sb.append("}\n\n");
 
         if (!mutations.isEmpty())
@@ -723,6 +736,11 @@ public class GraphQlSchemaBuilder {
                 sb.append("\n");
             }
         }
+        // A message that declares no fields would be a field-less object type, which GraphQL forbids.
+        if (descriptor.getFields().isEmpty()) {
+            sb.append("  ").append(EMPTY_PLACEHOLDER).append(": Boolean\n");
+            placeholderOnlyTypes.add(typeName);
+        }
         sb.append("}\n");
         typeDefs.putIfAbsent(typeName, sb.toString());
     }
@@ -767,6 +785,10 @@ public class GraphQlSchemaBuilder {
                         .append("\")");
             }
             sb.append("\n");
+        }
+        // An empty input object is invalid GraphQL; the optional field is stripped before dispatch.
+        if (descriptor.getFields().isEmpty()) {
+            sb.append("  ").append(EMPTY_PLACEHOLDER).append(": Boolean\n");
         }
         sb.append("}\n");
         typeDefs.putIfAbsent(inputTypeName, sb.toString());
