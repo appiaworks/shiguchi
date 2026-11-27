@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-11-27
+
 ### Changed
 
 - **API status:** 15 types are promoted from `EXPERIMENTAL` to `STABLE` (since 0.29.0), so the compatibility gate now holds them to the stable rules (no removal or signature change within a major; new interface methods only as `default`): `RateLimiter`, `RateLimitKeyResolver`, `UpstreamCredentialSource`, `GatewaySecurityCustomizer` and `GatewayRequestAttributes` (`shiguchi-rest`), `SchemaReloadListener` (`shiguchi-core`), and every public type of `protobuf-java-extras` (`ProtoJson`, `ProtoScalarCodec`, `ScalarSchema`, `ProtoTypes`, `MoneyValue`, `ProtoJsonException`, `JsonReadable`, `JsonWritable`, `GeneratedJson`). No code changed. Cursus, BFF, GraphQL extension points and `shiguchi-backend-support` stay `EXPERIMENTAL`. See docs/operations/api-compatibility.md.
