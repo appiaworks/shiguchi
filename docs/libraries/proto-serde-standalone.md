@@ -10,7 +10,7 @@ gateway and without Spring or gRPC on the classpath:
 - [`ProtoTypes`](#converting-types) converts well-known proto types to and from `java.time`,
   `BigDecimal` and friends.
 
-Everything here is `EXPERIMENTAL` ([api-compatibility.md](../operations/api-compatibility.md)).
+The public types here are `STABLE` since 0.29.0 ([api-compatibility.md](../operations/api-compatibility.md)).
 
 [`samples/sample-protobuf-java-extras`](../../samples/sample-protobuf-java-extras) runs all of it in
 one plain Java program, plus a Kafka serializer and deserializer built on it.
