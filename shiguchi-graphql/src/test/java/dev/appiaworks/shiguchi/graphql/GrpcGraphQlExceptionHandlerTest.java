@@ -113,6 +113,32 @@ class GrpcGraphQlExceptionHandlerTest {
     }
 
     @Test
+    @DisplayName(
+            "GIVEN an INVALID_ARGUMENT buried under CompletionException and ExecutionException WHEN handled SHOULD map it to BAD_REQUEST")
+    void given_wrappedInvalidArgument_when_handled_should_mapToBadRequest() throws Exception {
+        StatusRuntimeException sre = Status.INVALID_ARGUMENT
+                .withDescription("Unsortable field: bogus")
+                .asRuntimeException();
+        Throwable[] chains = {
+            new java.util.concurrent.CompletionException(sre),
+            new java.util.concurrent.CompletionException(new java.util.concurrent.ExecutionException(sre)),
+            new java.util.concurrent.CompletionException(new java.util.concurrent.ExecutionException(
+                    new java.util.concurrent.CompletionException(new RuntimeException("batch", sre)))),
+            new java.util.concurrent.CompletionException(
+                    new GrpcBackendException("lib.Market", "MarketContracts", sre, null)),
+        };
+        for (Throwable chain : chains) {
+            GraphQLError error =
+                    single(new GrpcGraphQlExceptionHandler(mock(DataFetcherExceptionHandler.class)), chain);
+
+            assertThat(error.getMessage()).isEqualTo("Unsortable field: bogus");
+            assertThat(error.getExtensions())
+                    .containsEntry("errorType", "BAD_REQUEST")
+                    .containsEntry("grpcCode", "INVALID_ARGUMENT");
+        }
+    }
+
+    @Test
     @DisplayName("GIVEN a throttled request WHEN handled SHOULD answer RESOURCE_EXHAUSTED with the retry delay")
     void given_throttledException_when_handled_should_answerResourceExhausted() throws Exception {
         GraphQLError error = single(
