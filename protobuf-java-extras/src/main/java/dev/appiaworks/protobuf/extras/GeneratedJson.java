@@ -24,7 +24,7 @@ import tools.jackson.core.JsonToken;
  *
  * <p>Generated code calls these; application code has no reason to.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
+@ApiStatus(value = ApiStatus.Status.STABLE, since = "0.29.0")
 public final class GeneratedJson {
 
     private GeneratedJson() {}

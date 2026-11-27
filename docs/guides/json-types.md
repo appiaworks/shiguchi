@@ -322,7 +322,7 @@ ProtoScalarCodec skuCodec() {
 
 Implementing the interface directly? Override `schema()` instead of `jsonShape()`.
 
-`ProtoScalarCodec` is `EXPERIMENTAL`: see [api-compatibility.md](../operations/api-compatibility.md).
+`ProtoScalarCodec` is `STABLE` since 0.29.0: see [api-compatibility.md](../operations/api-compatibility.md).
 
 ## Converting in Java
 

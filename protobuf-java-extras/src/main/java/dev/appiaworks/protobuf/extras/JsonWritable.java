@@ -14,7 +14,7 @@ import tools.jackson.core.JsonGenerator;
  *
  * <p>Generated code implements this; application code has no reason to.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
+@ApiStatus(value = ApiStatus.Status.STABLE, since = "0.29.0")
 public interface JsonWritable {
 
     /**

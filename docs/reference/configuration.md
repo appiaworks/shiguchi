@@ -511,8 +511,8 @@ and the build gate enforcing it, are in [api-compatibility.md](../operations/api
 | `BffSessionAuthenticator` | With `shiguchi.bff.enabled`: turns the session cookie of a request without an `Authorization` header into a `JwtAuthenticationToken`, refreshing an access token that is about to expire; fails with `BffSessionUnavailableException` (answered 503) when it cannot. Experimental | None yet: nobody is authenticated by cookie |
 | `RequestValidationHook` | Request validation before dispatch | protovalidate starter registers one when enabled |
 | `UpstreamBodyCodec` (0..n) | A non-JSON body encoding for `REST_DOWNSTREAM` backends: learns each backend's schemas at load time, encodes request bodies, decodes responses by `Content-Type` | `shiguchi-avro-*-starter` contributes the Avro codec |
-| `ProtoJson` | Prints and parses proto messages in the gateway's JSON dialect, for application code ([proto-serde-standalone.md](../libraries/proto-serde-standalone.md#alongside-a-gateway)). Experimental | One built from `shiguchi.json.*`, the global print options and the `ProtoScalarCodec` beans |
-| `ProtoScalarCodec` (0..n) | Writes one message type of yours as a single JSON value on every surface ([json-types.md](../guides/json-types.md#your-own-scalar-types)). Experimental | The `google.type` messages `shiguchi.json.scalar-types` switches on |
+| `ProtoJson` | Prints and parses proto messages in the gateway's JSON dialect, for application code ([proto-serde-standalone.md](../libraries/proto-serde-standalone.md#alongside-a-gateway)) | One built from `shiguchi.json.*`, the global print options and the `ProtoScalarCodec` beans |
+| `ProtoScalarCodec` (0..n) | Writes one message type of yours as a single JSON value on every surface ([json-types.md](../guides/json-types.md#your-own-scalar-types)) | The `google.type` messages `shiguchi.json.scalar-types` switches on |
 | `RestBodyCodec` (0..n) | A non-JSON body encoding callers may use on the gateway's REST surface for gRPC-backed unary routes, selected by `Content-Type` / `Accept`; advertised in the OpenAPI document | `shiguchi-avro-*-starter` contributes the Avro codec |
 
 ### Per-object authorization
