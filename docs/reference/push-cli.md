@@ -13,11 +13,11 @@ Verbs: `sub`, `pub`, `ls`, `find`, and for operators `repub`, `rm`, `dlq`, `seek
 ```bash
 # the fat jar, attached to each GitHub Release as cursus-<version>-all.jar (not on v0.14.0).
 # It is not on Maven Central, so jbang runs it from the release URL:
-jbang https://github.com/appiaworks/shiguchi/releases/download/v0.28.0/cursus-0.28.0-all.jar sub 'orders:*'
+jbang https://github.com/appiaworks/shiguchi/releases/download/v0.29.0/cursus-0.29.0-all.jar sub 'orders:*'
 
 # or build it
 ./gradlew :shiguchi-cursus-cli:shadowJar                  # build/libs/cursus-<version>-all.jar
-java -jar cursus-0.28.0-all.jar sub 'orders:*'
+java -jar cursus-0.29.0-all.jar sub 'orders:*'
 
 # the wrappers in bin/ (sh and cmd) run the jar next to them, in the build output, or $CURSUS_JAR
 bin/cursus sub 'orders:*'

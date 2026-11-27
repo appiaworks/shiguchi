@@ -29,7 +29,7 @@ nothing is declared twice and nothing in the gateway's configuration names a fie
 Add `shiguchi-validation` next to the gateway starter (it carries its own auto-configuration, so there is no separate validation starter):
 
 ```kotlin
-implementation("io.github.appiaworks:shiguchi-validation:0.28.0")
+implementation("io.github.appiaworks:shiguchi-validation:0.29.0")
 ```
 
 It brings `build.buf:protovalidate`, which is both the engine and the jar that carries
