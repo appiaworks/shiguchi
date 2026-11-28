@@ -125,7 +125,7 @@ shiguchi:
   very selective search over a busy topic can return fewer than its `limit`); `q` (full text) is
   not available, and the console hides it. Tombstoning also deletes the event from the live
   history stream. The delivery log stays counters only. Any other store needs a `PushArchive`
-  bean of your own (the SPI is `dev.appiaworks.shiguchi.cursus.PushArchive`, `@ApiStatus(EXPERIMENTAL)`).
+  bean of your own (the SPI is `dev.appiaworks.shiguchi.cursus.PushArchive`, `@ApiStatus(STABLE)` since 1.0.0).
 - **What an operator sees.** `admin.payload-visibility` is `METADATA` by default: topic, id,
   time, size, type, key and attributes, no payload. Seeing user data is a decision: set `FULL`
   for the payload, `NONE` to hide the attributes and key too.

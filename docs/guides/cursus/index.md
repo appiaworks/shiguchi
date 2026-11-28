@@ -1,7 +1,9 @@
 # Cursus: server-to-client push messaging
 
 Experimental. The shape may change in a minor release; changes are called out in
-the changelog.
+the changelog. The extension points (`PushStore`, `PushBroker`, `PushArchive`, `PushSource`,
+`PushHook`, their value types and `shiguchi.cursus.*`) are stable since 1.0.0; see
+[API compatibility](../../operations/api-compatibility.md).
 
 Push lets a backend send events to connected clients without a request from them: a browser
 watching an order, a dashboard, a worker waiting for jobs. Clients subscribe to **topics** over

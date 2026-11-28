@@ -38,8 +38,8 @@ import reactor.util.context.Context;
  * caller the authorizer would have refused.
  */
 @Component
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
-public class ResponseCache implements SchemaReloadListener {
+@ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
+public final class ResponseCache implements SchemaReloadListener {
 
     /** What a key is made of; {@code service} and {@code path} are kept apart for eviction. */
     record Key(String service, String path, String rest) {}

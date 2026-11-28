@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono;
  * Assigns event ids and keeps the history a namespace asks for, so a subscriber can resume from
  * its last id. Ids are opaque strings; only {@link #compareIds} knows their order.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
+@ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
 public interface PushStore {
 
     /**
@@ -90,6 +90,7 @@ public interface PushStore {
     }
 
     /** One session's position on one topic, as the admin views list it. */
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     record SessionCursor(String session, Topic topic, String cursor, java.time.Instant expiresAt) {}
 
     /** True when this store keeps session cursors; {@code session-expiry} above zero needs one. */
@@ -133,9 +134,11 @@ public interface PushStore {
     }
 
     /** One event the store handed to a group member, and how many times it has been handed out (this one included). */
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     record Claimed(PushEvent event, int deliveries) {}
 
     /** One consumer group's state on one topic. */
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     record GroupStatus(String group, Topic topic, long pending, long members, String cursor) {}
 
     /** True when this store runs consumer groups; {@code session-key: GROUP} needs one. */
@@ -247,6 +250,7 @@ public interface PushStore {
      * indexes so {@link #connectionsOn} can answer who listens. {@code peerAddress} is the gRPC
      * {@code host:port} of the holding instance's peer channel, or null when it has none.
      */
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     record ConnectionRecord(
             String id,
             String instance,
@@ -311,5 +315,6 @@ public interface PushStore {
     Capabilities capabilities();
 
     /** What a store can do; namespace settings are checked against it at startup. */
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     record Capabilities(boolean history, boolean persistentSessions) {}
 }

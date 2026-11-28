@@ -1,5 +1,6 @@
 package dev.appiaworks.shiguchi.cursus;
 
+import dev.appiaworks.protobuf.extras.api.ApiStatus;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -23,6 +24,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *       user:   { auth: PRINCIPAL_MATCH }
  * </pre>
  */
+@ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
 @Data
 @ConfigurationProperties(prefix = "shiguchi.cursus")
 public class PushProperties {
@@ -109,6 +111,7 @@ public class PushProperties {
 
     private transient String generatedInstanceId;
 
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public enum Engine {
         MEMORY,
         REDIS,
@@ -117,6 +120,7 @@ public class PushProperties {
     }
 
     /** How a consumer group orders what it hands out. */
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public enum Ordering {
         /** No order across or within members: the default, the fastest. */
         NONE,
@@ -127,6 +131,7 @@ public class PushProperties {
     }
 
     /** What names a persistent session. */
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public enum SessionKey {
         PRINCIPAL,
         CLIENT,
@@ -135,6 +140,7 @@ public class PushProperties {
     }
 
     /** Who may subscribe to a namespace's topics. */
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public enum SubscribeAuth {
         /** Anyone, including anonymous callers. */
         NONE,
@@ -154,6 +160,7 @@ public class PushProperties {
     }
 
     /** Who may publish into a namespace. */
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public enum PublishAuth {
         /** Anyone. Logged as a warning at startup. */
         NONE,
@@ -168,6 +175,7 @@ public class PushProperties {
     }
 
     @Data
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public static class Namespace {
         /** Delivery guarantee. {@code AT_LEAST_ONCE} needs {@code history-size} above zero. */
         private Qos qos = Qos.AT_MOST_ONCE;
@@ -280,6 +288,7 @@ public class PushProperties {
     }
 
     @Data
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public static class Connection {
         /** A connection is closed after this long (plus up to {@code lifetime-jitter}) so reconnects spread; 0 disables. */
         private Duration maxLifetime = Duration.ofMinutes(30);
@@ -298,6 +307,7 @@ public class PushProperties {
 
     /** How instances reach each other. */
     @Data
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public static class Peer {
         /** This instance's own gRPC {@code host:port} as its peers reach it; empty: not reachable by peers. */
         private String address = "";
@@ -312,6 +322,7 @@ public class PushProperties {
 
     /** Targeted delivery: {@code Send} to a principal, a connection or a device. */
     @Data
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public static class Send {
         /**
          * The namespace whose {@code publish-auth} rules decide who may {@code Send} (a targeted
@@ -325,6 +336,7 @@ public class PushProperties {
     }
 
     @Data
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public static class Redis {
         /** Prefix of every key and channel the engine uses. */
         private String keyPrefix = "shiguchi:cursus:";
@@ -332,6 +344,7 @@ public class PushProperties {
 
     /** The POSTGRES engine: one table for history, {@code LISTEN/NOTIFY} for fan-out. */
     @Data
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public static class Postgres {
         /** Table holding the kept events; created at startup unless {@code create-schema} is off. */
         private String table = "push_event";
@@ -362,6 +375,7 @@ public class PushProperties {
      * JDBC broker; until then pair it with {@code broker: MEMORY} or {@code REDIS}.
      */
     @Data
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public static class Jdbc {
         /**
          * Bean name of the {@code DataSource} to use. Empty: the application's single
@@ -389,6 +403,7 @@ public class PushProperties {
     }
 
     @Data
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public static class Ws {
         /** Serve {@code GET <path>/ws}. */
         private boolean enabled = true;
@@ -402,6 +417,7 @@ public class PushProperties {
     }
 
     @Data
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public static class Admin {
         /**
          * Role the writes of the {@code gateway-push} actuator endpoint need (disconnect, test
@@ -421,6 +437,7 @@ public class PushProperties {
         private Republish republish = new Republish();
     }
 
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public enum PayloadVisibility {
         NONE,
         METADATA,
@@ -429,6 +446,7 @@ public class PushProperties {
 
     /** Limits on the admin republish, single and bulk. */
     @Data
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public static class Republish {
         /** Most events one bulk republish may send; a query matching more is refused. */
         private int maxBatch = 10_000;
@@ -449,6 +467,7 @@ public class PushProperties {
      * {@code PushArchive} bean of your own.
      */
     @Data
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public static class Archive {
         /** How long an event stays searchable; zero turns the archive off. */
         private Duration retention = Duration.ZERO;
@@ -465,6 +484,7 @@ public class PushProperties {
     }
 
     @Data
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public static class Publish {
         /** Serve {@code POST <path>/publish}. */
         private boolean httpEnabled = true;
@@ -477,6 +497,7 @@ public class PushProperties {
      * transcoding.
      */
     @Data
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public static class Grpc {
         private boolean enabled = true;
 
@@ -492,6 +513,7 @@ public class PushProperties {
      * {@code idle-linger}.
      */
     @Data
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public static class Upstream {
         /** How long a topic keeps its upstream stream open after its last subscriber left. */
         private Duration idleLinger = Duration.ofSeconds(10);
@@ -514,6 +536,7 @@ public class PushProperties {
      * activity and connections.
      */
     @Data
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public static class Hooks {
         /** The full name of a served service implementing the PushHooks contract (any subset of its methods). Empty: none. */
         private String grpcService = "";
@@ -531,6 +554,7 @@ public class PushProperties {
         private boolean failClosed = false;
     }
 
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public enum SourceType {
         /** Kafka topics through a consumer of the gateway's own; needs {@code kafka-clients}. */
         KAFKA,
@@ -538,6 +562,7 @@ public class PushProperties {
         GRPC_STREAM
     }
 
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public enum PayloadFormat {
         /** The record's value is the protobuf encoding of {@code payload-type}. */
         PROTO,
@@ -545,6 +570,7 @@ public class PushProperties {
         JSON
     }
 
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public enum KafkaStart {
         LATEST,
         EARLIEST
@@ -552,6 +578,7 @@ public class PushProperties {
 
     /** One entry of {@code shiguchi.cursus.sources}. */
     @Data
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public static class Source {
         /** The source's name in the views, the dead-letter queue and the {@code source} attribute. Default: {@code <type>-<index>}. */
         private String name = "";
@@ -585,6 +612,7 @@ public class PushProperties {
     }
 
     @Data
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public static class SourceKafka {
         private String bootstrapServers = "";
 
@@ -601,6 +629,7 @@ public class PushProperties {
     }
 
     @Data
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public static class SourceGrpc {
         /** The served service's full name. */
         private String service = "";
@@ -614,6 +643,7 @@ public class PushProperties {
 
     /** The dead-letter queue of records a source could not map and events the gateway could not publish. */
     @Data
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     public static class Dlq {
         /** Most entries kept per instance; the oldest leave first. */
         private int maxEntries = 1000;

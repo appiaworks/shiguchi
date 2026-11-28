@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **API status:** the Cursus and BFF extension points and four `shiguchi-rest`/`shiguchi-core` types are promoted from `EXPERIMENTAL` to `STABLE` (since 1.0.0), so the compatibility gate holds them to the stable rules: `PushStore`, `PushBroker`, `PushArchive`, `PushSource`, `PushHook`, `PushEvent`, `PushDelivery`, `SourcedEvent`, `Topic`, `TopicPattern`, `Qos`, `PushException` and the `PushProperties` configuration model (`shiguchi-cursus`); `BffSessionStore`, `BffSessionAuthenticator`, `BffSession`, `BffLogin`, `BffSessionClaims`, `BffSessionKeys` and `BffSessionUnavailableException` (`shiguchi-bff`); `JwtPrincipalConverter`, `CookieSessions`, `CookieAuthenticated`, `CookieSessionEnded` and `ResponseCache` (`shiguchi-rest`); `GatewayHostedService` (`shiguchi-core`). The Cursus and BFF facades and built-in stores, the GraphQL extension points, `shiguchi-backend-support` and `GatewayPolicy` stay `EXPERIMENTAL`. See docs/operations/api-compatibility.md.
+- **Breaking:** `ResponseCache` is now `final`, so it can no longer be subclassed; its public methods are unchanged. Nothing in the project extended it.
+
 ## [0.29.0] - 2026-11-27
 
 ### Changed

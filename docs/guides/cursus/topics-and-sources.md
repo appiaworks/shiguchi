@@ -106,7 +106,7 @@ shiguchi:
 - **The namespace** of the template is declared with default settings when it is not configured,
   with the source's `payload-type` (or the stream's message) as its payload type.
 - **Your own source.** A bean implementing `dev.appiaworks.shiguchi.cursus.PushSource`
-  (`@ApiStatus(EXPERIMENTAL)`): a name and a `Flux<SourcedEvent>`; the gateway runs it like the
+  (`@ApiStatus(STABLE)` since 1.0.0): a name and a `Flux<SourcedEvent>`; the gateway runs it like the
   built-in ones, lease included. Every event carries `from=source` and `source=<name>`.
 
 Operating them: `shiguchi.cursus.sources` (gauge: sources this instance consumes),
