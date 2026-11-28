@@ -9,5 +9,5 @@ import dev.appiaworks.protobuf.extras.api.ApiStatus;
  *
  * @param handle the {@link CookieAuthenticated#handle() session handle} of the ended session
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
+@ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
 public record CookieSessionEnded(String handle) {}

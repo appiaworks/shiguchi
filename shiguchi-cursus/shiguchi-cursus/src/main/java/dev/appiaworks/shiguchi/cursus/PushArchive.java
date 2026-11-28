@@ -18,7 +18,7 @@ import reactor.core.publisher.Mono;
  * gets Streams shared by every instance, the {@code MEMORY} store a per-instance ring. A
  * {@code PushArchive} bean of your own replaces any of them.
  */
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
+@ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
 public interface PushArchive {
 
     /**
@@ -55,12 +55,14 @@ public interface PushArchive {
      * @param fullText the {@code q=} filter is honoured (a text search of the JSON payload)
      * @param retention how long an event stays
      */
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     record SearchCapabilities(boolean enabled, boolean attributes, boolean fullText, Duration retention) {}
 
     /**
      * A kept event. {@code tombstonedAt} is null unless the event was redacted; a tombstone's
      * {@link PushEvent#data()} is the four bytes {@code null}.
      */
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     record Entry(PushEvent event, Instant tombstonedAt, String tombstonedBy) {
         public Entry {
             if (event == null) throw new IllegalArgumentException("event is required");
@@ -86,6 +88,7 @@ public interface PushArchive {
      * @param text words to find in the JSON payload, where {@link SearchCapabilities#fullText()}
      * @param limit at most this many, newest first
      */
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     record Query(
             String topic,
             Instant from,
@@ -126,6 +129,7 @@ public interface PushArchive {
     }
 
     /** The disabled archive. */
+    @ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
     enum None implements PushArchive {
         INSTANCE;
 

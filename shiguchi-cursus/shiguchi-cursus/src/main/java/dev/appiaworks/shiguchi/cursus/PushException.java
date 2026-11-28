@@ -1,8 +1,10 @@
 package dev.appiaworks.shiguchi.cursus;
 
+import dev.appiaworks.protobuf.extras.api.ApiStatus;
 import org.springframework.http.HttpStatus;
 
 /** A request the push surface refuses, with the HTTP status and a short machine-readable code. */
+@ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
 public final class PushException extends RuntimeException {
 
     private final HttpStatus status;

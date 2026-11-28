@@ -60,4 +60,4 @@ Part of the [cursus guide](index.md).
 | `shiguchi.cursus.connection.max-message-bytes` | `65536` | Largest payload |
 
 Extension points: a `PushBroker` or `PushStore` bean of your own replaces the in-memory one.
-Both SPIs are `@ApiStatus(EXPERIMENTAL)`.
+Both SPIs are `@ApiStatus(STABLE)` since 1.0.0.

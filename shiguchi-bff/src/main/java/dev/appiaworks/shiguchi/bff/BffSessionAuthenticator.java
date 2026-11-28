@@ -32,7 +32,7 @@ import reactor.core.publisher.Mono;
  * authenticated by cookie.
  */
 @FunctionalInterface
-@ApiStatus(value = ApiStatus.Status.EXPERIMENTAL, since = "0.14.0")
+@ApiStatus(value = ApiStatus.Status.STABLE, since = "1.0.0")
 public interface BffSessionAuthenticator {
 
     /**
